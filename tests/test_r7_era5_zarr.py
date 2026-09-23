@@ -108,3 +108,120 @@ def test_zarr_archive_retains_physical_units_and_streams_windows(tmp_path:Path):
     assert meta["physical_units_retained"] is True
     assert meta["spatial_resampling"] is False
     assert meta["chunks"]==[3,2,2,3]
+
+
+
+def _process_fixture():
+    times=[]
+    for year in (2018,2019,2020):
+        times.extend(pd.date_range(
+            f"{year}-02-01T00:00:00",
+            periods=8,
+            freq="6h",
+        ))
+    time=pd.DatetimeIndex(times)
+    lat=np.array([40.0,39.75,39.5],dtype=np.float32)
+    lon=np.array([115.0,115.25,115.5,115.75],dtype=np.float32)
+    level=np.array([850,500],dtype=np.int32)
+    H,W=len(lat),len(lon)
+    yy,xx=np.meshgrid(
+        np.arange(H,dtype=np.float32),
+        np.arange(W,dtype=np.float32),
+        indexing="ij",
+    )
+
+    mslp=np.empty((len(time),H,W),dtype=np.float32)
+    t=np.empty((len(time),2,H,W),dtype=np.float32)
+    q=np.empty_like(t)
+    u=np.empty_like(t)
+    v=np.empty_like(t)
+    for i,ts in enumerate(time):
+        year_shift={2018:0.0,2019:1.0,2020:2.0}[ts.year]
+        local=i%8
+        mslp[i]=100000.0+(8.0+local)*xx+2.0*yy
+        t[i,0]=290.0+0.2*local+(0.3+0.03*local)*xx
+        t[i,1]=260.0+0.4*local+(0.1+0.01*local)*xx
+        q[i,0]=0.010+1e-4*local+(1e-4+1e-5*local)*xx
+        q[i,1]=0.004+5e-5*local+3e-5*xx
+        u[i,0]=6.0+year_shift+(0.10+0.01*local)*xx+0.04*yy
+        v[i,0]=2.0+(0.08+0.005*local)*xx+0.03*yy
+        u[i,1]=18.0+year_shift+0.15*xx+0.08*local
+        v[i,1]=8.0+0.10*xx+0.05*local
+
+    return xr.Dataset(
+        {
+            "mslp":(("time","latitude","longitude"),mslp),
+            "t":(("time","level","latitude","longitude"),t),
+            "q":(("time","level","latitude","longitude"),q),
+            "u":(("time","level","latitude","longitude"),u),
+            "v":(("time","level","latitude","longitude"),v),
+        },
+        coords={
+            "time":time,
+            "level":level,
+            "latitude":lat,
+            "longitude":lon,
+        },
+    )
+
+
+def test_zarr_process_targets_use_input_time_not_future_target(tmp_path:Path):
+    store=tmp_path/"era5_process.zarr"
+    manifests=tmp_path/"process_manifests"
+    specs=(
+        ERA5ChannelSpec("mslp",name="mslp"),
+        ERA5ChannelSpec("t",850,"t850"),
+        ERA5ChannelSpec("q",850,"q850"),
+        ERA5ChannelSpec("u",850,"u850"),
+        ERA5ChannelSpec("v",850,"v850"),
+        ERA5ChannelSpec("t",500,"t500"),
+        ERA5ChannelSpec("u",500,"u500"),
+        ERA5ChannelSpec("v",500,"v500"),
+    )
+    paths=build_r7_era5_zarr_from_dataset(
+        _process_fixture(),
+        store_path=store,
+        manifest_dir=manifests,
+        specs=specs,
+        split_years={
+            "train":[2018],
+            "val":[2019],
+            "test":[2020],
+        },
+        time_chunk=2,
+        expected_grid_spacing_deg=0.25,
+        compute_process_targets=True,
+    )
+
+    root=zarr.open_group(str(store),mode="r")
+    assert root["process_diagnostics_raw"].shape==(24,8)
+    assert root["process_normalization_mean"].shape==(8,)
+    assert root.attrs["process_diagnostics_enabled"] is True
+    assert root.attrs["process_target_time_semantics"]=="input init time only"
+
+    record=json.loads(
+        paths["train"].read_text(encoding="utf-8").splitlines()[0]
+    )
+    init_index=int(record["history_indices"][-1])
+    target_index=int(record["target_index"])
+    raw_init=np.asarray(
+        root["process_diagnostics_raw"][init_index],
+        dtype=np.float32,
+    )
+    raw_future=np.asarray(
+        root["process_diagnostics_raw"][target_index],
+        dtype=np.float32,
+    )
+    mean=np.asarray(root["process_normalization_mean"][:],dtype=np.float32)
+    std=np.asarray(root["process_normalization_std"][:],dtype=np.float32)
+    expected=(raw_init-mean)/std
+
+    sample=ZarrAtmosWindowDataset(paths["train"])[0]
+    assert sample["process_targets"].shape==(8,)
+    np.testing.assert_allclose(
+        sample["process_targets"].numpy(),
+        expected,
+        rtol=1e-5,
+        atol=1e-5,
+    )
+    assert not np.allclose(raw_init,raw_future)
