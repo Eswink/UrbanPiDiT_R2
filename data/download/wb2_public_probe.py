@@ -11,6 +11,7 @@ import numpy as np
 import xarray as xr
 
 WB2_ERA5_025 = "gs://weatherbench2/datasets/era5/1959-2022-6h-1440x721.zarr"
+ARCO_ERA5_025 = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 
 DEFAULT_VARIABLES = (
     "2m_temperature",
@@ -76,7 +77,7 @@ def describe_dataset(ds: xr.Dataset, variables: Iterable[str] = DEFAULT_VARIABLE
     return desc
 
 
-def probe_weatherbench2(source: str = WB2_ERA5_025) -> dict:
+def _probe(source: str, label: str) -> dict:
     ds = xr.open_zarr(
         source,
         chunks=None,
@@ -85,6 +86,7 @@ def probe_weatherbench2(source: str = WB2_ERA5_025) -> dict:
     try:
         report = describe_dataset(ds)
         report["source"] = source
+        report["source_label"] = label
         report["access"] = "anonymous-public-gcs"
         report["field_values_loaded"] = False
         required = {
@@ -98,9 +100,17 @@ def probe_weatherbench2(source: str = WB2_ERA5_025) -> dict:
         }
         missing = required.difference(report["variables"])
         if missing:
-            raise RuntimeError(f"WeatherBench2 schema missing required variables: {sorted(missing)}")
+            raise RuntimeError(f"{label} schema missing required variables: {sorted(missing)}")
         if "level" not in report["coordinates"]:
-            raise RuntimeError("WeatherBench2 schema has no pressure-level coordinate")
+            raise RuntimeError(f"{label} schema has no pressure-level coordinate")
         return report
     finally:
         ds.close()
+
+
+def probe_weatherbench2(source: str = WB2_ERA5_025) -> dict:
+    return _probe(source, "weatherbench2-era5-0p25")
+
+
+def probe_arco(source: str = ARCO_ERA5_025) -> dict:
+    return _probe(source, "arco-era5-full37-0p25")
