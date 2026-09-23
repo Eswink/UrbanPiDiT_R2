@@ -93,5 +93,22 @@ class ZarrAtmosWindowDataset(Dataset):
             ),
             "sample_id":rec["sample_id"],
         }
+
+        if "process_diagnostics_raw" in root:
+            init_index=int(rec["history_indices"][-1])
+            process_raw=np.asarray(
+                root["process_diagnostics_raw"][init_index],
+                dtype=np.float32,
+            )
+            process_mean=np.asarray(
+                root["process_normalization_mean"][:],
+                dtype=np.float32,
+            )
+            process_std=np.asarray(
+                root["process_normalization_std"][:],
+                dtype=np.float32,
+            )
+            process=(process_raw-process_mean)/process_std
+            sample["process_targets"]=torch.from_numpy(process).float()
         validate_forecast_sample(sample,batched=False)
         return sample
