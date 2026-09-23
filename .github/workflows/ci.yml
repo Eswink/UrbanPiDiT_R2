@@ -9,7 +9,7 @@ on:
       - main
 
 concurrency:
-  group: r7-ci-${{ github.ref }}
+  group: r7-ci-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
