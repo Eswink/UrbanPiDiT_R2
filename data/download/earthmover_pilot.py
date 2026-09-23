@@ -137,11 +137,13 @@ def bounded_selection(array, indices, budget):
     return output
 
 
-def extract_dataset(root, *, snapshot_id=SNAPSHOT):
-    """One Beijing-containing provider tile; Jan 1-8 in 2018/2019/2020, 6-hourly."""
+def extract_dataset(root, *, snapshot_id=SNAPSHOT, sampling='january'):
+    """One exact provider tile and a fixed bounded calendar sampling profile."""
     import pandas as pd
     import xarray as xr
     from data.preprocess.grid import regular_latlon_spacing
+    from .seasonal_sampling import requested_times, PROFILES
+    wanted = requested_times(sampling)
     groups = {k: root[k + '/temporal'] for k in ('single', 'pressure')}
     budget = DecodedBudget()
     coordinates = {}
@@ -164,8 +166,6 @@ def extract_dataset(root, *, snapshot_id=SNAPSHOT):
         time_attrs['units'], time_attrs.get('calendar', 'standard'), use_cftime=False))
     if times.hasnans or not times.is_unique or not times.is_monotonic_increasing:
         raise ValueError('source times must be unique, increasing and valid')
-    wanted = pd.DatetimeIndex(np.concatenate([pd.date_range(f'{y}-01-01', periods=32, freq='6h').values
-                                             for y in (2018, 2019, 2020)]))
     ti = times.get_indexer(wanted)
     if (ti < 0).any():
         raise ValueError('exact requested timestamps absent')
@@ -231,7 +231,9 @@ def extract_dataset(root, *, snapshot_id=SNAPSHOT):
                'scientific_training_ready': 'false: bounded CPU integration pilot'})
     report = {'source': SOURCE, 'snapshot_id': snapshot_id, 'field_values_loaded': True,
               'source_is_real_reanalysis': True, 'scientific_claim': False,
-              'grid_spacing_deg': .25, 'years': [2018, 2019, 2020], 'times_per_year': 32,
+              'grid_spacing_deg': .25, 'years': [2018, 2019, 2020], 'times_per_year': len(wanted) // 3,
+              'sampling_profile': sampling, 'months': list(PROFILES[sampling]),
+              'selected_times_utc': [t.isoformat() for t in wanted],
               'coordinates': {'latitude': ds.latitude.values.tolist(), 'longitude': ds.longitude.values.tolist()},
               'decoded_budget_bytes': budget.limit, 'decoded_charged_bytes': budget.used,
               'decoded_chunk_reads': budget.reads, 'variables': receipts,
@@ -242,7 +244,9 @@ def extract_dataset(root, *, snapshot_id=SNAPSHOT):
     return ds, report
 
 
-def download_pilot(path, receipt_path):
+def download_pilot(path, receipt_path, *, sampling='january'):
+    from .seasonal_sampling import requested_times
+    requested_times(sampling)  # Reject unknown profiles before opening the network.
     path, receipt_path = Path(path), Path(receipt_path)
     if any(p.exists() or p.is_symlink() for p in (path, receipt_path)):
         raise FileExistsError('output must be new')
@@ -260,7 +264,7 @@ def download_pilot(path, receipt_path):
         raise RuntimeError('snapshot pin not honored')
     with zarr.config.set({'async.concurrency': 1}):
         root = zarr.open_group(store=session.store, mode='r')
-        ds, report = extract_dataset(root, snapshot_id=session.snapshot_id)
+        ds, report = extract_dataset(root, snapshot_id=session.snapshot_id, sampling=sampling)
     import os
     import tempfile
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,42 @@
+name: R7 bounded real four-season CPU pilot
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+jobs:
+  seasonal-pilot:
+    if: contains(github.event.head_commit.message, '[seasonal-pilot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install CPU and pinned public data client
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt "icechunk==2.2.2" "pcodec>=0.3"
+      - name: Extract under the same decoded cap and run balanced CPU smoke
+        run: python scripts/real_r7_seasonal_pilot.py --out outputs/seasonal_pilot
+      - name: Preserve exact source code
+        if: always()
+        run: |
+          mkdir -p outputs/seasonal_pilot
+          git archive --format=zip --output=outputs/seasonal_pilot/code.zip HEAD
+          git rev-parse HEAD > outputs/seasonal_pilot/code_commit.txt
+      - name: Retain raw source, receipts and all results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r7-four-season-cpu-${{ github.sha }}
+          path: |
+            outputs/seasonal_pilot/
+            !outputs/seasonal_pilot/cache.zarr/
+          retention-days: 30
+          if-no-files-found: warn
