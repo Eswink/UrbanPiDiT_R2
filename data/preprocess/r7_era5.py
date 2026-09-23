@@ -143,8 +143,22 @@ def _validate_year_splits(
 def _grid_spacing(latitude:np.ndarray,longitude:np.ndarray)->float:
     if latitude.size<2 or longitude.size<2:
         raise ValueError("latitude/longitude 至少各需要 2 个点")
-    dlat=float(np.median(np.abs(np.diff(latitude.astype(float)))))
-    dlon=float(np.median(np.abs(np.diff(longitude.astype(float)))))
+
+    lat_diff=np.abs(np.diff(latitude.astype(float)))
+    lon_diff=np.abs(np.diff(longitude.astype(float)))
+    if np.any(lat_diff<=0) or np.any(lon_diff<=0):
+        raise ValueError("latitude/longitude 存在重复坐标")
+    if not np.allclose(lat_diff,lat_diff[0],rtol=0,atol=1e-5):
+        raise ValueError(
+            f"latitude 非规则网格: diffs={lat_diff.tolist()}"
+        )
+    if not np.allclose(lon_diff,lon_diff[0],rtol=0,atol=1e-5):
+        raise ValueError(
+            f"longitude 非规则网格: diffs={lon_diff.tolist()}"
+        )
+
+    dlat=float(lat_diff[0])
+    dlon=float(lon_diff[0])
     if not np.isclose(dlat,dlon,rtol=0,atol=1e-5):
         raise ValueError(f"非等经纬网格: dlat={dlat}, dlon={dlon}")
     return (dlat+dlon)/2.0
@@ -347,7 +361,13 @@ def build_r7_era5_npz_from_path(
     **kwargs,
 )->dict[str,Path]:
     """Open a local NetCDF/Zarr regional ERA5 subset and build R7 samples."""
-    import xarray as xr
+    try:
+        import xarray as xr
+    except ImportError as exc:
+        raise RuntimeError(
+            "R7 ERA5 path adapter requires optional dependency xarray; "
+            "install requirements-r7-data.txt"
+        ) from exc
 
     source=Path(source)
     if source.is_dir() or source.suffix.lower()==".zarr":
