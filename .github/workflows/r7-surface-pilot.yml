@@ -1,0 +1,48 @@
+name: R7 bounded WeatherBench2 surface pilot
+
+on:
+  push:
+    branches: [r7/weather-reasoning]
+
+permissions:
+  contents: read
+
+jobs:
+  real-surface-pilot:
+    if: contains(github.event.head_commit.message, '[surface-pilot]')
+    concurrency:
+      group: r7-surface-pilot-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-r7-data.txt
+      - name: Install CPU/data dependencies
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - name: Run bounded real four-variable pilot
+        env:
+          OMP_NUM_THREADS: "2"
+          MKL_NUM_THREADS: "2"
+        run: python scripts/real_r7_surface_pilot.py --out outputs/wb2-surface-pilot
+      - name: Preserve source receipts and CPU evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r7-wb2-surface-pilot-${{ github.sha }}
+          path: |
+            outputs/wb2-surface-pilot/source/*
+            outputs/wb2-surface-pilot/pilot_result.json
+            outputs/wb2-surface-pilot/manifests/*
+            outputs/wb2-surface-pilot/training_*/*.json
+            outputs/wb2-surface-pilot/evaluation_*/*
+          if-no-files-found: warn
+          retention-days: 7
