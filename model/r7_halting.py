@@ -7,6 +7,7 @@ from typing import Mapping, TYPE_CHECKING
 
 import torch
 from torch import nn
+from .recursive_weather_r7 import solver_conditioning
 
 if TYPE_CHECKING:
     from .process_forecast_r7 import ProcessForecastCoReasoner
@@ -112,6 +113,7 @@ class AdaptiveProcessForecaster(nn.Module):
         """Exactly the fixed R7.3 recurrence; equivalence is regression-tested."""
         model = self.forecaster
         recurrent_context = context
+        draft_tokens = None
         if model.use_forecast_feedback:
             draft_tokens, draft_hw = model.draft_encoder(draft)
             if tuple(draft_hw) != tuple(token_hw):
@@ -120,8 +122,10 @@ class AdaptiveProcessForecaster(nn.Module):
         process = model._reason(process, recurrent_context)
         prediction = model._process_prediction(process)
         summary = model.process_to_context(process.mean(dim=1))
+        conditioned = solver_conditioning(context, summary, draft_tokens,
+            spatial_feedback=model.spatial_solver_feedback and model.use_forecast_feedback)
         draft, correction = model.correction_head(
-            context + summary[:, None, :], token_hw, draft.shape[-2:], draft)
+            conditioned, token_hw, draft.shape[-2:], draft)
         return process, draft, correction, prediction
 
     @torch.no_grad()

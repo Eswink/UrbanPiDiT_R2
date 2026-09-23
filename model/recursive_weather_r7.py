@@ -10,6 +10,27 @@ from .layers.sdpa import SDPAttention,CrossBlock,FeedForward
 from .layers.patch_grid import pad_patch_grid
 
 
+def solver_conditioning(context, summary, draft_tokens=None, *, spatial_feedback=False):
+    """Optional aligned draft evidence for S(C, P, E(Y)); no added parameters.
+
+    False preserves the original pooled-summary equation exactly. True adds
+    the already-encoded draft at the same patch positions, without global
+    attention or access to target fields.
+    """
+    if type(spatial_feedback) is not bool:
+        raise ValueError("spatial_feedback must be boolean")
+    if context.ndim != 3 or summary.shape != (context.shape[0], context.shape[2]):
+        raise ValueError("solver context/summary shapes must be [B,N,D]/[B,D]")
+    if summary.device != context.device:
+        raise ValueError("solver summary/context devices differ")
+    conditioned = context + summary[:, None, :]
+    if spatial_feedback:
+        if draft_tokens is None or draft_tokens.shape != context.shape or draft_tokens.device != context.device:
+            raise ValueError("aligned [B,N,D] draft tokens required for spatial solver feedback")
+        conditioned = conditioned + draft_tokens
+    return conditioned
+
+
 class DraftTokenEncoder(nn.Module):
     def __init__(self,in_channels:int,dim:int,patch_size:int):
         super().__init__()
@@ -56,8 +77,11 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                  dim:int=128,patch_size:int=2,depth:int=4,heads:int=4,window_size:int=8,
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
                  default_lead_hours:float=6.,latent_tokens:int=16,default_reasoning_steps:int=4,
-                 detach_between_steps:bool=False):
+                 detach_between_steps:bool=False,spatial_solver_feedback:bool=False):
         super().__init__()
+        if type(spatial_solver_feedback) is not bool:
+            raise ValueError("spatial_solver_feedback must be boolean")
+        self.spatial_solver_feedback=spatial_solver_feedback
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -96,7 +120,9 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                 raise ValueError('draft/context token grid mismatch')
             z=self._cell(z,torch.cat([context,draft_tokens],dim=1))
             summary=self.latent_to_context(z.mean(dim=1))
-            draft,final_correction=self.correction_head(context+summary[:,None,:],token_hw,initial.shape[-2:],draft)
+            conditioned=solver_conditioning(context,summary,draft_tokens,
+                spatial_feedback=self.spatial_solver_feedback)
+            draft,final_correction=self.correction_head(conditioned,token_hw,initial.shape[-2:],draft)
             drafts.append(draft)
             if detach_flag and step<steps-1:
                 z,draft=z.detach(),draft.detach()

@@ -7,7 +7,7 @@ from torch import nn
 from torch.utils.checkpoint import checkpoint
 
 from .coarse_forecast import CoarseForecastHead
-from .recursive_weather_r7 import DraftTokenEncoder, GenericRecursiveCell
+from .recursive_weather_r7 import DraftTokenEncoder, GenericRecursiveCell, solver_conditioning
 from .weather_forecaster_r7 import NativeAtmosForecaster
 
 
@@ -63,8 +63,12 @@ class ProcessForecastCoReasoner(nn.Module):
         default_reasoning_steps:int=4,
         detach_between_steps:bool=False,
         use_forecast_feedback:bool=True,
+        spatial_solver_feedback:bool=False,
     ):
         super().__init__()
+        if type(spatial_solver_feedback) is not bool:
+            raise ValueError("spatial_solver_feedback must be boolean")
+        self.spatial_solver_feedback=spatial_solver_feedback
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -190,6 +194,7 @@ class ProcessForecastCoReasoner(nn.Module):
         final_correction=torch.zeros_like(draft)
 
         for step in range(steps):
+            draft_tokens=None
             if feedback_flag:
                 draft_tokens,draft_hw=self.draft_encoder(draft)
                 if tuple(draft_hw)!=tuple(token_hw):
@@ -209,7 +214,8 @@ class ProcessForecastCoReasoner(nn.Module):
             )
 
             summary=self.process_to_context(process.mean(dim=1))
-            solver_context=context+summary[:,None,:]
+            solver_context=solver_conditioning(context,summary,draft_tokens,
+                spatial_feedback=self.spatial_solver_feedback and feedback_flag)
             draft,final_correction=self.correction_head(
                 solver_context,
                 token_hw,

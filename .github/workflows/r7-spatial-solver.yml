@@ -1,0 +1,62 @@
+name: R7 spatial solver CPU ablation
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  spatial-solver:
+    if: contains(github.event.head_commit.message, '[spatial-solver]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install CPU dependencies
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.14.0+cpu'
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - name: Retrieve bounded continuous data from the accepted acquisition
+        uses: actions/download-artifact@v4
+        with:
+          name: r7-continuous-cpu-d4830b1f5eff6715cd3cf08659fda923ee8f742a
+          path: input_continuous
+          run-id: 35893397412
+          github-token: ${{ github.token }}
+      - name: Train and evaluate offline, validation only
+        run: |
+          python - <<'PY'
+          import socket
+          def deny(*args, **kwargs):
+              raise RuntimeError('source-cloud networking prohibited during continuous control')
+          socket.socket.connect = deny
+          socket.create_connection = deny
+          from training.r7_spatial_study import run_spatial_study
+          r = run_spatial_study('input_continuous/source/era5_continuous250d.nc',
+                                     'input_continuous/source/receipt.json',
+                                     'outputs/spatial_study')
+          print({'complete': r['complete'], 'records': len(r['records']), 'elapsed_seconds': r['elapsed_seconds']})
+          PY
+      - name: Preserve code and environment
+        if: always()
+        run: |
+          mkdir -p outputs/spatial_study
+          git archive --format=zip --output=outputs/spatial_study/code.zip HEAD
+          git rev-parse HEAD > outputs/spatial_study/code_commit.txt
+          pip freeze > outputs/spatial_study/environment.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r7-spatial-solver-${{ github.sha }}
+          path: |
+            outputs/spatial_study/
+            !outputs/spatial_study/dataset/cache.zarr/
+          retention-days: 30
+          if-no-files-found: warn

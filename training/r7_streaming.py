@@ -9,7 +9,7 @@ import torch
 from torch.nn import functional as F
 
 from model.process_forecast_r7 import ProcessForecastCoReasoner
-from model.recursive_weather_r7 import GenericRecursiveWeatherForecaster
+from model.recursive_weather_r7 import GenericRecursiveWeatherForecaster, solver_conditioning
 from model.r7_halting import forecast_inputs
 from .r7_halting import per_sample_latitude_mse
 
@@ -59,6 +59,7 @@ def _recursive_step(model, state, context, draft, token_hw):
     process_model = isinstance(model, ProcessForecastCoReasoner)
     feedback = not process_model or model.use_forecast_feedback
     recurrent_context = context
+    tokens = None
     if feedback:
         tokens, hw = model.draft_encoder(draft)
         if tuple(hw) != tuple(token_hw):
@@ -72,8 +73,10 @@ def _recursive_step(model, state, context, draft, token_hw):
         state = model._cell(state, recurrent_context)
         prediction = None
         summary = model.latent_to_context(state.mean(1))
+    conditioned = solver_conditioning(context, summary, tokens,
+        spatial_feedback=model.spatial_solver_feedback and feedback)
     draft, _ = model.correction_head(
-        context + summary[:, None, :], token_hw, draft.shape[-2:], draft)
+        conditioned, token_hw, draft.shape[-2:], draft)
     return state, draft, prediction
 
 
