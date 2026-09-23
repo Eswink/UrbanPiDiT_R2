@@ -1,0 +1,60 @@
+name: R7 extended optimization validation control
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  extended-control:
+    if: contains(github.event.head_commit.message, '[extended-control]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install CPU dependencies compatible with original checkpoint
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.14.0+cpu'
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - name: Retrieve original seasonal source and checkpoints
+        uses: actions/download-artifact@v4
+        with:
+          name: r7-seasonal-study-336c2fc205c95b068477963da8d2d9e9b311dfbb
+          path: input_study
+          run-id: 35886241381
+          github-token: ${{ github.token }}
+      - name: Resume offline; evaluate validation only
+        run: |
+          python - <<'PY'
+          import socket
+          def deny(*args, **kwargs):
+              raise RuntimeError('outbound networking prohibited during extended control')
+          socket.socket.connect = deny
+          socket.create_connection = deny
+          from training.r7_extended_control import run_extended_control
+          result = run_extended_control('input_study', 'outputs/extended_control')
+          print({'complete': True, 'records': len(result['records']), 'elapsed_seconds': result['elapsed_seconds']})
+          PY
+      - name: Preserve exact code and environment
+        if: always()
+        run: |
+          mkdir -p outputs/extended_control
+          git archive --format=zip --output=outputs/extended_control/code.zip HEAD
+          git rev-parse HEAD > outputs/extended_control/code_commit.txt
+          pip freeze > outputs/extended_control/environment.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r7-extended-control-${{ github.sha }}
+          path: |
+            outputs/extended_control/
+            !outputs/extended_control/restored/cache.zarr/
+          retention-days: 30
+          if-no-files-found: warn
