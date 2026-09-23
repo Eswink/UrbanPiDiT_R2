@@ -34,11 +34,18 @@ jobs:
           OMP_NUM_THREADS: "2"
           MKL_NUM_THREADS: "2"
         run: python scripts/probe_wb2_public.py --out outputs/public-data/wb2_probe.json
+      - name: Probe public NSF/NCAR ERA5 NetCDF metadata only
+        env:
+          OMP_NUM_THREADS: "2"
+          MKL_NUM_THREADS: "2"
+        run: python scripts/probe_ncar_public.py --out outputs/public-data/ncar_probe.json
       - name: Preserve metadata evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: r7-wb2-metadata-${{ github.sha }}
-          path: outputs/public-data/wb2_probe.json
+          path: |
+            outputs/public-data/wb2_probe.json
+            outputs/public-data/ncar_probe.json
           if-no-files-found: warn
           retention-days: 7
