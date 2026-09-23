@@ -1,0 +1,20 @@
+kind: process
+model:
+  in_channels: 4
+  history_steps: 2
+  dim: 32
+  depth: 1
+  heads: 4
+  window_size: 4
+  anchored_processes: 4
+  free_processes: 4
+synthetic:
+  channels: 4
+  hw: [8, 12]
+  length: 7
+train:
+  batch_size: 2
+  accumulation: 2
+  steps: 2
+  process_weight: 0.0  # synthetic smoke only; real process training needs true proxy labels
+  seed: 42
