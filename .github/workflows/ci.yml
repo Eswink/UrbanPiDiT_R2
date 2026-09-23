@@ -2,15 +2,10 @@ name: R7 CPU CI
 
 on:
   push:
-    branches:
-      - r7/weather-reasoning
+    branches: [r7/weather-reasoning]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
-# Keep push and PR lifecycle cancellation independent. The R7 branch already
-# receives authoritative CI on push; its Draft PR therefore skips the duplicate
-# pytest job, while PRs from every other head branch into main still run CI.
 concurrency:
   group: r7-ci-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
@@ -26,11 +21,20 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-r7-data.txt
+            pyproject.toml
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install "setuptools>=68" wheel
           pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
           pip install -r requirements.txt
           pip install -r requirements-r7-data.txt
-      - name: Run unit and smoke tests
+      - name: Compile active modules and check whitespace
+        run: |
+          python -m compileall -q data model training train_r7_local.py evaluate_r7_local.py
+          git diff --check
+      - name: Run unit, integration and installed-wheel tests
         run: pytest -q

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,5 +9,20 @@ description = "Reasoning-driven adaptive-resolution urban weather forecasting"
 requires-python = ">=3.10"
 dependencies = ["torch>=2.4", "numpy>=1.26", "PyYAML>=6.0", "pytorch-lightning>=2.2"]
 
+[project.optional-dependencies]
+data = ["xarray>=2025.1", "pandas>=2.2", "zarr>=3.0"]
+test = ["pytest>=8.0", "wheel", "setuptools>=68"]
+
+[project.scripts]
+urbanpidit-r7-train = "train_r7_local:main"
+urbanpidit-r7-evaluate = "evaluate_r7_local:main"
+
 [tool.setuptools]
-packages = ["data", "model", "training", "model.layers"]
+include-package-data = false
+py-modules = ["train_r7_local", "evaluate_r7_local"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["data", "data.preprocess*", "data.download*", "model", "model.layers*", "training"]
+exclude = ["*.__pycache__*", "*.legacy*", "tests*", "legacy_v531_full*"]
+namespaces = true
