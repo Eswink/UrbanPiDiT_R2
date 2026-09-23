@@ -82,25 +82,33 @@ def stack_era5_channels(
     for spec in specs:
         if spec.variable not in ds:
             raise KeyError(f"ERA5 变量不存在: {spec.variable}")
-        da=ds[spec.variable].squeeze(drop=True)
+        da=ds[spec.variable]
+
         if spec.level_hpa is not None:
             level_name=_coord_name(
                 da,
                 ("level","pressure_level","isobaricInhPa"),
             )
             selected=_exact_level(da,level_name,spec.level_hpa)
-            da=da.sel({level_name:selected}).squeeze(drop=True)
+            da=da.sel({level_name:selected},drop=True)
 
         required={time_name,lat_name,lon_name}
         if not required.issubset(set(da.dims)):
             raise ValueError(
                 f"{spec.channel_name} dims={da.dims} 缺少 {required}"
             )
-        extra=set(da.dims)-required
-        if extra:
-            raise ValueError(
-                f"{spec.channel_name} 存在未处理维度: {sorted(extra)}"
-            )
+
+        # Preserve required singleton dimensions (especially one-timestamp
+        # streaming chunks). Only auxiliary singleton dimensions may be dropped.
+        extra=[dim for dim in da.dims if dim not in required]
+        for dim in extra:
+            if int(da.sizes[dim])!=1:
+                raise ValueError(
+                    f"{spec.channel_name} 存在未处理非单例维度 "
+                    f"{dim}={int(da.sizes[dim])}"
+                )
+            da=da.isel({dim:0},drop=True)
+
         da=da.transpose(time_name,lat_name,lon_name)
         arr=np.asarray(da.values,dtype=np.float32)
         if not np.isfinite(arr).all():
