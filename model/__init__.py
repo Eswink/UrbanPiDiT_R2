@@ -4,6 +4,10 @@ from .recursive_weather_r7 import (
     GenericRecursiveWeatherForecaster,
     RecursiveForecastOutput,
 )
+from .process_forecast_r7 import (
+    ProcessForecastCoReasoner,
+    ProcessForecastReasoningOutput,
+)
 from .state import WeatherState, ReasoningAction, ReasoningTrace
 
 __all__=[
@@ -13,6 +17,8 @@ __all__=[
     "R7ForecastOutput",
     "GenericRecursiveWeatherForecaster",
     "RecursiveForecastOutput",
+    "ProcessForecastCoReasoner",
+    "ProcessForecastReasoningOutput",
     "WeatherState",
     "ReasoningAction",
     "ReasoningTrace",
