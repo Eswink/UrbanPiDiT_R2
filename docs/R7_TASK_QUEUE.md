@@ -1,59 +1,74 @@
 # R7 conversation-driven task queue
 
-Updated after exact-SHA engineering acceptance at
-`6ba682021d502523138e735d9798c1418c4abffe` (2026-09-23).
-No scheduled automation. No automatic merge/release, paid GPU use or large data downloads.
-The current conversation can execute multiple independent tasks; a single waiting
-workflow is never treated as the entire project being blocked.
+Updated 2026-09-23 after the actual public pressure-data CPU experiment and offline replay.
+No timer, automatic main merge/release, paid GPU use or uncontrolled data mirror.
+User explicitly defers GPU testing and authorizes public-data acquisition plus small CPU tests.
+No longer describe the entire project as blocked because a GPU or private dataset is absent.
 
-## Completed in this iteration
+## Latest completed real-data / CPU milestone
 
-| Issue | State | Commit | Exact R7 CPU CI | Result |
-|---|---|---|---|---|
-| #36 validation-only frozen halting-policy selection | DONE | fc80e0cc1ca0a7408021bb0626ea3949763bcad3 | 35864456724 / job 107192403363 | 273 passed, 3 skipped |
-| #37 same-forecast full/interior/edge scoring | DONE | 69b94ce925dd78df2e6305a5aed8a2dbfccb1ff6 | 35865390327 / job 107195559964 | 287 passed, 3 skipped |
-| #38 isolated fixed/adaptive inference profiling | DONE (engineering) | e3555298251e9511021ab0cdc68995b06fd11f7c | 35866192926 / job 107198269800 | 299 passed, 3 skipped |
-| #39 retrospective delayed-gain oracle diagnostic | DONE (engineering) | 6ba682021d502523138e735d9798c1418c4abffe | 35866881415 / job 107200631291 | 314 passed, 3 skipped |
+| Issue | State | Actual evidence |
+|---|---|---|
+| #41 NCAR public metadata decision | DONE | 69d73259..., probe35873661154; tested pressure layout remained a global 37-level slab, so not adopted |
+| #45 anonymous temporal ERA5 source | DONE | a9c605de..., probe35874572228; pinned snapshot ZFKDHBCTBVHVXM3BQFV0, single-level spatial tiles |
+| #44 real pressure/surface CPU pilot | DONE | 4cee1f85..., real run35875707823; eleven channels, 96 times, 12x12 native0.25-degree tile; all eight process proxies; CPU train/val/test |
+| #46 verified local-source replay | DONE | 4ba62b1c..., actual replay35877069975 with outbound sockets prohibited; source SHA unchanged, no cloud-source dependency |
+| #40 bounded public multivariate CPU parent | DONE (bounded integration) | Its requested channel bundle and finite CPU/held-out/proxy acceptance criteria are met; this is not final scientific acceptance |
 
-Each run also passed active-module compilation, whitespace and installed-wheel
-checks. Two known Lightning logging warnings remain. The three skips are only
-old untracked local Beijing/UCI fixtures; new tests are not skipped. Tiny actual
-ERA5 t2m regression from #35 runs offline; this is separate from those skips.
+Latest code verification: 4ba62b1c603bcf8c5dda888dce4afe3bf8e24efe,
+CPU CI35877070004 / job107235638164: **359 passed, 3 skipped, 2 warnings**.
+The skips are only existing untracked local Beijing/UCI fixtures. New extraction,
+replay, corruption and CLI tests ran. Compilation/whitespace/wheel checks passed.
+A deadline TEST incorrectly assumed monotonic time started at zero long ago;
+a5fe3e41... replaced it with an explicit clock and pre-read expiry assertion.
+No production time/budget check was weakened and no failed test was hidden.
 
-## Existing implemented foundations
+Source NetCDF: 629,696 bytes, SHA256
+`13fb72807d3f6988b0fcf2b6b2f130f890207242916018556fb85553686b9a12`.
+Full original artifact10757057891/run35875707823: 3,026,772 bytes, ZIP SHA256
+`bca9e915630ebb6f73df33f5a0d0c569915a1b5d44c174d73ca49a0615d8ff66`.
+Receipts, per-field hashes, original model checkpoints, per-variable/horizon
+RMSE/ACC and validation selection are retained. The source is genuine ERA5
+reanalysis, not direct station observations. Dataset access is anonymous, no paid
+subscription. Decoded chunk accounting is not an HTTP traffic or RAM measurement.
 
-Strict geographic/time/channel contracts, non-destructive versioned Zarr
-publication and train-only normalization are already implemented (#23/#24 and
-data children). Streamed recursive training with local checkpoint/resume and
-profiling is implemented (#21/#25). Exact-time free-running evaluation,
-train-only climatology/ACC, compact baseline adapters, frozen controller fitting
-and paired comparison helpers are available. See the corresponding docs and
-closed engineering issue receipts; these are not pending implementation tasks.
+**Measured limitation:** validation selected force-full-depth K3; the tiny trial
+has not shown adaptive compute saving. Process K3 does not uniformly outperform
+generic recursion/K1. This negative evidence must survive reporting.
+Instructions/tables: [R7_PRESSURE_CPU_RESULTS.md](R7_PRESSURE_CPU_RESULTS.md).
 
-## Remaining open parent gates
+## Previously completed foundations
 
-| Issue / task | State | Concrete blocker | Resume condition / next action |
-|---|---|---|---|
-| #13 production multivariate ERA5 validation | BLOCKED (external data / run authorization) | No multi-year, multivariate cache or authorized target storage/run supplied; #35 is a genuine but tiny t2m-only fixture | Provide cache location, variables/levels/units, coverage and provenance, or explicitly approve a bounded acquisition/storage plan; then run preflight and local real-data acceptance |
-| #20 actual single-4090D resource acceptance | BLOCKED (hardware access) | Current execution container is CPU-only; no authorized GPU host is connected | Run the existing bounded K=1/2/4/8 profile on the user's GPU with the frozen realistic shape/config, or connect an authorized host; inspect actual peak allocated/reserved memory and synchronized time |
-| #5 generic recursion and #6 process-loop research gates | BLOCKED (data / trained checkpoints / approved compute) | No comparable trained multivariate baselines or controlled multi-seed pilot results | After #13/#20, freeze data split/normalization and equal training budgets, run matched models and K ablations; report negative as well as positive results |
-| #7 adaptive scientific acceptance | BLOCKED (trained model / held-out data / hardware) | Controller engineering is verified; real validation-selected policy and held-out accuracy/latency evidence are absent | Fit on training only, use #36 on validation, freeze policy, run held-out free trajectories, #38 timing and #39 diagnostic; any consistency/look-ahead redesign follows evidence rather than speculation |
-| #8 full journal evaluation | BLOCKED (experimental artifacts / protocol decisions) | Evaluation tools exist, but seasonal/extreme/multi-seed results and representative boundary tests require a frozen real dataset and trained models | Evaluate identical initialization sets; use paired bootstrap and #37 full+edge+interior reports; predeclare event definitions and do not hide boundary failures |
-| #9 optional finer-resolution expert | BLOCKED (external scientific labels + core benchmark gate) | Genuine co-located high-resolution dynamic targets are not supplied | Obtain/audit target source and core benchmark evidence before developing the extension; interpolated ERA5 is never fine-grid truth |
-| #1 research epic / PR #12 scientific release | BLOCKED (parent gates) | Engineering progress does not establish the thesis hypotheses | Reopen the execution queue when data/hardware/permission gates resolve; PR remains Draft, no main merge |
+#36 validation-only frozen policy selection (fc80e0cc..., CI35864456724,273passed),
+#37 same-forecast full/interior/edge scoring (69b94ce9..., CI35865390327,287passed),
+#38 isolated inference profiling (e3555298..., CI35866192926,299passed),
+#39 retrospective delayed-gain diagnostic (6ba68202..., CI35866881415,314passed).
+Each above had three optional local-fixture skips; all remain in the current suite.
 
-## Scheduling and verification discipline
+Native/generic/process models, finite geographic/time/channel/unit contracts,
+non-destructive versioned Zarr publication, train-only normalization, streamed
+truncated training with encoder gradients, checkpoint/resume, exact-time rollout,
+climatology/ACC, compact baseline adapters and paired-comparison helpers exist.
+Do not recreate them or substitute synthetic smoke for the newly available real pilot.
 
-States: TODO -> IN_PROGRESS -> VERIFY -> DONE. BLOCKED means a named dependency,
-not lack of initiative. A workflow in VERIFY records its exact SHA/run, required
-checks and resume condition in its issue. During it, implement/review an
-independent task; do not stack half-finished changes just to keep CI busy.
-Before writes, reread the remote ref and preserve other work. No force push.
-After each completed issue rescan the queue and inspect relevant regressions.
+## Remaining research tasks (not certified by the CPU milestone)
 
-At this handoff no newly implemented issue is left awaiting CI. The remaining
-open parents require external experimental inputs/authorization. More speculative
-model features are not a substitute for obtaining those inputs. Concrete bugs
-found in a later review still become executable issues and take priority.
+| Task | State | Next action / actual dependency |
+|---|---|---|
+| #13 production multivariate dataset | IN_PROGRESS | Small-data acquisition/physical-unit acceptance now works. A representative multi-season/larger-domain dataset still needs a bounded plan; the Jan1-8 excerpts are not three full training years. |
+| #5/#6 same-data research gates | IN_PROGRESS | Tiny native/generic/process CPU results are available, but 20 updates, one seed and six correlated test initializations cannot establish convergence or superiority. Next controlled experiment should assess training budget/sample diversity, not add speculative modules. |
+| #7 adaptive scientific gate | IN_PROGRESS | Actual train/calibrate/validation-select/test path executed but selected full K3. Diagnose data/training/gain calibration before claiming savings; true GPU speed measurements remain deferred. |
+| #8 journal evaluation | IN_PROGRESS | The real tiny pilot has 6/12/24/72h RMSE/ACC; representative seasons/extremes, multi-seed uncertainty and boundary interventions are still missing. |
+| #20 4090D resource acceptance | BLOCKED (hardware, explicitly deferred) | User cannot access the card yet. Keep existing profiling commands; no request to rent a GPU and no claim CPU counts measure VRAM. |
+| #9 optional finer-resolution expert | BLOCKED (scientific targets/core gate) | Genuine co-located finer-resolution dynamic labels and core experimental evidence are still required. |
+| #1 / PR#12 research hypotheses | IN_PROGRESS | Maintain Draft, do not label data-pipeline success as SOTA or a completed paper. |
 
-See [R7_EXPERIMENT_HANDOFF.md](R7_EXPERIMENT_HANDOFF.md) for the next bounded run.
+## Execution discipline
+
+TODO -> IN_PROGRESS -> VERIFY -> DONE. Mark asynchronous tasks VERIFY with their
+exact SHA/run and resume condition; work independently during CI. Do not force
+push, overwrite others or close research gates from engineering tests. Scheduled
+work remains disabled. Record precise new blockers rather than claiming all paths
+are blocked merely because GPU hardware is unavailable. The current requested
+small real-data CPU milestone is complete; no newly implemented code is waiting
+for validation. No larger training or download job is running in the background.
