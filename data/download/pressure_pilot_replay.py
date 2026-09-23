@@ -14,21 +14,24 @@ def _text(value):
     return value.decode('utf-8') if isinstance(value, bytes) else str(value)
 
 
-def verify_pressure_pilot(source, receipt):
+def _verify_pilot_profile(source, receipt, *, pin, profile, origin):
     """Check source bytes against the successful run's pin before interpreting them.
 
     Matching a user-editable receipt alone is not source authentication. This
-    helper additionally requires the exact hash from run 35875707823. It does
+    helper additionally requires the exact hash from the corresponding audited run. It does
     not accept newly downloaded/re-encoded data as that same original artifact.
     """
+    from .seasonal_sampling import requested_times, PROFILES
+    expected_times = requested_times(profile).values
+    count = len(expected_times)
     source, receipt = Path(source), Path(receipt)
-    if not source.is_file() or source.stat().st_size > 2 * 2**20:
-        raise ValueError('local source missing or exceeds 2 MiB replay cap')
+    if not source.is_file() or source.stat().st_size > (4 if profile == 'four-season' else 2) * 2**20:
+        raise ValueError('local source missing or exceeds profile replay cap')
     if not receipt.is_file() or receipt.stat().st_size > 128 * 1024:
         raise ValueError('local receipt missing or exceeds replay cap')
     raw = source.read_bytes()
     digest = hashlib.sha256(raw).hexdigest()
-    if digest != PINNED_SOURCE_SHA256:
+    if digest != pin:
         raise ValueError('source hash does not match the pinned successful real-data artifact')
     report = json.loads(receipt.read_text(encoding='utf-8'))
     if (report.get('source_netcdf_sha256') != digest or
@@ -38,15 +41,16 @@ def verify_pressure_pilot(source, receipt):
             report.get('source_is_real_reanalysis') is not True or
             report.get('scientific_claim') is not False or report.get('license') != 'CC-BY-4.0'):
         raise ValueError('receipt source declaration mismatch')
-    if report.get('years') != [2018, 2019, 2020] or report.get('times_per_year') != 32:
+    if report.get('years') != [2018, 2019, 2020] or report.get('times_per_year') != count // 3:
         raise ValueError('receipt time selection mismatch')
+    if profile == 'four-season' and (report.get('sampling_profile') != profile or
+            report.get('months') != list(PROFILES[profile]) or
+            report.get('selected_times_utc') != [t.isoformat() for t in requested_times(profile)]):
+        raise ValueError('receipt seasonal profile/timestamps mismatch')
     rows = report.get('variables', [])
     if [r.get('name') for r in rows] != [f[2] for f in FIELDS]:
         raise ValueError('receipt variables/order mismatch')
-    import pandas as pd
     from xarray.coding.times import decode_cf_datetime
-    expected_times = np.concatenate([pd.date_range(f'{y}-01-01', periods=32, freq='6h').values
-                                     for y in (2018, 2019, 2020)])
     with h5py.File(source, 'r') as nc:
         if _text(nc.attrs.get('source')) != SOURCE or _text(nc.attrs.get('snapshot_id')) != SNAPSHOT:
             raise ValueError('NetCDF source declaration mismatch')
@@ -62,7 +66,7 @@ def verify_pressure_pilot(source, receipt):
             raise ValueError('source timestamps mismatch')
         for row, (variable, level, name) in zip(rows, FIELDS):
             values = nc[name][:]
-            if (values.shape != (96, 12, 12) or row.get('shape') != [96, 12, 12] or
+            if (values.shape != (count, 12, 12) or row.get('shape') != [count, 12, 12] or
                     values.dtype != np.dtype('float32') or not np.isfinite(values).all()):
                 raise ValueError('source shape/dtype/finite-value mismatch')
             if hashlib.sha256(values.astype('<f4').tobytes()).hexdigest() != row.get('payload_sha256'):
@@ -74,18 +78,18 @@ def verify_pressure_pilot(source, receipt):
                 raise ValueError('source/receipt units or pressure-level mismatch')
     report = dict(report, replay={'mode': 'verified-local-source', 'source_network_requests': 0,
         'verified_variables': len(FIELDS), 'original_source_sha256': digest,
-        'pin_origin': 'GitHub Actions run 35875707823, artifact 10757057891'})
+        'pin_origin': origin, 'sampling_profile': profile})
     return report
 
 
-def copy_verified_pressure_pilot(source, receipt, output_source, output_receipt):
+def _copy_verified_pair(source, receipt, output_source, output_receipt, *, verifier, pin):
     """Verify before creating output and preserve the exact original file bytes."""
     output_source, output_receipt = Path(output_source), Path(output_receipt)
     if any(p.exists() or p.is_symlink() for p in (output_source, output_receipt)):
         raise FileExistsError('replay output must be new')
-    report = verify_pressure_pilot(source, receipt)
+    report = verifier(source, receipt)
     raw = Path(source).read_bytes()
-    if hashlib.sha256(raw).hexdigest() != PINNED_SOURCE_SHA256:
+    if hashlib.sha256(raw).hexdigest() != pin:
         raise ValueError('source changed during replay verification')
     output_source.parent.mkdir(parents=True, exist_ok=True)
     with output_source.open('xb') as stream:
@@ -94,3 +98,14 @@ def copy_verified_pressure_pilot(source, receipt, output_source, output_receipt)
     with output_receipt.open('x', encoding='utf-8') as stream:
         json.dump(report, stream, indent=2, allow_nan=False)
     return output_source, report
+
+
+def verify_pressure_pilot(source, receipt):
+    """Original January pin stays strict; no seasonal or arbitrary source fallback."""
+    return _verify_pilot_profile(source, receipt, pin=PINNED_SOURCE_SHA256,
+        profile='january', origin='GitHub Actions run 35875707823, artifact 10757057891')
+
+
+def copy_verified_pressure_pilot(source, receipt, output_source, output_receipt):
+    return _copy_verified_pair(source, receipt, output_source, output_receipt,
+        verifier=verify_pressure_pilot, pin=PINNED_SOURCE_SHA256)

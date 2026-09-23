@@ -18,6 +18,7 @@ class StudyPlan:
     endpoints: tuple[int, ...] = (20, 200)
     lead_hours: tuple[int, ...] = (6, 12, 24, 72)
     max_samples: int = 6
+    sampling_profile: str = 'january'
 
     def validate(self):
         for name, values, cap in (('seeds', self.seeds, 3), ('endpoints', self.endpoints, 4),
@@ -32,8 +33,14 @@ class StudyPlan:
             raise ValueError('endpoints must increase and stay within 200 updates')
         if tuple(sorted(self.lead_hours)) != self.lead_hours or any(h <= 0 or h > 72 or h % 6 for h in self.lead_hours):
             raise ValueError('lead_hours must increase in six-hour increments through 72h')
-        if isinstance(self.max_samples, bool) or not isinstance(self.max_samples, int) or not 1 <= self.max_samples <= 6:
-            raise ValueError('max_samples must be an integer in [1,6]')
+        if self.sampling_profile not in ('january', 'four-season'):
+            raise ValueError('unknown study sampling profile')
+        if isinstance(self.max_samples, bool) or not isinstance(self.max_samples, int):
+            raise ValueError('max_samples must be an integer')
+        if self.sampling_profile == 'january' and not 1 <= self.max_samples <= 6:
+            raise ValueError('January max_samples must be in [1,6]')
+        if self.sampling_profile == 'four-season' and self.max_samples != 24:
+            raise ValueError('four-season study requires exactly 24 balanced cases')
         return self
 
 
@@ -111,6 +118,12 @@ def summarize_study(records, plan):
         if report['split'] != record['split'] or tuple(report['lead_hours']) != plan.lead_hours:
             raise ValueError('study split/horizon mismatch')
         signature, matrix = _report_matrix(report)
+        if plan.sampling_profile == 'four-season':
+            from collections import Counter
+            import pandas as pd
+            counts = Counter(pd.Timestamp(c['init_time']).month for c in report['initializations'])
+            if dict(counts) != {1:6,4:6,7:6,9:6}:
+                raise ValueError('study case selection is not season-balanced')
         if len(report['initializations']) != plan.max_samples:
             raise ValueError('study did not evaluate all predeclared cases')
         split = record['split']
@@ -148,7 +161,7 @@ def _csv(path, rows):
 
 
 def run_study(source, receipt, output_dir, *, plan=StudyPlan()):
-    """Only the pinned real January pilot, no network downloads or GPU fallback."""
+    """Only pinned real pilot profiles, no network downloads or GPU fallback."""
     import torch
     from data.download.pressure_pilot_replay import copy_verified_pressure_pilot
     from data.download.earthmover_pilot import FIELDS
@@ -161,7 +174,11 @@ def run_study(source, receipt, output_dir, *, plan=StudyPlan()):
     out.mkdir(parents=True, exist_ok=False)
     torch.set_num_threads(2)
     started = time.monotonic()
-    source, audited = copy_verified_pressure_pilot(source, receipt,
+    copier = copy_verified_pressure_pilot
+    if plan.sampling_profile == 'four-season':
+        from data.download.seasonal_pilot_replay import copy_verified_seasonal_pilot
+        copier = copy_verified_seasonal_pilot
+    source, audited = copier(source, receipt,
         out/'source'/'era5_pressure_pilot.nc', out/'source'/'receipt.json')
     protocol = protocol_payload(plan, audited['source_netcdf_sha256'])
     _json(out/'protocol.json', protocol)  # Frozen BEFORE preprocessing/training.
@@ -172,6 +189,10 @@ def run_study(source, receipt, output_dir, *, plan=StudyPlan()):
     preparation = prepare_local(source, config, write=True, store_path=out/'cache.zarr',
         manifest_dir=out/'manifests', max_raw_gib=.01)
     manifests = {s:out/'manifests'/f'{s}.jsonl' for s in ('train', 'val', 'test')}
+    if plan.sampling_profile == 'four-season':
+        from data.download.seasonal_sampling import requested_times, write_balanced_manifest
+        for split in ('val', 'test'):
+            manifests[split] = write_balanced_manifest(manifests[split], requested_times('four-season'))
     identity, dataset = dataset_identity(manifests['train'])
     records, resources = [], []
     for variant, seed in product(VARIANTS, plan.seeds):
@@ -213,7 +234,7 @@ def run_study(source, receipt, output_dir, *, plan=StudyPlan()):
     result = dict(format='r7-cpu-study-result-v1', scientific_claim=False, gpu_used=False,
         protocol=protocol, preparation=preparation, resources=resources, records=records,
         persistence=baselines, summary=summary, elapsed_seconds=time.monotonic()-started,
-        limitations=['January tiny tile and correlated cases; not representative regional weather skill',
+        limitations=['Small sampled tile and correlated cases; not representative regional weather skill',
             'Mean/SD across seeds describe initialization variation, not statistical significance',
             'Training total includes auxiliary loss only for process; do not compare that scalar as forecast RMSE',
             'No controller retuning, checkpoint selection or hyperparameter search on test',
