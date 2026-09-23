@@ -10,15 +10,16 @@ from data.preprocess.r7_era5_zarr import _window_records
 from test_r7_earthmover_plan import Array, root_fixture
 
 
-def test_exact250days_leap_and_unchanged_old_profiles():
-    t = requested_times('continuous-250d')
+@pytest.mark.parametrize('time_unit',['ns','us','ms'])
+def test_exact250days_leap_and_unchanged_old_profiles(time_unit):
+    t = requested_times('continuous-250d').as_unit(time_unit)
     assert len(t) == 3000 and t.is_unique and t.is_monotonic_increasing
     assert Counter(t.year) == {2018:1000,2019:1000,2020:1000}
     assert t[t.year==2018][-1] == pd.Timestamp('2018-09-07T18:00')
     assert t[t.year==2019][-1] == pd.Timestamp('2019-09-07T18:00')
     assert t[t.year==2020][-1] == pd.Timestamp('2020-09-06T18:00')
     for y in (2018,2019,2020):
-        assert np.all(np.diff(t[t.year==y].asi8) == pd.Timedelta(hours=6).value)
+        assert np.all(np.diff(t[t.year==y].as_unit('ns').asi8) == pd.Timedelta(hours=6).value)
     old = requested_times('four-season')
     def chunks(x):
         return set(np.asarray((x-pd.Timestamp('1940-01-01'))/pd.Timedelta(hours=1),dtype='i8')//8736)
