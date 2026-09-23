@@ -25,7 +25,8 @@ def _verify_pilot_profile(source, receipt, *, pin, profile, origin):
     expected_times = requested_times(profile).values
     count = len(expected_times)
     source, receipt = Path(source), Path(receipt)
-    if not source.is_file() or source.stat().st_size > (4 if profile == 'four-season' else 2) * 2**20:
+    cap_mib = {'january': 2, 'four-season': 4, 'continuous-250d': 32}[profile]
+    if not source.is_file() or source.stat().st_size > cap_mib * 2**20:
         raise ValueError('local source missing or exceeds profile replay cap')
     if not receipt.is_file() or receipt.stat().st_size > 128 * 1024:
         raise ValueError('local receipt missing or exceeds replay cap')
@@ -43,7 +44,7 @@ def _verify_pilot_profile(source, receipt, *, pin, profile, origin):
         raise ValueError('receipt source declaration mismatch')
     if report.get('years') != [2018, 2019, 2020] or report.get('times_per_year') != count // 3:
         raise ValueError('receipt time selection mismatch')
-    if profile == 'four-season' and (report.get('sampling_profile') != profile or
+    if profile in ('four-season', 'continuous-250d') and (report.get('sampling_profile') != profile or
             report.get('months') != list(PROFILES[profile]) or
             report.get('selected_times_utc') != [t.isoformat() for t in requested_times(profile)]):
         raise ValueError('receipt seasonal profile/timestamps mismatch')
