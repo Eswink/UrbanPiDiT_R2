@@ -35,13 +35,13 @@ Maintain two recurrent states:
 
 Recurrence:
 
-[
+\[
 P_{k+1}=U(P_k, C, E(Y_k))
-]
+\]
 
-[
+\[
 Y_{k+1}=Y_k+S(C,P_{k+1},E(Y_k))
-]
+\]
 
 where C is encoded atmospheric context, U is the shared Process Reasoner, S is the shared Forecast Solver, and E is a lightweight forecast encoder.
 
@@ -49,9 +49,9 @@ where C is encoded atmospheric context, U is the shared Process Reasoner, S is t
 
 During training, fixed/random reasoning depth provides per-step forecast errors:
 
-[
+\[
 G_k=L(Y_k,Y^*)-L(Y_{k+1},Y^*)
-]
+\]
 
 The halt controller learns whether another step has positive marginal value. A later consistency head may also compare process diagnostics with the forecast tendency.
 
@@ -219,3 +219,23 @@ Do not claim natural-language Chain-of-Thought. Use:
 - the final run demonstrably requires more VRAM/throughput.
 
 No expensive GPU time is used for debugging data or model correctness.
+
+## 13. Stage-4 engineering contract (issue #19)
+
+The first gain policy is an opt-in wrapper; the fixed-depth forecaster remains unchanged.
+See [R7_ADAPTIVE_HALTING.md](R7_ADAPTIVE_HALTING.md) for the implementation, tests and usage.
+Fit this small policy on training data with a frozen forecaster first, before experimenting
+with joint optimization or compute-penalty warm-up. Stream teacher states and retain only
+compact features/errors. Only observed consecutive-draft transitions receive gain labels;
+the final draft receives no invented continuation target. Adaptive inference must whitelist
+initialization-time inputs and execute only active samples, never read future labels.
+
+Passing synthetic/CPU tests closes engineering children, not the scientific gates in #7.
+One-step gain is a greedy proxy, not optimal long-horizon value. Add held-out calibration,
+look-ahead/oracle controls and measured latency/VRAM before making efficiency claims.
+A gain controller is not a physical consistency verifier; input-time process diagnostics
+must not be compared as if they were future-time truth.
+
+Source inspection also identified #20: detach_between_steps truncates gradient dependencies
+but retaining all graph-carrying drafts still retains per-step activations. Do not describe
+existing end-to-end training as constant-memory or 24GB-validated without measurements.
