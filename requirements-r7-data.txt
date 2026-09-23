@@ -5,3 +5,4 @@ zarr>=3.0
 h5netcdf>=1.3
 h5py>=3.10
 gcsfs>=2025.1
+s3fs>=2025.1
