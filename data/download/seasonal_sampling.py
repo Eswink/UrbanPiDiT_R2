@@ -5,12 +5,19 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-PROFILES = {'january': (1,), 'four-season': (1, 4, 7, 9)}
+PROFILES = {'january': (1,), 'four-season': (1, 4, 7, 9),
+            'continuous-250d': tuple(range(1, 10))}
 
 
 def requested_times(profile='january'):
     if not isinstance(profile, str) or profile not in PROFILES:
         raise ValueError('unknown bounded sampling profile')
+    if profile == 'continuous-250d':
+        # Exactly250days in each year; leap-year end date is deliberately different.
+        return pd.DatetimeIndex(np.concatenate([
+            pd.date_range(f'{y}-01-01', periods=1000, freq='6h').values
+            for y in (2018, 2019, 2020)
+        ]))
     return pd.DatetimeIndex(np.concatenate([
         pd.date_range(f'{y}-{m:02d}-01', periods=32, freq='6h').values
         for y in (2018, 2019, 2020) for m in PROFILES[profile]

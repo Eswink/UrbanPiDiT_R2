@@ -206,6 +206,10 @@ def extract_dataset(root, *, snapshot_id=SNAPSHOT, sampling='january'):
             if len(li) != 1:
                 raise ValueError(f'exact unique {level} hPa absent')
             indices = (ti, li, yi, xi)
+        if sampling == 'continuous-250d':
+            reference = times.get_indexer(requested_times('four-season'))
+            if (reference < 0).any() or set(ti // array.chunks[0]) != set(reference // array.chunks[0]):
+                raise ValueError('continuous profile would change the approved seasonal time-chunk set')
         _, touched, each = selection_plan(array, indices)
         plans.append((array, indices, variable, level, name, attrs, len(touched) * each))
     budget.check(sum(p[-1] for p in plans))
@@ -241,6 +245,14 @@ def extract_dataset(root, *, snapshot_id=SNAPSHOT, sampling='january'):
               'network_body_bytes': None, 'elapsed_seconds': time.monotonic() - budget.started,
               'license': 'CC-BY-4.0', 'catalog': 'https://registry.opendata.aws/earthmover-era5/',
               'source_dois': ['10.24381/cds.adbb2d47', '10.24381/cds.bd0915c6', '10.5065/BH6N-5N20']}
+    if sampling == 'continuous-250d':
+        report['time_coverage_by_year'] = {
+            str(y): {'first': wanted[wanted.year == y][0].isoformat(),
+                     'last': wanted[wanted.year == y][-1].isoformat(), 'count': 1000}
+            for y in (2018, 2019, 2020)
+        }
+        report['same_time_chunks_as_four_season_verified'] = True
+        report['cropped_state_float32_bytes'] = len(wanted) * len(FIELDS) * 12 * 12 * 4
     return ds, report
 
 
@@ -272,6 +284,8 @@ def download_pilot(path, receipt_path, *, sampling='january'):
     os.close(fd)
     try:
         ds.to_netcdf(temp, engine='h5netcdf', mode='w')
+        if sampling == 'continuous-250d' and Path(temp).stat().st_size > 32 * 2**20:
+            raise ValueError('continuous profile NetCDF exceeds32MiB publication cap')
         os.link(temp, path)
     finally:
         os.unlink(temp)

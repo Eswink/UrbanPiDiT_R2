@@ -1,0 +1,42 @@
+name: R7 bounded continuous ERA5 CPU pilot
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+jobs:
+  continuous-pilot:
+    if: contains(github.event.head_commit.message, '[continuous-pilot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install CPU and pinned anonymous data client
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt 'icechunk==2.2.2' 'pcodec>=0.3'
+      - name: Acquire under unchanged decoded cap and run CPU integration
+        run: python scripts/real_r7_continuous_pilot.py --out outputs/continuous_pilot
+      - name: Preserve code and environment
+        if: always()
+        run: |
+          mkdir -p outputs/continuous_pilot
+          git archive --format=zip --output=outputs/continuous_pilot/code.zip HEAD
+          git rev-parse HEAD > outputs/continuous_pilot/code_commit.txt
+          pip freeze > outputs/continuous_pilot/environment.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r7-continuous-cpu-${{ github.sha }}
+          path: |
+            outputs/continuous_pilot/
+            !outputs/continuous_pilot/cache.zarr/
+          retention-days: 30
+          if-no-files-found: warn
