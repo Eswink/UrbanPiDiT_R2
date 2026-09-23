@@ -263,6 +263,8 @@ def build_r7_era5_zarr_from_dataset(
         "target_semantics":"native ERA5 grid; physical units retained; no spatial upsampling",
         "normalization":"training-years-only mean/std; applied at read time",
         "normalization_years":sorted(split_sets["train"]),
+        "physical_units_retained":True,
+        "spatial_resampling":False,
         "split_years":{
             key:sorted(value) for key,value in split_sets.items()
         },
