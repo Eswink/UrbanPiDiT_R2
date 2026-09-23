@@ -1,0 +1,14 @@
+# Proposed initial split; freeze against actual availability before scientific runs.
+# No download or write occurs unless prepare_r7_local.py receives --write.
+split_years:
+  train: [2016, 2017, 2018]
+  val: [2019]
+  test: [2020]
+history_steps: 2
+history_interval_hours: 6
+lead_time_hours: 6
+sample_stride_hours: 6
+time_chunk: 16
+compute_process_targets: true
+# channels omitted -> existing 17-channel ERA5 long-name schema.
+# Supply explicit variable/name/level_hpa definitions when a local cache uses aliases.
