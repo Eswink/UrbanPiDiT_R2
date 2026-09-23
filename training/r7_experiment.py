@@ -20,6 +20,18 @@ def make_model(kind, config):
     return classes[kind](**config)
 
 
+def model_code_digest():
+    import model
+    directory=Path(model.__file__).resolve().parent
+    digest=hashlib.sha256()
+    for path in sorted(directory.rglob('*.py')):
+        if 'legacy' in str(path.relative_to(directory)):
+            continue
+        digest.update(path.relative_to(directory).as_posix().encode()+b'\0')
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
 def select_device(name, bf16=False):
     device = torch.device(name)
     if device.type not in ('cpu','cuda'):
@@ -63,11 +75,7 @@ def canonical_digest(value):
 
 
 def dataset_identity(manifest):
-    """Bind manifests, coordinates, time, norms and metadata; not all raw chunks.
-
-    Full raw-data provenance must be supplied/audited separately. This fingerprint
-    is intentionally bounded and never pretends to authenticate ERA5 observations.
-    """
+    """Bind bounded metadata/norms, not every raw chunk; source audit is separate."""
     from data.r7_zarr_dataset import ZarrAtmosWindowDataset
     ds = ZarrAtmosWindowDataset(manifest)
     roots = {}
@@ -89,6 +97,8 @@ def save_exclusive(path, payload):
     path = Path(path)
     if path.exists() or path.is_symlink():
         raise FileExistsError(path)
+    if payload.get('format')=='r7-local-v1':
+        payload=dict(payload,model_code_sha256=model_code_digest())
     path.parent.mkdir(parents=True,exist_ok=True)
     fd, temp = tempfile.mkstemp(prefix='.r7-checkpoint-',dir=path.parent)
     try:
@@ -96,7 +106,7 @@ def save_exclusive(path, payload):
             torch.save(payload,f)
             f.flush()
             os.fsync(f.fileno())
-        os.link(temp,path)  # fails if another producer already published path
+        os.link(temp,path)
     finally:
         os.unlink(temp)
 
@@ -105,6 +115,8 @@ def load_checkpoint(path, *, expected=None):
     checkpoint = torch.load(path,map_location='cpu',weights_only=True)
     if checkpoint.get('format') != 'r7-local-v1':
         raise ValueError('unsupported R7 checkpoint format')
+    if checkpoint.get('model_code_sha256')!=model_code_digest():
+        raise ValueError('checkpoint model implementation differs; use the recorded code revision for exact evaluation/resume')
     if expected is not None and checkpoint['signature'] != expected:
         raise ValueError('checkpoint model/data/training identity differs')
     if checkpoint['signature'] != canonical_digest(checkpoint['contract']):
