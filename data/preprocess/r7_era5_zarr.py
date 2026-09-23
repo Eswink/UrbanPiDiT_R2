@@ -7,6 +7,10 @@ from typing import Iterable, Mapping, Sequence
 
 import numpy as np
 
+from .process_diagnostics import (
+    PROCESS_DIAGNOSTIC_NAMES,
+    compute_process_diagnostic_vector,
+)
 from .r7_era5 import (
     DEFAULT_R7_ERA5_CHANNELS,
     ERA5ChannelSpec,
@@ -103,6 +107,7 @@ def build_r7_era5_zarr_from_dataset(
     source_label:str="ERA5 regional subset",
     time_chunk:int=64,
     spatial_chunk:tuple[int,int]=(64,64),
+    compute_process_targets:bool=False,
 )->dict[str,Path]:
     """Stream physical-unit regional ERA5 into one chunked Zarr store.
 
@@ -216,6 +221,27 @@ def build_r7_era5_zarr_from_dataset(
     sumsq_c=np.zeros(C,dtype=np.float64)
     train_count=0
 
+    process_array=None
+    process_sum=None
+    process_sumsq=None
+    process_count=0
+    if compute_process_targets:
+        process_array=root.create_array(
+            "process_diagnostics_raw",
+            shape=(T,len(PROCESS_DIAGNOSTIC_NAMES)),
+            chunks=(
+                min(int(time_chunk),T),
+                len(PROCESS_DIAGNOSTIC_NAMES),
+            ),
+            dtype="f4",
+        )
+        process_sum=np.zeros(
+            len(PROCESS_DIAGNOSTIC_NAMES),dtype=np.float64
+        )
+        process_sumsq=np.zeros(
+            len(PROCESS_DIAGNOSTIC_NAMES),dtype=np.float64
+        )
+
     for start in range(0,T,int(time_chunk)):
         stop=min(T,start+int(time_chunk))
         block,block_names,block_times,block_lat,block_lon=stack_era5_channels(
@@ -240,6 +266,30 @@ def build_r7_era5_zarr_from_dataset(
             sumsq_c+=(selected*selected).sum(axis=(0,2,3))
             train_count+=int(selected.shape[0])*H*W
 
+        if process_array is not None:
+            process_block=np.stack(
+                [
+                    compute_process_diagnostic_vector(
+                        frame,
+                        names,
+                        latitude,
+                        longitude,
+                    )
+                    for frame in block
+                ],
+                axis=0,
+            ).astype(np.float32)
+            process_array[start:stop]=process_block
+            if bool(local_train.any()):
+                selected_process=process_block[local_train].astype(
+                    np.float64
+                )
+                process_sum+=selected_process.sum(axis=0)
+                process_sumsq+=(selected_process*selected_process).sum(
+                    axis=0
+                )
+                process_count+=int(selected_process.shape[0])
+
     if train_count<=0:
         raise RuntimeError("无法从 train years 计算 normalization")
     mean=sum_c/train_count
@@ -256,6 +306,29 @@ def build_r7_era5_zarr_from_dataset(
         data=std.astype(np.float32),
         chunks=(C,),
     )
+
+    if process_array is not None:
+        if process_count<=0:
+            raise RuntimeError(
+                "无法从 train years 计算 process normalization"
+            )
+        process_mean=process_sum/process_count
+        process_variance=np.maximum(
+            process_sumsq/process_count-process_mean*process_mean,
+            1e-12,
+        )
+        process_std=np.sqrt(process_variance)
+        root.create_array(
+            "process_normalization_mean",
+            data=process_mean.astype(np.float32),
+            chunks=(len(PROCESS_DIAGNOSTIC_NAMES),),
+        )
+        root.create_array(
+            "process_normalization_std",
+            data=process_std.astype(np.float32),
+            chunks=(len(PROCESS_DIAGNOSTIC_NAMES),),
+        )
+
     root.attrs.update({
         "source":source_label,
         "channels":names,
@@ -265,6 +338,13 @@ def build_r7_era5_zarr_from_dataset(
         "normalization_years":sorted(split_sets["train"]),
         "physical_units_retained":True,
         "spatial_resampling":False,
+        "process_diagnostics_enabled":bool(compute_process_targets),
+        "process_diagnostic_names":(
+            list(PROCESS_DIAGNOSTIC_NAMES)
+            if compute_process_targets
+            else []
+        ),
+        "process_target_time_semantics":"input init time only",
         "split_years":{
             key:sorted(value) for key,value in split_sets.items()
         },
@@ -309,6 +389,13 @@ def build_r7_era5_zarr_from_dataset(
         "normalization_years":sorted(split_sets["train"]),
         "physical_units_retained":True,
         "spatial_resampling":False,
+        "process_diagnostics_enabled":bool(compute_process_targets),
+        "process_diagnostic_names":(
+            list(PROCESS_DIAGNOSTIC_NAMES)
+            if compute_process_targets
+            else []
+        ),
+        "process_target_time_semantics":"input init time only",
     }
     (manifest_dir/"zarr_metadata.json").write_text(
         json.dumps(metadata,ensure_ascii=False,indent=2),
