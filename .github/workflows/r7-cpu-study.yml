@@ -1,0 +1,61 @@
+name: R7 real offline multiseed CPU study
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  cpu-study:
+    if: contains(github.event.head_commit.message, '[cpu-study]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install CPU dependencies
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - name: Fetch existing small verified experiment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: r7-real-pressure-cpu-4cee1f853b3f3b4e016f3d2a4ebce88024a01af9
+          path: input_pilot
+          run-id: 35875707823
+          github-token: ${{ github.token }}
+      - name: Run predeclared study without source networking
+        run: |
+          python - <<'PY'
+          import runpy, socket, sys
+          def deny(*args, **kwargs):
+              raise RuntimeError('outbound networking prohibited during CPU study')
+          socket.socket.connect = deny
+          socket.create_connection = deny
+          sys.argv = ['scripts/study_r7_cpu.py','--source','input_pilot/source/era5_pressure_pilot.nc',
+                      '--receipt','input_pilot/source/receipt.json','--out','outputs/cpu_study']
+          runpy.run_path(sys.argv[0],run_name='__main__')
+          PY
+      - name: Package exact source code for reproducibility
+        if: always()
+        run: |
+          mkdir -p outputs/cpu_study
+          git archive --format=zip --output=outputs/cpu_study/code.zip HEAD
+          git rev-parse HEAD > outputs/cpu_study/code_commit.txt
+      - name: Preserve all results including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r7-multiseed-cpu-${{ github.sha }}
+          path: |
+            outputs/cpu_study/
+            !outputs/cpu_study/cache.zarr/
+            !outputs/cpu_study/.cache*
+          retention-days: 30
+          if-no-files-found: warn
