@@ -3,7 +3,7 @@
 The original seasonal and continuous studies each paired all models internally.
 They did NOT select identical cases across profiles. With continuous history,
 Apr/Jul/Sep1 at00UTC becomes available; the first-six-complete rule then removes
-the corresponding month2 at12UTC. Their24-case aggregate tables therefore cannot
+the corresponding second day of that month at12UTC. Their24-case aggregate tables therefore cannot
 be treated as a paired training-data-quantity effect.
 
 The original results/default selector are not altered. A new explicit timestamp

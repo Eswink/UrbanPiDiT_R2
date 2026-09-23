@@ -1,74 +1,68 @@
 # R7 conversation-driven task queue
 
-Updated 2026-09-23 after the actual public pressure-data CPU experiment and offline replay.
-No timer, automatic main merge/release, paid GPU use or uncontrolled data mirror.
-User explicitly defers GPU testing and authorizes public-data acquisition plus small CPU tests.
-No longer describe the entire project as blocked because a GPU or private dataset is absent.
+Updated after verified issues53–58 at code commit
+`a4d5eab9c0969169ae385e649dd2a3bbb1c56f63`.
+No scheduler, main merge/release, force push, paid GPU or uncontrolled data mirror.
 
-## Latest completed real-data / CPU milestone
+## Accepted work in this iteration
 
-| Issue | State | Actual evidence |
-|---|---|---|
-| #41 NCAR public metadata decision | DONE | 69d73259..., probe35873661154; tested pressure layout remained a global 37-level slab, so not adopted |
-| #45 anonymous temporal ERA5 source | DONE | a9c605de..., probe35874572228; pinned snapshot ZFKDHBCTBVHVXM3BQFV0, single-level spatial tiles |
-| #44 real pressure/surface CPU pilot | DONE | 4cee1f85..., real run35875707823; eleven channels, 96 times, 12x12 native0.25-degree tile; all eight process proxies; CPU train/val/test |
-| #46 verified local-source replay | DONE | 4ba62b1c..., actual replay35877069975 with outbound sockets prohibited; source SHA unchanged, no cloud-source dependency |
-| #40 bounded public multivariate CPU parent | DONE (bounded integration) | Its requested channel bundle and finite CPU/held-out/proxy acceptance criteria are met; this is not final scientific acceptance |
+| Issue | State | Verification |
+| --- | --- | --- |
+| #53 variable-wise error/update geometry | DONE | actual35891600411; CI35891600361 |
+| #54 fixed200->800 original-checkpoint control | DONE | actual35892145587; CI35892145656 |
+| #55 same-budget continuous250day source | DONE | actual35893397412; test-only repairCI35894113212 |
+| #56 pinned offline continuous-data800update control | DONE | actual35895446235; CI35895446093 |
+| #57 optional spatial solver plus400update matched ablation | DONE (engineering/experiment) | actual35896740916; CI35896740912; defaultFalse retained |
+| #58 explicit case selection/common-case retrospective audit | DONE | actual35898091953; CI35898091928 |
 
-Latest code verification: 4ba62b1c603bcf8c5dda888dce4afe3bf8e24efe,
-CPU CI35877070004 / job107235638164: **359 passed, 3 skipped, 2 warnings**.
-The skips are only existing untracked local Beijing/UCI fixtures. New extraction,
-replay, corruption and CLI tests ran. Compilation/whitespace/wheel checks passed.
-A deadline TEST incorrectly assumed monotonic time started at zero long ago;
-a5fe3e41... replaced it with an explicit clock and pre-read expiry assertion.
-No production time/budget check was weakened and no failed test was hidden.
+Latest full code CI: **578passed,3old-fixture-skipped,2existingLightningwarnings**
+in49.25s, job107306975262, plus compile/whitespace/installed-wheel checks.
+No new tests were skipped. No new implementation is waiting for verification.
 
-Source NetCDF: 629,696 bytes, SHA256
-`13fb72807d3f6988b0fcf2b6b2f130f890207242916018556fb85553686b9a12`.
-Full original artifact10757057891/run35875707823: 3,026,772 bytes, ZIP SHA256
-`bca9e915630ebb6f73df33f5a0d0c569915a1b5d44c174d73ca49a0615d8ff66`.
-Receipts, per-field hashes, original model checkpoints, per-variable/horizon
-RMSE/ACC and validation selection are retained. The source is genuine ERA5
-reanalysis, not direct station observations. Dataset access is anonymous, no paid
-subscription. Decoded chunk accounting is not an HTTP traffic or RAM measurement.
+Detailed evidence, limits and mixed results:
+[R7_CPU_REFINEMENT_RESULTS.md](R7_CPU_REFINEMENT_RESULTS.md).
+Per-archive hashes: [R7_CPU_ITERATION_ARTIFACTS.json](R7_CPU_ITERATION_ARTIFACTS.json).
 
-**Measured limitation:** validation selected force-full-depth K3; the tiny trial
-has not shown adaptive compute saving. Process K3 does not uniformly outperform
-generic recursion/K1. This negative evidence must survive reporting.
-Instructions/tables: [R7_PRESSURE_CPU_RESULTS.md](R7_PRESSURE_CPU_RESULTS.md).
+## Prior work is not pending
 
-## Previously completed foundations
+Issues47–52 had already completed: source fill-value/budget correctness,
+four-season source/replay, multiseed study, compact strong baselines, original
+checkpoint/cache restoration and delayed-benefit diagnostics. Do not recreate
+them from old chat summaries. Earlier forecast, controller, streamed backward,
+strict data contracts, chronological normalization, rollout, ACC, profiling,
+policy selection and boundary scoring remain implemented.
 
-#36 validation-only frozen policy selection (fc80e0cc..., CI35864456724,273passed),
-#37 same-forecast full/interior/edge scoring (69b94ce9..., CI35865390327,287passed),
-#38 isolated inference profiling (e3555298..., CI35866192926,299passed),
-#39 retrospective delayed-gain diagnostic (6ba68202..., CI35866881415,314passed).
-Each above had three optional local-fixture skips; all remain in the current suite.
+## Available real input
 
-Native/generic/process models, finite geographic/time/channel/unit contracts,
-non-destructive versioned Zarr publication, train-only normalization, streamed
-truncated training with encoder gradients, checkpoint/resume, exact-time rollout,
-climatology/ACC, compact baseline adapters and paired-comparison helpers exist.
-Do not recreate them or substitute synthetic smoke for the newly available real pilot.
+Eleven physical ERA5 channels on one12x12 native0.25-degree tile.
+3000six-hour timestamps:250days each in2018/2019/2020, not3full years.
+998one-step windows per chronological split, eight real input-process proxies.
+NetCDF19,052,672bytes, SHA256
+`0609fa38c1d88b82b985a15f93dd502c7eb7031f5d2b7452bbe971bf936dd9c1`.
+Decoded source read charge180,142,968bytes remains under192MiB; this is not HTTP
+traffic/RAM. Local replay needs no new cloud-source access.
 
-## Remaining research tasks (not certified by the CPU milestone)
+## Remaining research gates
 
-| Task | State | Next action / actual dependency |
-|---|---|---|
-| #13 production multivariate dataset | IN_PROGRESS | Small-data acquisition/physical-unit acceptance now works. A representative multi-season/larger-domain dataset still needs a bounded plan; the Jan1-8 excerpts are not three full training years. |
-| #5/#6 same-data research gates | IN_PROGRESS | Tiny native/generic/process CPU results are available, but 20 updates, one seed and six correlated test initializations cannot establish convergence or superiority. Next controlled experiment should assess training budget/sample diversity, not add speculative modules. |
-| #7 adaptive scientific gate | IN_PROGRESS | Actual train/calibrate/validation-select/test path executed but selected full K3. Diagnose data/training/gain calibration before claiming savings; true GPU speed measurements remain deferred. |
-| #8 journal evaluation | IN_PROGRESS | The real tiny pilot has 6/12/24/72h RMSE/ACC; representative seasons/extremes, multi-seed uncertainty and boundary interventions are still missing. |
-| #20 4090D resource acceptance | BLOCKED (hardware, explicitly deferred) | User cannot access the card yet. Keep existing profiling commands; no request to rent a GPU and no claim CPU counts measure VRAM. |
-| #9 optional finer-resolution expert | BLOCKED (scientific targets/core gate) | Genuine co-located finer-resolution dynamic labels and core experimental evidence are still required. |
-| #1 / PR#12 research hypotheses | IN_PROGRESS | Maintain Draft, do not label data-pipeline success as SOTA or a completed paper. |
+| Parent/task | State | Evidence/next useful action |
+| --- | --- | --- |
+| #13 representative data | IN_PROGRESS | Continuous temporal support exists; larger regional context and full representative coverage still require a bounded protocol. No blanket data-unavailable claim. |
+| #5/#6 recurrence/process benefit | IN_PROGRESS | Three-seed controls show mixed outcomes. Spatial feedback helps some wind scores but worsens T500; process does not uniformly beat generic. Keep defaults and all negatives. |
+| #7 adaptive benefit | IN_PROGRESS | Existing strict policies fell back to full depth. This iteration does not change controller thresholds or certify savings. Reassess only against an explicitly frozen new validation protocol. |
+| #8 journal evaluation | IN_PROGRESS | Freeze broader, temporally spaced cases and meaningful uncertainty controls; preserve test separation. Cross-profile comparison now requires explicit cases/common-case audit. |
+| #20 4090D resource acceptance | BLOCKED, hardware explicitly deferred | Existing profiler available when hardware returns. No rental or fabricated CUDA measurement. |
+| #9 finer-resolution expert | BLOCKED, scientific labels/core gates | Need real co-located finer-resolution dynamic targets; never interpolated truth. |
+| #1 / PR12 scientific release | IN_PROGRESS | Hypotheses unproven; PR remains Draft. Bounded CPU engineering success is not final SOTA. |
 
 ## Execution discipline
 
-TODO -> IN_PROGRESS -> VERIFY -> DONE. Mark asynchronous tasks VERIFY with their
-exact SHA/run and resume condition; work independently during CI. Do not force
-push, overwrite others or close research gates from engineering tests. Scheduled
-work remains disabled. Record precise new blockers rather than claiming all paths
-are blocked merely because GPU hardware is unavailable. The current requested
-small real-data CPU milestone is complete; no newly implemented code is waiting
-for validation. No larger training or download job is running in the background.
+TODO -> IN_PROGRESS -> VERIFY -> DONE; BLOCKED names a real dependency.
+During each independent CI/CPU workflow, advance another issue and return to
+actual results. Close only after acceptance. Artifact/publication review is useful
+work, but don't add speculative modules merely to avoid saying an experiment
+has mixed results. No background continuation or re-enabled timer.
+
+The planned controls53–58 have completed, including repairs and provenance
+audits. Remaining scientific questions are not all external blockers; any new
+study needs its own fixed hypothesis, bounded budget and case selection before
+execution, rather than extending the completed endpoints until a desired win.

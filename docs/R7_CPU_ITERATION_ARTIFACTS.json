@@ -1,0 +1,8 @@
+[
+  {"issue":53,"commit":"1ce88009532eec597c3cf78457bfe4e6ce7da445","run":35891600411,"archive":"R7_correction_audit_53.zip","bytes":6962215,"sha256":"c6ed4cba8913aea448ac17f3aab9df1fd994c500a29d55b58e24636d029b5d03"},
+  {"issue":54,"commit":"163e88a60f28bf0a4e31a97396130439a08606b1","run":35892145587,"archive":"R7_extended_validation_control_54.zip","bytes":16113944,"sha256":"47253ac7ccfc8e234ddeeda868a68e5e6eb9211a9ea853234c866a0abb3dd20d"},
+  {"issue":55,"commit":"d4830b1f5eff6715cd3cf08659fda923ee8f742a","run":35893397412,"archive":"R7_continuous_250d_ERA5_CPU.zip","bytes":22245403,"sha256":"3eaaf27f8569aa3be99f07fa2bce248bc1cc34829626a09d8583e03ee602634a"},
+  {"issue":56,"commit":"f1d395f5ab1e4b69e805cbbb095e7a4acf6c9743","run":35895446235,"archive":"R7_continuous_800updates_control_56.zip","bytes":30605795,"sha256":"4df79269eec7378b40676f41da9f7e1c1ccf7a72e19ffc65863c87d2aecbbe75"},
+  {"issue":57,"commit":"7d32687d3383e4d227ba750d33ee3c127ab8a82a","run":35896740916,"archive":"R7_spatial_solver_400updates_ablation_57.zip","bytes":33615775,"sha256":"7bf542b3c5855349933f7aa866563a81d9b3a5b595690a4af91c5065fa75a9e0"},
+  {"issue":58,"commit":"a4d5eab9c0969169ae385e649dd2a3bbb1c56f63","run":35898091953,"archive":"R7_common_case_comparison_58.zip","bytes":6961940,"sha256":"324b68aa6cfadc25a0240f276504565d4a4b1f29f66823713e0756c80acc04cf"}
+]

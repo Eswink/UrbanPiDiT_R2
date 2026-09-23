@@ -145,7 +145,7 @@ Issue #8.
 
 ### Stretch — adaptive spatial resolution
 Issue #9.
-Only after the core paper is stable and real fine-resolution dynamic targets exist.
+Only after the core paper is stable and real fine-resolution dynamic targets are available.
 
 ## 8. Mandatory baselines
 
@@ -238,4 +238,35 @@ must not be compared as if they were future-time truth.
 
 Source inspection also identified #20: detach_between_steps truncates gradient dependencies
 but retaining all graph-carrying drafts still retains per-step activations. Do not describe
-existing end-to-end training as constant-memory or 24GB-validated without measurements.
+existing end-to-end training as constant-memory or24GB-validated without measurements.
+
+## 14. Evidence-driven CPU iteration (issues53–58)
+
+GPU access is currently deferred by the user. Small public-data CPU experiments
+are authorized, not automatic paid rentals or unbounded archive downloads.
+The continuous250day profile supplies3000real timestamps and998windows per split;
+this remains a single small tile, not the representative final paper domain.
+
+The iteration completed fixed optimization and data-coverage controls, then tested
+an optional aligned draft route directly into the shared correction decoder.
+`spatial_solver_feedback=False` remains the default; enabling it adds existing
+draft tokens to the solver context with no new parameters. Both generic and
+process baselines receive the same mechanism. Fixed/streamed/adaptive paths
+are synchronized and gradient/execution equivalence-tested.
+
+Real validation results are mixed: wind improvements in the400-update spatial
+ablation do not establish uniform improvement, and T500 worsened. Keep this
+candidate opt-in. Do not claim the process auxiliary objective or adaptive
+controller has met the scientific gates. No controller retuning or test
+evaluation occurred in these controls.
+
+Future data-profile comparisons must use explicitly identical initialization
+sets, or a clearly labeled timestamp-only common-case audit that retains excluded
+IDs and both normalization/data identities. Old sparse/continuous default
+selectors yielded21common cases out of24; aggregate24-case comparisons were not
+a paired data-quantity experiment.
+
+See `R7_CPU_REFINEMENT_RESULTS.md` and its artifact manifest for complete runs,
+budgets, negative outcomes and reproducibility limits. Prior model checkpoints
+require their archived source-code digest; never rewrite signatures after a
+new optional architecture is introduced.
