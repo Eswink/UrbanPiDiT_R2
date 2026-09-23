@@ -1,0 +1,58 @@
+name: R7 real validation correction audit
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  correction-audit:
+    if: contains(github.event.head_commit.message, '[correction-audit]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install CPU dependencies
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - name: Retrieve original seasonal checkpoints and source
+        uses: actions/download-artifact@v4
+        with:
+          name: r7-seasonal-study-336c2fc205c95b068477963da8d2d9e9b311dfbb
+          path: input_study
+          run-id: 35886241381
+          github-token: ${{ github.token }}
+      - name: Diagnose offline without training
+        run: |
+          python - <<'PY'
+          import runpy, socket, sys
+          def deny(*args, **kwargs):
+              raise RuntimeError('outbound networking prohibited during correction audit')
+          socket.socket.connect = deny
+          socket.create_connection = deny
+          sys.argv = ['scripts/diagnose_r7_corrections.py','--artifact-root','input_study','--out','outputs/correction_audit']
+          runpy.run_path(sys.argv[0],run_name='__main__')
+          PY
+      - name: Preserve exact code
+        if: always()
+        run: |
+          mkdir -p outputs/correction_audit
+          git archive --format=zip --output=outputs/correction_audit/code.zip HEAD
+          git rev-parse HEAD > outputs/correction_audit/code_commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r7-correction-audit-${{ github.sha }}
+          path: |
+            outputs/correction_audit/
+            !outputs/correction_audit/restored/cache.zarr/
+          retention-days: 30
+          if-no-files-found: warn
