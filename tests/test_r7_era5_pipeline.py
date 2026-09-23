@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
 
 from data.r7_dataset import ManifestAtmosNPZDataset
@@ -149,3 +150,57 @@ def test_pressure_level_selection_is_exact(tmp_path:Path):
         sample["coarse_history"][0,0].numpy(),
         sample["coarse_history"][0,1].numpy(),
     )
+
+
+
+def test_missing_timestamp_is_never_bridged(tmp_path:Path):
+    ds=_fixture()
+    # Remove one required 6-hour timestamp from the training year. The
+    # converter may keep other valid windows, but no sample may bridge the gap.
+    missing=pd.Timestamp("2018-01-01T12:00:00")
+    ds=ds.sel(time=ds.time!=np.datetime64(missing))
+
+    paths=build_r7_era5_npz_from_dataset(
+        ds,
+        out_dir=tmp_path/"processed",
+        manifest_dir=tmp_path/"manifests",
+        specs=(ERA5ChannelSpec("t2m",name="t2m"),),
+        split_years={
+            "train":[2018],
+            "val":[2019],
+            "test":[2020],
+        },
+        history_steps=2,
+        history_interval_hours=6,
+        lead_time_hours=6,
+        sample_stride_hours=6,
+        expected_grid_spacing_deg=0.25,
+    )
+
+    for record in _records(paths["train"]):
+        required=[
+            pd.Timestamp(t) for t in record["history_times"]
+        ]+[pd.Timestamp(record["target_time"])]
+        assert missing not in required
+
+
+def test_irregular_grid_cannot_masquerade_as_native_025(tmp_path:Path):
+    ds=_fixture().assign_coords(
+        longitude=np.array(
+            [115.0,115.25,115.50,115.90],
+            dtype=np.float32,
+        )
+    )
+    with pytest.raises(ValueError,match="longitude 非规则网格"):
+        build_r7_era5_npz_from_dataset(
+            ds,
+            out_dir=tmp_path/"processed",
+            manifest_dir=tmp_path/"manifests",
+            specs=(ERA5ChannelSpec("t2m",name="t2m"),),
+            split_years={
+                "train":[2018],
+                "val":[2019],
+                "test":[2020],
+            },
+            expected_grid_spacing_deg=0.25,
+        )
