@@ -204,3 +204,37 @@ def test_irregular_grid_cannot_masquerade_as_native_025(tmp_path:Path):
             },
             expected_grid_spacing_deg=0.25,
         )
+
+
+
+def test_stack_preserves_single_timestamp_and_single_pressure_level():
+    ds=_fixture().sel(level=[850]).isel(time=slice(0,1))
+    from data.preprocess.r7_era5 import stack_era5_channels
+
+    state,names,times,lat,lon=stack_era5_channels(
+        ds,
+        (
+            ERA5ChannelSpec("t2m",name="t2m"),
+            ERA5ChannelSpec("u",850,"u850"),
+        ),
+    )
+    assert state.shape==(1,2,3,4)
+    assert names==["t2m","u850"]
+    assert len(times)==1
+
+
+def test_stack_drops_only_singleton_auxiliary_dims():
+    ds=_fixture()
+    ds["t2m_aux"]=ds["t2m"].expand_dims(expver=[1])
+    from data.preprocess.r7_era5 import stack_era5_channels
+
+    state,_,_,_,_=stack_era5_channels(
+        ds,(ERA5ChannelSpec("t2m_aux",name="t2m_aux"),)
+    )
+    assert state.shape==(24,1,3,4)
+
+    ds["t2m_bad"]=ds["t2m"].expand_dims(expver=[1,5])
+    with pytest.raises(ValueError,match="未处理非单例维度"):
+        stack_era5_channels(
+            ds,(ERA5ChannelSpec("t2m_bad",name="t2m_bad"),)
+        )
