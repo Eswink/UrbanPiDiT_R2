@@ -1,0 +1,4 @@
+# Lightweight preprocessing dependencies used by R7 data-pipeline CI.
+xarray>=2025.1
+pandas>=2.2
+zarr>=3.0
