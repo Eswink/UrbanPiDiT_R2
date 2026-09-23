@@ -2,7 +2,6 @@
 from __future__ import annotations
 import argparse
 import csv
-import hashlib
 import json
 from pathlib import Path
 import sys
@@ -13,10 +12,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', required=True)
+    ap.add_argument('--source', help='Replay the exact verified #44 local NetCDF instead of downloading')
+    ap.add_argument('--receipt', help='Original receipt paired with --source')
     args = ap.parse_args()
+    if bool(args.source) != bool(args.receipt):
+        ap.error('--source and --receipt must be provided together')
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=False)
-    import numpy as np
     import torch
     from data.download.earthmover_pilot import download_pilot, FIELDS
     from data.preprocess.r7_preflight import prepare_local
@@ -28,7 +30,12 @@ def main():
     from training.r7_evaluate import evaluate_local
     torch.set_num_threads(2)
     started = time.monotonic()
-    source, receipt = download_pilot(out/'source'/'era5_pressure_pilot.nc',out/'source'/'receipt.json')
+    if args.source:
+        from data.download.pressure_pilot_replay import copy_verified_pressure_pilot
+        source, receipt = copy_verified_pressure_pilot(args.source,args.receipt,
+            out/'source'/'era5_pressure_pilot.nc',out/'source'/'receipt.json')
+    else:
+        source, receipt = download_pilot(out/'source'/'era5_pressure_pilot.nc',out/'source'/'receipt.json')
     names = [item[2] for item in FIELDS]
     config = {'channels':[{'variable':n,'name':n} for n in names],
         'split_years':{'train':[2018],'val':[2019],'test':[2020]},

@@ -1,0 +1,56 @@
+name: R7 offline real pressure CPU replay
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  replay:
+    if: contains(github.event.head_commit.message, '[pressure-replay]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install CPU and local-file dependencies only
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - name: Retrieve previously verified experiment artifact, not source archive
+        uses: actions/download-artifact@v4
+        with:
+          name: r7-real-pressure-cpu-4cee1f853b3f3b4e016f3d2a4ebce88024a01af9
+          path: input_pilot
+          run-id: 35875707823
+          github-token: ${{ github.token }}
+      - name: Rebuild and replay with outbound sockets prohibited
+        run: |
+          python - <<'PY'
+          import runpy, socket, sys
+          def deny(*args, **kwargs):
+              raise RuntimeError('network access prohibited during real-data replay')
+          socket.socket.connect = deny
+          socket.create_connection = deny
+          sys.argv = ['scripts/real_r7_pressure_pilot.py', '--out', 'outputs/offline_pressure',
+                      '--source', 'input_pilot/source/era5_pressure_pilot.nc',
+                      '--receipt', 'input_pilot/source/receipt.json']
+          runpy.run_path(sys.argv[0], run_name='__main__')
+          PY
+      - name: Preserve replay results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r7-offline-pressure-replay-${{ github.sha }}
+          path: |
+            outputs/offline_pressure/pilot_result.json
+            outputs/offline_pressure/source/receipt.json
+            outputs/offline_pressure/evaluation/
+          if-no-files-found: warn
+          retention-days: 30
