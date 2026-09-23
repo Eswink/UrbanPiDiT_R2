@@ -8,6 +8,7 @@ from .synthetic import SyntheticR2Dataset
 from .synthetic_atmos import SyntheticAtmosDataset
 from .multiscale_dataset import ManifestNPZDataset, R2DataModule
 from .r7_dataset import ManifestAtmosNPZDataset, R7ForecastDataModule
+from .r7_zarr_dataset import ZarrAtmosWindowDataset
 
 __all__ = [
     "validate_sample",
@@ -18,6 +19,7 @@ __all__ = [
     "SyntheticAtmosDataset",
     "ManifestNPZDataset",
     "ManifestAtmosNPZDataset",
+    "ZarrAtmosWindowDataset",
     "R2DataModule",
     "R7ForecastDataModule",
 ]
