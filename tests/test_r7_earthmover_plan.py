@@ -46,7 +46,7 @@ def test_global_pressure_slabs_refused():
         selection_plan(a, tuple(np.array([0]) for _ in range(4)))
 
 
-def test_sharded_missing_deadline_guards():
+def test_sharded_and_missing_guards():
     a = Array(np.ones((4,4),dtype='f4'),(2,2))
     a.shards = (4,4)
     with pytest.raises(ValueError,match='sharded'):
@@ -55,8 +55,18 @@ def test_sharded_missing_deadline_guards():
     a.x[0,0] = np.nan
     with pytest.raises(ValueError,match='missing'):
         bounded_selection(a,(np.arange(4),np.arange(4)),DecodedBudget())
+
+
+def test_deadline_guard_is_independent_of_runner_uptime(monkeypatch):
+    # monotonic() has an unspecified origin: a freshly booted runner can have
+    # uptime <600 s. Use an explicit clock, not started=0 on the real clock.
+    import data.download.earthmover_pilot as mod
+    a = Array(np.ones((4,4),dtype='f4'),(2,2))
+    monkeypatch.setattr(mod.time, 'monotonic', lambda: 1000.)
+    budget = DecodedBudget(started=399., seconds=600.)
     with pytest.raises(RuntimeError,match='deadline'):
-        bounded_selection(a,(np.arange(4),np.arange(4)),DecodedBudget(started=0))
+        bounded_selection(a,(np.arange(4),np.arange(4)),budget)
+    assert not a.calls and budget.used == 0 and budget.reads == 0
 
 
 def root_fixture():
