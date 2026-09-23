@@ -8,12 +8,16 @@ on:
     branches:
       - main
 
+# Keep push and PR lifecycle cancellation independent. The R7 branch already
+# receives authoritative CI on push; its Draft PR therefore skips the duplicate
+# pytest job, while PRs from every other head branch into main still run CI.
 concurrency:
-  group: r7-ci-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: r7-ci-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   pytest:
+    if: github.event_name == 'push' || github.head_ref != 'r7/weather-reasoning'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
