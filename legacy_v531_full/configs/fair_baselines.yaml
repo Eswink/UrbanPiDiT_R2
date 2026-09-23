@@ -1,0 +1,118 @@
+# Fair static-information controlled baselines for UrbanPiDiT.
+#
+# Scope:
+# - dynamic_only: baseline sees only historical meteorology.
+# - same_static: baseline sees the same static fields as UrbanPiDiT.
+# - static_zero/static_shuffle: perturbation controls for static-information reliance.
+#
+# All models consume the same loader schema as train/evaluate, including static_schema.
+
+data_root: /3240608030/weather-q/data/processed_data/beijing
+
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+include_static: true
+broadcast_static: true
+
+static_schema:
+  categorical: [landcover]
+  continuous: [building_surface, buildings, building_volume, population]
+  categorical_cardinality:
+    landcover: 20
+
+k: 4
+delta_t: 1
+H: 8
+W: 8
+
+forecast:
+  time_step_hours: 6
+  lead_times: [1, 2, 3, 4]
+  eval_lead_times: [1, 2, 3, 4]
+
+train:
+  batch_size: 128
+  num_workers: 8
+
+eval:
+  batch_size: 128
+  num_workers: 8
+
+baselines:
+  protocol: fair_static_control
+  static_policy: dynamic_only
+  report_groups: [dynamic_only, same_static, static_zero, static_shuffle]
+  models:
+    - name: persistence
+      alias: persistence_dynamic
+      static_policy: dynamic_only
+    - name: climatology
+      alias: climatology_dynamic
+      static_policy: dynamic_only
+    - name: linear_trend
+      alias: linear_trend_dynamic
+      static_policy: dynamic_only
+      params:
+        trend_scale: 1.0
+        max_scale: 4.0
+    - name: moving_average
+      alias: moving_average_dynamic
+      static_policy: dynamic_only
+    - name: exp_smoothing
+      alias: exp_smoothing_dynamic
+      static_policy: dynamic_only
+      params:
+        alpha: 0.65
+    - name: residual_climatology
+      alias: residual_climatology_dynamic
+      static_policy: dynamic_only
+      params:
+        decay: 0.75
+    - name: spatial_mean
+      alias: spatial_mean_dynamic
+      static_policy: dynamic_only
+    - name: local_mean
+      alias: local_mean_dynamic
+      static_policy: dynamic_only
+      params:
+        kernel_size: 3
+    - name: static_analog
+      alias: static_analog_same_static
+      static_policy: same_static
+      params:
+        strength: 0.05
+    - name: static_persistence_blend
+      alias: static_blend_same_static
+      static_policy: same_static
+      params:
+        kernel_size: 3
+
+  perturbation_models:
+    - name: static_analog
+      alias: static_analog_zero_static
+      static_policy: static_zero
+    - name: static_analog
+      alias: static_analog_shuffle_static
+      static_policy: static_shuffle
+    - name: static_persistence_blend
+      alias: static_blend_zero_static
+      static_policy: static_zero
+    - name: static_persistence_blend
+      alias: static_blend_shuffle_static
+      static_policy: static_shuffle
+
+legacy_trainable_baselines:
+  linear:
+    kinds: [ridge, lasso]
+    alpha: 1.0
+    max_train_samples: null
+  tree:
+    models: [rf, xgb]
+    add_xy: true
+    max_train_rows: null
+  mlp:
+    epochs: 50
+    lr: 0.001
+    weight_decay: 0.0001
+    hidden: 1024
+    dropout: 0.0

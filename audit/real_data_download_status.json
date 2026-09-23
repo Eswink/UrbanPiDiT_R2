@@ -1,0 +1,30 @@
+{
+  "timestamp_utc": "2026-08-09T12:04:26.709261+00:00",
+  "policy": "No synthetic fallback. Failure is recorded verbatim.",
+  "attempts": [
+    {
+      "source": "UCI_Beijing_PM25",
+      "status": "blocked_or_failed",
+      "error_type": "RuntimeError",
+      "error": "真实数据下载失败；未使用合成数据回退。\nUCI: <urlopen error [Errno -3] Temporary failure in name resolution>\nmirror: <urlopen error [Errno -3] Temporary failure in name resolution>"
+    },
+    {
+      "source": "WorldCover_2021_COG",
+      "status": "blocked_or_failed",
+      "error_type": "RuntimeError",
+      "error": "无法通过 HTTP range 读取 ESA WorldCover COG。当前环境可能无 DNS/外网；未使用 WMS RGB 或合成分类值替代。"
+    },
+    {
+      "source": "WorldCover_2021_WMS_preview",
+      "status": "blocked_or_failed",
+      "error_type": "RuntimeError",
+      "error": "无法访问 Terrascope WorldCover WMS。当前环境可能无外网/DNS；未使用任何伪造静态栅格替代该下载结果。"
+    },
+    {
+      "source": "Google_ARCO_ERA5",
+      "status": "blocked_or_failed",
+      "error_type": "RuntimeError",
+      "error": "ARCO ERA5 下载缺少可选依赖: zarr, gcsfs。请执行 `pip install -r requirements-data.txt` 后重试。"
+    }
+  ]
+}

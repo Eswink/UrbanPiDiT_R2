@@ -1,0 +1,87 @@
+# Multi-city / leave-one-city-out configuration template.
+# Replace data_root values with actual city roots containing train/val/test splits.
+
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+include_static: true
+broadcast_static: true
+
+static_schema:
+  categorical: [landcover]
+  continuous: [building_surface, buildings, building_volume, population]
+  categorical_cardinality:
+    landcover: 20
+
+k: 4
+delta_t: 1
+H: 8
+W: 8
+
+forecast:
+  time_step_hours: 6
+  lead_times: [1, 2, 3, 4]
+  eval_lead_times: [1, 2, 3, 4]
+
+multi_region:
+  split_strategy: leave_one_city_out
+  regions:
+    - name: beijing
+      data_root: /3240608030/weather-q/data/processed_data/beijing
+    - name: shanghai
+      data_root: /path/to/processed_data/shanghai
+    - name: guangzhou
+      data_root: /path/to/processed_data/guangzhou
+
+model:
+  D: 256
+  depth: 12
+  heads: 4
+  mlp_ratio: 4.0
+  drop_path_rate: 0.10
+  dropout: 0.10
+
+diffusion:
+  P_mean: -0.8
+  P_std: 0.8
+  sample_steps: 8
+  t_start: 0.0
+  t_end: 1.0
+
+ablation:
+  use_drop_path: true
+  use_cross_attention: true
+  use_position_encoding: true
+  use_timestep_conditioning: true
+  use_lead_time_conditioning: true
+  use_channel_weights: true
+  use_physics_loss: true
+  use_fft_loss: true
+  use_gradient_loss: true
+  use_variable_graph: false
+  use_dynamic_vg: true
+  use_static_vg: true
+  use_static_morphology_encoder: true
+  use_morphology_graph: true
+  use_wind_aware_graph: true
+  use_urban_canopy_coupling: true
+
+train:
+  seed: 42
+  batch_size: 128
+  num_workers: 8
+  lr: 0.0001
+  weight_decay: 0.0001
+  max_epochs: 200
+  gradient_clip_val: 1.0
+  patience: 50
+  monitor: val/RMSE_mean_leads
+
+eval:
+  batch_size: 128
+  num_workers: 8
+
+logging:
+  log_dir: logs
+  run_name: urbanpidit_multi_city
+  use_tensorboard: true
+  use_wandb: false

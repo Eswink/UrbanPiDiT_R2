@@ -1,0 +1,760 @@
+# ================================================================================================
+# UrbanPiDiT 完整配置文件 - Morphology-conditioned Process Diffusion Transformer
+# 城市微尺度气象预测模型 - 完整配置说明
+# ================================================================================================
+
+# ================================================================================================
+# 数据配置 (Data Configuration)
+# ================================================================================================
+data_root: /path/to/your/data  # 数据根目录，包含 train/val/test 子目录
+
+# 动态气象变量列表（按通道顺序）
+# Dynamic weather variables (in channel order)
+# 0: d2m (Dewpoint temperature at 2 meters, 露点温度)
+# 1: sp  (Surface pressure, 地表气压)
+# 2: t2m (Temperature at 2 meters, 2米温度)
+# 3: tcc (Total cloud cover, 总云量 [0-1])
+# 4: tp  (Total precipitation, 总降水量, mm)
+# 5: u10 (10m U wind component, 10米纬向风)
+# 6: v10 (10m V wind component, 10米经向风)
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+
+# 静态地理变量列表
+# Static geographic variables
+# 7:  landcover (土地覆盖类型)
+# 8:  building_surface (建筑表面积)
+# 9:  buildings (建筑物数量)
+# 10: building_volume (建筑体积)
+# 11: population (人口密度)
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+
+# 是否包含静态变量 (Whether to include static variables)
+include_static: true
+
+# 是否广播静态变量 (Whether to broadcast static variables across time)
+# true: 对每个时间步使用当前静态数据
+# false: 只使用第一个时间步的静态数据
+broadcast_static: true
+
+# 历史时间步数 (Number of historical timesteps)
+# 使用过去 k 个时间步预测未来
+k: 4
+
+# 预测时间偏移 (Prediction time offset)
+# 预测未来第 delta_t 个时间步
+delta_t: 1
+
+# ================================================================================================
+# 多提前期预测配置 (Multi-horizon / Lead Time Configuration)
+# ================================================================================================
+# 说明：
+# - 当 forecast.lead_times 被配置时，Dataset 会额外返回 batch["y"]（未来多个 lead 的 GT），用于多提前期评估。
+# - 如果 ablation.use_lead_time_conditioning=true，则模型会引入 lead_time 条件，一个模型即可覆盖多个提前期；
+# - 如果 ablation.use_lead_time_conditioning=false，仍然可以通过 forecast.multi_horizon_inference=autoregressive
+#   用 1-step 模型滚动预测到 12/18/24h（业界常用做法）。
+forecast:
+  # 数据时间步长对应的小时数；ERA5 6h 对应 6
+  time_step_hours: 6
+
+  # 需要加载/评估的提前期列表（单位：步）。1步=6h
+  # 示例：[1,2,3,4] => [6h,12h,18h,24h]
+  lead_times: [1, 2, 3, 4]
+
+  # 评估阶段实际记录指标的提前期列表（单位：步）。一般与 lead_times 相同
+  eval_lead_times: [1, 2, 3, 4]
+
+  # 训练阶段 lead 的采样策略：
+  # - uniform: 在 lead_times 中均匀采样（推荐）
+  # - curriculum: 先学短提前期，逐步扩展到长提前期（可缓解长提前期训练不稳定）
+  train_lead_time_sampling: "uniform"
+
+  # curriculum 持续的 epoch 数（仅在 train_lead_time_sampling=curriculum 时生效）
+  curriculum_epochs: 30
+
+  # 多提前期推理方式：
+  # - direct: 直接预测指定 lead（需要 ablation.use_lead_time_conditioning=true）
+  # - autoregressive: 1-step 逐步滚动到目标 lead（不需要 lead_time conditioning；业界常用）
+  multi_horizon_inference: "direct"
+
+  # direct 推理时，多提前期之间是否复用同一份初始噪声（更“连贯”的轨迹）
+  # 参考：Continuous Ensemble Forecasting (diffusion) 的 correlated noise 思想
+  correlate_noise_across_leads: true
+
+  # lead_time conditioning 的归一化分母（默认可设为 max(eval_lead_times)）
+  max_lead_time_steps: 4
+
+
+  # ------------------------------
+  # 多提前期训练目标与权重（关键！用于解决“开了 lead conditioning 反而 6h 变差”的问题）
+  # ------------------------------
+  # train_objective：
+  # - single_lead      : 每个 batch 只随机训练一个 lead（计算最省，但长 lead 容易主导梯度，导致 6h 下降）
+  # - lead1_plus_k     : 每个 batch 固定包含最短 lead(通常 1 step=6h)，再额外随机抽 k 个更长 lead（推荐）
+  # - weighted_sum_all : 对允许的所有 lead 都计算 loss 再加权求和（计算更大，但最“严格”）
+  train_objective: lead1_plus_k
+
+  # 当 train_objective=lead1_plus_k 时，除了最短 lead 之外再额外采样多少个 lead
+  extra_leads_per_batch: 1
+
+  # 是否强制包含最短 lead（建议 true，用来稳住 6h 指标）
+  force_include_short_lead: true
+
+  # lead loss 权重策略（用于防止长提前期误差更大导致梯度主导）
+  # - uniform      : 全 1
+  # - inverse      : 1/lead（推荐起点）
+  # - inverse_sqrt : 1/sqrt(lead)
+  # - exp_decay    : exp(-beta*(lead-min_lead))
+  # - custom       : 使用 lead_loss_weights 列表（与 lead_times 顺序对齐）
+  lead_loss_weighting: inverse
+
+  # exp_decay 的 beta 参数（只有 lead_loss_weighting=exp_decay 时生效）
+  lead_weight_beta: 0.5
+
+  # 自定义 lead 权重（只有 lead_loss_weighting=custom 时生效）
+  # 与 lead_times 一一对应，例如 lead_times=[1,2,3,4] 时：
+  # lead_loss_weights: [1.0, 0.7, 0.5, 0.3]
+  lead_loss_weights: null
+
+  # 是否对 lead 的加权 loss 做归一化（建议 true：loss 标度不随 selected lead 数量变化）
+  normalize_lead_loss: true
+
+  # 是否把物理/FFT/梯度等辅助损失施加到所有 lead
+  # - false：只对最短 lead 施加（更不伤 6h、更省算力，推荐）
+  # - true ：所有 lead 都施加（更强的物理一致性，可做消融）
+  apply_aux_losses_to_all_leads: false
+
+  # ------------------------------
+  # v4 新增：lead loss 权重退火（Annealing / Curriculum）
+  # ------------------------------
+  # 目的：训练早期更偏短 lead（先稳住 6h），训练后期逐步提升长 lead 权重（提升 18h/24h）。
+  # 使用方式：
+  # - enabled=true 时，训练中 lead 的权重 = (1-alpha)*start + alpha*end
+  # - alpha 随 epoch 从 0 -> 1（可选 warmup + anneal_epochs）
+  lead_weight_anneal:
+    enabled: false
+    # 起始权重策略（默认使用 lead_loss_weighting）
+    start_weighting: inverse          # uniform | inverse | inverse_sqrt | exp_decay | custom
+    start_beta: 0.5                   # start_weighting=exp_decay 时有效
+    start_weights: null               # start_weighting=custom 时提供，与 lead_times 对齐
+
+    # 目标权重策略（通常设 uniform：后期对长 lead 不再过度降权）
+    end_weighting: uniform            # uniform | inverse | inverse_sqrt | exp_decay | custom
+    end_beta: 0.0                     # end_weighting=exp_decay 时有效
+    end_weights: null                 # end_weighting=custom 时提供，与 lead_times 对齐
+
+    warmup_epochs: 0                  # 先保持 start_weighting 的 epoch 数
+    anneal_epochs: 30                 # 在多少个 epoch 内把 alpha 从 0 退火到 1
+    schedule: linear                  # linear | cosine
+
+  # ------------------------------
+  # v4 新增：多步 rollout 微调（用于 1-step 模型的长 rollout 退化）
+  # ------------------------------
+  # 说明：
+  # - 适用于“1-step 模型 + autoregressive 推理”范式（GraphCast/FourCastNet 等常见思路）；
+  # - 单步训练在 18h+/24h 会出现误差累积，rollout_finetune 可显著缓解。
+  #
+  # 注意：
+  # - rollout_finetune 只要 Dataset 提供 batch['y'](多 lead GT) 就能工作；
+  # - 不强制 ablation.use_lead_time_conditioning=true。
+  rollout_finetune:
+    enabled: false
+    max_steps: 4              # 最终 roll 到的最大步数（例如 4 => 24h）
+    curriculum_epochs: 20     # K 从 1 -> max_steps 的课程学习 epoch 数（0 表示直接用 max_steps）
+    schedule: linear          # linear | cosine
+
+    # loss 计算方式：
+    # - all        : 对 1..K 的每一步都计算 loss（最严格，算力更大）
+    # - final_only : 只对最后一步(K)计算 loss（更省算力）
+    loss_on: all
+
+    # 即便 loss_on=final_only，也建议保留 step-1(6h) loss，避免 6h 回退
+    always_include_step1: true
+
+    # 更新上下文时是否 detach 预测（默认 true：更省显存更稳定；false：允许多步反传，显存更大）
+    detach_context: true
+
+    # scheduled sampling（teacher forcing）配置：从 start_ratio 逐步降到 end_ratio
+    teacher_forcing:
+      start_ratio: 1.0        # 训练初期更多用 GT 更新上下文（稳定）
+      end_ratio: 0.0          # 训练后期更多用预测更新上下文（贴近推理）
+      decay_epochs: 20        # 在多少个 epoch 内完成退火（0 表示固定 start_ratio）
+      schedule: linear        # linear | cosine
+
+# ================================================================================================
+# 评估指标配置 (Metrics Configuration)
+# ================================================================================================
+metrics:
+  acc:
+    enabled: true
+    climatology: train_mean_field
+    weighting: coslat
+    center: true
+    log_per_channel: true
+
+# 空间分辨率 (Spatial resolution)
+H: 8  # 高度（纬度方向网格数）
+W: 8  # 宽度（经度方向网格数）
+
+# ================================================================================================
+# 模型架构配置 (Model Architecture Configuration)
+# ================================================================================================
+model:
+  # 嵌入维度 (Embedding dimension)
+  # 建议值: 256 (快速训练), 512 (标准), 768 (高精度)
+  D: 512
+  
+  # Transformer 层数 (Number of Transformer layers)
+  # 建议值: 8-12 (标准), 16-24 (深层)
+  depth: 12
+  
+  # 多头注意力头数 (Number of attention heads)
+  # 建议值: 4, 8, 16
+  # 注意: D 必须能被 heads 整除
+  heads: 8
+  
+  # MLP 扩展比例 (MLP expansion ratio)
+  # hidden_dim = D * mlp_ratio
+  mlp_ratio: 4.0
+  
+  # Stochastic Depth (DropPath) 概率
+  # 用于防止过拟合，逐层线性递增
+  # 建议值: 0.0 (无正则化), 0.1 (轻度), 0.2-0.3 (强正则化)
+  # 如果观察到过拟合（val loss >> train loss），建议设为 0.1-0.2
+  drop_path_rate: 0.1
+  
+  # Dropout 概率 (Dropout probability)
+  # 应用于注意力和 MLP
+  dropout: 0.1
+  
+  # 位置编码类型 (Position encoding type)
+  # 选项: "learned" (可学习), "sinusoidal" (正弦编码), "none" (无)
+  position_encoding: "learned"
+
+# ================================================================================================
+# 扩散过程配置 (Diffusion Process Configuration)
+# ================================================================================================
+diffusion:
+  # 时间分布参数 (Time distribution parameters)
+  # 使用 Logit-Normal 分布: t ~ sigmoid(N(P_mean, P_std^2))
+  # 推荐: P_mean=-0.8, P_std=0.8 使得 t 在 [0,1] 上分布均匀且偏向中间值
+  P_mean: -0.8
+  P_std: 0.8
+  
+  # 推理采样步数 (Inference sampling steps)
+  # 建议值: 4-8 (快速), 10-20 (标准), 50+ (高质量)
+  sample_steps: 8
+  
+  # 采样时间范围 (Sampling time range)
+  # 从 t_start 线性递增到 t_end
+  # 标准设置: [0.0, 1.0] (完整扩散过程)
+  # 快速设置: [0.1, 0.9] (跳过极端噪声和极端去噪)
+  t_start: 0.0
+  t_end: 1.0
+  
+  # 噪声调度类型 (Noise schedule type)
+  # 选项: "linear", "cosine", "sqrt"
+  # 目前实现为线性插值
+  schedule_type: "linear"
+
+# ================================================================================================
+# 物理约束配置 (Physics Constraints Configuration)
+# ================================================================================================
+physics:
+  # ---------- 物理损失总权重 (Overall physics loss weight) ----------
+  # lambda_phys * (所有物理约束的加权和)
+  # 建议值: 0.0 (纯数据驱动), 0.1-0.2 (平衡), 0.5+ (强物理约束)
+  # 如果主要目标是刷 RMSE，建议 0.1-0.2
+  # 如果追求物理一致性，建议 0.3-0.5
+  lambda: 0.2
+  
+  # ---------- 频域损失权重 (Frequency domain loss weight) ----------
+  # 使用 FFT 谱距离保持空间纹理和高频细节
+  # 建议值: 0.0 (纯像素级), 0.01-0.05 (轻微纹理增强), 0.1+ (强纹理约束)
+  # 注意: 过高可能导致 RMSE 上升但视觉质量提升
+  lambda_fft: 0.05
+  
+  # ---------- 梯度损失权重 (Gradient loss weight) ----------
+  # 惩罚预测场的空间梯度与真值不一致
+  # 提升温度、风速等连续场的空间平滑性和边界锐度
+  # 建议值: 0.0 (无梯度约束), 0.5-1.0 (标准), 2.0+ (强梯度约束)
+  lambda_grad: 0.5
+  
+  # ---------- 对抗损失权重 (Adversarial loss weight) ----------
+  # 使用判别器提升预测的真实性
+  # 建议值: 0.0 (无对抗), 0.01-0.05 (轻度), 0.1+ (强对抗)
+  lambda_adv: 0.0
+  
+  # ---------- 各物理约束的权重 (Individual physics constraint weights) ----------
+  
+  # 降水非负性约束权重 (Total precipitation non-negativity)
+  # 惩罚 tp < 0 的情况
+  w_tp_nonneg: 1.0
+  
+  # 云量范围约束权重 (Total cloud cover [0,1] constraint)
+  # 惩罚 tcc < 0 或 tcc > 1 的情况
+  w_tcc_01: 1.0
+  
+  # 露点温度约束权重 (Dewpoint <= Temperature constraint)
+  # 惩罚 d2m > t2m 的情况（物理上不可能）
+  w_dew_leq_t: 0.5
+  
+  # 气压非负性约束权重 (Surface pressure non-negativity)
+  # 惩罚 sp < 0 的情况
+  w_sp_nonneg: 0.1
+  
+  # 风场散度约束权重 (Wind divergence constraint)
+  # 惩罚不合理的风场散度
+  # 对于不可压缩流，散度应接近 0
+  w_wind_div: 0.1
+  
+  # 质量守恒约束权重 (Mass conservation constraint)
+  # 确保降水、蒸发等满足质量守恒
+  w_mass_conservation: 0.0
+  
+  # 能量守恒约束权重 (Energy conservation constraint)
+  # 确保温度场满足能量守恒
+  w_energy_conservation: 0.0
+  
+  # ---------- 频域损失的通道权重 (FFT channel weights) ----------
+  # 对应 [d2m, sp, t2m, tcc, tp, u10, v10]
+  # 温度场 (d2m, t2m) 和风场 (u10, v10) 需要保持空间结构，权重设为 1.0
+  # 云量 (tcc) 和降水 (tp) 空间变化剧烈，权重设为 0.0
+  # 气压 (sp) 空间平滑，权重可适中 0.5-1.0
+  fft_channel_weights: [1.0, 1.0, 1.0, 0.0, 0.0, 0.5, 0.5]
+  
+  # ---------- 梯度损失的通道权重 (Gradient loss channel weights) ----------
+  # 温度和风速场需要清晰的梯度边界
+  grad_channel_weights: [1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0]
+
+# ================================================================================================
+# 训练配置 (Training Configuration)
+# ================================================================================================
+train:
+  # 随机种子 (Random seed)
+  # 用于保证实验可复现性
+  seed: 42
+  
+  # 批量大小 (Batch size)
+  # 建议值: 16 (小显存), 32-64 (标准), 128+ (大显存)
+  # 注意: 更大的 batch size 通常带来更稳定的训练
+  batch_size: 64
+  
+  # 数据加载线程数 (Number of data loading workers)
+  num_workers: 8
+  
+  # ---------- 优化器配置 (Optimizer configuration) ----------
+  
+  # 学习率 (Learning rate)
+  # 建议值: 1e-4 (保守), 3e-4-5e-4 (标准), 1e-3 (激进)
+  # 使用 Cosine Annealing，初始学习率可设置较高
+  lr: 5e-4
+  
+  # 权重衰减 (Weight decay, L2 正则化)
+  # 建议值: 0 (无正则化), 1e-4 (标准), 1e-3 (强正则化)
+  weight_decay: 1e-4
+  
+  # 最大训练轮数 (Maximum training epochs)
+  max_epochs: 200
+  
+  # 梯度裁剪阈值 (Gradient clipping threshold)
+  # 0 表示不裁剪，建议值: 1.0-5.0
+  # 防止梯度爆炸，提升训练稳定性
+  gradient_clip_val: 1.0
+  
+  # 梯度累积步数 (Gradient accumulation steps)
+  # 用于模拟更大的 batch size
+  # effective_batch_size = batch_size * accumulate_grad_batches
+  accumulate_grad_batches: 1
+  
+  # ---------- 学习率调度 (Learning rate scheduling) ----------
+  
+  # 调度器类型 (Scheduler type)
+  # 选项: "cosine" (余弦退火), "step" (阶梯衰减), "plateau" (自适应)
+  scheduler: "cosine"
+  
+  # Cosine Annealing 最小学习率 (Minimum learning rate for cosine)
+  min_lr: 1e-6
+  
+  # 学习率预热轮数 (Warmup epochs)
+  # 从 0 线性增长到初始学习率
+  warmup_epochs: 10
+  
+  # ---------- 早停配置 (Early stopping configuration) ----------
+  
+  # 早停监控指标 (Metric to monitor for early stopping)
+  # - 单提前期/只关心 6h：建议监控 val/RMSE（默认对应 main_lead）
+  # - 多提前期综合效果：建议监控 val/RMSE_mean_leads（对 eval_lead_times 求平均，v4 新增）
+  # - 也可以监控某个变量+某个 lead，例如：val/RMSE_u10@24h
+  monitor: "val/RMSE"
+  
+  # 早停耐心值 (Patience for early stopping)
+  # 指标连续 patience 轮未改善则停止训练
+  patience: 20
+  
+  # 最小改进量 (Minimum delta for improvement)
+  # 改进小于此值不算改善
+  min_delta: 0.0001
+  
+  # ---------- 检查点配置 (Checkpoint configuration) ----------
+  
+  # 保存 top-k 最佳模型 (Save top-k best models)
+  save_top_k: 3
+  
+  # 是否保存最后一个检查点 (Save last checkpoint)
+  save_last: true
+  
+  # 日志记录频率 (Logging frequency, steps)
+  log_every_n_steps: 50
+  
+  # 验证频率 (Validation frequency, epochs)
+  check_val_every_n_epoch: 1
+  
+  # ---------- 通道加权损失 (Channel-weighted loss) ----------
+  # 对应 [d2m, sp, t2m, tcc, tp, u10, v10]
+  # 根据各变量的相对重要性和难度调整权重
+  # 
+  # 建议策略:
+  # 1. 温度场 (d2m, t2m) 最重要，权重 2.0-4.0
+  # 2. 风场 (u10, v10) 较重要，权重 1.0-2.0
+  # 3. 气压 (sp) 相对容易预测，权重 0.5-1.0
+  # 4. 降水 (tp) 最难预测但很重要，权重 3.0-5.0
+  # 5. 云量 (tcc) 难度适中，权重 1.0-2.0
+  #
+  # 示例配置:
+  # - 平衡: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  # - 重点温度: [3.0, 1.0, 4.0, 1.0, 2.0, 1.0, 1.0]
+  # - 重点降水: [2.0, 0.5, 2.0, 1.0, 5.0, 1.0, 1.0]
+  loss_weights: [2.0, 1.0, 2.0, 1.0, 3.0, 1.5, 1.5]
+  
+  # 是否使用自适应权重 (Use adaptive weights)
+  # true: 使用小型网络自动学习权重
+  # false: 使用上述固定权重
+  use_adaptive_weights: false
+
+  # ------------------------------
+  # v4 新增：自动两阶段训练（Stage-1 6h -> Stage-2 多提前期/多步微调）
+  # ------------------------------
+  # 说明：
+  # - train.py 会先跑 stage1，然后用 stage1 的 best checkpoint 初始化 stage2。
+  # - stageX.overrides 中写的内容会“递归覆写”到主配置中（deep merge）。
+  # - 建议：stage1 监控 val/RMSE(6h)，stage2 监控 val/RMSE_mean_leads 或 val/RMSE@24h。
+  two_stage:
+    enabled: false
+
+    stage1:
+      name: "stage1_6h"  # 日志/ckpt 子目录名
+      overrides:
+        # 覆写示例：只训练 6h（lead_times=[1]），并且只评估 6h
+        forecast:
+          lead_times: [1]
+          eval_lead_times: [1]
+          multi_horizon_inference: "direct"  # stage1 只 6h，无所谓 direct/AR
+        ablation:
+          # 若 stage2 计划启用 lead_time conditioning，建议 stage1 也开启，避免结构不一致
+          use_lead_time_conditioning: true
+        train:
+          monitor: "val/RMSE"   # stage1 只关心 6h
+          max_epochs: 200
+
+    stage2:
+      name: "stage2_multi"  # 日志/ckpt 子目录名
+      init_from_stage1: true
+      init_only_net: true     # 默认只加载 net 权重（更稳健）
+      init_strict: false      # strict=false 允许 stage2 新增参数（如 lead embedding）
+      overrides:
+        forecast:
+          lead_times: [1, 2, 3, 4]
+          eval_lead_times: [1, 2, 3, 4]
+          # 方案 A：direct multi-lead（需要 lead_time conditioning）
+          multi_horizon_inference: "direct"
+          lead_weight_anneal:
+            enabled: true
+            start_weighting: inverse
+            end_weighting: uniform
+            warmup_epochs: 0
+            anneal_epochs: 30
+            schedule: linear
+          # 方案 B：rollout fine-tune（适合 1-step + autoregressive 推理）
+          # rollout_finetune:
+          #   enabled: true
+          #   max_steps: 4
+          #   curriculum_epochs: 20
+          #   loss_on: all
+          #   always_include_step1: true
+          #   detach_context: true
+          #   teacher_forcing:
+          #     start_ratio: 1.0
+          #     end_ratio: 0.0
+          #     decay_epochs: 20
+          #     schedule: linear
+        ablation:
+          use_lead_time_conditioning: true
+        train:
+          # stage2 建议用更小的 lr 做微调
+          lr: 1e-4
+          max_epochs: 60
+          monitor: "val/RMSE_mean_leads"
+
+# ================================================================================================
+# 推理/评估配置 (Inference/Evaluation Configuration)
+# ================================================================================================
+inference:
+  # ---------- 推理模式 (Inference mode) ----------
+  # 选项:
+  # - "deterministic": 确定性推理，使用固定随机种子
+  #   优点: 结果可复现，速度快
+  #   用途: 计算 RMSE/MAE 等确定性指标
+  #
+  # - "ensemble": 集成推理，生成多个预测样本
+  #   优点: 可以评估不确定性，计算 CRPS
+  #   用途: 概率预报，不确定性量化
+  mode: "deterministic"
+  
+  # 验证集推理模式 (Validation inference mode)
+  # 可以覆盖 mode 设置
+  # 建议: 验证时使用 deterministic 加快速度
+  val_mode: "deterministic"
+  
+  # 测试集推理模式 (Test inference mode)
+  # 可以覆盖 mode 设置
+  # 建议: 测试时使用 ensemble 全面评估
+  test_mode: "ensemble"
+  
+  # ---------- 种子控制 (Seed control) ----------
+  
+  # 确定性模式的固定种子 (Fixed seed for deterministic mode)
+  fixed_seed: 42
+  
+  # 集成模式的基础种子 (Base seed for ensemble mode)
+  base_seed: 42
+  
+  # 每个 batch 的种子偏移 (Seed offset per batch)
+  # 避免不同 batch 使用相同的随机流
+  seed_offset_per_batch: 100000
+  
+  # ---------- 集成配置 (Ensemble configuration) ----------
+  
+  # 集成成员数 (Number of ensemble members)
+  # 建议值: 10 (快速), 20-50 (标准), 100+ (高精度)
+  # 注意: 更多成员带来更准确的不确定性估计，但计算量也更大
+  ensemble_size: 20
+  
+  # 是否计算 CRPS (Compute CRPS score)
+  # 只在 ensemble 模式下有效
+  compute_crps: true
+  
+  # 是否保存集成成员 (Save individual ensemble members)
+  # 用于后续分析和可视化
+  save_ensemble: false
+  
+  # ---------- 推理加速 (Inference acceleration) ----------
+  
+  # 是否使用 TorchScript 编译 (Use TorchScript compilation)
+  # 可以加速推理，但首次编译较慢
+  use_torchscript: false
+  
+  # 是否使用混合精度推理 (Use mixed precision inference)
+  use_fp16: false
+
+# ================================================================================================
+# 消融实验配置 (Ablation Study Configuration)
+# ================================================================================================
+# 用于系统性地测试各个组件的贡献
+ablation:
+  # ---------- 模型组件开关 (Model component switches) ----------
+  
+  # 是否使用 DropPath 正则化 (Use Stochastic Depth)
+  # 消融实验: 对比有无 DropPath 的性能差异
+  use_drop_path: true
+  
+  # 是否使用交叉注意力 (Use cross-attention)
+  # 消融实验: 对比交叉注意力 vs 自注意力
+  use_cross_attention: true
+  
+  # 是否使用位置编码 (Use position encoding)
+  # 消融实验: 验证位置编码的必要性
+  use_position_encoding: true
+  
+  # 是否使用时间步条件 (Use timestep conditioning)
+  # 消融实验: 验证扩散过程时间步信息的作用
+  use_timestep_conditioning: true
+
+  # 是否使用“提前期(lead time)”条件 (Use lead time conditioning)
+  # 消融实验: 一个模型覆盖多个提前期（例如 6/12/18/24h），避免为不同 lead 反复单独训练
+  # 说明：开启后需要同时配置 forecast.lead_times / forecast.eval_lead_times
+  use_lead_time_conditioning: false
+  
+  # ---------- 损失函数开关 (Loss function switches) ----------
+  
+  # 是否使用通道加权损失 (Use channel-weighted loss)
+  # 消融实验: 对比加权 vs 均匀权重
+  use_channel_weights: true
+  
+  # 是否使用物理约束损失 (Use physics constraint loss)
+  # 消融实验: 验证物理约束的效果
+  use_physics_loss: true
+  
+  # 是否使用频域损失 (Use FFT loss)
+  # 消融实验: 验证频域损失对纹理的影响
+  use_fft_loss: true
+  
+  # 是否使用梯度损失 (Use gradient loss)
+  # 消融实验: 验证梯度损失对边界锐度的影响
+  use_gradient_loss: true
+  
+  # ---------- 创新模块开关 (Innovation module switches) ----------
+  
+  # 是否使用混合注意力 (Use hybrid attention mechanism)
+  # 新增创新点: 空间注意力 + 通道注意力 + 时空注意力
+  use_hybrid_attention: false
+  
+  # 是否使用多尺度特征 (Use multi-scale features)
+  # 新增创新点: FPN 风格的多尺度特征金字塔
+  use_multi_scale: false
+  
+  # 是否使用自适应权重学习 (Use adaptive weight learning)
+  # 新增创新点: 自动学习各损失项的权重
+  use_adaptive_weights: false
+  
+  # 是否使用对抗训练 (Use adversarial training)
+  # 新增创新点: 引入判别器提升真实性
+  use_adversarial: false
+  
+  # 是否使用知识蒸馏 (Use knowledge distillation)
+  # 新增创新点: 从大模型蒸馏到小模型
+  use_distillation: false
+  
+  # 是否使用物理硬约束 (Use hard physics constraints)
+  # 新增创新点: 通过投影层强制满足物理定律
+  use_hard_physics: false
+
+# ================================================================================================
+# 可视化配置 (Visualization Configuration)
+# ================================================================================================
+visualization:
+  # 是否生成可视化 (Enable visualization)
+  enable: true
+  
+  # 可视化频率 (Visualization frequency, epochs)
+  # 每隔多少轮生成一次可视化
+  every_n_epochs: 5
+  
+  # 可视化样本数 (Number of samples to visualize)
+  num_samples: 4
+  
+  # 是否保存注意力图 (Save attention maps)
+  save_attention: true
+  
+  # 是否保存预测对比图 (Save prediction comparison)
+  save_prediction: true
+  
+  # 是否保存误差分析图 (Save error analysis)
+  save_error_analysis: true
+  
+  # 是否保存物理一致性分析 (Save physics consistency analysis)
+  save_physics_analysis: true
+  
+  # 图像保存格式 (Image format)
+  # 选项: "png", "pdf", "svg"
+  image_format: "png"
+  
+  # 图像 DPI (Image DPI for publication quality)
+  dpi: 300
+
+# ================================================================================================
+# 高级配置 (Advanced Configuration)
+# ================================================================================================
+advanced:
+  # 是否使用混合精度训练 (Use mixed precision training)
+  # 可以加速训练并减少显存占用
+  use_amp: true
+  
+  # 是否使用梯度检查点 (Use gradient checkpointing)
+  # 以计算换显存，适合显存不足的情况
+  use_gradient_checkpointing: false
+  
+  # 是否编译模型 (Compile model with torch.compile)
+  # PyTorch 2.0+ 特性，可以显著加速训练
+  compile_model: false
+  
+  # 分布式训练策略 (Distributed training strategy)
+  # 选项: "ddp" (DistributedDataParallel), "fsdp" (Fully Sharded Data Parallel)
+  strategy: "ddp"
+  
+  # 是否使用 EMA (Exponential Moving Average)
+  # 平滑模型权重，提升泛化性能
+  use_ema: false
+  ema_decay: 0.9999
+  
+  # 是否使用 SWA (Stochastic Weight Averaging)
+  # 训练后期平均多个检查点的权重
+  use_swa: false
+  swa_epoch_start: 160
+  swa_lr: 1e-5
+
+# ================================================================================================
+# 日志和监控配置 (Logging and Monitoring Configuration)
+# ================================================================================================
+logging:
+  # 日志保存目录 (Log directory)
+  log_dir: "logs"
+  
+  # 实验名称 (Experiment name)
+  # 会在 log_dir 下创建对应子目录
+  run_name: "urbanx_pidit_v4"
+
+  # （可选）checkpoint 保存目录。
+  # 不填则默认保存到：{log_dir}/{run_name}/{stage_name}/checkpoints
+  ckpt_dir: null
+  
+  # TensorBoard 配置
+  use_tensorboard: true
+  tensorboard_dir: "logs/tensorboard"
+  
+  # Weights & Biases 配置
+  use_wandb: false
+  wandb_project: "urbanx-pidit"
+  wandb_entity: "your-team"
+
+  # （可选）Wandb 的更多字段
+  # 说明：以下配置会直接传给 pytorch_lightning.loggers.WandbLogger
+  wandb_group: null          # 分组名，便于同一组实验对比
+  wandb_name: null           # 如果不填，会默认使用 run_name
+  wandb_tags: []             # 标签列表，例如 ["multihorizon", "ablation"]
+  wandb_save_dir: "logs"    # wandb 本地缓存目录
+  wandb_log_model: false     # 是否上传模型文件到 wandb（可能占用较大空间）
+  wandb_offline: false       # 是否离线模式（无网络时可用）
+  
+  # 是否记录模型结构 (Log model architecture)
+  log_model_architecture: true
+  
+  # 是否记录梯度直方图 (Log gradient histogram)
+  log_gradients: false
+  
+  # 是否记录权重直方图 (Log weight histogram)
+  log_weights: false
+
+# ================================================================================================
+# 备注 (Notes)
+# ================================================================================================
+# 
+# 快速开始配置建议:
+# 1. 刷 RMSE: drop_path_rate=0.0, lambda=0.1, lambda_fft=0.0, lambda_grad=0.0
+# 2. 平衡性能: drop_path_rate=0.1, lambda=0.2, lambda_fft=0.05, lambda_grad=0.5
+# 3. 强物理约束: drop_path_rate=0.1, lambda=0.5, lambda_fft=0.1, lambda_grad=1.0
+#
+# 消融实验建议:
+# 1. 基线: 关闭所有创新模块，只保留基础 DiT
+# 2. +物理约束: use_physics_loss=true
+# 3. +频域损失: use_fft_loss=true
+# 4. +混合注意力: use_hybrid_attention=true
+# 5. +多尺度: use_multi_scale=true
+# 6. 完整模型: 所有创新点开启
+#
+# 论文实验建议:
+# 1. 定量对比: 记录 RMSE, MAE, CRPS (使用 ensemble 模式)
+# 2. 消融实验: 按上述顺序逐步添加模块
+# 3. 可视化: 保存注意力图、预测对比图、误差分析图
+# 4. 物理一致性: 单独报告各物理约束的满足程度
+#
+# ================================================================================================

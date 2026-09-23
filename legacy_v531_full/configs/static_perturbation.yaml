@@ -1,0 +1,165 @@
+# V5.2 static perturbation manifest configuration.
+# 用于 schema-faithful static path、形态图与 MicroMetRefine 的静态信息鲁棒性评估，默认只生成 manifest。
+
+data_root: /3240608030/weather-q/data/processed_data/beijing
+
+data:
+  expose_hour: true
+
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+include_static: true
+broadcast_static: true
+
+static_schema:
+  categorical: [landcover]
+  continuous: [building_surface, buildings, building_volume, population]
+  categorical_cardinality:
+    landcover: 20
+
+k: 4
+delta_t: 1
+H: 8
+W: 8
+
+forecast:
+  time_step_hours: 6
+  lead_times: [1, 2, 3, 4]
+  eval_lead_times: [1, 2, 3, 4]
+
+model:
+  D: 128
+  depth: 4
+  heads: 4
+  mlp_ratio: 4.0
+  drop_path_rate: 0.0
+  dropout: 0.0
+
+diffusion:
+  P_mean: -0.8
+  P_std: 0.8
+  sample_steps: 8
+
+losses:
+  feasibility:
+    enabled: true
+    lambda: 0.2
+  structure:
+    enabled: true
+    fft_enabled: true
+    grad_enabled: true
+    lambda_fft: 0.05
+    lambda_grad: 0.5
+  process:
+    enabled: true
+    lambda_rh: 0.02
+    lambda_drag: 0.01
+    lambda_diurnal: 0.01
+
+ablation:
+  use_cross_attention: true
+  use_position_encoding: true
+  use_timestep_conditioning: true
+  use_lead_time_conditioning: true
+  use_channel_weights: true
+  use_physics_loss: true
+  use_fft_loss: true
+  use_gradient_loss: true
+  use_hard_physics: false
+  use_static_morphology_encoder: true
+  use_morphology_graph: true
+  use_wind_aware_graph: true
+  use_dynamic_vg: true
+  use_static_vg: true
+  use_micromet_coupling: true
+  use_urban_canopy_coupling: false
+  use_urban_canopy: false
+
+morphology_graph:
+  k: 8
+  sigma: 1.0
+  morphology_sigma: 1.0
+  spatial_sigma: 1.0
+  wind_temperature: 0.25
+  wind_strength: 1.0
+  roughness_blocking_strength: 0.5
+  enable_cache: false
+
+micromet_coupling:
+  enabled: true
+  mode: interleaved
+  interleaved_interval: 3
+  hidden_channels: 32
+  dropout: 0.0
+  enable_momentum_drag: true
+  enable_thermal_storage: true
+  enable_moisture_evaporation: true
+  enable_ventilation_mixing: true
+  max_drag: 0.2
+  max_branch_scale: 0.1
+  graph_cfg:
+    k: 8
+    sigma: 1.0
+    wind_temperature: 0.25
+    wind_strength: 1.0
+    roughness_blocking_strength: 0.5
+    enable_cache: false
+
+static_perturb:
+  mode: none
+  seed: 42
+  deterministic: true
+  categorical_modes:
+    landcover: 0
+
+wrong_city_static:
+  source_path: ""
+  source_key: ""
+  skip_if_missing: true
+
+experiment:
+  protocol: v52_static_perturbation
+  default_dry_run: true
+  output_dir: outputs/experiments/static_perturbation
+  modes:
+    - none
+    - fill_mean
+    - fill_zero
+    - shuffle_spatial
+    - shuffle_batch
+    - landcover_only
+    - continuous_only
+    - wrong_city_static
+    - remove_building_surface
+    - remove_buildings
+    - remove_building_volume
+    - remove_population
+  baseline_mode: none
+  degradation_csv: degradation_ratio.csv
+
+train:
+  seed: 42
+  batch_size: 128
+  num_workers: 8
+  lr: 0.0001
+  weight_decay: 0.0001
+  max_epochs: 200
+
+eval:
+  batch_size: 128
+  num_workers: 8
+
+metrics:
+  deterministic:
+    enabled: true
+  acc:
+    enabled: true
+    climatology: train_mean_field
+    weighting: coslat
+    center: true
+
+logging:
+  log_dir: logs
+  run_name: urbanpidit_v52_static_perturbation
+  use_tensorboard: false
+  use_wandb: false

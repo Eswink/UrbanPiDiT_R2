@@ -1,0 +1,235 @@
+# ================================================================================================
+# UrbanPiDiT 北京数据配置 - 简化版
+# 适用于快速训练和实验
+# ================================================================================================
+
+# 数据根目录
+data_root: /3240608030/weather-q/data/processed_data/beijing
+
+# 气象变量
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]  # 7个动态变量
+static_vars: [landcover, building_surface, buildings, building_volume, population]  # 5个静态变量
+include_static: true  # 包含静态变量
+broadcast_static: true  # 每个时间步使用当前静态数据
+
+# 时空配置
+k: 4  # 使用过去4个时间步
+delta_t: 1  # 预测未来1个时间步
+
+# ================================================================================================
+# 多提前期预测（multi-horizon）配置
+# ================================================================================================
+# 说明：
+# - 若配置 lead_times，Dataset 会额外返回 batch["y"]，从而在 val/test 阶段记录多个提前期的指标；
+# - 若开启 ablation.use_lead_time_conditioning，则模型会显式接收 lead_time 条件，一个模型可直接预测 6/12/18/24h。
+forecast:
+  time_step_hours: 6
+  lead_times: [1, 2, 3, 4]            # 数据加载时需要的 lead 列表（单位：步）
+  eval_lead_times: [1, 2, 3, 4]       # 评估时记录指标的 lead 列表（单位：步）
+  train_lead_time_sampling: "curriculum" # uniform | curriculum
+  curriculum_epochs: 30               # curriculum 策略的持续 epoch 数
+  multi_horizon_inference: "direct"  # direct | autoregressive
+  correlate_noise_across_leads: true  # direct 推理时是否对不同 lead 复用同一初始噪声
+  max_lead_time_steps: 4              # lead_time 归一化分母
+
+
+  # ------------------------------
+  # 多提前期训练目标与权重（推荐设置：稳住 6h 同时提升 12/18/24h）
+  # ------------------------------
+  train_objective: lead1_plus_k      # single_lead | lead1_plus_k | weighted_sum_all
+  extra_leads_per_batch: 1           # 除了最短 lead 之外，再额外随机采样几个 lead
+  force_include_short_lead: true     # 固定包含最短 lead（通常是 6h）
+  lead_loss_weighting: inverse       # uniform | inverse | inverse_sqrt | exp_decay | custom
+  lead_weight_beta: 0.5              # exp_decay 的 beta
+  lead_loss_weights: null            # custom 权重列表（与 lead_times 对齐）
+  normalize_lead_loss: true          # 对加权 loss 归一化
+  apply_aux_losses_to_all_leads: false  # 是否把物理/FFT/梯度等辅助损失施加到所有 lead
+H: 8  # 8x8 网格
+W: 8
+
+# ================================================================================================
+# 模型配置
+# ================================================================================================
+model:
+  D: 256  # 嵌入维度
+  depth: 12  # Transformer层数
+  heads: 4  # 注意力头数
+  mlp_ratio: 4.0  # MLP扩展比例
+  # drop_path_rate: 0.1  # DropPath概率，过拟合时增大到0.2
+  # dropout: 0.1  # Dropout概率
+  drop_path_rate: 0.1  # DropPath概率，过拟合时增大到0.2
+  dropout: 0.1  # Dropout概率
+
+# ================================================================================================
+# 扩散配置
+# ================================================================================================
+diffusion:
+  P_mean: -0.8  # 时间分布均值
+  P_std: 0.8  # 时间分布标准差
+  sample_steps: 8  # 推理采样步数
+  t_start: 0.0  # 起始时间
+  t_end: 1.0  # 终止时间
+
+# ================================================================================================
+# 物理约束
+# ================================================================================================
+physics:
+  # lambda: 0.2  # 物理损失总权重
+  # lambda_fft: 0.05  # 频域损失权重
+  # lambda_grad: 0.5  # 梯度损失权重
+  lambda: 0.2  # 物理损失总权重
+  lambda_fft: 0.05  # 频域损失权重
+  lambda_grad: 0.5  # 梯度损失权重
+  
+  # 各物理约束权重
+  w_tp_nonneg: 1.0  # 降水非负
+  w_tcc_01: 1.0  # 云量[0,1]
+  w_dew_leq_t: 0.5  # 露点≤温度
+  w_sp_nonneg: 0.1  # 气压非负
+  w_wind_div: 0.1  # 风场散度
+  
+  # 通道权重
+  fft_channel_weights: [1.0, 1.0, 1.0, 0.0, 0.0, 0.5, 0.5]
+  grad_channel_weights: [1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0]
+
+  lambda_adv: 0.05  # 对抗损失权重
+
+  # 物理硬约束
+  projection_steps: 5
+  projection_lr: 0.1
+
+# ================================================================================================
+# 训练配置
+# ================================================================================================
+train:
+  seed: 42
+  batch_size: 256  # 根据显存调整
+  num_workers: 8
+  lr: 5e-4  # 学习率
+  weight_decay: 1e-4  # L2正则化
+  max_epochs: 200
+  gradient_clip_val: 1.0  # 梯度裁剪
+  patience: 20  # 早停耐心值
+  min_delta: 0.0001
+  # 早停监控指标：多提前期综合效果建议用 val/RMSE_mean_leads
+  monitor: "val/RMSE_mean_leads"
+  log_every_n_steps: 50
+  
+  # 通道加权损失: [d2m, sp, t2m, tcc, tp, u10, v10]
+  # 策略: 温度(d2m,t2m)和降水(tp)权重高，气压(sp)权重低
+  loss_weights: [2.0, 1.0, 2.0, 0.25, 0.25, 1.0, 1.0]
+  # loss_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+# ================================================================================================
+# 推理配置
+# ================================================================================================
+inference:
+  val_mode: deterministic  # 验证:确定性，快速
+  test_mode: ensemble  # 测试:集成，全面评估
+  fixed_seed: 42
+  base_seed: 42
+  seed_offset_per_batch: 100000
+  ensemble_size: 20  # 集成成员数
+  compute_crps: true  # 计算CRPS指标
+
+# ================================================================================================
+# 消融实验开关
+# ================================================================================================
+ablation:
+  # 基础组件
+  use_drop_path: true
+  use_cross_attention: true
+  use_position_encoding: true
+  use_timestep_conditioning: true
+  # 是否启用“提前期(lead time)”条件：一个模型覆盖多个 lead（6/12/18/24h）
+  use_lead_time_conditioning: true
+  
+  # 损失函数
+  use_channel_weights: true
+  use_physics_loss: true
+  use_fft_loss: true
+  use_gradient_loss: true
+  
+  # ---------- 创新模块开关 (Innovation module switches) ----------
+  
+  # 是否使用混合注意力 (Use hybrid attention mechanism)
+  # 新增创新点: 空间注意力 + 通道注意力 + 时空注意力
+  use_hybrid_attention: false
+  
+  # 是否使用多尺度特征 (Use multi-scale features)
+  # 新增创新点: FPN 风格的多尺度特征金字塔
+  use_multi_scale: false
+  
+  # 是否使用自适应权重学习 (Use adaptive weight learning)
+  # 新增创新点: 自动学习各损失项的权重
+  use_adaptive_weights: false
+  
+  # 是否使用对抗训练 (Use adversarial training)
+  # 新增创新点: 引入判别器提升真实性
+  use_adversarial: false
+  
+  # 是否使用知识蒸馏 (Use knowledge distillation)
+  # 新增创新点: 从大模型蒸馏到小模型
+  use_distillation: false
+  
+  # 是否使用物理硬约束 (Use hard physics constraints)
+  # 新增创新点: 通过投影层强制满足物理定律
+  use_hard_physics: false
+
+  # 是否使用变量关系图 (Use variable graph/attention bias)
+  # 新增创新点: 显式建模不同气象变量间的耦合关系
+  use_variable_graph: true
+
+  # 是否使用城市空间图 (Use urban spatial graph)
+  # 新增创新点: 基于静态特征构建空间 kNN 图，传播城市结构先验
+  use_urban_graph: false
+
+# ================================================================================================
+# Urban Graph 配置 (仅当 use_urban_graph=true 时生效)
+# ================================================================================================
+urban_graph:
+  k: 8  # 每个格点的最近邻数
+  sigma: 1.0  # RBF 核宽度
+
+# ================================================================================================
+# 日志配置
+# ================================================================================================
+logging:
+  log_dir: "logs"
+  run_name: "urbanx_baseline"
+  use_tensorboard: true
+  use_wandb: false
+
+  # Wandb 可选配置（仅在 use_wandb=true 时生效）
+  wandb_project: "UrbanPiDiT"
+  wandb_entity: null
+  wandb_group: null
+  wandb_name: null
+  wandb_tags: []
+  wandb_save_dir: "logs"
+  wandb_log_model: false
+  wandb_offline: false
+
+# ================================================================================================
+# 配置说明
+# ================================================================================================
+# 
+# 快速开始:
+# 1. 修改 data_root 为你的数据路径
+# 2. 根据显存调整 batch_size (16/32/64/128)
+# 3. 运行: python train.py --config configs/beijing.yaml
+#
+# 刷RMSE策略:
+# - drop_path_rate: 0.0 (关闭正则化)
+# - lambda: 0.1 (减少物理约束)
+# - lambda_fft: 0.0 (关闭频域损失)
+# - lambda_grad: 0.0 (关闭梯度损失)
+#
+# 消融实验:
+# 1. 基线: 所有创新模块设为false
+# 2. +物理约束: use_physics_loss=true
+# 3. +混合注意力: use_hybrid_attention=true
+# 4. +多尺度: use_multi_scale=true
+# 5. 完整模型: 所有设为true
+#
+# ================================================================================================

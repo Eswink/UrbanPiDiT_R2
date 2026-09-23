@@ -1,0 +1,308 @@
+{
+  "source_archive_uploaded_name": "physicsnemo-main.zip",
+  "source_archive_sandbox_path": "/mnt/data/physicsnemo-main.zip",
+  "source_archive_sha256": "7665bdb4c27e1c0dcc635a7800c7540f890a818d119acd062da9d5d3bfe220c9",
+  "upstream_project": "NVIDIA PhysicsNeMo",
+  "upstream_repository": "https://github.com/NVIDIA/physicsnemo.git",
+  "extracted_subdir": "physicsnemo-main/examples/weather/corrdiff",
+  "patch_external_source_dir": "baselines/external_sources/physicsnemo_weather_corrdiff",
+  "note": "Upstream tests are intentionally excluded from the patch archive to avoid pytest collecting PhysicsNeMo-specific tests in the UrbanPiDiT environment.",
+  "file_count": 59,
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "30e8eaa1a9653d3cb1df543b37bdcafcc662add01c4589e7be602115856f54fa",
+      "bytes": 30409
+    },
+    {
+      "path": "conf/base/__init__.py",
+      "sha256": "80e7750d2d9534a0dcd4ebf0f7d7e0afce2590f880f7d472eae44d46e603d5b7",
+      "bytes": 716
+    },
+    {
+      "path": "conf/base/dataset/custom.yaml",
+      "sha256": "3ed21ec68788fea3e6ca6c47bb4904759c8ad6ea13cd48b7fc0971cf4e155c11",
+      "bytes": 1091
+    },
+    {
+      "path": "conf/base/dataset/cwb.yaml",
+      "sha256": "b24620949903df2be0ccece6102ff8f756f9d4dca8627e84b1590593ac3ea3c1",
+      "bytes": 1324
+    },
+    {
+      "path": "conf/base/dataset/gefs_hrrr.yaml",
+      "sha256": "f28cdd116efdf75a5837362255a34bbf19323392c98c334a0b6e3ccd8b445948",
+      "bytes": 1981
+    },
+    {
+      "path": "conf/base/dataset/hrrr_mini.yaml",
+      "sha256": "f8fd503c86842475884e5a6c1c95469daa824eb168fb5034cb9915c8dd619080",
+      "bytes": 951
+    },
+    {
+      "path": "conf/base/generation/base_all.yaml",
+      "sha256": "cf3303851589b0e9234c868b0e9354f3f63a281bb8925afa824a88069b7b5139",
+      "bytes": 2097
+    },
+    {
+      "path": "conf/base/generation/non_patched.yaml",
+      "sha256": "14334c6aecc4dca54fa0787961534cae3c2e4bd46056cdc8803c63e434d6a263",
+      "bytes": 758
+    },
+    {
+      "path": "conf/base/generation/patched.yaml",
+      "sha256": "bc0a191dfa98e8c18f822feaf2dc312cfbe99e98d039e3571ad5e5fdd9e558c2",
+      "bytes": 1152
+    },
+    {
+      "path": "conf/base/generation/sampler/deterministic.yaml",
+      "sha256": "f7d40ec6b11d2c35f04909b2f68a4076eb2e88ea5a76fa23f1a0857ab38e6b71",
+      "bytes": 851
+    },
+    {
+      "path": "conf/base/generation/sampler/stochastic.yaml",
+      "sha256": "11c39c8ec2b09a32e55d5bb9cc7eba4100242df4cf026c71577c9d268324f062",
+      "bytes": 805
+    },
+    {
+      "path": "conf/base/model/diffusion.yaml",
+      "sha256": "84e94da27acc752cc7e1695b148f53a05c47d6a881c9f0bcd7663fc054bbb881",
+      "bytes": 1223
+    },
+    {
+      "path": "conf/base/model/lt_aware_ce_regression.yaml",
+      "sha256": "4c43c7cd25a0367f6e02031260b3c214809af8d8e9ebc217b80a02bddff03720",
+      "bytes": 1556
+    },
+    {
+      "path": "conf/base/model/lt_aware_patched_diffusion.yaml",
+      "sha256": "88b3bf03039a574ea57919373cd8acef366b0a9491d8158d2b6bdf3fcd8253b7",
+      "bytes": 1598
+    },
+    {
+      "path": "conf/base/model/lt_aware_regression.yaml",
+      "sha256": "e0b97dc7bd1abe166b7e38d9f4b4aa8645e24d2b28ca4cfb4185367999547693",
+      "bytes": 1552
+    },
+    {
+      "path": "conf/base/model/patched_diffusion.yaml",
+      "sha256": "8dd6d825ce59e721398331f9d8123b3b9028c0a254a7eabc49c420d3d52cfdf8",
+      "bytes": 1107
+    },
+    {
+      "path": "conf/base/model/regression.yaml",
+      "sha256": "650005ed1c2067ce7aa018e32cab343ebdcf3b9e7345a4a85b0fbb1fe13dcac5",
+      "bytes": 1088
+    },
+    {
+      "path": "conf/base/model_size/mini.yaml",
+      "sha256": "95903897f1ee0f8c35d2c096be22f337a133b2d9c2a9b716470a0153ada24ed9",
+      "bytes": 1014
+    },
+    {
+      "path": "conf/base/model_size/normal.yaml",
+      "sha256": "405f362b3ce8502ec28ec74913be740fdc5e67a4676f30a7ad333690e015e0e3",
+      "bytes": 1021
+    },
+    {
+      "path": "conf/base/training/base_all.yaml",
+      "sha256": "1e0f3f72c61e1b23bc501f937ccf63523a7e19569bc30af4c584e7d13a62e282",
+      "bytes": 2334
+    },
+    {
+      "path": "conf/base/training/diffusion.yaml",
+      "sha256": "31fd4cf7173c58acf952e0a8a27d8a02d774bebab0efebe616c0fd94ce709ae7",
+      "bytes": 850
+    },
+    {
+      "path": "conf/base/training/lt_aware_ce_regression.yaml",
+      "sha256": "4d01e672ef351559a856c244b54cf7301ccdbc421559189a4b0f6475df60d9b9",
+      "bytes": 1179
+    },
+    {
+      "path": "conf/base/training/lt_aware_patched_diffusion.yaml",
+      "sha256": "130775c323a730b4525e32b9edca2ebc97f40e580b1280d39edd6a3c4f618368",
+      "bytes": 2158
+    },
+    {
+      "path": "conf/base/training/lt_aware_regression.yaml",
+      "sha256": "4d01e672ef351559a856c244b54cf7301ccdbc421559189a4b0f6475df60d9b9",
+      "bytes": 1179
+    },
+    {
+      "path": "conf/base/training/patched_diffusion.yaml",
+      "sha256": "2ab4904585f1e76f9ea126e865f3188bdfa81a13309e003aa9bf04e92949c835",
+      "bytes": 1663
+    },
+    {
+      "path": "conf/base/training/regression.yaml",
+      "sha256": "5d8fb904a0149ae2cb5fd54affafd84603c71714603ccf6ffb4b3f84e086a8a7",
+      "bytes": 741
+    },
+    {
+      "path": "conf/config_generate_custom.yaml",
+      "sha256": "87c5e408141c4f9c7cb0fdf97bea399100f6538a3af89978b703b79d728c9d55",
+      "bytes": 3289
+    },
+    {
+      "path": "conf/config_generate_gefs_hrrr.yaml",
+      "sha256": "293bb6f57263ee47164882ede93de57e43137f7adb1690fb44cae31a7593cf56",
+      "bytes": 2946
+    },
+    {
+      "path": "conf/config_generate_hrrr_mini.yaml",
+      "sha256": "ab3234604c0569930885851e9053d0e57d4c6dbcf49c1b28e96b7878adaefade",
+      "bytes": 2567
+    },
+    {
+      "path": "conf/config_generate_taiwan.yaml",
+      "sha256": "e59a6fdcc998899c2df145c6be4911cbdb0d971224edb3288d138bbb3f26f478",
+      "bytes": 2708
+    },
+    {
+      "path": "conf/config_training_custom.yaml",
+      "sha256": "7e592d0fda17a3d727ee7b7503673a8b1ee30517d089b426d05adc6384a9f1bb",
+      "bytes": 4296
+    },
+    {
+      "path": "conf/config_training_gefs_hrrr_diffusion.yaml",
+      "sha256": "3c4ad6c4f7af2ef61e3a3aabaf7102d000c495246322bbf1ff75da361f6238ca",
+      "bytes": 3259
+    },
+    {
+      "path": "conf/config_training_gefs_hrrr_regression.yaml",
+      "sha256": "04f42bf9e39f0b5dc9b6ea8b4cfea980fd735cab2deb242bdabf5fdf82269393",
+      "bytes": 2822
+    },
+    {
+      "path": "conf/config_training_hrrr_mini_diffusion.yaml",
+      "sha256": "25d6c99c0caf63b2107636d7ddf81087a49e9f24ede15d6b7d8747126dfe174c",
+      "bytes": 3004
+    },
+    {
+      "path": "conf/config_training_hrrr_mini_regression.yaml",
+      "sha256": "1ddaeca8e8f45d6c46f9b83f8e75a53aac0c2b2c1edf4cc3e034d5ad614a9fbb",
+      "bytes": 2891
+    },
+    {
+      "path": "conf/config_training_hrrr_patched_diffusion_opt.yaml",
+      "sha256": "b2779b03b390f67389211e0febcc46756eec0a0fc9861e9792593ef401b2459d",
+      "bytes": 4703
+    },
+    {
+      "path": "conf/config_training_taiwan_diffusion.yaml",
+      "sha256": "bc6b18929a5da2fc31491c96917743cd16d99c5af0896c9f895612d381a61f9c",
+      "bytes": 3138
+    },
+    {
+      "path": "conf/config_training_taiwan_regression.yaml",
+      "sha256": "4cd37f2996a5b020f4da5b29ffcb97164cec7af3532f3f35ff71acc56c8f4005",
+      "bytes": 2822
+    },
+    {
+      "path": "datasets/__init__.py",
+      "sha256": "80e7750d2d9534a0dcd4ebf0f7d7e0afce2590f880f7d472eae44d46e603d5b7",
+      "bytes": 716
+    },
+    {
+      "path": "datasets/base.py",
+      "sha256": "781803063a3a180e371b7f25aa0d81f9aff85462a48931f998dc6483a7572b83",
+      "bytes": 2813
+    },
+    {
+      "path": "datasets/cwb.py",
+      "sha256": "44c17f57940401ecf0b177a4b4c12d40507747b32477214fafe421609b2b8772",
+      "bytes": 19306
+    },
+    {
+      "path": "datasets/dataset.py",
+      "sha256": "2fe9daad140dc37c55fa61754b22dc2ee00117d2537bd445df9a95e1d4076bb6",
+      "bytes": 6031
+    },
+    {
+      "path": "datasets/gefs_hrrr.py",
+      "sha256": "9a224f91b99d1f335a79287857531aa9f2bbf5020ffbca19995661aae530aaf5",
+      "bytes": 20092
+    },
+    {
+      "path": "datasets/hrrrmini.py",
+      "sha256": "60b1e572266f3ea7e9e89e2aaaf7f649009c28d08a1b6ba849c706936812271f",
+      "bytes": 7141
+    },
+    {
+      "path": "datasets/img_utils.py",
+      "sha256": "4be018d7b15ddf72a79ced1bd1e5c96a61928d12968ceb6cc117c9648bb7f839",
+      "bytes": 2337
+    },
+    {
+      "path": "datasets/norm.py",
+      "sha256": "7c10c42122a6e7d4fd6779cf6f0079d1322052f045826c88e545849338f2d85e",
+      "bytes": 1550
+    },
+    {
+      "path": "generate.py",
+      "sha256": "4619b6ae5e9261312464274ce8787e78cbd747c5eb5184afcae4e2edab129967",
+      "bytes": 18179
+    },
+    {
+      "path": "helpers/__init__.py",
+      "sha256": "80e7750d2d9534a0dcd4ebf0f7d7e0afce2590f880f7d472eae44d46e603d5b7",
+      "bytes": 716
+    },
+    {
+      "path": "helpers/generate_helpers.py",
+      "sha256": "19c58a8c8e7fef6d5a114d1cc2a50768fb56871f74480586b6e97cd46ef6fb22",
+      "bytes": 8221
+    },
+    {
+      "path": "helpers/train_helpers.py",
+      "sha256": "b58d41eff723ddb152282e2a7779232c3a6ab8a828442f1768255d744f42fb52",
+      "bytes": 5036
+    },
+    {
+      "path": "inference/concat.py",
+      "sha256": "a3095db9e48333d2e762341eb5444c291a5297eb8fdf555ca351ba21fdfb6ee6",
+      "bytes": 1367
+    },
+    {
+      "path": "inference/matplotlibrc",
+      "sha256": "eacc1ea3ef26fbb205636966075b9b183c9065addd220f1a4a3fd3a69d61b484",
+      "bytes": 40881
+    },
+    {
+      "path": "inference/plot_multiple_samples.py",
+      "sha256": "551057cb0a844f8d26a373da9a36121ec612a34868e20c38d76894d332150084",
+      "bytes": 2541
+    },
+    {
+      "path": "inference/plot_single_sample.py",
+      "sha256": "1403b0f24fa4b3d65c59fc061108c4d4278a880eafbaf5f2e69ba0cf41fb7650",
+      "bytes": 6470
+    },
+    {
+      "path": "inference/power_spectra.py",
+      "sha256": "a72003631a41096997b9d23128ee932681b9c95de74c2c7c4006e60e3ce2a404",
+      "bytes": 8064
+    },
+    {
+      "path": "inference/read_netcdf.py",
+      "sha256": "64e4139fe2c317365760a9990237a6529c5c6ed178b9ed57bebbb360b8446269",
+      "bytes": 1289
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "7aa79f59bcf332f09fae95ad4d431dba1ded98587fb9a62076fdb2c5ccd9841b",
+      "bytes": 240
+    },
+    {
+      "path": "score_samples.py",
+      "sha256": "782226478aaf8120e11ad6df549cdf117e2170712be7f506100af463c126fde9",
+      "bytes": 4193
+    },
+    {
+      "path": "train.py",
+      "sha256": "3c9c1fde30021dc3e27c922362f3b9088dfa0b6c8db2e2e1c0b68d21898a1983",
+      "bytes": 35711
+    }
+  ]
+}

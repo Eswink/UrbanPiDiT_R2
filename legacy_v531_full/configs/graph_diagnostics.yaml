@@ -1,0 +1,106 @@
+# V5.1 graph diagnostics manifest configuration.
+# 用于轻量构建 morphology / wind-aware graph 诊断，不启动训练。
+
+data_root: /3240608030/weather-q/data/processed_data/beijing
+
+data:
+  expose_hour: true
+
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+include_static: true
+broadcast_static: true
+
+static_schema:
+  categorical: [landcover]
+  continuous: [building_surface, buildings, building_volume, population]
+  categorical_cardinality:
+    landcover: 20
+
+k: 4
+delta_t: 1
+H: 8
+W: 8
+
+forecast:
+  time_step_hours: 6
+  lead_times: [1, 2, 3, 4]
+  eval_lead_times: [1, 2, 3, 4]
+
+model:
+  D: 128
+  depth: 4
+  heads: 4
+  mlp_ratio: 4.0
+  drop_path_rate: 0.0
+  dropout: 0.0
+
+diffusion:
+  P_mean: -0.8
+  P_std: 0.8
+  sample_steps: 8
+
+ablation:
+  use_cross_attention: true
+  use_position_encoding: true
+  use_timestep_conditioning: true
+  use_lead_time_conditioning: true
+  use_static_morphology_encoder: true
+  use_morphology_graph: true
+  use_wind_aware_graph: true
+  use_dynamic_vg: false
+  use_static_vg: false
+  use_micromet_coupling: false
+  use_urban_canopy_coupling: false
+  use_urban_canopy: false
+
+morphology_graph:
+  k: 8
+  sigma: 1.0
+  morphology_sigma: 1.0
+  spatial_sigma: 1.0
+  alpha_geo: 1.0
+  alpha_cont: 1.0
+  alpha_cat: 1.0
+  graph_temperature: 1.0
+  wind_temperature: 0.25
+  wind_strength: 1.0
+  wind_speed_scale: 1.0
+  calm_wind_threshold: 0.0001
+  roughness_blocking_strength: 0.5
+  enable_cache: false
+
+experiment:
+  protocol: v51_graph_diagnostics
+  default_dry_run: true
+  output_dir: results/graph_diagnostics
+  diagnostics:
+    - mean_degree
+    - edge_weight_mean
+    - same_category_edge_ratio
+    - graph_entropy
+    - wind_anisotropy_mean
+    - roughness_blocking_mean
+    - calm_wind
+
+train:
+  seed: 42
+  batch_size: 128
+  num_workers: 8
+  lr: 0.0001
+  weight_decay: 0.0001
+  max_epochs: 200
+
+eval:
+  batch_size: 128
+  num_workers: 8
+
+metrics:
+  deterministic:
+    enabled: true
+
+logging:
+  log_dir: logs
+  run_name: urbanpidit_v51_graph_diagnostics
+  use_tensorboard: false
+  use_wandb: false

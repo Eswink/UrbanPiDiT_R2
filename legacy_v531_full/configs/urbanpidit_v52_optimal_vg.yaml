@@ -1,0 +1,180 @@
+# UrbanPiDiT V5.2.1-Optimal-VG
+# 基于 v52_process_loss (29实验中ACC最高、per-variable胜率最高) 的增强配置
+# =============================================================================
+# v52基础 (RMSE@6h=32.67, ACC@6h=0.840, per-variable 20/28 wins):
+#   ✅ static_encoder, morphology_graph, wind_aware_graph, micromet_coupling
+#   ✅ feasibility_loss, structure_loss (FFT+grad), process_loss (rh/drag/diurnal)
+#
+# 增量 (提供论文城市-过程耦合叙事):
+#   + proxy_encoder + process_adaln     ← 城市-过程耦合 (impervious_d2m_corr约束)
+#   + urban_control_branch              ← 城市控制 (diurnal_range约束)
+#   + use_variable_graph                ← 老VG (用户要求)
+#   + 过程代理损失项 (roughness_wind, diurnal_building, impervious_d2m, wind_tcc)
+#
+# 不加 (消融证据: 单独移除退化 >3% 或 论文中并非必要):
+#   ✗ anisotropic_process_graph   (+3.6% isolation degradation)
+#   ✗ micromet_token_branches     (+1.9%)
+#   ✗ morphology_residual_head    (+2.1%)
+#
+# 运行: python train.py --config configs/urbanpidit_v52_optimal_vg.yaml
+
+version:
+  name: UrbanPiDiT-V5.2.1-Optimal-VG
+  release: UrbanPiDiT-V5.2.1-v52-Base-With-ProcessCoupling-VG
+
+base: configs/urbanpidit_v531_reviewer_evidence.yaml
+
+base_overrides:
+  metrics:
+    report_global: [RMSE, MAE, Bias, CRPS, ACC]
+    report_per_variable: [RMSE, MAE, Bias, CRPS, ACC]
+    acc:
+      enabled: true
+      climatology: train_mean_field
+      weighting: coslat
+      center: true
+      log_per_channel: true
+  static_perturb:
+    mode: none
+  dynamic_perturb:
+    mode: none
+
+  ablation:
+    # ===== v52 基础: 全部保留 =====
+    use_static_morphology_encoder: true
+    use_morphology_graph: true
+    use_wind_aware_graph: true
+    use_micromet_coupling: true
+    use_process_consistency_loss: true
+
+    # ===== 增量: 城市-过程耦合 (论文叙事核心) =====
+    use_process_proxy_encoder: true
+    use_process_adaln: true
+    use_urban_control_branch: true
+
+    # ===== 增量: 老VG =====
+    use_variable_graph: true
+
+    # ===== 不加: 消融证据证明负面 =====
+    use_anisotropic_process_graph: false
+    use_micromet_token_branches: false
+    use_morphology_residual_head: false
+
+    # ===== 未使用 =====
+    use_variable_channel_attention: false
+    use_multi_scale: false
+    use_hybrid_attention: false
+    use_dynamic_vg: false
+    use_static_vg: false
+    use_urban_graph: false
+    use_legacy_urban_graph: false
+    use_urban_canopy: false
+    use_urban_canopy_coupling: false
+    use_proxy_conditioned_vg: false
+
+  micromet_coupling:
+    enabled: true
+    mode: pre
+    interleaved_interval: 3
+
+  morpho_process:
+    proxy_encoder:
+      enabled: true
+    process_adaln:
+      enabled: true
+    urban_control_branch:
+      enabled: true
+    anisotropic_graph:
+      enabled: false
+    token_branches:
+      enabled: false
+    residual_head:
+      enabled: false
+
+  losses:
+    feasibility:
+      enabled: true
+      lambda: 0.2
+    structure:
+      enabled: true
+      fft_enabled: true
+      grad_enabled: true
+      lambda_fft: 0.05
+      lambda_grad: 0.5
+    process:
+      enabled: true
+      lambda_rh: 0.02
+      lambda_drag: 0.01
+      lambda_diurnal: 0.01
+      lambda: 0.01
+      lambda_roughness_wind: 0.005
+      lambda_diurnal_building: 0.005
+      lambda_impervious_d2m: 0.005
+      lambda_wind_tcc: 0.002
+
+  physics:
+    lambda: 0.2
+    lambda_fft: 0.05
+    lambda_grad: 0.5
+    lambda_process_rh: 0.02
+    lambda_process_drag: 0.01
+    lambda_process_diurnal: 0.01
+    lambda_process_proxy: 0.01
+    lambda_proxy_roughness_wind: 0.005
+    lambda_proxy_diurnal_building: 0.005
+    lambda_proxy_impervious_d2m: 0.005
+    lambda_proxy_wind_tcc: 0.002
+
+  inference:
+    val_mode: deterministic
+    test_mode: ensemble
+    fixed_seed: 42
+    base_seed: 42
+    seed_offset_per_batch: 100000
+    ensemble_size: 20
+    compute_crps: true
+
+  logging:
+    use_tensorboard: true
+    use_wandb: false
+
+  run_name: v52_optimal_vg
+
+two_stage:
+  enabled: true
+  stage1:
+    name: stage1_6h
+    overrides:
+      forecast:
+        lead_times: [1]
+        eval_lead_times: [1]
+        multi_horizon_inference: direct
+        lead_weight_anneal:
+          enabled: false
+        rollout_finetune:
+          enabled: false
+      train:
+        monitor: val/RMSE
+        max_epochs: 250
+        lr: 0.0005
+  stage2:
+    name: stage2_multi_lead
+    init_from_stage1: true
+    init_only_net: true
+    init_strict: false
+    overrides:
+      forecast:
+        lead_times: [1, 2, 3, 4]
+        eval_lead_times: [1, 2, 3, 4]
+        multi_horizon_inference: direct
+        lead_weight_anneal:
+          enabled: true
+          start_weighting: inverse
+          end_weighting: uniform
+          warmup_epochs: 0
+          anneal_epochs: 30
+          schedule: linear
+      train:
+        monitor: val/RMSE_mean_leads
+        max_epochs: 200
+        lr: 0.0001

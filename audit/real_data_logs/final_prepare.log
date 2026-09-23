@@ -1,0 +1,4 @@
+真实数据 SHA256: 277a2b00094398a9959aa8d4060b9035d581c89fbc009309097fd3bc38241129
+train /mnt/data/UrbanPiDiT_R2_V6_work/UrbanPiDiT_R2_V6/data/manifests/real_smoke/train.jsonl
+val /mnt/data/UrbanPiDiT_R2_V6_work/UrbanPiDiT_R2_V6/data/manifests/real_smoke/val.jsonl
+test /mnt/data/UrbanPiDiT_R2_V6_work/UrbanPiDiT_R2_V6/data/manifests/real_smoke/test.jsonl

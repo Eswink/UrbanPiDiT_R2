@@ -1,0 +1,59 @@
+{
+  "protocol": "v52_graph_diagnostics",
+  "config": "configs/urbanpidit_v52_micromet_refine.yaml",
+  "dry_run": true,
+  "schema_faithful_fields": [
+    "continuous_channel_count",
+    "categorical_channel_count",
+    "same_category_edge_ratio",
+    "geo_distance_mean",
+    "cont_distance_mean",
+    "categorical_mismatch_mean",
+    "edge_weight_std",
+    "anisotropy_strength",
+    "upwind_weight_mean",
+    "downwind_weight_mean",
+    "roughness_blocking_mean"
+  ],
+  "spatial_hw": [
+    8,
+    8
+  ],
+  "node_count": 64,
+  "base_graph": {
+    "mean_degree": 9.0,
+    "edge_weight_mean": 0.1111111119389534,
+    "edge_weight_std": 0.08534076064825058,
+    "same_category_edge_ratio": 0.9184027910232544,
+    "geo_distance_mean": 0.31784623861312866,
+    "cont_distance_mean": 0.8869089484214783,
+    "categorical_mismatch_mean": 0.0815972238779068,
+    "graph_entropy": 1.9849481582641602,
+    "continuous_channel_count": 4.0,
+    "categorical_channel_count": 1.0,
+    "static_schema_fallback": 0.0,
+    "effective_topk": 8.0,
+    "cache_hit": 0.0
+  },
+  "wind_aware_graph": {
+    "mean_degree": 9.0,
+    "edge_weight_mean": 0.1111111044883728,
+    "edge_weight_std": 0.17668376863002777,
+    "same_category_edge_ratio": 0.9184027910232544,
+    "geo_distance_mean": 0.31784623861312866,
+    "cont_distance_mean": 0.8869089484214783,
+    "categorical_mismatch_mean": 0.0815972238779068,
+    "graph_entropy": 1.2699939012527466,
+    "continuous_channel_count": 4.0,
+    "categorical_channel_count": 1.0,
+    "static_schema_fallback": 0.0,
+    "effective_topk": 8.0,
+    "cache_hit": 0.0,
+    "wind_anisotropy_mean": 0.9640275239944458,
+    "anisotropy_strength": 0.9640275239944458,
+    "upwind_weight_mean": 0.0033974433317780495,
+    "downwind_weight_mean": 0.18091028928756714,
+    "roughness_blocking_mean": 0.7876417636871338,
+    "calm_wind": 0.0
+  }
+}

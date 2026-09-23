@@ -1,0 +1,83 @@
+data_root: /3240608030/weather-q/data/processed_data/beijing
+data:
+  expose_hour: true
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+include_static: true
+broadcast_static: true
+static_schema:
+  categorical: [landcover]
+  continuous: [building_surface, buildings, building_volume, population]
+  categorical_cardinality:
+    landcover: 20
+k: 4
+delta_t: 1
+forecast:
+  time_step_hours: 6
+  lead_times: [1, 2, 3, 4]
+train:
+  batch_size: 16
+  num_workers: 4
+eval:
+  batch_size: 32
+  num_workers: 4
+external_baseline_training:
+  epochs: 50
+  lr: 0.0002
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  train_protocol: diffusion
+  train_lead_times: [1, 2, 3, 4]
+  early_stopping:
+    enabled: true
+    monitor: val_6h_mse
+    mode: min
+    patience: 8
+    restore_best: true
+  checkpoint:
+    enabled: true
+    save_last: true
+    save_every: 1
+    monitor: val_6h_mse
+    mode: min
+    save_top_k: 1
+  tensorboard:
+    enabled: true
+    log_dir: outputs/baselines/tensorboard
+    log_every_n_steps: 20
+metrics:
+  report_global: [RMSE, MAE, Bias, CRPS, ACC]
+  report_per_variable: [RMSE, MAE, Bias, CRPS, ACC]
+baselines:
+  protocol: faithful_gencast_edm
+  static_policy: same_static
+  models:
+    - name: faithful_gencast
+      alias: faithful_gencast
+      family: faithful_weather_baseline
+      static_policy: same_static
+      params:
+        hidden_channels: 384
+        mesh_size: 2
+        k_nn: 8
+        radius_query_fraction_edge_length: 0.6
+        num_layers: 10
+        num_heads: 6
+        ffn_hidden: 1536
+        dropout: 0.05
+        encoder_depth: 2
+        decoder_depth: 2
+        use_graph_attention: true
+        graph_k: 8
+        sigma_data: 0.5
+        sigma_min: 0.002
+        sigma_max: 80.0
+        sigma_sample_mean: -1.2
+        sigma_sample_std: 1.2
+        rho: 7.0
+        num_noise_levels: 18
+        num_samples: 1
+        stochastic_eval: false
+        residual: true
+        forecast_protocol: official_rollout
+        one_step_lead: 1

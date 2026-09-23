@@ -1,0 +1,58 @@
+data:
+  mode: synthetic
+  length: 24
+  coarse_hw: [8, 8]
+  urban_hw: [32, 32]
+  coarse_steps: 2
+  urban_steps: 2
+  coarse_channels: 12
+  urban_channels: 7
+  static_channels: 6
+  out_channels: 7
+  anchored_processes: 12
+model:
+  coarse_channels: 12
+  coarse_history_steps: 2
+  urban_channels: 7
+  urban_history_steps: 2
+  static_channels: 6
+  out_channels: 7
+  coarse_dim: 96
+  process_dim: 128
+  urban_dim: 128
+  coarse_patch: 2
+  urban_patch: 4
+  coarse_depth: 2
+  urban_depth: 2
+  coarse_heads: 4
+  process_heads: 4
+  urban_heads: 4
+  window_size: 4
+  anchored_processes: 12
+  free_processes: 4
+  train_reasoning_steps: 2
+  max_reasoning_steps: 4
+  enable_diffusion: false
+  activation_checkpointing: false
+optim:
+  lr: 0.0003
+  weight_decay: 0.0001
+loss:
+  forecast_weight: 1.0
+  process_weight: 0.05
+  router_weight: 0.05
+  verifier_weight: 0.05
+  compute_weight: 0.005
+train:
+  seed: 42
+  batch_size: 2
+  num_workers: 0
+  precision: 32-true
+  accumulate_grad_batches: 1
+  max_epochs: 1
+  limit_train_batches: 2
+  limit_val_batches: 1
+  limit_test_batches: 1
+  save_top_k: 1
+  patience: 0
+  progress_bar: false

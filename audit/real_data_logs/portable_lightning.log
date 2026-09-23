@@ -1,0 +1,34 @@
+Seed set to 42
+GPU available: False, used: False
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+`Trainer(limit_val_batches=1)` was configured so 1 batch will be used.
+`Trainer(limit_test_batches=1)` was configured so 1 batch will be used.
+┏━━━┳━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━┓
+┃   ┃ Name ┃ Type         ┃ Params ┃ Mode  ┃ FLOPs ┃
+┡━━━╇━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━┩
+│ 0 │ net  │ UrbanPiDiTR2 │  1.1 M │ train │     0 │
+└───┴──────┴──────────────┴────────┴───────┴───────┘
+Trainable params: 1.1 M                                                         
+Non-trainable params: 0                                                         
+Total params: 1.1 M                                                             
+Total estimated model params size (MB): 4.331                                   
+Modules in train mode: 190                                                      
+Modules in eval mode: 0                                                         
+Total FLOPs: 0                                                                  
+/opt/pyvenv/lib/python3.13/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+/opt/pyvenv/lib/python3.13/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=4` in the `DataLoader` to improve performance.
+/opt/pyvenv/lib/python3.13/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=4` in the `DataLoader` to improve performance.
+`Trainer.fit` stopped: `max_epochs=1` reached.
+Restoring states from the checkpoint path at /mnt/data/UrbanPiDiT_R2_V6_RealDataSmoke/outputs/real_smoke_checkpoints/epoch=0-step=2.ckpt
+Loaded model weights from the checkpoint at /mnt/data/UrbanPiDiT_R2_V6_RealDataSmoke/outputs/real_smoke_checkpoints/epoch=0-step=2.ckpt
+/opt/pyvenv/lib/python3.13/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'test_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=4` in the `DataLoader` to improve performance.
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│       test/forecast       │  2.3997779408091446e-06   │
+│         test/loss         │   0.035302430391311646    │
+│    test/verifier_loss     │    0.6967493891716003     │
+│    test/verifier_score    │    0.5016657710075378     │
+│      test/zoom_prob       │    0.4625599980354309     │
+└───────────────────────────┴───────────────────────────┘

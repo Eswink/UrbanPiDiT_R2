@@ -1,0 +1,71 @@
+data_root: /3240608030/weather-q/data/processed_data/beijing
+data:
+  expose_hour: true
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+include_static: true
+broadcast_static: true
+static_schema:
+  categorical: [landcover]
+  continuous: [building_surface, buildings, building_volume, population]
+  categorical_cardinality:
+    landcover: 20
+k: 4
+delta_t: 1
+forecast:
+  time_step_hours: 6
+  lead_times: [1, 2, 3, 4]
+train:
+  batch_size: 32
+  num_workers: 4
+eval:
+  batch_size: 64
+  num_workers: 4
+external_baseline_training:
+  epochs: 50
+  lr: 0.0005
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  train_protocol: auto
+  rollout_loss_lead_times: [1, 2, 3, 4]
+  early_stopping:
+    enabled: true
+    monitor: val_rollout_mse
+    mode: min
+    patience: 8
+    restore_best: true
+  checkpoint:
+    enabled: true
+    save_last: true
+    save_every: 1
+    monitor: val_rollout_mse
+    mode: min
+    save_top_k: 1
+  tensorboard:
+    enabled: true
+    log_dir: outputs/baselines/tensorboard
+    log_every_n_steps: 20
+metrics:
+  report_global: [RMSE, MAE, Bias, CRPS, ACC]
+  report_per_variable: [RMSE, MAE, Bias, CRPS, ACC]
+  deterministic_crps: single_member_equals_mae
+baselines:
+  protocol: faithful_fourcastnet_rollout
+  static_policy: same_static
+  models:
+    - name: faithful_fourcastnet
+      alias: faithful_fourcastnet
+      family: faithful_weather_baseline
+      static_policy: same_static
+      params:
+        hidden_channels: 128
+        depth: 8
+        num_blocks: 2
+        sparsity_threshold: 0.01
+        mlp_ratio: 4.0
+        dropout: 0.0
+        residual: true
+        include_coords: true
+        include_hour: true
+        forecast_protocol: official_rollout
+        one_step_lead: 1

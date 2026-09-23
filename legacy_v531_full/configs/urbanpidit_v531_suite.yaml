@@ -1,0 +1,652 @@
+# UrbanPiDiT V5.3.1 MorphoProcessDiT 一键实验套件。
+# 运行入口：python train_suite.py --config configs/urbanpidit_v531_suite.yaml --out_dir outputs/experiments/v531 --resume
+
+version:
+  name: UrbanPiDiT-V5.3.1-ExperimentSuite
+  release: UrbanPiDiT-V5.3.1-MorphoProcessDiT-FullSuite
+  experiment_count: 29
+
+base: configs/urbanpidit_v531_reviewer_evidence.yaml
+
+base_overrides:
+  metrics:
+    report_global: [RMSE, MAE, Bias, CRPS, ACC]
+    report_per_variable: [RMSE, MAE, Bias, CRPS, ACC]
+    acc:
+      enabled: true
+      climatology: train_mean_field
+      weighting: coslat
+      center: true
+      log_per_channel: true
+  static_perturb:
+    mode: none
+    seed: 42
+    deterministic: true
+    categorical_modes:
+      landcover: 0
+  dynamic_perturb:
+    mode: none
+  ablation:
+    use_morphology_graph: true
+    use_wind_aware_graph: true
+  inference:
+    val_mode: deterministic
+    test_mode: ensemble
+    fixed_seed: 42
+    base_seed: 42
+    seed_offset_per_batch: 100000
+    ensemble_size: 20
+    compute_crps: true
+  logging:
+    use_tensorboard: true
+    use_wandb: false
+
+two_stage:
+  enabled: true
+  stage1:
+    name: stage1_6h
+    overrides:
+      forecast:
+        lead_times: [1]
+        eval_lead_times: [1]
+        multi_horizon_inference: direct
+        lead_weight_anneal:
+          enabled: false
+        rollout_finetune:
+          enabled: false
+      train:
+        monitor: val/RMSE
+        max_epochs: 250
+        lr: 0.0005
+  stage2:
+    name: stage2_multi_lead
+    init_from_stage1: true
+    init_only_net: true
+    init_strict: false
+    overrides:
+      forecast:
+        lead_times: [1, 2, 3, 4]
+        eval_lead_times: [1, 2, 3, 4]
+        multi_horizon_inference: direct
+        lead_weight_anneal:
+          enabled: true
+          start_weighting: inverse
+          end_weighting: uniform
+          warmup_epochs: 0
+          anneal_epochs: 30
+          schedule: linear
+      train:
+        monitor: val/RMSE_mean_leads
+        max_epochs: 200
+        lr: 0.0001
+
+experiments:
+  - alias: cumulative_v4_base
+    group: cumulative
+    desc: V4 baseline with DiT/CrossAttention only.
+    overrides:
+      ablation:
+        use_static_morphology_encoder: false
+        use_morphology_graph: false
+        use_wind_aware_graph: false
+        use_micromet_coupling: false
+        use_process_proxy_encoder: false
+        use_process_adaln: false
+        use_urban_control_branch: false
+        use_anisotropic_process_graph: false
+        use_micromet_token_branches: false
+        use_morphology_residual_head: false
+        use_process_consistency_loss: false
+        use_variable_graph: false
+        use_dynamic_vg: false
+        use_static_vg: false
+        use_urban_graph: false
+        use_legacy_urban_graph: false
+      losses:
+        feasibility:
+          enabled: false
+          lambda: 0.0
+        structure:
+          enabled: false
+          fft_enabled: false
+          grad_enabled: false
+          lambda_fft: 0.0
+          lambda_grad: 0.0
+        process:
+          enabled: false
+          lambda_rh: 0.0
+          lambda_drag: 0.0
+          lambda_diurnal: 0.0
+          lambda: 0.0
+          lambda_roughness_wind: 0.0
+          lambda_diurnal_building: 0.0
+          lambda_impervious_d2m: 0.0
+          lambda_wind_tcc: 0.0
+      physics:
+        lambda: 0.0
+        lambda_fft: 0.0
+        lambda_grad: 0.0
+        lambda_process_rh: 0.0
+        lambda_process_drag: 0.0
+        lambda_process_diurnal: 0.0
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: cumulative_v5_static_enc
+    group: cumulative
+    desc: Cumulative stack with static morphology encoder.
+    overrides:
+      ablation:
+        use_static_morphology_encoder: true
+        use_morphology_graph: false
+        use_wind_aware_graph: false
+        use_micromet_coupling: false
+        use_process_proxy_encoder: false
+        use_process_adaln: false
+        use_urban_control_branch: false
+        use_anisotropic_process_graph: false
+        use_micromet_token_branches: false
+        use_morphology_residual_head: false
+        use_process_consistency_loss: false
+        use_variable_graph: false
+        use_dynamic_vg: false
+        use_static_vg: false
+        use_urban_graph: false
+        use_legacy_urban_graph: false
+      losses:
+        feasibility: {enabled: false, lambda: 0.0}
+        structure: {enabled: false, fft_enabled: false, grad_enabled: false, lambda_fft: 0.0, lambda_grad: 0.0}
+        process: {enabled: false, lambda_rh: 0.0, lambda_drag: 0.0, lambda_diurnal: 0.0, lambda: 0.0, lambda_roughness_wind: 0.0, lambda_diurnal_building: 0.0, lambda_impervious_d2m: 0.0, lambda_wind_tcc: 0.0}
+      physics:
+        lambda: 0.0
+        lambda_fft: 0.0
+        lambda_grad: 0.0
+        lambda_process_rh: 0.0
+        lambda_process_drag: 0.0
+        lambda_process_diurnal: 0.0
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: cumulative_v5_morph_graph
+    group: cumulative
+    desc: Cumulative stack with heterogeneous morphology graph.
+    overrides:
+      ablation:
+        use_static_morphology_encoder: true
+        use_morphology_graph: true
+        use_wind_aware_graph: false
+        use_micromet_coupling: false
+        use_process_proxy_encoder: false
+        use_process_adaln: false
+        use_urban_control_branch: false
+        use_anisotropic_process_graph: false
+        use_micromet_token_branches: false
+        use_morphology_residual_head: false
+        use_process_consistency_loss: false
+        use_variable_graph: false
+        use_dynamic_vg: false
+        use_static_vg: false
+        use_urban_graph: false
+        use_legacy_urban_graph: false
+      losses:
+        feasibility: {enabled: false, lambda: 0.0}
+        structure: {enabled: false, fft_enabled: false, grad_enabled: false, lambda_fft: 0.0, lambda_grad: 0.0}
+        process: {enabled: false, lambda_rh: 0.0, lambda_drag: 0.0, lambda_diurnal: 0.0, lambda: 0.0, lambda_roughness_wind: 0.0, lambda_diurnal_building: 0.0, lambda_impervious_d2m: 0.0, lambda_wind_tcc: 0.0}
+      physics:
+        lambda: 0.0
+        lambda_fft: 0.0
+        lambda_grad: 0.0
+        lambda_process_rh: 0.0
+        lambda_process_drag: 0.0
+        lambda_process_diurnal: 0.0
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: cumulative_v5_wind_graph
+    group: cumulative
+    desc: Cumulative stack with morphology graph + wind-aware propagation, before micromet coupling.
+    overrides:
+      ablation:
+        use_static_morphology_encoder: true
+        use_morphology_graph: true
+        use_wind_aware_graph: true
+        use_micromet_coupling: false
+        use_process_proxy_encoder: false
+        use_process_adaln: false
+        use_urban_control_branch: false
+        use_anisotropic_process_graph: false
+        use_micromet_token_branches: false
+        use_morphology_residual_head: false
+        use_process_consistency_loss: false
+        use_variable_graph: false
+        use_dynamic_vg: false
+        use_static_vg: false
+        use_urban_graph: false
+        use_legacy_urban_graph: false
+      losses:
+        feasibility: {enabled: false, lambda: 0.0}
+        structure: {enabled: false, fft_enabled: false, grad_enabled: false, lambda_fft: 0.0, lambda_grad: 0.0}
+        process: {enabled: false, lambda_rh: 0.0, lambda_drag: 0.0, lambda_diurnal: 0.0, lambda: 0.0, lambda_roughness_wind: 0.0, lambda_diurnal_building: 0.0, lambda_impervious_d2m: 0.0, lambda_wind_tcc: 0.0}
+      physics:
+        lambda: 0.0
+        lambda_fft: 0.0
+        lambda_grad: 0.0
+        lambda_process_rh: 0.0
+        lambda_process_drag: 0.0
+        lambda_process_diurnal: 0.0
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: cumulative_v51_micromet
+    group: cumulative
+    desc: Cumulative stack with pre-transformer micromet coupling.
+    overrides:
+      ablation:
+        use_static_morphology_encoder: true
+        use_morphology_graph: true
+        use_wind_aware_graph: true
+        use_micromet_coupling: true
+        use_process_proxy_encoder: false
+        use_process_adaln: false
+        use_urban_control_branch: false
+        use_anisotropic_process_graph: false
+        use_micromet_token_branches: false
+        use_morphology_residual_head: false
+        use_process_consistency_loss: false
+        use_variable_graph: false
+        use_dynamic_vg: false
+        use_static_vg: false
+        use_urban_graph: false
+        use_legacy_urban_graph: false
+      micromet_coupling:
+        enabled: true
+        mode: pre
+        interleaved_interval: 3
+      losses:
+        feasibility: {enabled: false, lambda: 0.0}
+        structure: {enabled: false, fft_enabled: false, grad_enabled: false, lambda_fft: 0.0, lambda_grad: 0.0}
+        process: {enabled: false, lambda_rh: 0.0, lambda_drag: 0.0, lambda_diurnal: 0.0, lambda: 0.0, lambda_roughness_wind: 0.0, lambda_diurnal_building: 0.0, lambda_impervious_d2m: 0.0, lambda_wind_tcc: 0.0}
+      physics:
+        lambda: 0.0
+        lambda_fft: 0.0
+        lambda_grad: 0.0
+        lambda_process_rh: 0.0
+        lambda_process_drag: 0.0
+        lambda_process_diurnal: 0.0
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: cumulative_v52_process_loss
+    group: cumulative
+    desc: Cumulative stack with feasibility, structure and process consistency losses.
+    overrides:
+      ablation:
+        use_static_morphology_encoder: true
+        use_morphology_graph: true
+        use_wind_aware_graph: true
+        use_micromet_coupling: true
+        use_process_proxy_encoder: false
+        use_process_adaln: false
+        use_urban_control_branch: false
+        use_anisotropic_process_graph: false
+        use_micromet_token_branches: false
+        use_morphology_residual_head: false
+        use_process_consistency_loss: true
+        use_variable_graph: false
+        use_dynamic_vg: false
+        use_static_vg: false
+        use_urban_graph: false
+        use_legacy_urban_graph: false
+      micromet_coupling:
+        enabled: true
+        mode: pre
+        interleaved_interval: 3
+      losses:
+        feasibility: {enabled: true, lambda: 0.2}
+        structure: {enabled: true, fft_enabled: true, grad_enabled: true, lambda_fft: 0.05, lambda_grad: 0.5}
+        process: {enabled: true, lambda_rh: 0.02, lambda_drag: 0.01, lambda_diurnal: 0.01, lambda: 0.0, lambda_roughness_wind: 0.0, lambda_diurnal_building: 0.0, lambda_impervious_d2m: 0.0, lambda_wind_tcc: 0.0}
+      physics:
+        lambda: 0.2
+        lambda_fft: 0.05
+        lambda_grad: 0.5
+        lambda_process_rh: 0.02
+        lambda_process_drag: 0.01
+        lambda_process_diurnal: 0.01
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: cumulative_v53_proxy_adaln
+    group: cumulative
+    desc: Cumulative stack with process proxy encoder, process AdaLN and urban control branch.
+    overrides:
+      ablation:
+        use_static_morphology_encoder: true
+        use_morphology_graph: true
+        use_wind_aware_graph: true
+        use_micromet_coupling: true
+        use_process_proxy_encoder: true
+        use_process_adaln: true
+        use_urban_control_branch: true
+        use_anisotropic_process_graph: false
+        use_micromet_token_branches: false
+        use_morphology_residual_head: false
+        use_process_consistency_loss: true
+        use_variable_graph: false
+        use_dynamic_vg: false
+        use_static_vg: false
+        use_urban_graph: false
+        use_legacy_urban_graph: false
+      micromet_coupling:
+        enabled: true
+        mode: pre
+        interleaved_interval: 3
+      morpho_process:
+        proxy_encoder:
+          enabled: true
+        process_adaln:
+          enabled: true
+        urban_control_branch:
+          enabled: true
+      losses:
+        feasibility: {enabled: true, lambda: 0.2}
+        structure: {enabled: true, fft_enabled: true, grad_enabled: true, lambda_fft: 0.05, lambda_grad: 0.5}
+        process: {enabled: true, lambda_rh: 0.02, lambda_drag: 0.01, lambda_diurnal: 0.01, lambda: 0.01, lambda_roughness_wind: 0.005, lambda_diurnal_building: 0.005, lambda_impervious_d2m: 0.005, lambda_wind_tcc: 0.002}
+      physics:
+        lambda: 0.2
+        lambda_fft: 0.05
+        lambda_grad: 0.5
+        lambda_process_rh: 0.02
+        lambda_process_drag: 0.01
+        lambda_process_diurnal: 0.01
+        lambda_process_proxy: 0.01
+        lambda_proxy_roughness_wind: 0.005
+        lambda_proxy_diurnal_building: 0.005
+        lambda_proxy_impervious_d2m: 0.005
+        lambda_proxy_wind_tcc: 0.002
+
+  - alias: cumulative_v531_full
+    group: cumulative
+    desc: Full V5.3.1 stack with anisotropic graph, token branches and residual head.
+    overrides:
+      ablation:
+        use_static_morphology_encoder: true
+        use_morphology_graph: true
+        use_wind_aware_graph: true
+        use_micromet_coupling: true
+        use_process_proxy_encoder: true
+        use_process_adaln: true
+        use_urban_control_branch: true
+        use_anisotropic_process_graph: true
+        use_micromet_token_branches: true
+        use_morphology_residual_head: true
+        use_process_consistency_loss: true
+        use_variable_graph: false
+        use_dynamic_vg: false
+        use_static_vg: false
+        use_urban_graph: false
+        use_legacy_urban_graph: false
+      micromet_coupling:
+        enabled: true
+        mode: token_interleaved
+        interleaved_interval: 3
+
+  - alias: ablation_no_proxy_encoder
+    group: core_ablation
+    desc: Full V5.3.1 without process proxy encoder.
+    overrides:
+      ablation:
+        use_process_proxy_encoder: false
+        use_process_adaln: false
+        use_urban_control_branch: false
+
+  - alias: ablation_proxy_encoder_alone
+    group: core_ablation
+    desc: Full V5.3.1 with process proxy encoder retained while downstream process modules are disabled.
+    overrides:
+      ablation:
+        use_process_proxy_encoder: true
+        use_process_adaln: false
+        use_urban_control_branch: false
+        use_anisotropic_process_graph: false
+        use_micromet_token_branches: false
+        use_morphology_residual_head: false
+        use_process_consistency_loss: false
+      micromet_coupling:
+        mode: pre
+      losses:
+        process: {enabled: false, lambda_rh: 0.0, lambda_drag: 0.0, lambda_diurnal: 0.0, lambda: 0.0, lambda_roughness_wind: 0.0, lambda_diurnal_building: 0.0, lambda_impervious_d2m: 0.0, lambda_wind_tcc: 0.0}
+      physics:
+        lambda_process_rh: 0.0
+        lambda_process_drag: 0.0
+        lambda_process_diurnal: 0.0
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: ablation_no_process_adaln
+    group: core_ablation
+    desc: Full V5.3.1 without process-conditioned AdaLN.
+    overrides:
+      ablation:
+        use_process_adaln: false
+
+  - alias: ablation_no_urban_control
+    group: core_ablation
+    desc: Full V5.3.1 without urban morphology control branch.
+    overrides:
+      ablation:
+        use_urban_control_branch: false
+
+  - alias: ablation_no_aniso_graph
+    group: core_ablation
+    desc: Full V5.3.1 without anisotropic process graph.
+    overrides:
+      ablation:
+        use_anisotropic_process_graph: false
+
+  - alias: ablation_no_graph_all
+    group: core_ablation
+    desc: Full V5.3.1 without any graph module (morphology, wind-aware, anisotropic process graph).
+    overrides:
+      ablation:
+        use_morphology_graph: false
+        use_wind_aware_graph: false
+        use_anisotropic_process_graph: false
+
+  - alias: ablation_no_micromet_tokens
+    group: core_ablation
+    desc: Full V5.3.1 without micromet token branches.
+    overrides:
+      ablation:
+        use_micromet_token_branches: false
+      micromet_coupling:
+        mode: pre
+
+  - alias: ablation_no_residual_head
+    group: core_ablation
+    desc: Full V5.3.1 without morphology residual prediction head.
+    overrides:
+      ablation:
+        use_morphology_residual_head: false
+
+  - alias: ablation_no_process_consistency
+    group: core_ablation
+    desc: Full V5.3.1 without process consistency loss terms.
+    overrides:
+      ablation:
+        use_process_consistency_loss: false
+      losses:
+        process: {enabled: false, lambda_rh: 0.0, lambda_drag: 0.0, lambda_diurnal: 0.0, lambda: 0.0, lambda_roughness_wind: 0.0, lambda_diurnal_building: 0.0, lambda_impervious_d2m: 0.0, lambda_wind_tcc: 0.0}
+      physics:
+        lambda_process_rh: 0.0
+        lambda_process_drag: 0.0
+        lambda_process_diurnal: 0.0
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: ablation_no_feasibility_only
+    group: physics_decomposition
+    desc: Full V5.3.1 without feasibility loss only; structure and process consistency losses remain enabled.
+    overrides:
+      losses:
+        feasibility: {enabled: false, lambda: 0.0}
+
+  - alias: ablation_no_structure_only
+    group: physics_decomposition
+    desc: Full V5.3.1 without structure (FFT+grad) loss only; feasibility and process consistency losses remain enabled.
+    overrides:
+      losses:
+        structure: {enabled: false, fft_enabled: false, grad_enabled: false, lambda_fft: 0.0, lambda_grad: 0.0}
+
+  - alias: ablation_no_process_proxy_only
+    group: physics_decomposition
+    desc: Full V5.3.1 without proxy process consistency terms only; feasibility and structure losses remain enabled.
+    overrides:
+      losses:
+        process: {enabled: false, lambda_rh: 0.0, lambda_drag: 0.0, lambda_diurnal: 0.0, lambda: 0.0, lambda_roughness_wind: 0.0, lambda_diurnal_building: 0.0, lambda_impervious_d2m: 0.0, lambda_wind_tcc: 0.0}
+      physics:
+        lambda_process_rh: 0.0
+        lambda_process_drag: 0.0
+        lambda_process_diurnal: 0.0
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: static_same
+    group: static_policy
+    desc: Full V5.3.1 with original static fields.
+    overrides:
+      include_static: true
+      static_perturb:
+        mode: none
+      dynamic_perturb:
+        mode: none
+
+  - alias: static_dynamic_only
+    group: static_policy
+    desc: Dynamic-only policy without static fields or static-dependent V5 modules.
+    overrides:
+      include_static: false
+      static_vars: []
+      static_schema:
+        categorical: []
+        continuous: []
+        categorical_cardinality: {}
+      ablation:
+        use_static_morphology_encoder: false
+        use_morphology_graph: false
+        use_wind_aware_graph: false
+        use_micromet_coupling: false
+        use_process_proxy_encoder: false
+        use_process_adaln: false
+        use_urban_control_branch: false
+        use_anisotropic_process_graph: false
+        use_micromet_token_branches: false
+        use_morphology_residual_head: false
+        use_process_consistency_loss: false
+      losses:
+        process: {enabled: false, lambda_rh: 0.0, lambda_drag: 0.0, lambda_diurnal: 0.0, lambda: 0.0, lambda_roughness_wind: 0.0, lambda_diurnal_building: 0.0, lambda_impervious_d2m: 0.0, lambda_wind_tcc: 0.0}
+      physics:
+        lambda_process_rh: 0.0
+        lambda_process_drag: 0.0
+        lambda_process_diurnal: 0.0
+        lambda_process_proxy: 0.0
+        lambda_proxy_roughness_wind: 0.0
+        lambda_proxy_diurnal_building: 0.0
+        lambda_proxy_impervious_d2m: 0.0
+        lambda_proxy_wind_tcc: 0.0
+
+  - alias: static_zero
+    group: static_policy
+    desc: Full V5.3.1 with static fields zeroed.
+    overrides:
+      include_static: true
+      static_perturb:
+        mode: fill_zero
+        seed: 42
+        deterministic: true
+        categorical_modes:
+          landcover: 0
+
+  - alias: static_shuffle
+    group: static_policy
+    desc: Full V5.3.1 with spatially shuffled static fields.
+    overrides:
+      include_static: true
+      static_perturb:
+        mode: shuffle_spatial
+        seed: 42
+        deterministic: true
+
+  - alias: counterfactual_zero_static
+    group: counterfactual
+    desc: Counterfactual intervention with all static fields zeroed.
+    overrides:
+      static_perturb:
+        mode: fill_zero
+        seed: 42
+        deterministic: true
+        categorical_modes:
+          landcover: 0
+
+  - alias: counterfactual_no_building_vol
+    group: counterfactual
+    desc: Counterfactual intervention removing building volume.
+    overrides:
+      static_perturb:
+        mode: remove_building_volume
+        seed: 42
+        deterministic: true
+
+  - alias: counterfactual_no_population
+    group: counterfactual
+    desc: Counterfactual intervention removing population.
+    overrides:
+      static_perturb:
+        mode: remove_population
+        seed: 42
+        deterministic: true
+
+  - alias: counterfactual_rotate_wind
+    group: counterfactual
+    desc: Counterfactual intervention rotating u10/v10 wind vectors by 90 degrees.
+    overrides:
+      dynamic_perturb:
+        mode: rotate_wind_90
+        direction: ccw
+
+  - alias: counterfactual_permute_lc
+    group: counterfactual
+    desc: Counterfactual intervention permuting landcover classes.
+    overrides:
+      static_perturb:
+        mode: permute_landcover
+        seed: 42
+        deterministic: true
+        categorical_modes:
+          landcover: 0

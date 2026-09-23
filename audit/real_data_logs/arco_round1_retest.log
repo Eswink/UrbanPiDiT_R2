@@ -1,0 +1,1 @@
+ARCO_ERA5_DOWNLOAD_FAILED: ARCO ERA5 下载缺少可选依赖: zarr, gcsfs。请执行 `pip install -r requirements-data.txt` 后重试。

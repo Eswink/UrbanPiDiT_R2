@@ -1,0 +1,14 @@
+REAL_DATA_SMOKE_PASS
+sample_id: uci_bj_train_2010010100_2010010104
+coarse_history: (1, 4, 4, 8, 8)
+urban_history: (1, 4, 1, 32, 32)
+urban_static: (1, 4, 32, 32)
+forecast: (1, 1, 32, 32)
+loss: 0.03003920055925846
+zoom_probability: [0.5579088926315308]
+verifier_score: [0.43142715096473694]
+gradient_ok: True
+hard_stop_path_ok: True
+hard_zoom_path_ok: True
+adaptive_route_mask: [True]
+adaptive_reasoning_steps: 4

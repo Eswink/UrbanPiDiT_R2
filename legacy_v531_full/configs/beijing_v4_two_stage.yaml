@@ -1,0 +1,224 @@
+# ================================================================================================
+# UrbanPiDiT v4 - 北京数据两阶段训练示例
+#
+# 目标：缓解长提前期（18h/24h）指标退化
+# 思路：
+#   Stage-1：先把 6h(1-step) 训练到极致
+#   Stage-2：在不牺牲 6h 的前提下，做 multi-lead 微调（并使用 lead 权重退火）
+#
+# 运行：
+#   python train.py --config configs/beijing_v4_two_stage.yaml
+# ================================================================================================
+
+# 数据根目录（请改成你们自己的）
+data_root: /3240608030/weather-q/data/processed_data/beijing
+
+# 变量配置
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+include_static: true
+broadcast_static: true
+
+# 时序配置
+k: 4
+delta_t: 1
+
+# 空间分辨率
+H: 8
+W: 8
+
+# ================================================================================================
+# 预测配置（基础）
+# ================================================================================================
+forecast:
+  time_step_hours: 6
+  # 这里的 lead_times 会被两阶段 overrides 覆写；先给一个默认
+  lead_times: [1, 2, 3, 4]
+  eval_lead_times: [1, 2, 3, 4]
+  train_lead_time_sampling: "curriculum" # uniform | curriculum
+  curriculum_epochs: 30               # curriculum 策略的持续 epoch 数
+  multi_horizon_inference: "direct"  # direct | autoregressive
+  correlate_noise_across_leads: true
+  max_lead_time_steps: 4
+
+  # 多提前期训练目标（stage2 会用到）
+  train_objective: lead1_plus_k
+  extra_leads_per_batch: 1
+  force_include_short_lead: true
+
+  # lead loss 权重（stage2 会开启退火）
+  lead_loss_weighting: inverse
+  lead_weight_beta: 0.5
+  normalize_lead_loss: true
+  apply_aux_losses_to_all_leads: false
+
+  # v4：lead 权重退火（stage2 overrides 内启用）
+  lead_weight_anneal:
+    enabled: false
+
+  # v4：rollout 微调（可选；若用 1-step + autoregressive 推理，可开启）
+  rollout_finetune:
+    enabled: false
+
+# ================================================================================================
+# 模型配置
+# ================================================================================================
+model:
+  D: 256
+  depth: 12
+  heads: 4
+  mlp_ratio: 4.0
+  drop_path_rate: 0.10   # 可 0.10~0.15
+  dropout: 0.10          # 或 0.05（数据大时）
+
+# 扩散配置
+diffusion:
+  P_mean: -0.8
+  P_std: 0.8
+  sample_steps: 8
+  t_start: 0.0
+  t_end: 1.0
+
+# 物理约束（可按需调整）
+physics:
+  lambda: 0.2
+  lambda_fft: 0.05
+  lambda_grad: 0.5
+  w_tp_nonneg: 1.0
+  w_tcc_01: 1.0
+  w_dew_leq_t: 0.5
+  w_sp_nonneg: 0.1
+  w_wind_div: 0.1
+  fft_channel_weights: [1.0, 1.0, 1.0, 0.0, 0.0, 0.5, 0.5]
+  grad_channel_weights: [1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0]
+
+# 推理配置
+inference:
+  val_mode: deterministic
+  test_mode: ensemble
+  fixed_seed: 42
+  base_seed: 42
+  seed_offset_per_batch: 100000
+  ensemble_size: 20
+  compute_crps: true
+
+metrics:
+  acc:
+    enabled: true
+    climatology: train_mean_field
+    weighting: coslat
+    center: true
+    log_per_channel: true
+
+# ================================================================================================
+# 消融开关
+# ================================================================================================
+ablation:
+  use_drop_path: true
+  use_cross_attention: true
+  use_position_encoding: true
+  use_timestep_conditioning: true
+
+  # 两阶段建议：stage1/stage2 都开启 lead_time conditioning
+  use_lead_time_conditioning: true
+
+  use_channel_weights: true
+  use_physics_loss: true
+  use_fft_loss: true
+  use_gradient_loss: true
+
+  ### 其他
+  use_hard_physics: false
+  use_adversarial: false
+  use_distillation: false
+
+  # 其他创新模块
+  use_hybrid_attention: false
+  use_multi_scale: false
+  use_variable_graph: false
+  use_urban_graph: true
+
+urban_graph:
+  k: 8
+  sigma: 1.0
+
+# ================================================================================================
+# 训练配置（基础）
+# ================================================================================================
+train:
+  seed: 42
+  batch_size: 128
+  num_workers: 8
+
+  lr: 5e-4
+  weight_decay: 1e-4
+  max_epochs: 200
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+
+  patience: 50
+  min_delta: 0.0
+  monitor: "val/RMSE_mean_leads"  # 默认（两阶段时会被 stage 覆写）
+  save_top_k: 10
+  save_last: true
+  log_every_n_steps: 50
+
+  # 通道加权损失
+  loss_weights: [2.0, 1.0, 2.0, 0.25, 0.25, 1.0, 1.0]
+
+  # v4：两阶段训练
+  two_stage:
+    enabled: true
+    stage1:
+      name: "stage1_6h"
+      overrides:
+        forecast:
+          lead_times: [1]
+          eval_lead_times: [1]
+          multi_horizon_inference: "direct"
+        train:
+          monitor: "val/RMSE"      # stage1 专注 6h
+          max_epochs: 250
+          lr: 5e-4
+
+    stage2:
+      name: "stage2_multi_lead"
+      init_from_stage1: true
+      init_only_net: true
+      init_strict: false
+      overrides:
+        forecast:
+          lead_times: [1, 2, 3, 4]
+          eval_lead_times: [1, 2, 3, 4]
+          # stage2：训练中逐步增加长 lead 权重
+          lead_weight_anneal:
+            enabled: true
+            start_weighting: inverse
+            end_weighting: uniform
+            warmup_epochs: 0
+            anneal_epochs: 30
+            schedule: linear
+        train:
+          # 微调阶段建议更小的学习率
+          lr: 1e-4
+          max_epochs: 200
+          monitor: "val/RMSE_mean_leads"
+
+# ================================================================================================
+# 日志
+# ================================================================================================
+logging:
+  log_dir: "logs"
+  run_name: "CA_UG_LossPack_D512"
+  use_tensorboard: true
+  use_wandb: false
+
+  # wandb 可选配置
+  wandb_project: "UrbanPiDiT"
+  wandb_entity: null
+  wandb_group: null
+  wandb_name: null
+  wandb_tags: ["v4", "two_stage", "multilead"]
+  wandb_save_dir: "logs"
+  wandb_log_model: false
+  wandb_offline: false

@@ -1,0 +1,57 @@
+Traceback (most recent call last):
+  File "/opt/pyvenv/lib/python3.13/site-packages/xarray/core/utils.py", line 1379, in attempt_import
+    return importlib.import_module(module)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/usr/lib/python3.13/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'zarr'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/mnt/data/UrbanPiDiT_R2_V6_work/UrbanPiDiT_R2_V6/data/download/arco_era5.py", line 40, in <module>
+    main()
+    ~~~~^^
+  File "/mnt/data/UrbanPiDiT_R2_V6_work/UrbanPiDiT_R2_V6/data/download/arco_era5.py", line 26, in main
+    ds = xr.open_zarr(ARCO_025, chunks=None, storage_options={"token": "anon"})
+  File "/opt/pyvenv/lib/python3.13/site-packages/xarray/backends/zarr.py", line 1658, in open_zarr
+    ds = open_dataset(
+        filename_or_obj=store,
+    ...<16 lines>...
+        use_zarr_fill_value_as_mask=use_zarr_fill_value_as_mask,
+    )
+  File "/opt/pyvenv/lib/python3.13/site-packages/xarray/backends/api.py", line 607, in open_dataset
+    backend_ds = backend.open_dataset(
+        filename_or_obj,
+    ...<2 lines>...
+        **kwargs,
+    )
+  File "/opt/pyvenv/lib/python3.13/site-packages/xarray/backends/zarr.py", line 1732, in open_dataset
+    store = ZarrStore.open_group(
+        filename_or_obj,
+    ...<10 lines>...
+        cache_members=cache_members,
+    )
+  File "/opt/pyvenv/lib/python3.13/site-packages/xarray/backends/zarr.py", line 771, in open_group
+    ) = _get_open_params(
+        ~~~~~~~~~~~~~~~~^
+        store=store,
+        ^^^^^^^^^^^^
+    ...<9 lines>...
+        zarr_format=zarr_format,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/pyvenv/lib/python3.13/site-packages/xarray/backends/zarr.py", line 1891, in _get_open_params
+    zarr = attempt_import("zarr")
+  File "/opt/pyvenv/lib/python3.13/site-packages/xarray/core/utils.py", line 1381, in attempt_import
+    raise ImportError(
+    ...<3 lines>...
+    ) from e
+ImportError: The zarr package is required for working with Zarr stores but could not be imported. Please install it with your package manager (e.g. conda or pip).

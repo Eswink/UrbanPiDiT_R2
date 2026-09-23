@@ -1,0 +1,896 @@
+# 论文级 Tier-3 external weather baselines 配置。
+#
+# 推荐启动方式：
+#   conda run -p /3240608030/weather-q/weather python -m baselines.train_external_baselines \
+#     --config configs/baselines_external_weather_suite.yaml \
+#     --out_dir outputs/baselines/external_weather
+#
+# 执行语义：
+# - 训练入口读取 baselines.models 中的 external_weather_baseline 条目。
+# - 当前文件包含 26 个条目：FourCastNet/GraphCast/GenCast 的 18 个 rollout 条目，
+#   外加 CorrDiff 的 8 个 direct multi-horizon 条目。
+# - 它们会在同一个进程中按 YAML 列表顺序串行训练，不会自动并行。
+# - FourCastNet 使用 6h 单步训练，评估通过 autoregressive rollout 得到 6h/12h/18h/24h。
+# - GraphCast 使用 one-step predictor + autoregressive rollout loss 语义。
+# - GenCast 使用 Urban 6h adapted EDM diffusion 训练/采样语义，再通过 rollout 得到长提前期。
+# - CorrDiff 使用 PhysicsNeMo CorrDiff-style regression + residual correction adapter，
+#   评估可返回 ensemble，确定性指标取 ensemble mean，CRPS 使用 ensemble samples。
+# - 这些是 official-protocol-aligned / source-inspired Urban adapters，不是完整官方全球数据/JAX/Haiku/PhysicsNeMo 管线复刻。
+# - 每个 alias 独立保存 checkpoint、history、val/test metrics 和 complexity。
+# - 全部 alias 完成后生成 external_baselines_results.json 与 baseline_comparison.json。
+# - CLI 当前没有 --alias 过滤参数；若只训练单个模型，需要临时保留一个 models 条目，
+#   或后续给训练入口增加 alias/include/exclude 过滤参数。
+version:
+  name: UrbanPiDiT-V5.3.1-MorphoProcessDiT-ExternalBaselines
+  external_sources:
+    fourcastnet: baselines/external_sources/FourCastNet-master
+    graphcast_gencast: baselines/external_sources/graphcast-main
+    corrdiff: baselines/external_sources/physicsnemo_weather_corrdiff
+data_root: /3240608030/weather-q/data/processed_data/beijing
+data:
+  expose_hour: true
+dynamic_vars:
+- d2m
+- sp
+- t2m
+- tcc
+- tp
+- u10
+- v10
+static_vars:
+- landcover
+- building_surface
+- buildings
+- building_volume
+- population
+include_static: true
+broadcast_static: true
+static_schema:
+  categorical:
+  - landcover
+  continuous:
+  - building_surface
+  - buildings
+  - building_volume
+  - population
+  categorical_cardinality:
+    landcover: 20
+k: 4
+delta_t: 1
+H: 8
+W: 8
+forecast:
+  protocol: official_rollout
+  one_step_lead: 1
+  rollout_eval: true
+  train_lead_times:
+  - 1
+  time_step_hours: 6
+  lead_times:
+  - 1
+  - 2
+  - 3
+  - 4
+  eval_lead_times:
+  - 1
+  - 2
+  - 3
+  - 4
+train:
+  batch_size: 256
+  num_workers: 4
+eval:
+  batch_size: 256
+  num_workers: 4
+external_baseline_training:
+  protocol: official_rollout
+  train_protocol: auto
+  one_step_lead: 1
+  train_lead_times:
+  - 1
+  eval_lead_times:
+  - 1
+  - 2
+  - 3
+  - 4
+  rollout_loss_lead_times:
+  - 1
+  - 2
+  - 3
+  - 4
+  epochs: 200
+  lr: 0.0005
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  save_best: true
+  early_stopping:
+    enabled: true
+    monitor: val_6h_mse
+    mode: min
+    patience: 20
+    min_delta: 0.0
+    restore_best: true
+  checkpoint:
+    enabled: true
+    save_last: true
+    save_every: 1
+    save_top_k: 5
+    monitor: val_6h_mse
+    mode: min
+    resume: false
+    auto_resume: false
+    resume_path: null
+    strict: true
+    load_optimizer: true
+  tensorboard:
+    enabled: true
+    log_dir: outputs/baselines/tensorboard
+    resume: true
+    flush_secs: 30
+    log_every_n_steps: 20
+    write_jsonl_fallback: true
+metrics:
+  report_global:
+  - RMSE
+  - MAE
+  - Bias
+  - CRPS
+  - ACC
+  report_per_variable:
+  - RMSE
+  - MAE
+  - Bias
+  - CRPS
+  - ACC
+  deterministic_crps: single_member_equals_mae
+baselines:
+  protocol: official_protocol_aligned_urban_adapters
+  static_policy: same_static
+  report_groups:
+  - same_static
+  - dynamic_only
+  - static_zero
+  - static_shuffle
+  models:
+  - name: fourcastnet
+    alias: fourcastnet_small_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 64
+      depth: 4
+      modes: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: one_step
+  - name: fourcastnet
+    alias: fourcastnet_medium_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 128
+      depth: 6
+      modes: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: one_step
+  - name: fourcastnet
+    alias: fourcastnet_large_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 256
+      depth: 8
+      modes: 5
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: one_step
+  - name: graphcast
+    alias: graphcast_small_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 64
+      message_passing_steps: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      include_time_forcing: true
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: rollout_loss
+    rollout_loss_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: graphcast
+    alias: graphcast_medium_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 128
+      message_passing_steps: 8
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      include_time_forcing: true
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: rollout_loss
+    rollout_loss_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: graphcast
+    alias: graphcast_large_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 256
+      message_passing_steps: 12
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      include_time_forcing: true
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: rollout_loss
+    rollout_loss_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: gencast
+    alias: gencast_small_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 64
+      denoising_steps: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      stochastic_eval: false
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      sigma_min: 0.002
+      sigma_max: 0.8
+      sigma_data: 0.5
+      sigma_sample_mean: -1.2
+      sigma_sample_std: 1.2
+      rho: 7.0
+      num_noise_levels: 8
+      num_samples: 1
+      stochastic_churn: 0.0
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: diffusion
+  - name: gencast
+    alias: gencast_medium_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 128
+      denoising_steps: 7
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      stochastic_eval: false
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      sigma_min: 0.002
+      sigma_max: 0.8
+      sigma_data: 0.5
+      sigma_sample_mean: -1.2
+      sigma_sample_std: 1.2
+      rho: 7.0
+      num_noise_levels: 8
+      num_samples: 1
+      stochastic_churn: 0.0
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: diffusion
+  - name: gencast
+    alias: gencast_large_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 256
+      denoising_steps: 10
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      stochastic_eval: false
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      sigma_min: 0.002
+      sigma_max: 0.8
+      sigma_data: 0.5
+      sigma_sample_mean: -1.2
+      sigma_sample_std: 1.2
+      rho: 7.0
+      num_noise_levels: 8
+      num_samples: 1
+      stochastic_churn: 0.0
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: diffusion
+  - name: fourcastnet
+    alias: fourcastnet_small_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 64
+      depth: 4
+      modes: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: one_step
+  - name: fourcastnet
+    alias: fourcastnet_medium_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 128
+      depth: 6
+      modes: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: one_step
+  - name: fourcastnet
+    alias: fourcastnet_large_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 256
+      depth: 8
+      modes: 5
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: one_step
+  - name: graphcast
+    alias: graphcast_small_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 64
+      message_passing_steps: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      include_time_forcing: true
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: rollout_loss
+    rollout_loss_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: graphcast
+    alias: graphcast_medium_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 128
+      message_passing_steps: 8
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      include_time_forcing: true
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: rollout_loss
+    rollout_loss_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: graphcast
+    alias: graphcast_large_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 256
+      message_passing_steps: 12
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      include_time_forcing: true
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: rollout_loss
+    rollout_loss_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: gencast
+    alias: gencast_small_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 64
+      denoising_steps: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      stochastic_eval: false
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      sigma_min: 0.002
+      sigma_max: 0.8
+      sigma_data: 0.5
+      sigma_sample_mean: -1.2
+      sigma_sample_std: 1.2
+      rho: 7.0
+      num_noise_levels: 8
+      num_samples: 1
+      stochastic_churn: 0.0
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: diffusion
+  - name: gencast
+    alias: gencast_medium_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 128
+      denoising_steps: 7
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      stochastic_eval: false
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      sigma_min: 0.002
+      sigma_max: 0.8
+      sigma_data: 0.5
+      sigma_sample_mean: -1.2
+      sigma_sample_std: 1.2
+      rho: 7.0
+      num_noise_levels: 8
+      num_samples: 1
+      stochastic_churn: 0.0
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: diffusion
+  - name: gencast
+    alias: gencast_large_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 256
+      denoising_steps: 10
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      stochastic_eval: false
+      forecast_protocol: official_rollout
+      one_step_lead: 1
+      sigma_min: 0.002
+      sigma_max: 0.8
+      sigma_data: 0.5
+      sigma_sample_mean: -1.2
+      sigma_sample_std: 1.2
+      rho: 7.0
+      num_noise_levels: 8
+      num_samples: 1
+      stochastic_churn: 0.0
+    forecast_protocol: official_rollout
+    eval_protocol: rollout
+    one_step_lead: 1
+    train_lead_times:
+    - 1
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+    train_protocol: diffusion
+  - name: corrdiff
+    alias: corrdiff_small_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 16
+      mean_depth: 1
+      correction_steps: 1
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: direct
+      one_step_lead: 1
+      noise_scale: 0.05
+      train_noise_scale: 0.05
+      eval_ensemble_size: 3
+      return_ensemble_eval: true
+    forecast_protocol: direct
+    eval_protocol: direct
+    train_protocol: direct
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: corrdiff
+    alias: corrdiff_full_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 96
+      mean_depth: 3
+      correction_steps: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: direct
+      one_step_lead: 1
+      noise_scale: 0.05
+      train_noise_scale: 0.05
+      eval_ensemble_size: 8
+      return_ensemble_eval: true
+    forecast_protocol: direct
+    eval_protocol: direct
+    train_protocol: direct
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: corrdiff
+    alias: corrdiff_small_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 16
+      mean_depth: 1
+      correction_steps: 1
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: direct
+      one_step_lead: 1
+      noise_scale: 0.05
+      train_noise_scale: 0.05
+      eval_ensemble_size: 3
+      return_ensemble_eval: true
+    forecast_protocol: direct
+    eval_protocol: direct
+    train_protocol: direct
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: corrdiff
+    alias: corrdiff_full_dynamic_only
+    family: external_weather_baseline
+    static_policy: dynamic_only
+    params:
+      hidden_channels: 96
+      mean_depth: 3
+      correction_steps: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: direct
+      one_step_lead: 1
+      noise_scale: 0.05
+      train_noise_scale: 0.05
+      eval_ensemble_size: 8
+      return_ensemble_eval: true
+    forecast_protocol: direct
+    eval_protocol: direct
+    train_protocol: direct
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: corrdiff
+    alias: corrdiff_small_static_zero
+    family: external_weather_baseline
+    static_policy: static_zero
+    params:
+      hidden_channels: 16
+      mean_depth: 1
+      correction_steps: 1
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: direct
+      one_step_lead: 1
+      noise_scale: 0.05
+      train_noise_scale: 0.05
+      eval_ensemble_size: 3
+      return_ensemble_eval: true
+    forecast_protocol: direct
+    eval_protocol: direct
+    train_protocol: direct
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: corrdiff
+    alias: corrdiff_full_static_zero
+    family: external_weather_baseline
+    static_policy: static_zero
+    params:
+      hidden_channels: 96
+      mean_depth: 3
+      correction_steps: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: direct
+      one_step_lead: 1
+      noise_scale: 0.05
+      train_noise_scale: 0.05
+      eval_ensemble_size: 8
+      return_ensemble_eval: true
+    forecast_protocol: direct
+    eval_protocol: direct
+    train_protocol: direct
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: corrdiff
+    alias: corrdiff_small_static_shuffle
+    family: external_weather_baseline
+    static_policy: static_shuffle
+    params:
+      hidden_channels: 16
+      mean_depth: 1
+      correction_steps: 1
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: direct
+      one_step_lead: 1
+      noise_scale: 0.05
+      train_noise_scale: 0.05
+      eval_ensemble_size: 3
+      return_ensemble_eval: true
+    forecast_protocol: direct
+    eval_protocol: direct
+    train_protocol: direct
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4
+  - name: corrdiff
+    alias: corrdiff_full_static_shuffle
+    family: external_weather_baseline
+    static_policy: static_shuffle
+    params:
+      hidden_channels: 96
+      mean_depth: 3
+      correction_steps: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      forecast_protocol: direct
+      one_step_lead: 1
+      noise_scale: 0.05
+      train_noise_scale: 0.05
+      eval_ensemble_size: 8
+      return_ensemble_eval: true
+    forecast_protocol: direct
+    eval_protocol: direct
+    train_protocol: direct
+    eval_lead_times:
+    - 1
+    - 2
+    - 3
+    - 4

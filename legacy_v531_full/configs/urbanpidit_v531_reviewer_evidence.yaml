@@ -1,0 +1,246 @@
+# UrbanPiDiT V5.3.1 MorphoProcessDiT reviewer-evidence configuration.
+# 该配置用于 TGRS rebuttal 证据链：morphology-derived process proxy、过程调制诊断、
+# counterfactual intervention diagnostic 与 safe physical-claim boundary。
+
+version:
+  name: UrbanPiDiT-V5.3.1-MorphoProcessDiT
+  release: UrbanPiDiT-V5.3.1-MorphoProcessDiT-ReviewerEvidence
+  claim_boundary: morphology-derived process proxies are diagnostic conditioning signals, not measured physical parameters or causal proof
+
+data_root: /3240608030/weather-q/data/processed_data/beijing
+
+data:
+  expose_hour: true
+
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+include_static: true
+broadcast_static: true
+
+static_schema:
+  categorical: [landcover]
+  continuous: [building_surface, buildings, building_volume, population]
+  categorical_cardinality:
+    landcover: 20
+
+k: 4
+delta_t: 1
+H: 8
+W: 8
+
+forecast:
+  time_step_hours: 6
+  lead_times: [1, 2, 3, 4]
+  eval_lead_times: [1, 2, 3, 4]
+  train_lead_time_sampling: curriculum
+  curriculum_epochs: 30
+  max_lead_time_steps: 4
+  train_objective: lead1_plus_k
+  extra_leads_per_batch: 1
+  force_include_short_lead: true
+  lead_loss_weighting: inverse
+  lead_weight_beta: 0.5
+  normalize_lead_loss: true
+
+model:
+  D: 256
+  depth: 12
+  heads: 4
+  mlp_ratio: 4.0
+  drop_path_rate: 0.10
+  dropout: 0.10
+
+diffusion:
+  P_mean: -0.8
+  P_std: 0.8
+  sample_steps: 8
+  t_start: 0.0
+  t_end: 1.0
+
+morpho_process:
+  proxy_encoder:
+    enabled: true
+    hidden_channels: [64, 128, 256]
+    categorical_scale: 20.0
+    dropout: 0.0
+    use_diurnal_modulation: true
+    proxy_init: zero
+    init_gate: 0.0
+  process_adaln:
+    enabled: true
+    proxy_proj_dim: 128
+    init_alpha: 0.0
+  urban_control_branch:
+    enabled: true
+    init_gate: 0.0
+  anisotropic_process_graph:
+    enabled: true
+    k: 8
+    morphology_sigma: 1.0
+    spatial_sigma: 1.0
+    wind_temperature: 0.25
+    wind_strength_base: 1.0
+    roughness_blocking_base: 0.5
+    enable_cache: false
+  micromet_token_branches:
+    enabled: true
+    mode: token_interleaved
+    interleaved_interval: 3
+    init_gate: 0.0
+  residual_prediction_head:
+    enabled: true
+    init_gate: -5.0
+
+losses:
+  reconstruction:
+    use_channel_weights: true
+    weights: [2.0, 1.0, 2.0, 0.25, 0.25, 1.0, 1.0]
+  feasibility:
+    enabled: true
+    lambda: 0.2
+  structure:
+    enabled: true
+    fft_enabled: true
+    grad_enabled: true
+    lambda_fft: 0.05
+    lambda_grad: 0.5
+  process:
+    enabled: true
+    lambda_rh: 0.02
+    lambda_drag: 0.01
+    lambda_diurnal: 0.01
+    lambda: 0.01
+    lambda_roughness_wind: 0.005
+    lambda_diurnal_building: 0.005
+    lambda_impervious_d2m: 0.005
+    lambda_wind_tcc: 0.002
+
+physics:
+  lambda: 0.2
+  lambda_fft: 0.05
+  lambda_grad: 0.5
+  lambda_process_rh: 0.02
+  lambda_process_drag: 0.01
+  lambda_process_diurnal: 0.01
+  lambda_process_proxy: 0.01
+  lambda_proxy_roughness_wind: 0.005
+  lambda_proxy_diurnal_building: 0.005
+  lambda_proxy_impervious_d2m: 0.005
+  lambda_proxy_wind_tcc: 0.002
+  w_tp_nonneg: 1.0
+  w_tcc_01: 1.0
+  w_dew_leq_t: 0.5
+  w_sp_nonneg: 0.1
+  w_wind_div: 0.1
+
+ablation:
+  use_drop_path: true
+  use_cross_attention: true
+  use_position_encoding: true
+  use_timestep_conditioning: true
+  use_lead_time_conditioning: true
+  use_static_morphology_encoder: true
+  use_process_proxy_encoder: true
+  use_process_adaln: true
+  use_urban_control_branch: true
+  use_anisotropic_process_graph: true
+  use_micromet_token_branches: true
+  use_morphology_residual_head: true
+  use_process_consistency_loss: true
+  degrade_to_v52: false
+
+  use_morphology_graph: false
+  use_wind_aware_graph: false
+  use_micromet_coupling: true
+  use_urban_canopy_coupling: false
+  use_urban_canopy: false
+  use_urban_graph: false
+  use_hybrid_attention: false
+  use_multi_scale: false
+  use_variable_graph: false
+
+morphology_graph:
+  k: 8
+  sigma: 1.0
+  morphology_sigma: 1.0
+  spatial_sigma: 1.0
+  wind_temperature: 0.25
+  wind_strength: 1.0
+  roughness_blocking_strength: 0.5
+  enable_cache: false
+
+micromet_coupling:
+  enabled: true
+  mode: token_interleaved
+  interleaved_interval: 3
+  init_gate: 0.0
+  hidden_channels: 32
+  dropout: 0.0
+  enable_momentum_drag: true
+  enable_thermal_storage: true
+  enable_moisture_evaporation: true
+  enable_ventilation_mixing: true
+  max_drag: 0.2
+  max_branch_scale: 0.1
+  graph_cfg:
+    k: 8
+    sigma: 1.0
+    wind_temperature: 0.25
+    wind_strength: 1.0
+    roughness_blocking_strength: 0.5
+    enable_cache: false
+
+diagnostics:
+  enabled: true
+  reviewer_hardening: true
+  log_proxy_statistics: true
+  log_gate_evolution: true
+  log_graph_diagnostics: true
+  log_counterfactual_impact: true
+
+experiments:
+  counterfactual:
+    enabled: true
+    conditions:
+      - zero_static
+      - shuffle_static
+      - permute_landcover
+      - remove_building_volume
+      - remove_population
+      - rotate_wind_90
+      - high_roughness_intervention
+      - low_roughness_intervention
+    ensemble_size: 1
+    seed: 42
+
+train:
+  seed: 42
+  batch_size: 128
+  num_workers: 8
+  lr: 0.0001
+  weight_decay: 0.0001
+  max_epochs: 200
+  gradient_clip_val: 1.0
+  patience: 50
+  monitor: val/RMSE_mean_leads
+  save_top_k: 10
+  save_last: true
+  log_every_n_steps: 50
+
+eval:
+  batch_size: 128
+  num_workers: 8
+
+inference:
+  val_mode: deterministic
+  test_mode: ensemble
+  fixed_seed: 42
+  base_seed: 42
+  ensemble_size: 20
+  compute_crps: true
+
+logging:
+  log_dir: logs
+  run_name: urbanpidit_v531_morpho_process
+  use_tensorboard: true
+  use_wandb: false

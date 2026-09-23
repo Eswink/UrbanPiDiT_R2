@@ -1,0 +1,117 @@
+data_root: /3240608030/weather-q/data/processed_data/beijing
+data:
+  expose_hour: true
+dynamic_vars:
+- d2m
+- sp
+- t2m
+- tcc
+- tp
+- u10
+- v10
+static_vars:
+- landcover
+- building_surface
+- buildings
+- building_volume
+- population
+include_static: true
+broadcast_static: true
+static_schema:
+  categorical:
+  - landcover
+  continuous:
+  - building_surface
+  - buildings
+  - building_volume
+  - population
+  categorical_cardinality:
+    landcover: 20
+k: 4
+delta_t: 1
+forecast:
+  time_step_hours: 6
+  lead_times:
+  - 1
+  - 2
+  - 3
+  - 4
+train:
+  batch_size: 32
+  num_workers: 4
+eval:
+  batch_size: 64
+  num_workers: 4
+external_baseline_training:
+  epochs: 50
+  lr: 0.0005
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  save_best: true
+  early_stopping:
+    enabled: true
+    monitor: val_6h_mse
+    mode: min
+    patience: 8
+    min_delta: 0.0
+    restore_best: true
+  checkpoint:
+    enabled: true
+    save_last: true
+    save_every: 1
+    monitor: val_6h_mse
+    mode: min
+    resume: false
+    auto_resume: false
+    resume_path: null
+    strict: true
+    load_optimizer: true
+  tensorboard:
+    enabled: true
+    log_dir: outputs/baselines/tensorboard
+    resume: true
+    flush_secs: 30
+    log_every_n_steps: 20
+    write_jsonl_fallback: true
+metrics:
+  report_global:
+  - RMSE
+  - MAE
+  - Bias
+  - CRPS
+  - ACC
+  report_per_variable:
+  - RMSE
+  - MAE
+  - Bias
+  - CRPS
+  - ACC
+  deterministic_crps: single_member_equals_mae
+baselines:
+  protocol: graphcast_gencast_loader_adapted
+  static_policy: same_static
+  models:
+  - name: graphcast
+    alias: graphcast_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 96
+      message_passing_steps: 6
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+  - name: gencast
+    alias: gencast_same_static
+    family: external_weather_baseline
+    static_policy: same_static
+    params:
+      hidden_channels: 96
+      denoising_steps: 4
+      dropout: 0.05
+      residual: true
+      include_coords: true
+      include_hour: true
+      stochastic_eval: false
+      noise_scale: 0.05

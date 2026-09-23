@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "urbanpidit-r2-v6"
+version = "6.0.0a1"
+description = "Reasoning-driven adaptive-resolution urban weather forecasting"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.4", "numpy>=1.26", "PyYAML>=6.0", "pytorch-lightning>=2.2"]
+
+[tool.setuptools]
+packages = ["data", "model", "training", "model.layers"]

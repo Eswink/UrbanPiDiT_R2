@@ -1,0 +1,53 @@
+{
+  "protocol": "v52_process_consistency_eval",
+  "config": "configs/urbanpidit_v52_micromet_refine.yaml",
+  "dry_run": true,
+  "evaluation_protocol": {
+    "uses_latest_state_from_context": true,
+    "uses_static_schema": true,
+    "uses_target_as_error_reference_only": true,
+    "reports_drag_residual_gap": true,
+    "reports_daynight_diurnal_gap": true
+  },
+  "enabled": {
+    "process_consistency": true,
+    "lambda_rh": 0.02,
+    "lambda_drag": 0.01,
+    "lambda_diurnal": 0.01
+  },
+  "feasibility": {
+    "tp_nonneg": 0.0,
+    "tcc_01": 0.0,
+    "dew_leq_t": 0.0,
+    "sp_nonneg": 0.0,
+    "total": 0.0
+  },
+  "process": {
+    "rh_consistency": 0.0,
+    "drag_consistency": 0.32399702072143555,
+    "diurnal_thermal": 0.0,
+    "diurnal_available": 1.0,
+    "drag_available": 1.0,
+    "high_drag_delta_speed": 0.8639919757843018,
+    "low_drag_delta_speed": 0.5399949550628662,
+    "drag_consistency_gap": 0.32399702072143555,
+    "daytime_heat_response_gap": 2.0,
+    "nighttime_heat_release_gap": 2.0,
+    "total": 0.003239970188587904
+  },
+  "structure": {
+    "wind_div": 0.1875
+  },
+  "violation_rates": {
+    "tp_negative_rate": 0.0,
+    "tcc_out_of_range_rate": 0.0,
+    "dew_above_temp_rate": 0.0,
+    "sp_negative_rate": 0.0
+  },
+  "process_config": {
+    "enabled": true,
+    "lambda_rh": 0.02,
+    "lambda_drag": 0.01,
+    "lambda_diurnal": 0.01
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "dynamic": {
+    "source_csv": "data/raw/real_smoke/captured/PRSA_data_2010.1.1-2014.12.31.csv",
+    "source_sha256": "277a2b00094398a9959aa8d4060b9035d581c89fbc009309097fd3bc38241129",
+    "canonical_url": "https://archive.ics.uci.edu/dataset/381/beijing+pm2+5+data",
+    "doi": "10.24432/C5JS49",
+    "is_real_observation": true,
+    "is_spatial_grid": false
+  },
+  "static": {
+    "source_geojson": "data/raw/real_smoke/beijing_dongcheng_boundary_smoke.geojson",
+    "source_sha256": "ac90e8136273f7b41c4c03b673feb274bf51438b30b0f59976d0e93d43db90d6",
+    "mirror_url": "https://github.com/VIP233333/Coordinate-data-of-the-six-urban-districts-of-Beijing",
+    "is_real_geodata": true,
+    "is_urban_morphology": false,
+    "feature_name": "东城区",
+    "bbox_crs84": [
+      116.37496208,
+      39.849456960000005,
+      116.45656692,
+      39.98322004
+    ],
+    "mask_fraction": 0.3798828125,
+    "channels": [
+      "x_norm",
+      "y_norm",
+      "real_district_mask",
+      "derived_district_edge"
+    ]
+  },
+  "records": 73,
+  "samples_by_split": {
+    "train": 24,
+    "val": 4,
+    "test": 4
+  },
+  "history_steps": 4,
+  "coarse_hw": [
+    8,
+    8
+  ],
+  "urban_hw": [
+    32,
+    32
+  ],
+  "normalization": {
+    "TEMP": "x/40",
+    "DEWP": "x/40",
+    "PRES": "(x-1000)/50",
+    "Iws": "x/100"
+  },
+  "split_policy": "raw-hour chronological split first; windows built independently inside each split",
+  "split_source_row_ranges": {
+    "train": [
+      0,
+      50
+    ],
+    "val": [
+      51,
+      61
+    ],
+    "test": [
+      62,
+      72
+    ]
+  },
+  "scientific_training_ready": false,
+  "limitations": [
+    "UCI fixture 是北京机场附近单站小时记录，不是 ERA5/HRCLDAS/SMBFD 网格。",
+    "把单站动态观测广播到网格只验证数据契约与训练闭环，不代表空间超分真值。",
+    "静态输入含真实东城区行政边界，但不是 WorldCover/CNBH/建筑/DEM 等城市形态真值。",
+    "动态站点与东城区边界并非严格时空共址，因此本 fixture 仅用于工程 smoke，不用于科学指标。"
+  ]
+}

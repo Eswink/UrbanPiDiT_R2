@@ -1,0 +1,55 @@
+# 4090D 24GB-first 基准配置。正式数据接入后只需替换 data manifest 与通道定义。
+data:
+  mode: manifest_npz
+  train_manifest: data/manifests/train.jsonl
+  val_manifest: data/manifests/val.jsonl
+  test_manifest: data/manifests/test.jsonl
+model:
+  coarse_channels: 30
+  coarse_history_steps: 4
+  urban_channels: 7
+  urban_history_steps: 4
+  static_channels: 12
+  out_channels: 7
+  coarse_dim: 192
+  process_dim: 256
+  urban_dim: 256
+  coarse_patch: 2
+  urban_patch: 4
+  coarse_depth: 4
+  urban_depth: 8
+  coarse_heads: 6
+  process_heads: 8
+  urban_heads: 8
+  window_size: 8
+  anchored_processes: 12
+  free_processes: 12
+  train_reasoning_steps: 2
+  max_reasoning_steps: 6
+  zoom_threshold: 0.50
+  verifier_threshold: 0.65
+  enable_diffusion: false
+  activation_checkpointing: true
+  diffusion_steps: 4
+optim:
+  lr: 0.0002
+  weight_decay: 0.0001
+loss:
+  forecast_weight: 1.0
+  process_weight: 0.10
+  router_weight: 0.10
+  verifier_weight: 0.10
+  compute_weight: 0.01
+  diffusion_weight: 0.05
+train:
+  seed: 42
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+  precision: bf16-mixed
+  accumulate_grad_batches: 16
+  gradient_clip_val: 1.0
+  max_epochs: 100
+  save_top_k: 3
+  patience: 15
+  ckpt_dir: outputs/checkpoints/r2_v6_4090d

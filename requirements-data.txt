@@ -1,0 +1,8 @@
+# 生产级真实数据下载/预处理的可选依赖。
+# 核心模型 smoke 不强制这些依赖；ARCO ERA5 下载需要全部安装。
+xarray>=2025.1
+pandas>=2.2
+zarr>=3.0
+gcsfs>=2025.1
+rasterio>=1.4
+Pillow>=11.0

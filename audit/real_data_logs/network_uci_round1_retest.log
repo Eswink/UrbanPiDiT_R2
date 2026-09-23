@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/mnt/data/UrbanPiDiT_R2_V6_work/UrbanPiDiT_R2_V6/scripts/prepare_real_smoke.py", line 25, in <module>
+    if __name__=='__main__': main()
+                             ~~~~^^
+  File "/mnt/data/UrbanPiDiT_R2_V6_work/UrbanPiDiT_R2_V6/scripts/prepare_real_smoke.py", line 17, in main
+    csv_path=download_uci_beijing(raw_dir/'downloaded')
+  File "/mnt/data/UrbanPiDiT_R2_V6_work/UrbanPiDiT_R2_V6/data/download/uci_beijing.py", line 71, in download_uci_beijing
+    raise RuntimeError("真实数据下载失败；未使用合成数据回退。\n" + "\n".join(errors))
+RuntimeError: 真实数据下载失败；未使用合成数据回退。
+UCI: <urlopen error [Errno -3] Temporary failure in name resolution>
+mirror: <urlopen error [Errno -3] Temporary failure in name resolution>

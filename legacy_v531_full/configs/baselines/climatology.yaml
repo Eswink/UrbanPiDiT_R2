@@ -1,0 +1,44 @@
+# Single-baseline fair configuration: climatology.
+
+data_root: /3240608030/weather-q/data/processed_data/beijing
+
+dynamic_vars: [d2m, sp, t2m, tcc, tp, u10, v10]
+static_vars: [landcover, building_surface, buildings, building_volume, population]
+include_static: true
+broadcast_static: true
+
+static_schema:
+  categorical: [landcover]
+  continuous: [building_surface, buildings, building_volume, population]
+  categorical_cardinality:
+    landcover: 20
+
+k: 4
+delta_t: 1
+H: 8
+W: 8
+
+forecast:
+  time_step_hours: 6
+  lead_times: [1, 2, 3, 4]
+  eval_lead_times: [1, 2, 3, 4]
+
+train:
+  batch_size: 128
+  num_workers: 8
+
+eval:
+  batch_size: 128
+  num_workers: 8
+
+baselines:
+  protocol: fair_static_control_single
+  static_policy: dynamic_only
+  models:
+    - name: climatology
+      alias: climatology_dynamic
+      static_policy: dynamic_only
+
+logging:
+  log_dir: logs/baselines
+  run_name: baseline_climatology

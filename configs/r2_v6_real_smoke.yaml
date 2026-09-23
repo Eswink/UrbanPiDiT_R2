@@ -1,0 +1,61 @@
+data:
+  mode: manifest_npz
+  train_manifest: data/manifests/real_smoke/train.jsonl
+  val_manifest: data/manifests/real_smoke/val.jsonl
+  test_manifest: data/manifests/real_smoke/test.jsonl
+  # 以下字段供审计/脚本读取，不参与 ManifestNPZDataset shape 推断。
+  source_kind: real_station_contract_smoke
+  coarse_channels: 4
+  urban_channels: 1
+  static_channels: 4
+  out_channels: 1
+model:
+  coarse_channels: 4
+  coarse_history_steps: 4
+  urban_channels: 1
+  urban_history_steps: 4
+  static_channels: 4
+  out_channels: 1
+  coarse_dim: 64
+  process_dim: 96
+  urban_dim: 96
+  coarse_patch: 2
+  urban_patch: 4
+  coarse_depth: 2
+  urban_depth: 2
+  coarse_heads: 4
+  process_heads: 4
+  urban_heads: 4
+  window_size: 4
+  anchored_processes: 4
+  free_processes: 4
+  train_reasoning_steps: 2
+  max_reasoning_steps: 4
+  zoom_threshold: 0.5
+  verifier_threshold: 0.65
+  enable_diffusion: false
+  activation_checkpointing: false
+optim:
+  lr: 0.0003
+  weight_decay: 0.0001
+loss:
+  forecast_weight: 1.0
+  process_weight: 0.0
+  router_weight: 0.0
+  verifier_weight: 0.05
+  compute_weight: 0.001
+train:
+  seed: 42
+  batch_size: 2
+  num_workers: 0
+  pin_memory: false
+  precision: 32-true
+  accumulate_grad_batches: 1
+  max_epochs: 1
+  ckpt_dir: outputs/real_smoke_checkpoints
+  limit_train_batches: 2
+  limit_val_batches: 1
+  limit_test_batches: 1
+  save_top_k: 1
+  patience: 0
+  progress_bar: false
