@@ -1,13 +1,12 @@
 from __future__ import annotations
-
 from dataclasses import asdict, dataclass
 import json
 import os
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
-
 import numpy as np
 from .grid import regular_latlon_spacing
+from .contracts import chronological_splits, fresh_outputs, utc_time_index
 
 
 @dataclass(frozen=True)
@@ -57,24 +56,21 @@ def _exact_level(da, level_name:str, level_hpa:int):
     values=np.asarray(da[level_name].values)
     idx=np.flatnonzero(np.isclose(values.astype(float),float(level_hpa)))
     if idx.size!=1:
-        raise ValueError(
-            f"{da.name} 不包含唯一 pressure level={level_hpa} hPa; "
-            f"available={values.tolist()}"
-        )
+        raise ValueError(f"{da.name} 不包含唯一 pressure level={level_hpa} hPa; available={values.tolist()}")
     return values[int(idx[0])].item()
 
 
-def stack_era5_channels(
-    ds,
-    specs:Iterable[ERA5ChannelSpec],
-) -> tuple[np.ndarray, list[str], np.ndarray, np.ndarray, np.ndarray]:
+def stack_era5_channels(ds,specs:Iterable[ERA5ChannelSpec]):
     """Materialize an already-subset regional dataset, not a global archive."""
     time_name=_coord_name(ds,("time","valid_time"))
     lat_name=_coord_name(ds,("latitude","lat"))
     lon_name=_coord_name(ds,("longitude","lon"))
+    specs=tuple(specs)
+    names=[spec.channel_name for spec in specs]
+    if not names or len(names)!=len(set(names)):
+        raise ValueError('channel specs must have unique, nonempty names')
     ds=ds.sortby(time_name)
     arrays=[]
-    names=[]
     for spec in specs:
         if spec.variable not in ds:
             raise KeyError(f"ERA5 变量不存在: {spec.variable}")
@@ -86,68 +82,42 @@ def stack_era5_channels(
         required={time_name,lat_name,lon_name}
         if not required.issubset(set(da.dims)):
             raise ValueError(f"{spec.channel_name} dims={da.dims} 缺少 {required}")
-        # Preserve required singleton time/lat/lon dimensions.
-        extra=[dim for dim in da.dims if dim not in required]
-        for dim in extra:
+        for dim in [dim for dim in da.dims if dim not in required]:
             if int(da.sizes[dim])!=1:
-                raise ValueError(
-                    f"{spec.channel_name} 存在未处理非单例维度 "
-                    f"{dim}={int(da.sizes[dim])}"
-                )
+                raise ValueError(f"{spec.channel_name} 存在未处理非单例维度 {dim}={int(da.sizes[dim])}")
             da=da.isel({dim:0},drop=True)
-        da=da.transpose(time_name,lat_name,lon_name)
-        arr=np.asarray(da.values,dtype=np.float32)
+        arr=np.asarray(da.transpose(time_name,lat_name,lon_name).values,dtype=np.float32)
         if not np.isfinite(arr).all():
             raise ValueError(f"{spec.channel_name} 包含非有限值")
         arrays.append(arr)
-        names.append(spec.channel_name)
-    if not arrays:
-        raise ValueError("至少需要一个 ERA5 channel spec")
-    state=np.stack(arrays,axis=1)
-    times=np.asarray(ds[time_name].values)
-    latitude=np.asarray(ds[lat_name].values,dtype=np.float32)
-    longitude=np.asarray(ds[lon_name].values,dtype=np.float32)
-    return state,names,times,latitude,longitude
+    return (np.stack(arrays,axis=1), names, np.asarray(ds[time_name].values),
+        np.asarray(ds[lat_name].values,dtype=np.float32), np.asarray(ds[lon_name].values,dtype=np.float32))
 
 
 def _validate_year_splits(split_years:Mapping[str,Sequence[int]])->dict[str,set[int]]:
-    required={"train","val","test"}
-    if set(split_years)!=required:
-        raise ValueError(f"split_years 必须且只能包含 {sorted(required)}")
-    normalized={key:{int(y) for y in years} for key,years in split_years.items()}
-    if any(not years for years in normalized.values()):
-        raise ValueError("train/val/test years 均不能为空")
-    if normalized["train"] & normalized["val"]:
-        raise ValueError("train/val years 重叠")
-    if normalized["train"] & normalized["test"]:
-        raise ValueError("train/test years 重叠")
-    if normalized["val"] & normalized["test"]:
-        raise ValueError("val/test years 重叠")
-    return normalized
+    return chronological_splits(split_years)
 
 
 def _grid_spacing(latitude:np.ndarray,longitude:np.ndarray)->float:
-    """Shared by NPZ and Zarr builders; never reorder coordinates or data."""
     return regular_latlon_spacing(latitude,longitude)
 
 
-def _training_stats(state:np.ndarray,years:np.ndarray,train_years:set[int],eps:float=1e-6):
+def _training_stats(state,years,train_years,eps=1e-6):
     mask=np.isin(years,list(train_years))
     if not bool(mask.any()):
         raise ValueError("输入数据中没有 train years")
     train=state[mask].astype(np.float64)
-    mean=train.mean(axis=(0,2,3))
-    std=np.maximum(train.std(axis=(0,2,3)),eps)
-    return mean.astype(np.float32),std.astype(np.float32)
+    return train.mean(axis=(0,2,3)).astype(np.float32),np.maximum(train.std(axis=(0,2,3)),eps).astype(np.float32)
 
 
 def _write_jsonl(path:Path,records:list[dict])->None:
     path.parent.mkdir(parents=True,exist_ok=True)
-    with path.open("w",encoding="utf-8") as f:
+    with path.open("x",encoding="utf-8") as f:
         for record in records:
             f.write(json.dumps(record,ensure_ascii=False)+"\n")
 
 
+@fresh_outputs('out_dir','manifest_dir')
 def build_r7_era5_npz_from_dataset(
     ds, *, out_dir:str|Path, manifest_dir:str|Path,
     specs:Iterable[ERA5ChannelSpec]=DEFAULT_R7_ERA5_CHANNELS,
@@ -156,47 +126,33 @@ def build_r7_era5_npz_from_dataset(
     sample_stride_hours:int=6, expected_grid_spacing_deg:float|None=0.25,
     source_label:str="ERA5 regional subset",
 )->dict[str,Path]:
-    """Build small regional NPZ windows; split before windowing, train-only stats."""
+    """Small regional windows only. New outputs, strict splits, train-only stats."""
     import pandas as pd
-    if history_steps<1:
-        raise ValueError("history_steps 必须 >= 1")
-    if history_interval_hours<=0 or lead_time_hours<=0:
-        raise ValueError("history/lead hours 必须为正数")
-    if sample_stride_hours<=0:
-        raise ValueError("sample_stride_hours 必须为正数")
+    values=(history_steps,history_interval_hours,lead_time_hours,sample_stride_hours)
+    if any(isinstance(x,bool) or not isinstance(x,(int,np.integer)) or x<1 for x in values):
+        raise ValueError('history, lead and stride must be positive integers')
     split_sets=_validate_year_splits(split_years)
     specs=tuple(specs)
     state,names,times_raw,latitude,longitude=stack_era5_channels(ds,specs)
-    times=pd.DatetimeIndex(times_raw)
-    if not times.is_monotonic_increasing:
-        raise ValueError("ERA5 time 必须单调递增")
-    if times.has_duplicates:
-        raise ValueError("ERA5 time 存在重复")
+    times=utc_time_index(times_raw)
     spacing=_grid_spacing(latitude,longitude)
-    if expected_grid_spacing_deg is not None and not np.isclose(
-        spacing,float(expected_grid_spacing_deg),rtol=0,atol=1e-4
-    ):
+    if expected_grid_spacing_deg is not None and not np.isclose(spacing,float(expected_grid_spacing_deg),rtol=0,atol=1e-4):
         raise ValueError(f"网格分辨率 {spacing}° != expected {expected_grid_spacing_deg}°")
     years=np.asarray(times.year,dtype=np.int32)
     mean,std=_training_stats(state,years,split_sets["train"])
     normalized=((state-mean[None,:,None,None])/std[None,:,None,None]).astype(np.float32)
     index={int(ts.value):i for i,ts in enumerate(times)}
     out_dir,manifest_dir=Path(out_dir),Path(manifest_dir)
-    out_dir.mkdir(parents=True,exist_ok=True)
-    manifest_dir.mkdir(parents=True,exist_ok=True)
+    out_dir.mkdir(parents=True,exist_ok=False)
+    manifest_dir.mkdir(parents=True,exist_ok=False)
     records_by_split={key:[] for key in ("train","val","test")}
     for split,allowed_years in split_sets.items():
         split_out=out_dir/split
-        split_out.mkdir(parents=True,exist_ok=True)
-        for init_idx,init_time in enumerate(times):
-            if int(init_time.year) not in allowed_years:
+        split_out.mkdir()
+        for init_time in times:
+            if int(init_time.year) not in allowed_years or int(init_time.value) % (sample_stride_hours*3_600_000_000_000):
                 continue
-            if init_time.minute!=0 or init_time.second!=0 or init_time.hour % sample_stride_hours!=0:
-                continue
-            history_times=[
-                init_time-pd.Timedelta(hours=history_interval_hours*(history_steps-1-j))
-                for j in range(history_steps)
-            ]
+            history_times=[init_time-pd.Timedelta(hours=history_interval_hours*(history_steps-1-j)) for j in range(history_steps)]
             target_time=init_time+pd.Timedelta(hours=lead_time_hours)
             required_times=history_times+[target_time]
             if any(int(t.year) not in allowed_years for t in required_times):
@@ -204,62 +160,42 @@ def build_r7_era5_npz_from_dataset(
             keys=[int(t.value) for t in required_times]
             if any(k not in index for k in keys):
                 continue
-            history_indices=[index[k] for k in keys[:-1]]
-            target_index=index[keys[-1]]
             sid=f"era5_{split}_{init_time:%Y%m%d%H}_p{lead_time_hours:03d}h"
             npz_path=split_out/f"{sid}.npz"
-            np.savez_compressed(
-                npz_path, coarse_history=normalized[history_indices],
-                atmos_target=normalized[target_index],
-                lead_time_hours=np.asarray(lead_time_hours,dtype=np.float32),
-                latitude=latitude, longitude=longitude,
-                grid_spacing_deg=np.asarray(spacing,dtype=np.float32),
-            )
+            with npz_path.open('xb') as f:
+                np.savez_compressed(f, coarse_history=normalized[[index[k] for k in keys[:-1]]],
+                    atmos_target=normalized[index[keys[-1]]], lead_time_hours=np.asarray(lead_time_hours,dtype=np.float32),
+                    latitude=latitude,longitude=longitude,grid_spacing_deg=np.asarray(spacing,dtype=np.float32))
             records_by_split[split].append({
-                "sample_id":sid,
-                "path":os.path.relpath(npz_path.resolve(),manifest_dir.resolve()),
-                "split":split, "history_times":[t.isoformat() for t in history_times],
-                "init_time":init_time.isoformat(), "target_time":target_time.isoformat(),
-                "lead_time_hours":int(lead_time_hours),
-            })
+                "sample_id":sid,"path":os.path.relpath(npz_path.resolve(),manifest_dir.resolve()),
+                "split":split,"history_times":[t.isoformat() for t in history_times],
+                "init_time":init_time.isoformat(),"target_time":target_time.isoformat(),"lead_time_hours":int(lead_time_hours)})
     for split,records in records_by_split.items():
         if not records:
             raise RuntimeError(f"{split} 没有可用窗口；检查年份、时间范围和 cadence")
         _write_jsonl(manifest_dir/f"{split}.jsonl",records)
-    normalization={
-        "channels":names,"mean":mean.tolist(),"std":std.tolist(),
-        "computed_from_years":sorted(split_sets["train"]),
-    }
-    (manifest_dir/"normalization.json").write_text(
-        json.dumps(normalization,ensure_ascii=False,indent=2),encoding="utf-8",
-    )
+    normalization={"channels":names,"mean":mean.tolist(),"std":std.tolist(),"computed_from_years":sorted(split_sets["train"])}
+    with (manifest_dir/"normalization.json").open('x',encoding='utf-8') as f:
+        json.dump(normalization,f,ensure_ascii=False,indent=2)
     provenance={
-        "source":source_label,"native_grid_spacing_deg":spacing,
+        'schema_version':1,"source":source_label,"native_grid_spacing_deg":spacing,
         "expected_grid_spacing_deg":expected_grid_spacing_deg,
         "channels":[asdict(spec)|{"channel_name":spec.channel_name} for spec in specs],
         "history_steps":int(history_steps),"history_interval_hours":int(history_interval_hours),
         "lead_time_hours":int(lead_time_hours),"sample_stride_hours":int(sample_stride_hours),
         "split_years":{key:sorted(value) for key,value in split_sets.items()},
         "samples_by_split":{key:len(value) for key,value in records_by_split.items()},
-        "normalization":"training-years-only mean/std",
-        "target_semantics":"native ERA5 grid; no spatial upsampling",
-    }
-    (manifest_dir/"provenance.json").write_text(
-        json.dumps(provenance,ensure_ascii=False,indent=2),encoding="utf-8",
-    )
-    return {split:manifest_dir/f"{split}.jsonl" for split in ("train","val","test")}
+        "normalization":"training-years-only mean/std","target_semantics":"native ERA5 grid; no spatial upsampling"}
+    with (manifest_dir/"provenance.json").open('x',encoding='utf-8') as f:
+        json.dump(provenance,f,ensure_ascii=False,indent=2)
+    return {split:manifest_dir/f"{split}.jsonl" for split in records_by_split}
 
 
 def build_r7_era5_npz_from_path(source:str|Path,**kwargs)->dict[str,Path]:
-    """Open a local NetCDF/Zarr regional ERA5 subset and build R7 samples."""
-    try:
-        import xarray as xr
-    except ImportError as exc:
-        raise RuntimeError(
-            "R7 ERA5 path adapter requires optional dependency xarray; "
-            "install requirements-r7-data.txt"
-        ) from exc
+    import xarray as xr
     source=Path(source)
+    if not source.exists():
+        raise FileNotFoundError(source)
     ds=xr.open_zarr(source,chunks=None) if source.is_dir() or source.suffix.lower()==".zarr" else xr.open_dataset(source)
     try:
         return build_r7_era5_npz_from_dataset(ds,source_label=str(source),**kwargs)
