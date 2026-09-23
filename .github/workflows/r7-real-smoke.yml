@@ -1,0 +1,47 @@
+name: R7 bounded real ERA5 smoke
+
+on:
+  push:
+    branches: [r7/weather-reasoning]
+
+permissions:
+  contents: read
+
+jobs:
+  bounded-real-data:
+    if: contains(github.event.head_commit.message, '[real-smoke]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-r7-data.txt
+      - name: Install CPU-only dependencies
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - name: Run explicitly bounded real-source smoke
+        env:
+          OMP_NUM_THREADS: "2"
+          MKL_NUM_THREADS: "2"
+        run: python scripts/real_r7_bounded_smoke.py --out outputs/bounded-real-smoke
+      - name: Preserve real-source receipts and smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r7-bounded-real-smoke-${{ github.sha }}
+          path: |
+            outputs/bounded-real-smoke/source/*.json
+            outputs/bounded-real-smoke/source/*.nc
+            outputs/bounded-real-smoke/smoke_result.json
+            outputs/bounded-real-smoke/manifests/*.json
+            outputs/bounded-real-smoke/manifests/*.jsonl
+            outputs/bounded-real-smoke/training/*.json
+            outputs/bounded-real-smoke/evaluation/*
+          if-no-files-found: warn
+          retention-days: 7
