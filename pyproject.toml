@@ -17,10 +17,11 @@ test = ["pytest>=8.0", "wheel", "setuptools>=68"]
 urbanpidit-r7-train = "train_r7_local:main"
 urbanpidit-r7-evaluate = "evaluate_r7_local:main"
 urbanpidit-r7-prepare = "prepare_r7_local:main"
+urbanpidit-r7-calibrate = "calibrate_r7_local:main"
 
 [tool.setuptools]
 include-package-data = false
-py-modules = ["train_r7_local", "evaluate_r7_local", "prepare_r7_local"]
+py-modules = ["train_r7_local", "evaluate_r7_local", "prepare_r7_local", "calibrate_r7_local"]
 
 [tool.setuptools.packages.find]
 where = ["."]

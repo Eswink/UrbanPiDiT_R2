@@ -1,4 +1,4 @@
-"""Bounded local checkpoint/persistence evaluation with provenance exports."""
+"""Bounded local checkpoint/persistence/adaptive evaluation with provenance."""
 from __future__ import annotations
 import csv
 import hashlib
@@ -18,16 +18,20 @@ from .r7_acc import RolloutACCAccumulator
 
 class Persistence(nn.Module):
     def forward(self,batch):
-        # A tensor return is adapted below; no future state is read.
         from types import SimpleNamespace
         return SimpleNamespace(forecast=batch['coarse_history'][:,-1].clone())
 
 
 @torch.no_grad()
 def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,72),
-                   step_hours=6,max_samples=32,device_name='cpu',normalized=False,reasoning_steps=None):
+                   step_hours=6,max_samples=32,device_name='cpu',normalized=False,reasoning_steps=None,
+                   controller_checkpoint=None,min_reasoning_steps=1,force_full_depth=False):
     if isinstance(max_samples,bool) or not isinstance(max_samples,int) or max_samples<1:
         raise ValueError('max_samples must be a positive explicit cap')
+    if controller_checkpoint and not checkpoint:
+        raise ValueError('controller evaluation requires its parent checkpoint')
+    if force_full_depth and not controller_checkpoint:
+        raise ValueError('force_full_depth requires a controller checkpoint')
     manifest=Path(manifest)
     reader=ZarrAtmosWindowDataset(manifest)
     splits={r['split'] for r in reader.records}
@@ -40,9 +44,8 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     store=Path(next(iter(stores)))
     if not store.is_absolute():
         store=(manifest.parent/store).resolve()
-    count=len(reader.records[0]['history_indices'])
     ds=ZarrRolloutDataset(store,split=next(iter(splits)),lead_hours=lead_hours,
-        history_steps=count,step_hours=step_hours)
+        history_steps=len(reader.records[0]['history_indices']),step_hours=step_hours)
     allowed={r['init_time'] for r in reader.records}
     ds.windows=[w for w in ds.windows if ds.times[w[0][-1]].isoformat() in allowed]
     if not ds.windows:
@@ -51,8 +54,8 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         raise ValueError('physical units missing; audit source or explicitly use normalized metrics')
     device=select_device(device_name)
     inference={}
-    checkpoint_hash=None
-    training_identity=None
+    checkpoint_hash=training_identity=controller_hash=None
+    controller_policy=None
     if checkpoint:
         saved=load_checkpoint(checkpoint)
         contract=saved['contract']
@@ -61,7 +64,16 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
             raise ValueError('checkpoint training data/normalization identity mismatch')
         model=make_model(contract['kind'],contract['model'])
         model.load_state_dict(saved['model'],strict=True)
-        if contract['kind']!='native':
+        if controller_checkpoint:
+            if contract['kind']!='process':
+                raise ValueError('adaptive controller needs a process checkpoint')
+            from .r7_calibration_runner import load_calibrated_adapter,file_sha256
+            model,controller_policy=load_calibrated_adapter(model,controller_checkpoint,
+                parent_checkpoint=checkpoint,training_identity=training_identity)
+            inference={'max_steps':controller_policy['max_steps'] if reasoning_steps is None else reasoning_steps,
+                'min_steps':min_reasoning_steps,'force_full_depth':bool(force_full_depth)}
+            controller_hash=file_sha256(controller_checkpoint)
+        elif contract['kind']!='native':
             inference['reasoning_steps']=contract['steps'] if reasoning_steps is None else reasoning_steps
         checkpoint_hash=hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
     else:
@@ -74,6 +86,8 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     out=Path(output_dir)
     out.mkdir(parents=True,exist_ok=False)
     initializations=[]
+    if device.type=='cuda':
+        torch.cuda.synchronize(device)
     started=time.perf_counter()
     for i in range(min(max_samples,len(ds))):
         sample=ds[i]
@@ -86,7 +100,14 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         climate=normalized_climatology(clim,sample['valid_times'],ds.mean,ds.std).unsqueeze(0)
         rmse.update(prediction,targets,sample['latitude'])
         acc.update(prediction,targets,climate,sample['latitude'])
-        initializations.append({'init_time':sample['init_time'],'valid_times':sample['valid_times']})
+        case=RolloutRMSEAccumulator(ds.lead_hours,ds.names,
+            training_std=None if normalized else ds.std,units=None if normalized else ds.units)
+        case.update(prediction,targets,sample['latitude'])
+        initializations.append({'init_time':sample['init_time'],'valid_times':sample['valid_times'],
+            'mse':case.compute().square().tolist(),
+            'cumulative_reasoning_steps':trajectory.cumulative_reasoning_steps.cpu().tolist()[0]})
+    if device.type=='cuda':
+        torch.cuda.synchronize(device)
     rmse.write_csv(out/'rmse.csv')
     values=acc.compute()
     with (out/'acc.csv').open('x',encoding='utf-8',newline='') as f:
@@ -94,10 +115,11 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         writer.writerow(['lead_hours','variable','pooled_acc','status','n_initializations'])
         for i,lead in enumerate(ds.lead_hours):
             for j,name in enumerate(ds.names):
-                v=float(values[i,j])
-                writer.writerow([lead,name,v if torch.isfinite(values[i,j]) else '',
+                value=float(values[i,j])
+                writer.writerow([lead,name,value if torch.isfinite(values[i,j]) else '',
                     'defined' if torch.isfinite(values[i,j]) else 'undefined_zero_anomaly_energy',acc.initializations])
     provenance={'scientific_claim':False,'checkpoint_sha256':checkpoint_hash,'training_identity':training_identity,
+        'controller_sha256':controller_hash,'controller_policy':controller_policy,'inference_options':inference,
         'evaluation_manifest_sha256':hashlib.sha256(manifest.read_bytes()).hexdigest(),
         'source_declaration':root.attrs['source'],'channels':list(ds.names),'units':list(rmse.units),
         'split':ds.split,'lead_hours':list(ds.lead_hours),'step_hours':step_hours,
@@ -105,6 +127,7 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         'climatology':{'kind':clim['kind'],'training_years':clim['training_years'],
             'bucket_counts':{f'{m:02d}-{h:02d}':n for (m,h),n in clim['counts'].items()}},
         'initializations':initializations,'elapsed_seconds':time.perf_counter()-started,
+        'timing_scope':'whole evaluation loop including IO and metrics, not isolated model latency',
         'note':'offline local evaluation, no future forcing; monthly-hour climatology is not a WeatherBench2 reproduction'}
     with (out/'provenance.json').open('x',encoding='utf-8') as f:
         json.dump(provenance,f,ensure_ascii=False,indent=2,allow_nan=False)
