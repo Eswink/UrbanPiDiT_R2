@@ -1,0 +1,41 @@
+name: R7 real pressure ERA5 CPU pilot
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+jobs:
+  pressure-cpu:
+    if: contains(github.event.head_commit.message, '[pressure-pilot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install CPU and explicit public data client
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt "icechunk==2.2.2" "pcodec>=0.3"
+      - name: Extract bounded true ERA5 and run CPU integration
+        run: python scripts/real_r7_pressure_pilot.py --out outputs/pressure_pilot
+      - name: Preserve actual source, receipts, checkpoints and evaluation
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r7-real-pressure-cpu-${{ github.sha }}
+          path: |
+            outputs/pressure_pilot/source/
+            outputs/pressure_pilot/manifests/
+            outputs/pressure_pilot/training/
+            outputs/pressure_pilot/controller/
+            outputs/pressure_pilot/validation_selection/
+            outputs/pressure_pilot/evaluation/
+            outputs/pressure_pilot/pilot_result.json
+          if-no-files-found: warn
+          retention-days: 30
