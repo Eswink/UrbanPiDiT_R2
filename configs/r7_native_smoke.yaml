@@ -1,0 +1,43 @@
+data:
+  mode: synthetic_atmos
+  length: 32
+  hw: [16, 24]
+  history_steps: 2
+  channels: 8
+  lead_time_hours: 6.0
+  grid_spacing_deg: 0.25
+
+model:
+  in_channels: 8
+  history_steps: 2
+  out_channels: 8
+  dim: 64
+  patch_size: 2
+  depth: 2
+  heads: 4
+  window_size: 4
+  dropout: 0.0
+  activation_checkpointing: false
+  periodic_width: false
+  default_lead_hours: 6.0
+
+optim:
+  lr: 0.0005
+  weight_decay: 0.0001
+
+train:
+  seed: 42
+  batch_size: 2
+  num_workers: 0
+  pin_memory: false
+  precision: 32-true
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+  max_epochs: 1
+  save_top_k: 1
+  patience: 0
+  ckpt_dir: outputs/checkpoints/r7_native_smoke
+  limit_train_batches: 2
+  limit_val_batches: 1
+  limit_test_batches: 1
+  progress_bar: false
