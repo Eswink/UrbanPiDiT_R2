@@ -20,11 +20,12 @@ def main():
     ap.add_argument('--controller')
     ap.add_argument('--min-steps',type=int,default=1)
     ap.add_argument('--force-full-depth',action='store_true')
+    ap.add_argument('--policy-selection')
     a=ap.parse_args()
     result=evaluate_local(a.manifest,output_dir=a.out,checkpoint=a.checkpoint,lead_hours=a.leads,
         step_hours=a.step_hours,max_samples=a.max_samples,device_name=a.device,
         normalized=a.normalized,reasoning_steps=a.reasoning_steps,controller_checkpoint=a.controller,
-        min_reasoning_steps=a.min_steps,force_full_depth=a.force_full_depth)
+        min_reasoning_steps=a.min_steps,force_full_depth=a.force_full_depth,policy_selection=a.policy_selection)
     print(json.dumps({'n_evaluated':result['n_evaluated'],'scientific_claim':False}))
 
 

@@ -25,19 +25,26 @@ class Persistence(nn.Module):
 @torch.no_grad()
 def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,72),
                    step_hours=6,max_samples=32,device_name='cpu',normalized=False,reasoning_steps=None,
-                   controller_checkpoint=None,min_reasoning_steps=1,force_full_depth=False):
+                   controller_checkpoint=None,min_reasoning_steps=1,force_full_depth=False,
+                   policy_selection=None,validation_thresholds=None):
     if isinstance(max_samples,bool) or not isinstance(max_samples,int) or max_samples<1:
         raise ValueError('max_samples must be a positive explicit cap')
     if controller_checkpoint and not checkpoint:
         raise ValueError('controller evaluation requires its parent checkpoint')
     if force_full_depth and not controller_checkpoint:
         raise ValueError('force_full_depth requires a controller checkpoint')
+    if (policy_selection is not None or validation_thresholds is not None) and not controller_checkpoint:
+        raise ValueError('halting policy requires a controller checkpoint')
+    if policy_selection is not None and (validation_thresholds is not None or reasoning_steps is not None or min_reasoning_steps!=1 or force_full_depth):
+        raise ValueError('frozen selected policy cannot be overridden')
     manifest=Path(manifest)
     reader=ZarrAtmosWindowDataset(manifest)
     splits={r['split'] for r in reader.records}
     stores={r['store_path'] for r in reader.records}
     if len(splits)!=1 or len(stores)!=1 or next(iter(splits)) not in ('val','test'):
         raise ValueError('one held-out split and one store per evaluation')
+    if validation_thresholds is not None and splits!={'val'}:
+        raise ValueError('threshold overrides are validation-only; freeze a selection before test')
     root=reader._store(reader.records[0])
     for r in reader.records:
         validate_record(root,r)
@@ -54,8 +61,8 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         raise ValueError('physical units missing; audit source or explicitly use normalized metrics')
     device=select_device(device_name)
     inference={}
-    checkpoint_hash=training_identity=controller_hash=None
-    controller_policy=None
+    checkpoint_hash=training_identity=controller_hash=selection_hash=None
+    controller_policy=effective_policy=None
     if checkpoint:
         saved=load_checkpoint(checkpoint)
         contract=saved['contract']
@@ -68,11 +75,30 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
             if contract['kind']!='process':
                 raise ValueError('adaptive controller needs a process checkpoint')
             from .r7_calibration_runner import load_calibrated_adapter,file_sha256
+            from .r7_policy_selection import validate_policy,load_selection
             model,controller_policy=load_calibrated_adapter(model,controller_checkpoint,
                 parent_checkpoint=checkpoint,training_identity=training_identity)
-            inference={'max_steps':controller_policy['max_steps'] if reasoning_steps is None else reasoning_steps,
-                'min_steps':min_reasoning_steps,'force_full_depth':bool(force_full_depth)}
             controller_hash=file_sha256(controller_checkpoint)
+            effective_policy=dict(gain_threshold=float(model.gain_threshold),
+                probability_threshold=float(model.probability_threshold),
+                max_steps=controller_policy['max_steps'] if reasoning_steps is None else reasoning_steps,
+                min_steps=min_reasoning_steps,force_full_depth=bool(force_full_depth))
+            if validation_thresholds is not None:
+                if len(validation_thresholds)!=2:
+                    raise ValueError('two validation thresholds required')
+                effective_policy.update(gain_threshold=validation_thresholds[0],probability_threshold=validation_thresholds[1])
+            if policy_selection is not None:
+                effective_policy,selection_hash=load_selection(policy_selection,
+                    parent_sha256=file_sha256(checkpoint),controller_sha256=controller_hash,training_identity=training_identity,
+                    evaluation_metadata=dict(channels=list(ds.names),units=['normalized']*len(ds.names) if normalized else list(ds.units),
+                        lead_hours=list(ds.lead_hours),step_hours=step_hours))
+                if effective_policy['max_steps']!=controller_policy['max_steps']:
+                    raise ValueError('selected policy exceeds or differs from calibrated maximum depth')
+            validate_policy(effective_policy)
+            model.gain_threshold.fill_(effective_policy['gain_threshold'])
+            model.probability_threshold.fill_(effective_policy['probability_threshold'])
+            effective_policy.update(gain_threshold=float(model.gain_threshold),probability_threshold=float(model.probability_threshold))
+            inference={k:effective_policy[k] for k in ('max_steps','min_steps','force_full_depth')}
         elif contract['kind']!='native':
             inference['reasoning_steps']=contract['steps'] if reasoning_steps is None else reasoning_steps
         checkpoint_hash=hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
@@ -120,6 +146,7 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
                     'defined' if torch.isfinite(values[i,j]) else 'undefined_zero_anomaly_energy',acc.initializations])
     provenance={'scientific_claim':False,'checkpoint_sha256':checkpoint_hash,'training_identity':training_identity,
         'controller_sha256':controller_hash,'controller_policy':controller_policy,'inference_options':inference,
+        'halting_policy':effective_policy,'policy_selection_sha256':selection_hash,
         'evaluation_manifest_sha256':hashlib.sha256(manifest.read_bytes()).hexdigest(),
         'source_declaration':root.attrs['source'],'channels':list(ds.names),'units':list(rmse.units),
         'split':ds.split,'lead_hours':list(ds.lead_hours),'step_hours':step_hours,
