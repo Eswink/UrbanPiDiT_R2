@@ -94,6 +94,17 @@ else:
                 self.test_ds=ManifestAtmosNPZDataset(
                     self.data_cfg['test_manifest']
                 )
+            elif mode=='manifest_atmos_zarr':
+                from .r7_zarr_dataset import ZarrAtmosWindowDataset
+                self.train_ds=ZarrAtmosWindowDataset(
+                    self.data_cfg['train_manifest']
+                )
+                self.val_ds=ZarrAtmosWindowDataset(
+                    self.data_cfg['val_manifest']
+                )
+                self.test_ds=ZarrAtmosWindowDataset(
+                    self.data_cfg['test_manifest']
+                )
             else:
                 raise ValueError(f'未知 R7 data.mode: {mode}')
 
