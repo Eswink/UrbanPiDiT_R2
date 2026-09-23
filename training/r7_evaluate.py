@@ -26,7 +26,7 @@ class Persistence(nn.Module):
 def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,72),
                    step_hours=6,max_samples=32,device_name='cpu',normalized=False,reasoning_steps=None,
                    controller_checkpoint=None,min_reasoning_steps=1,force_full_depth=False,
-                   policy_selection=None,validation_thresholds=None):
+                   policy_selection=None,validation_thresholds=None,boundary_margins=None):
     if isinstance(max_samples,bool) or not isinstance(max_samples,int) or max_samples<1:
         raise ValueError('max_samples must be a positive explicit cap')
     if controller_checkpoint and not checkpoint:
@@ -109,6 +109,12 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     rmse=RolloutRMSEAccumulator(ds.lead_hours,ds.names,
         training_std=None if normalized else ds.std,units=None if normalized else ds.units)
     acc=RolloutACCAccumulator(ds.lead_hours,ds.names)
+    boundary=None
+    if boundary_margins is not None:
+        from .r7_boundary_metrics import BoundaryRMSEAccumulator,boundary_masks
+        boundary_masks(int(root['state'].shape[-2]),int(root['state'].shape[-1]),boundary_margins)
+        boundary=BoundaryRMSEAccumulator(ds.lead_hours,ds.names,margins=boundary_margins,
+            training_std=None if normalized else ds.std,units=None if normalized else ds.units)
     out=Path(output_dir)
     out.mkdir(parents=True,exist_ok=False)
     initializations=[]
@@ -126,6 +132,8 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         climate=normalized_climatology(clim,sample['valid_times'],ds.mean,ds.std).unsqueeze(0)
         rmse.update(prediction,targets,sample['latitude'])
         acc.update(prediction,targets,climate,sample['latitude'])
+        if boundary is not None:
+            boundary.update(prediction,targets,sample['latitude'])
         case=RolloutRMSEAccumulator(ds.lead_hours,ds.names,
             training_std=None if normalized else ds.std,units=None if normalized else ds.units)
         case.update(prediction,targets,sample['latitude'])
@@ -135,6 +143,8 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     if device.type=='cuda':
         torch.cuda.synchronize(device)
     rmse.write_csv(out/'rmse.csv')
+    if boundary is not None:
+        boundary.write_csv(out/'boundary_rmse.csv')
     values=acc.compute()
     with (out/'acc.csv').open('x',encoding='utf-8',newline='') as f:
         writer=csv.writer(f)
@@ -147,6 +157,9 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     provenance={'scientific_claim':False,'checkpoint_sha256':checkpoint_hash,'training_identity':training_identity,
         'controller_sha256':controller_hash,'controller_policy':controller_policy,'inference_options':inference,
         'halting_policy':effective_policy,'policy_selection_sha256':selection_hash,
+        'boundary_scoring':None if boundary is None else {
+            'margins_cells':list(boundary.margins),'regions':boundary.regions,
+            'scope':'same forecasts; error stratification, not a boundary-forcing intervention'},
         'evaluation_manifest_sha256':hashlib.sha256(manifest.read_bytes()).hexdigest(),
         'source_declaration':root.attrs['source'],'channels':list(ds.names),'units':list(rmse.units),
         'split':ds.split,'lead_hours':list(ds.lead_hours),'step_hours':step_hours,
