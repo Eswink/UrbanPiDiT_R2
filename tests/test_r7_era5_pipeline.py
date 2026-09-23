@@ -38,7 +38,9 @@ def _fixture():
         )
         base[i]=year_offset+i*0.1+spatial
         u[i,0]=year_offset+10.0+i*0.2+spatial
-        u[i,1]=year_offset+20.0+i*0.2+spatial
+        # Keep a genuinely different level-specific pattern so channel-wise
+        # normalization cannot make 500 hPa collapse onto 850 hPa.
+        u[i,1]=year_offset+20.0+i*0.3+2.0*spatial
 
     return xr.Dataset(
         {
@@ -141,7 +143,8 @@ def test_pressure_level_selection_is_exact(tmp_path:Path):
     )
     sample=ManifestAtmosNPZDataset(paths["train"])[0]
     assert sample["coarse_history"].shape[1]==2
-    # The two level channels carry a stable offset and must not be identical.
+    # The two pressure levels carry different spatiotemporal structures and
+    # must remain distinguishable after channel-wise standardization.
     assert not np.allclose(
         sample["coarse_history"][0,0].numpy(),
         sample["coarse_history"][0,1].numpy(),
