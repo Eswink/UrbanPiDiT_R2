@@ -10,14 +10,22 @@ import numpy as np
 import torch
 
 
-def make_model(kind, config):
+def make_model(kind,config):
     from model.weather_forecaster_r7 import NativeAtmosForecaster
     from model.recursive_weather_r7 import GenericRecursiveWeatherForecaster
     from model.process_forecast_r7 import ProcessForecastCoReasoner
-    classes = {'native':NativeAtmosForecaster, 'generic':GenericRecursiveWeatherForecaster, 'process':ProcessForecastCoReasoner}
-    if kind not in classes:
-        raise ValueError(f'unsupported model kind: {kind}')
-    return classes[kind](**config)
+    from model.r7_baselines import UNetForecaster,ConvLSTMForecaster,AFNOSmallForecaster
+    options=dict(config)
+    architecture=options.pop('architecture','window')
+    if kind=='native':
+        native={'window':NativeAtmosForecaster,'unet':UNetForecaster,'convlstm':ConvLSTMForecaster,'afno_small':AFNOSmallForecaster}
+        if architecture not in native:
+            raise ValueError(f'unsupported native architecture: {architecture}')
+        return native[architecture](**options)
+    recursive={'generic':GenericRecursiveWeatherForecaster,'process':ProcessForecastCoReasoner}
+    if kind not in recursive or architecture!='window':
+        raise ValueError(f'unsupported model kind/architecture: {kind}/{architecture}')
+    return recursive[kind](**options)
 
 
 def model_code_digest():
@@ -32,11 +40,11 @@ def model_code_digest():
     return digest.hexdigest()
 
 
-def select_device(name, bf16=False):
-    device = torch.device(name)
+def select_device(name,bf16=False):
+    device=torch.device(name)
     if device.type not in ('cpu','cuda'):
         raise ValueError('single CPU/CUDA devices only')
-    if device.type == 'cuda':
+    if device.type=='cuda':
         if not torch.cuda.is_available():
             raise RuntimeError('CUDA requested but unavailable; no CPU fallback')
         torch.cuda.set_device(device)
@@ -54,18 +62,18 @@ def seed_everything(seed):
 
 
 def rng_state():
-    n = np.random.get_state()
-    return {'python':random.getstate(), 'numpy':[n[0],n[1].tolist(),int(n[2]),int(n[3]),float(n[4])],
-            'torch':torch.get_rng_state(), 'cuda':torch.cuda.get_rng_state_all() if torch.cuda.is_available() else []}
+    n=np.random.get_state()
+    return {'python':random.getstate(),'numpy':[n[0],n[1].tolist(),int(n[2]),int(n[3]),float(n[4])],
+        'torch':torch.get_rng_state(),'cuda':torch.cuda.get_rng_state_all() if torch.cuda.is_available() else []}
 
 
 def restore_rng(state):
     random.setstate(state['python'])
-    n = state['numpy']
+    n=state['numpy']
     np.random.set_state((n[0],np.asarray(n[1],dtype=np.uint32),n[2],n[3],n[4]))
     torch.set_rng_state(state['torch'].cpu())
     if state['cuda']:
-        if not torch.cuda.is_available() or len(state['cuda']) != torch.cuda.device_count():
+        if not torch.cuda.is_available() or len(state['cuda'])!=torch.cuda.device_count():
             raise ValueError('checkpoint CUDA RNG topology differs')
         torch.cuda.set_rng_state_all([x.cpu() for x in state['cuda']])
 
@@ -77,30 +85,28 @@ def canonical_digest(value):
 def dataset_identity(manifest):
     """Bind bounded metadata/norms, not every raw chunk; source audit is separate."""
     from data.r7_zarr_dataset import ZarrAtmosWindowDataset
-    ds = ZarrAtmosWindowDataset(manifest)
-    roots = {}
+    ds=ZarrAtmosWindowDataset(manifest)
+    roots={}
     for rec in ds.records:
-        key = rec['store_path']
+        key=rec['store_path']
         if key in roots:
             continue
-        root = ds._store(rec)
-        arrays = ['latitude','longitude','time_ns','normalization_mean','normalization_std']
+        root=ds._store(rec)
+        arrays=['latitude','longitude','time_ns','normalization_mean','normalization_std']
         arrays += [n for n in ['process_normalization_mean','process_normalization_std'] if n in root]
-        roots[key] = {'attributes':dict(root.attrs), 'shape':list(root['state'].shape),
+        roots[key]={'attributes':dict(root.attrs),'shape':list(root['state'].shape),
             'arrays':{n:hashlib.sha256(np.asarray(root[n][:]).tobytes()).hexdigest() for n in arrays}}
-    result = {'manifest_sha256':hashlib.sha256(Path(manifest).read_bytes()).hexdigest(), 'stores':roots}
-    return canonical_digest(result), ds
+    return canonical_digest({'manifest_sha256':hashlib.sha256(Path(manifest).read_bytes()).hexdigest(),'stores':roots}),ds
 
 
-def save_exclusive(path, payload):
-    """Fully write a temporary checkpoint, then publish without overwriting."""
-    path = Path(path)
+def save_exclusive(path,payload):
+    path=Path(path)
     if path.exists() or path.is_symlink():
         raise FileExistsError(path)
     if payload.get('format')=='r7-local-v1':
         payload=dict(payload,model_code_sha256=model_code_digest())
     path.parent.mkdir(parents=True,exist_ok=True)
-    fd, temp = tempfile.mkstemp(prefix='.r7-checkpoint-',dir=path.parent)
+    fd,temp=tempfile.mkstemp(prefix='.r7-checkpoint-',dir=path.parent)
     try:
         with os.fdopen(fd,'wb') as f:
             torch.save(payload,f)
@@ -111,14 +117,14 @@ def save_exclusive(path, payload):
         os.unlink(temp)
 
 
-def load_checkpoint(path, *, expected=None):
-    checkpoint = torch.load(path,map_location='cpu',weights_only=True)
-    if checkpoint.get('format') != 'r7-local-v1':
+def load_checkpoint(path,*,expected=None):
+    checkpoint=torch.load(path,map_location='cpu',weights_only=True)
+    if checkpoint.get('format')!='r7-local-v1':
         raise ValueError('unsupported R7 checkpoint format')
     if checkpoint.get('model_code_sha256')!=model_code_digest():
         raise ValueError('checkpoint model implementation differs; use the recorded code revision for exact evaluation/resume')
-    if expected is not None and checkpoint['signature'] != expected:
+    if expected is not None and checkpoint['signature']!=expected:
         raise ValueError('checkpoint model/data/training identity differs')
-    if checkpoint['signature'] != canonical_digest(checkpoint['contract']):
+    if checkpoint['signature']!=canonical_digest(checkpoint['contract']):
         raise ValueError('checkpoint contract digest mismatch')
     return checkpoint
