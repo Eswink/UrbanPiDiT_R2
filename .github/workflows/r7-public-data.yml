@@ -1,0 +1,40 @@
+name: R7 public ERA5 metadata probe
+
+on:
+  push:
+    branches: [r7/weather-reasoning]
+
+permissions:
+  contents: read
+
+jobs:
+  public-metadata-probe:
+    if: contains(github.event.head_commit.message, '[public-data]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-r7-data.txt
+      - name: Install CPU/data dependencies
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - name: Probe public WeatherBench2 ERA5 metadata only
+        env:
+          OMP_NUM_THREADS: "2"
+          MKL_NUM_THREADS: "2"
+        run: python scripts/probe_wb2_public.py --out outputs/public-data/wb2_probe.json
+      - name: Preserve metadata evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r7-wb2-metadata-${{ github.sha }}
+          path: outputs/public-data/wb2_probe.json
+          if-no-files-found: warn
+          retention-days: 7
