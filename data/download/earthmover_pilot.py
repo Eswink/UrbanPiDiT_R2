@@ -2,10 +2,13 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from itertools import product
+from numbers import Integral, Real
+import base64
 import hashlib
 import json
 import math
 from pathlib import Path
+import struct
 import time
 import numpy as np
 
@@ -25,8 +28,24 @@ class DecodedBudget:
     seconds: float = 600.
     started: float = field(default_factory=time.monotonic)
 
+    def __post_init__(self):
+        for key, minimum in (('limit', 1), ('used', 0), ('reads', 0)):
+            v = getattr(self, key)
+            if isinstance(v, bool) or not isinstance(v, Integral) or v < minimum:
+                raise ValueError(f'invalid integer budget {key}')
+        if self.used > self.limit:
+            raise ValueError('budget already exhausted')
+        for key in ('seconds', 'started'):
+            v = getattr(self, key)
+            if isinstance(v, bool) or not isinstance(v, Real) or not math.isfinite(v):
+                raise ValueError(f'invalid finite budget {key}')
+        if self.seconds <= 0:
+            raise ValueError('deadline duration must be positive')
+
     def check(self, n):
-        if n < 0 or self.used + n > self.limit:
+        if isinstance(n, bool) or not isinstance(n, Integral) or n < 0:
+            raise ValueError('byte charge must be a nonnegative integer')
+        if self.used + n > self.limit:
             raise RuntimeError('decoded-chunk budget exceeded BEFORE field read')
         if time.monotonic() - self.started > self.seconds:
             raise RuntimeError('extraction deadline exceeded')
@@ -37,16 +56,47 @@ class DecodedBudget:
         self.reads += 1
 
 
+def declared_missing_values(array):
+    """CF declarations only, never generic Zarr allocation fill values.
+
+    Xarray's Zarr3 floating _FillValue encoding is base64 of one little-endian
+    double (FillValueCoder). The pinned source uses this encoding for NaN.
+    Numeric missing_value lists remain numeric; arbitrary strings are refused.
+    """
+    values = []
+    attrs = dict(getattr(array, 'attrs', {}))
+    for key in ('_FillValue', 'missing_value'):
+        if key not in attrs:
+            continue
+        value = attrs[key]
+        if key == '_FillValue' and isinstance(value, str) and np.dtype(array.dtype).kind == 'f':
+            try:
+                encoded = base64.b64decode(value, validate=True)
+                if len(encoded) != 8:
+                    raise ValueError('expected eight-byte float fill encoding')
+                value = struct.unpack('<d', encoded)[0]
+            except (ValueError, struct.error) as exc:
+                raise ValueError('invalid encoded floating CF _FillValue') from exc
+        raw = np.asarray(value)
+        if raw.dtype.kind not in 'iuf' or raw.ndim > 1 or not raw.size:
+            raise ValueError(f'invalid numeric CF {key}')
+        values.extend(raw.ravel().tolist())
+    return values
+
+
 def selection_plan(array, indices):
     """Only unsharded numeric arrays and explicit unique integer axis indices."""
     if getattr(array, 'shards', None) is not None:
         raise ValueError('sharded source requires a different audited read plan')
     shape, chunks = tuple(array.shape), tuple(array.chunks)
-    if len(indices) != len(shape) or len(chunks) != len(shape) or any(c < 1 for c in chunks):
+    if len(indices) != len(shape) or len(chunks) != len(shape) or any(
+        isinstance(c, bool) or not isinstance(c, Integral) or c < 1 for c in shape + chunks
+    ):
         raise ValueError('selection/chunk dimensionality mismatch')
     dtype = np.dtype(array.dtype)
     if dtype.kind not in 'iuf':
         raise ValueError('numeric source dtype required')
+    declared_missing_values(array)
     idx = tuple(np.asarray(i) for i in indices)
     for i, size in zip(idx, shape):
         if i.ndim != 1 or not len(i) or i.dtype.kind not in 'iu' or len(np.unique(i)) != len(i):
@@ -66,6 +116,7 @@ def selection_plan(array, indices):
 def bounded_selection(array, indices, budget):
     """Read each touched chunk once, retain only its explicitly requested cells."""
     idx, coords, chunk_bytes = selection_plan(array, indices)
+    missing = declared_missing_values(array)
     budget.check(len(coords) * chunk_bytes)
     output = np.empty(tuple(map(len, idx)), dtype=array.dtype)
     for coord in coords:
@@ -73,11 +124,15 @@ def bounded_selection(array, indices, budget):
         slices = tuple(slice(s, min(s + c, n)) for s, c, n in zip(starts, array.chunks, array.shape))
         budget.charge(chunk_bytes)
         chunk = np.asarray(array[slices])
+        if chunk.shape != tuple(sl.stop - sl.start for sl in slices):
+            raise ValueError('source chunk read returned an unexpected shape')
         positions = [np.flatnonzero((i >= sl.start) & (i < sl.stop)) for i, sl in zip(idx, slices)]
         local = [i[p] - s for i, p, s in zip(idx, positions, starts)]
         chosen = chunk[np.ix_(*local)]
         if not np.isfinite(chosen).all() or np.any(np.abs(chosen.astype(np.float64)) > 1e30):
             raise ValueError('source missing/nonfinite values; no synthetic fallback')
+        if any(np.any(chosen == sentinel) for sentinel in missing):
+            raise ValueError('source contains a declared CF missing value; no replacement')
         output[np.ix_(*positions)] = chosen
     return output
 
@@ -86,6 +141,7 @@ def extract_dataset(root, *, snapshot_id=SNAPSHOT):
     """One Beijing-containing provider tile; Jan 1-8 in 2018/2019/2020, 6-hourly."""
     import pandas as pd
     import xarray as xr
+    from data.preprocess.grid import regular_latlon_spacing
     groups = {k: root[k + '/temporal'] for k in ('single', 'pressure')}
     budget = DecodedBudget()
     coordinates = {}
@@ -96,6 +152,9 @@ def extract_dataset(root, *, snapshot_id=SNAPSHOT):
         if not np.array_equal(coordinates['single'][name], coordinates['pressure'][name]):
             raise ValueError('surface/pressure coordinate mismatch')
     sc = coordinates['single']
+    spacing = regular_latlon_spacing(sc['latitude'], sc['longitude'])
+    if not np.isclose(spacing, .25, rtol=0, atol=1e-5):
+        raise ValueError('source grid must have native 0.25-degree spacing')
     time_attrs = dict(groups['single']['valid_time'].attrs)
     pressure_time_attrs = dict(groups['pressure']['valid_time'].attrs)
     for key in ('units', 'calendar'):
@@ -114,6 +173,9 @@ def extract_dataset(root, *, snapshot_id=SNAPSHOT):
     xi = np.flatnonzero((sc['longitude'] >= 114.) & (sc['longitude'] <= 116.75))
     if (len(yi), len(xi)) != (12, 12):
         raise ValueError('expected exact provider 0.25-degree 12x12 tile')
+    if not (np.allclose(np.sort(sc['latitude'][yi]), np.arange(39.25,42.01,.25), rtol=0, atol=1e-5)
+            and np.allclose(np.sort(sc['longitude'][xi]), np.arange(114.,116.76,.25), rtol=0, atol=1e-5)):
+        raise ValueError('selected coordinates do not match the declared tile')
     level_array = groups['pressure']['pressure_level']
     if str(level_array.attrs.get('units')) != 'hPa':
         raise ValueError('explicit hPa pressure coordinate required')
@@ -125,6 +187,10 @@ def extract_dataset(root, *, snapshot_id=SNAPSHOT):
         expected = ('valid_time', 'latitude', 'longitude') if level is None else ('valid_time', 'pressure_level', 'latitude', 'longitude')
         if tuple(array.metadata.dimension_names) != expected:
             raise ValueError(f'unexpected dimensions for {name}')
+        lengths = {n: len(v) for n, v in sc.items()}
+        lengths['pressure_level'] = len(levels)
+        if tuple(array.shape) != tuple(lengths[n] for n in expected):
+            raise ValueError(f'field/coordinate shape mismatch for {name}')
         if np.dtype(array.dtype) != np.dtype('float32'):
             raise ValueError('pilot preserves float32 source payloads without guessed conversion')
         attrs = dict(array.attrs)
