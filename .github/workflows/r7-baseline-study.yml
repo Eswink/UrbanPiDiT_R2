@@ -1,0 +1,61 @@
+name: R7 real compact-baseline CPU study
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  baseline-study:
+    if: contains(github.event.head_commit.message, '[baseline-study]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install CPU dependencies
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - name: Reuse verified actual four-season artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: r7-four-season-cpu-583ffa581495fa9b8fa7f6be6529b191da489146
+          path: input_seasonal
+          run-id: 35884443083
+          github-token: ${{ github.token }}
+      - name: Run compact controls offline
+        run: |
+          python - <<'PY'
+          import runpy, socket, sys
+          def deny(*args, **kwargs):
+              raise RuntimeError('outbound networking prohibited during baseline CPU study')
+          socket.socket.connect = deny
+          socket.create_connection = deny
+          sys.argv = ['scripts/study_r7_baselines_cpu.py',
+                      '--source','input_seasonal/source/era5_four_season.nc',
+                      '--receipt','input_seasonal/source/receipt.json','--out','outputs/baseline_study']
+          runpy.run_path(sys.argv[0],run_name='__main__')
+          PY
+      - name: Preserve exact source code
+        if: always()
+        run: |
+          mkdir -p outputs/baseline_study
+          git archive --format=zip --output=outputs/baseline_study/code.zip HEAD
+          git rev-parse HEAD > outputs/baseline_study/code_commit.txt
+      - name: Preserve all control outcomes and actual timing samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r7-compact-baselines-${{ github.sha }}
+          path: |
+            outputs/baseline_study/
+            !outputs/baseline_study/cache.zarr/
+          retention-days: 30
+          if-no-files-found: warn
