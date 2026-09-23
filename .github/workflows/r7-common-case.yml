@@ -1,0 +1,59 @@
+name: R7 common-case profile comparison
+on:
+  push:
+    branches: [r7/weather-reasoning]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  common-case:
+    if: contains(github.event.head_commit.message, '[common-case]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install analysis dependencies
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
+          pip install -r requirements.txt -r requirements-r7-data.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: r7-extended-control-163e88a60f28bf0a4e31a97396130439a08606b1
+          path: input54
+          run-id: 35892145587
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: r7-continuous-control-f1d395f5ab1e4b69e805cbbb095e7a4acf6c9743
+          path: input56
+          run-id: 35895446235
+          github-token: ${{ github.token }}
+      - name: Compare stored validation errors only
+        run: |
+          mkdir -p outputs/common_case
+          python - <<'PY'
+          import socket
+          def deny(*args, **kwargs):
+              raise RuntimeError('network prohibited during common-case audit')
+          socket.socket.connect = deny
+          socket.create_connection = deny
+          from training.r7_profile_comparison import compare_original_studies
+          r = compare_original_studies('input54', 'input56', 'outputs/common_case/comparison.json')
+          print({'common': len(r['common_initializations']), 'left_only': r['left_only'], 'right_only': r['right_only']})
+          PY
+      - name: Archive exact code
+        if: always()
+        run: |
+          mkdir -p outputs/common_case
+          git archive --format=zip --output=outputs/common_case/code.zip HEAD
+          git rev-parse HEAD > outputs/common_case/code_commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r7-common-case-${{ github.sha }}
+          path: outputs/common_case/
+          retention-days: 30
