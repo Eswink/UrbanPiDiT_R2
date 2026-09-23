@@ -233,8 +233,13 @@ def test_stack_drops_only_singleton_auxiliary_dims():
     )
     assert state.shape==(24,1,3,4)
 
-    ds["t2m_bad"]=ds["t2m"].expand_dims(expver=[1,5])
+    # Use a fresh Dataset here. Reusing `ds` would already define expver=[1],
+    # and xarray assignment would align the [1,5] variable onto that existing
+    # coordinate, silently reducing the test variable back to a singleton.
+    bad=_fixture()
+    bad["t2m_bad"]=bad["t2m"].expand_dims(expver=[1,5])
+    assert int(bad["t2m_bad"].sizes["expver"])==2
     with pytest.raises(ValueError,match="未处理非单例维度"):
         stack_era5_channels(
-            ds,(ERA5ChannelSpec("t2m_bad",name="t2m_bad"),)
+            bad,(ERA5ChannelSpec("t2m_bad",name="t2m_bad"),)
         )
