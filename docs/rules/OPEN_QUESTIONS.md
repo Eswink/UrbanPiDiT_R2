@@ -272,4 +272,3 @@ optional 组的对应关系。特别标注 `requirements-data.txt`（rasterio/Pi
   B 零风险但把 R-030 长期留在 C 类。
 - **我的建议**：A，但放在下一轮——本轮已改动 `training/` 下的评估与季节研究模块，
   不宜同时改动实验编排的主路径。
-

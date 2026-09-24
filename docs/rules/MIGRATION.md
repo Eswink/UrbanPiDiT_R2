@@ -87,4 +87,3 @@ C 类规则**不得**做成阻断门禁。原因：它们当前合计命中 203 
 - 改动 `model/` 下任何文件都会改变 `model_code_sha256`，须在提交信息中标注
   `[model-digest-change]` 并在 CHANGELOG 记录，同时确认 3 条重放 workflow 的处置方式。
 - 每完成一片，更新本文件与 `CHANGELOG.md`。
-

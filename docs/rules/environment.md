@@ -62,4 +62,3 @@ conda 的 `site-packages` 不在 `sys.path`，`torch`/`numpy`/`xarray` 全部解
 设计要点：只在 `CONDA_DEFAULT_ENV=base` 且 `CONDA_SHLVL=1`（即 base 是被自动激活的）时才隐藏；
 只恢复本机制自己隐藏过的 base；`conda` 命令在项目内仍可用，随时 `conda activate <env>` 可手动切走。
 开关：把 `__PROJECT_HIDE_CONDA_BASE` 设为 `0` 即关闭隐藏行为。
-
