@@ -441,6 +441,7 @@ Every measurement in §1–§7 was produced by the instruments at
 | Push run / job | `35986500299` / `107590304929` — **success**, 10 steps, 0 failures |
 | Doc-only follow-up commit | `375d1d2d` — push run `35987165980` / job `107592445423` — **success** |
 | Further verification commits | `a3568f2` (run `35987583870` / job `107593767696`), `e4d38d9` (run `35988134364` / job `107595525958`), `b8578e6` (run `35989405974` / job `107599630314`) — all **success** |
+| Isolated-measurement correction commit | `9016fa7` — push run `35991675294` / job `107606992215` — **success**, 10/10 steps |
 | Job steps (all runs) | conventions, compile+whitespace, unit/integration/installed-wheel all `success` |
 | PR runs at those SHAs | `35986505853`, `35987172000` — **skipped** by `ci.yml` design; **not used as evidence** |
 | Baseline commit (previous) | `50954c94eb0aa15fa61cb19440543b40c6c38326`, push run `35976102003` / job `107556844837` — success |
