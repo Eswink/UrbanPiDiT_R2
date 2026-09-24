@@ -1,7 +1,7 @@
 # R7 issue comments: paste-ready drafts
 
 Status: **NOT YET PUBLISHED.** This machine has no `gh` and no token.
-`POST /repos/Eswink/UrbanPiDiT_R2/issues/<n>/comments` was re-tested this round
+`POST /repos/Eswink/UrbanPiDiT_R2/issues/<n>/comments` was re-tested in round 1 and once more before round 2
 and still returns **HTTP 401 `Requires authentication`**. No comment here has
 been posted to GitHub, and no issue has been closed. Nothing in this file should
 be read as a published link or a changed issue state.
@@ -90,3 +90,69 @@ Closure statement (only after the comment above is posted):
 > needs denser temporal sampling should be tracked as its own bounded protocol
 > rather than holding this parent open, since the converter it asked for exists,
 > is audited, and is exercised on real regional data.
+
+---
+
+## #20 — [R7-MEMORY] Bound recursive training activation retention
+
+Draft comment (paste verbatim, minus this line):
+
+> **The multi-seed optimization/trick comparison is now done at `7dfbea6`.**
+> This was the one remaining item; the engineering measurements landed earlier
+> at `50954c94`.
+>
+> The earlier sweep measured each configuration once at a single seed, so a
+> small delta could not be separated from machine variation that the same record
+> documents as up to ~40%. Two changes fix that: every configuration is
+> replicated across seeds 41/42/43, and each trick is compared against its
+> baseline **within the same seed**, so seed drift cancels instead of inflating
+> the effect. Cells also now read the published regional ERA5 R7 store
+> (17 channels, 65x65, `BUILD_COMPLETE.json`) through the production reader,
+> replacing synthetic 12x12 shapes.
+>
+> **Protocol:** frozen before any measurement
+> (`protocol.json`, digest
+> `6c84be201134faa3a0895ebb9c1bfb1cf67f4161dd283fd613ba2a33fc70e7f7`), 72 cells
+> = 2 models x K in {1,4,8} x 2 training modes x checkpointing on/off x 3 seeds,
+> one process per cell. Run: 72/72 cells, 0 failed, 266.4 s.
+>
+> **Streamed truncated vs full BPTT** (per-seed paired, MiB allocated):
+> `generic` K=8 −393 (sd 125, all seeds same sign), K=4 −145, K=1 +10;
+> `process` K=8 −174, K=4 −44 (sign not consistent across seeds), K=1 +9
+> (also not consistent). Full BPTT rises 934 -> 1164 -> 1464 MiB over K=1/4/8
+> for `generic` while streamed stays 938 -> 957 -> 957 — the flat-K result now
+> reproduced on real multivariate data rather than synthetic shapes.
+>
+> **Activation checkpointing** is the strongest lever: −469 to −627 MiB, a
+> consistent 51.8–54.5 % cut of peak, for +25 to +38 ms per step. All six rows
+> agree in sign on both metrics.
+>
+> **Negative results kept:** streamed training is **slower at every K**
+> (+12.0 to +98.0 ms); memory savings are paid for in step time. Two `process`
+> rows have memory deltas whose sign disagrees across seeds, so at those
+> settings the effect is below seed dispersion and this run does not establish
+> it. They are reported as unresolved, not as wins.
+>
+> **Reproducibility:** the sweep was run twice end to end. Peak allocated and
+> peak reserved reproduced **bit-identically in all 72 cells** (0.0 MiB max
+> difference), while step time did not (max 41.0 ms, mean 8.2 ms; 35/72 within
+> 5 ms). Memory is stable enough to pair across seeds; timing is reported with
+> dispersion and not as a headline.
+>
+> Three seeds is a dispersion check, **not** a significance test — no p-values
+> and none should be inferred. Not a skill, convergence or final-quality claim.
+> Full record: `docs/R7_GPU_MULTISEED.md`; tests:
+> `tests/test_r7_multiseed_comparison.py` (17 offline).
+>
+> **Verification:** `pytest -q` 836 passed / 3 skipped / 0 failed with GPU;
+> 830 / 9 / 0 with `CUDA_VISIBLE_DEVICES=""`;
+> `python tools/check_conventions.py` 34 blocking rules, 0 violations.
+
+Closure statement (only after the comment above is posted):
+
+> Closing: the CPU acceptance items (gradient ownership, optimizer cadence,
+> repeatable finite updates, saved-tensor accounting as a function of K) were
+> covered earlier, and the measured 3090 peak allocated/reserved memory and wall
+> time for K=1/2/4/8 now include a multi-seed comparison of both training tricks
+> on real data. The reported limitations — three seeds as a noise check, and two
+> unresolved `process` rows — are recorded rather than smoothed over.

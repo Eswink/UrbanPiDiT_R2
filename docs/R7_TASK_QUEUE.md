@@ -1,7 +1,7 @@
 # R7 conversation-driven task queue
 
-Updated after verified issue #13 regional acquisition at code commit
-`f37cebaede0d85ce89a8e40f2dd67ecacedc7961`.
+Updated after verified issue #13 regional acquisition at `f37ceba` and the #20
+multi-seed comparison at `7dfbea6`.
 No scheduler, main merge/release, force push, paid GPU or uncontrolled data mirror.
 
 ## Accepted work in this iteration
@@ -71,7 +71,7 @@ traffic/RAM. Local replay needs no new cloud-source access.
 | #5/#6 recurrence/process benefit | IN_PROGRESS | Three-seed controls show mixed outcomes. Spatial feedback helps some wind scores but worsens T500; process does not uniformly beat generic. Keep defaults and all negatives. |
 | #7 adaptive benefit | IN_PROGRESS | Existing strict policies fell back to full depth. This iteration does not change controller thresholds or certify savings. Reassess only against an explicitly frozen new validation protocol. |
 | #8 journal evaluation | IN_PROGRESS | Freeze broader, temporally spaced cases and meaningful uncertainty controls; preserve test separation. Cross-profile comparison now requires explicit cases/common-case audit. |
-| #20 memory/resource acceptance | engineering DONE on local 2×3090, science open | Measured single-GPU and DDP baselines at `50954c94`: see [R7_GPU_BRINGUP.md](R7_GPU_BRINGUP.md). Multi-seed optimization comparison still pending; no rental used and no fabricated measurement. |
+| #20 memory/resource acceptance | engineering DONE on local 2×3090; multi-seed comparison DONE at `7dfbea6`, science open | Multi-seed paired comparison on real 17-channel ERA5: 72/72 cells, 3 seeds, both tricks, at [R7_GPU_MULTISEED.md](R7_GPU_MULTISEED.md). Streamed stays flat in K (−393 MiB at K=8 vs full BPTT, all seeds agreeing) but is slower at every K; checkpointing cuts 51.8–54.5 % of peak for +25–38 ms. Memory reproduced bit-identically in all 72 cells across two runs; step time did not. No rental used and no fabricated measurement. |
 | #9 finer-resolution expert | BLOCKED, scientific labels/core gates | Need real co-located finer-resolution dynamic targets; never interpolated truth. |
 | #1 / PR12 scientific release | IN_PROGRESS | Hypotheses unproven; PR remains Draft. Bounded CPU engineering success is not final SOTA. |
 
