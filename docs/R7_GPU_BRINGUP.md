@@ -406,6 +406,22 @@ dimensional knob was never sufficient on its own; the combination of the two
 memory techniques is what fits. Peaks in the 21–23 GiB rows are the measured
 pre-OOM maxima, not estimates.
 
+**Re-verified in fresh processes.** Because §3 showed that sequential in-process
+runs contaminate `reserved`, the decisive comparison was re-run one cell per
+process (`outputs/gpu_oom_isolated/`), which also proves the result is not an
+artefact of case ordering:
+
+| cell (fresh process) | status | peak alloc | peak resv |
+| --- | --- | --- | --- |
+| generic full BPTT, ckpt off | **oom** | 21.90 GiB | 22.61 GiB |
+| generic streamed, ckpt on | **ok** | 19.19 GiB | 22.23 GiB |
+| process full BPTT, ckpt off | **oom** | 21.90 GiB | 22.61 GiB |
+| process streamed, ckpt on | **ok** | 19.19 GiB | 22.23 GiB |
+
+Both models behave identically, and the surviving configuration reproduces the
+same peak in isolation as in the sweep — so the ordered-degradation conclusion
+holds independently of process history.
+
 ## 8. Verification summary
 
 | Gate | Command | Result |
