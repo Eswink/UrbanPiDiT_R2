@@ -17,6 +17,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          # fetch-depth: 0 (full history) is required by the whitespace step
+          # below: `git show --check HEAD` needs HEAD's parent to know what this
+          # commit changed. Under the default depth=1, HEAD looks like a root
+          # commit, so it inspects EVERY file and fails on trailing whitespace in
+          # audit/*.log — captured tool output, not authored text.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -37,8 +44,12 @@ jobs:
       - name: Compile active modules and check whitespace
         run: |
           python -m compileall -q data model training scripts train_r7_local.py evaluate_r7_local.py
-          # Inspect the newest commit rather than the working tree: on a clean
-          # checkout `git diff --check` has nothing to compare and silently passes.
+          # Whitespace check on the pushed commit.
+          #
+          # Leave this fetch-depth alone: `git show --check HEAD` needs a parent
+          # to diff against. In a depth=1 clone HEAD looks like a root commit,
+          # so it inspects EVERY file and fails on trailing whitespace inside
+          # audit/*.log, which is captured tool output rather than authored text.
           git show --check --format= HEAD
       - name: Run unit, integration and installed-wheel tests
         run: pytest -q
