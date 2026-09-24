@@ -449,31 +449,34 @@ CPU-only CI container skips them instead of failing.
 ## 9. CI binding
 
 Every measurement in §1–§7 was produced by the instruments at
-`45d5c93cd8a6360c4a15f4acd4d2c426d7915b32`.
+`45d5c93cd8a6360c4a15f4acd4d2c426d7915b32`. All runs below are **push**-triggered
+(never the PR-triggered runs, which `ci.yml` deliberately skips).
 
-| Item | Value |
-| --- | --- |
-| Commit carrying instruments + this record | `45d5c93cd8a6360c4a15f4acd4d2c426d7915b32` |
-| Push run / job | `35986500299` / `107590304929` — **success**, 10 steps, 0 failures |
-| Doc-only follow-up commit | `375d1d2d` — push run `35987165980` / job `107592445423` — **success** |
-| Further verification commits | `a3568f2` (run `35987583870` / job `107593767696`), `e4d38d9` (run `35988134364` / job `107595525958`), `b8578e6` (run `35989405974` / job `107599630314`) — all **success** |
-| Isolated-measurement correction commit | `9016fa7` — push run `35991675294` / job `107606992215` — **success**, 10/10 steps |
-| Final tip at time of writing | `0a19b83` — push run `35992075643` / job `107608283359` — **success**, all steps `success` |
-| Job steps (all runs) | conventions, compile+whitespace, unit/integration/installed-wheel all `success` |
-| PR runs at those SHAs | `35986505853`, `35987172000` — **skipped** by `ci.yml` design; **not used as evidence** |
-| Baseline commit (previous) | `50954c94eb0aa15fa61cb19440543b40c6c38326`, push run `35976102003` / job `107556844837` — success |
+| Commit | Push run / job | Result |
+| --- | --- | --- |
+| `45d5c93c` instruments + record | `35986500299` / `107590304929` | **success** (10 steps, 0 failures) |
+| `375d1d2d` docs | `35987165980` / `107592445423` | **success** |
+| `a3568f2` docs | `35987583870` / `107593767696` | **success**, 10/10 steps |
+| `e4d38d9` docs | `35988134364` / `107595525958` | **success**, 10/10 steps |
+| `b8578e6` docs | `35989405974` / `107599630314` | **success**, all steps |
+| `9016fa7` isolated-measurement fix | `35991675294` / `107606992215` | **success**, 10/10 steps |
+| `0a19b83` docs | `35992075643` / `107608283359` | **success**, all steps |
+| `d3a3566` docs | `35992489691` / `107609626241` | **success**, all steps |
+| `0deda6f` OOM re-verification | `35993442040` / `107612700452` | **success**, all steps |
+| `50954c94` previous HEAD | `35976102003` / `107556844837` | **success** |
+| PR runs at these SHAs | `35986505853`, `35987172000` | **skipped** by design; **not evidence** |
 
-The evidence-binding SHA for every measurement is `45d5c93c`. Later commits are
-instruments/docs and each carries its own push-triggered run, so this is a
-snapshot of verified SHAs rather than of the moving branch tip; the commit that
-adds or edits these lines necessarily carries a later run of its own.
+The table is a closed snapshot: it lists runs verified during this bring-up and
+is not updated for later commits. The commit that adds or edits these lines
+carries a later run of its own, which is normal and does not invalidate any row
+above — each row names a SHA whose own CI passed.
 
-Job-log download is not available to an unauthenticated caller
+Job-log download is unavailable to an unauthenticated caller
 (`GET /actions/jobs/.../logs` → **403 "Must have admin rights to Repository"**),
-so the per-test counts above are reproduced locally in the CI-equivalent
-configuration (`CUDA_VISIBLE_DEVICES=""`, 797 passed / 9 skipped / 0 failed)
+so the per-test counts below are reproduced locally in the CI-equivalent
+configuration (`CUDA_VISIBLE_DEVICES=""`, 798 passed / 9 skipped / 0 failed)
 rather than quoted from the job log. The CI job's own step conclusions were
-read from the public API and all report `success`.
+read from the public API and every step reports `success`.
 
 ## 10. Limitations and negative results (kept on purpose)
 
