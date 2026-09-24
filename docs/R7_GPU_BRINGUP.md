@@ -8,7 +8,9 @@ first dual-GPU DDP smoke in this repository, and the OOM boundary.
 carries `scientific_claim: false`. No forecast skill, convergence or SOTA claim
 is made or implied. `spatial_solver_feedback` stays opt-in and default `False`.
 
-Measured at commit `50954c94eb0aa15fa61cb19440543b40c6c38326`, 2026-09-24.
+Measured on this machine during the bring-up session; the instruments and this
+record are committed at `45d5c93cd8a6360c4a15f4acd4d2c426d7915b32`, whose
+push-triggered CI run passed (§9).
 
 ---
 
@@ -281,10 +283,17 @@ pre-OOM maxima, not estimates.
 
 | Gate | Command | Result |
 | --- | --- | --- |
-| Full local suite | `.venv/bin/python -m pytest -q` | **803 passed, 3 skipped, 0 failed** (122.25 s) |
-| New GPU tests | `pytest tests/test_r7_gpu_bringup.py -q` | 7 passed (4 self-skip without CUDA, verified) |
+| Full local suite (GPU present) | `.venv/bin/python -m pytest -q` | **803 passed, 3 skipped, 0 failed** (122.25 s) |
+| CI-equivalent suite (`CUDA_VISIBLE_DEVICES=""`) | `.venv/bin/python -m pytest -q` | **797 passed, 9 skipped, 0 failed** (105.57 s) |
+| New GPU tests | `pytest tests/test_r7_gpu_bringup.py -q` | 7 passed with CUDA; 3 passed + 4 self-skipped without it |
 | Blocking rules | `python tools/check_conventions.py` | **34 rules, 0 violations** |
 | CI (exact SHA) | see §9 | push run, success, not skipped |
+
+The nine CPU-side skips are: 4 new GPU cases, 2 pre-existing CUDA cases in
+`tests/test_r7_local_runner.py`, and 3 pre-existing untracked-fixture cases in
+`tests/test_real_data_pipeline.py`. **No test was skipped or weakened to obtain
+a pass**; the GPU cases skip because that container has no CUDA device, which is
+the documented contract for `pytest.mark.gpu`.
 
 `tests/test_r7_gpu_bringup.py` asserts, on real measurements: streamed peak stays
 flat in K; the full-BPTT-vs-streamed growth ratio ordering; GPU checkpoint resume
@@ -296,10 +305,18 @@ container skips them instead of failing.
 
 | Item | Value |
 | --- | --- |
-| Commit | `50954c94eb0aa15fa61cb19440543b40c6c38326` |
-| Push run / job | `35976102003` / `107556844837` — **success** |
-| PR run | `35976106651` — **skipped** (ci.yml intentionally skips PRs on `r7/weather-reasoning`); **not used as evidence** |
-| Job steps | conventions, compile+whitespace, unit/integration/installed-wheel all `success` |
+| Commit (this work) | `45d5c93cd8a6360c4a15f4acd4d2c426d7915b32` |
+| Push run / job | `35986500299` / `107590304929` — **success** (not skipped, not cancelled) |
+| Job steps | conventions, compile+whitespace, unit/integration/installed-wheel all `success` (10 steps, 0 failures) |
+| PR run at same SHA | `35986505853` — **skipped** by `ci.yml` design; **not used as evidence** |
+| Baseline commit (previous) | `50954c94eb0aa15fa61cb19440543b40c6c38326`, push run `35976102003` / job `107556844837` — success |
+
+Job-log download is not available to an unauthenticated caller
+(`GET /actions/jobs/.../logs` → **403 "Must have admin rights to Repository"**),
+so the per-test counts above are reproduced locally in the CI-equivalent
+configuration (`CUDA_VISIBLE_DEVICES=""`, 797 passed / 9 skipped / 0 failed)
+rather than quoted from the job log. The CI job's own step conclusions were
+read from the public API and all report `success`.
 
 ## 10. Limitations and negative results (kept on purpose)
 
@@ -324,8 +341,9 @@ Posting is blocked on this machine (`command -v gh` empty; no GitHub token;
 
 > **[R7-GPU] Dual-3090 bring-up: measured baselines (draft, unpublished)**
 >
-> At `50954c94`: single-GPU sweep over both recursive models × K=1/2/4/8 ×
-> {full BPTT, streamed truncated} × checkpointing on/off, 32/32 cells OK at
+> At `45d5c93c` (CI push run `35986500299` / job `107590304929`, success):
+> single-GPU sweep over both recursive models × K=1/2/4/8 × {full BPTT,
+> streamed truncated} × checkpointing on/off, 32/32 cells OK at
 > 1.25M and 18.07M params. Streamed peak allocated is **flat at 42.16 MiB for
 > K=1…8** while full BPTT grows 41.14 → 49.43 MiB; peak *reserved* still grows
 > 46 → 54 MiB. Checkpointing trades ~21 % step time for ~7 MiB at K=8.
@@ -334,8 +352,10 @@ Posting is blocked on this machine (`command -v gh` empty; no GitHub token;
 > identical. First DDP smoke in-repo: 2 ranks, loss matches the single-GPU
 > reference to 3.1e-06, sampler covers the dataset exactly once, one checkpoint,
 > resume bitwise identical — but DDP is **7 % slower** at this scale on the
-> SYS/PCIe (non-NVLink) link. Real multivariate ERA5 is **not** on this disk;
-> memory numbers use synthetic shapes. `scientific_claim: false` throughout.
+> SYS/PCIe (non-NVLink) link. OOM boundary at 178.2M params; only
+> streamed+checkpointing survived every ordered degradation variant. Real
+> multivariate ERA5 is **not** on this disk; memory numbers use synthetic
+> shapes. `scientific_claim: false` throughout.
 
 ## 12. Artifact locations (not committed, per R-035)
 
