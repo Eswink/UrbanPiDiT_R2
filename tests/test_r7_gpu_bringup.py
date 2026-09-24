@@ -178,6 +178,24 @@ def test_sweep_freezes_protocol_before_any_step_and_reports_peaks():
     assert "synchronize" in source
 
 
+def test_sweep_supports_single_cell_isolation():
+    """`reserved` carries the allocator high-water mark across in-process cases.
+
+    The filters plus the isolating driver are what let a single cell be measured
+    in a fresh process; without them the reserved column is contaminated. Both
+    must stay, or the published table silently becomes wrong.
+    """
+    script = (ROOT / "scripts" / "bench_r7_gpu_memory.py").read_text(encoding="utf-8")
+    for flag in ("--kinds", "--modes", "--ckpt"):
+        assert flag in script, flag
+    assert "args.kinds" in script and "args.modes" in script
+    driver = (ROOT / "scripts" / "sweep_r7_gpu_isolated.sh").read_text(encoding="utf-8")
+    assert "for KIND in" in driver and "for MODE in" in driver and "for CK in" in driver
+    assert "fresh process" in driver.lower()
+    # one invocation per cell, so no cell shares an interpreter with another
+    assert driver.count("bench_r7_gpu_memory.py") == 1
+
+
 def test_gpu_scripts_skip_cleanly_when_cuda_is_absent():
     """The CUDA guard in this module must be a skipif, never a hard failure."""
     source = Path(__file__).read_text(encoding="utf-8")

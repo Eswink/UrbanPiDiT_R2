@@ -191,16 +191,22 @@ def run_case(case, device, warmup_steps, measure_steps):
 
 
 def build_cases(args):
-    """Cross product of model x K x mode x checkpointing."""
+    """Cross product of model x K x mode x checkpointing.
+
+    The filters exist so a single cell can be measured in a fresh process:
+    `torch.cuda.max_memory_reserved` reflects the caching allocator's high-water
+    mark, which is retained across cases inside one process and would otherwise
+    contaminate later rows.
+    """
     steps = args.steps or [1, 2, 4, 8]
     base = {"in_channels": args.channels, "history_steps": 2, "out_channels": args.channels,
             "dim": args.dim, "patch_size": 2, "depth": args.depth, "heads": args.heads,
             "window_size": args.window, "dropout": 0.0, "default_reasoning_steps": 1}
     cases = []
-    for kind in MODEL_KINDS:
+    for kind in args.kinds:
         for k in steps:
-            for mode in TRAINING_MODES:
-                for checkpointing in (False, True):
+            for mode in args.modes:
+                for checkpointing in args.ckpt:
                     model_config = dict(base, activation_checkpointing=checkpointing)
                     if kind == "process":
                         # Process State replaces the generic latent bank with
@@ -236,6 +242,11 @@ def main():
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--measure", type=int, default=3)
+    parser.add_argument("--kinds", nargs="+", choices=list(MODEL_KINDS), default=list(MODEL_KINDS))
+    parser.add_argument("--modes", nargs="+", choices=list(TRAINING_MODES),
+                        default=list(TRAINING_MODES))
+    parser.add_argument("--ckpt", nargs="+", type=int, choices=[0, 1], default=[0, 1],
+                        help="activation-checkpointing states to measure")
     parser.add_argument("--bf16", action="store_true")
     parser.add_argument("--max-seconds", type=float, default=900.0)
     args = parser.parse_args()
@@ -257,8 +268,10 @@ def main():
         "warmup_steps": args.warmup, "measure_steps": args.measure,
         "timing_rule": "torch.cuda.synchronize() before each phase boundary",
         "memory_rule": "torch.cuda.reset_peak_memory_stats() before the measured window",
-        "model_matrix": list(MODEL_KINDS), "k_values": args.steps or [1, 2, 4, 8],
-        "training_modes": list(TRAINING_MODES), "checkpointing": [False, True],
+        "model_matrix": list(args.kinds), "k_values": args.steps or [1, 2, 4, 8],
+        "training_modes": list(args.modes),
+        "checkpointing": [bool(c) for c in args.ckpt],
+        "reserved_isolation": "each cell run in a fresh process (see --isolated driver)",
         "case_count": len(cases),
         "data": "synthetic shape fixture only; not multivariate real ERA5",
         "scientific_claim": False,

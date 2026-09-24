@@ -30,9 +30,10 @@ Measured at `50954c94eb0aa15fa61cb19440543b40c6c38326`. Full record:
 
 | Item | Result |
 | --- | --- |
-| Single-GPU sweep | 2 models × K=1/2/4/8 × {full BPTT, streamed} × ckpt on/off, 32/32 OK at 1.25M and 18.07M params |
-| Streamed vs full BPTT | streamed allocated **flat 42.16 MiB for K=1…8**; full BPTT grows 41.14 → 49.43 MiB |
-| Checkpointing cost | ~7 MiB saved at K=8 for ~21 % more step time |
+| Single-GPU sweep | 2 models × K=1/2/4/8 × {full BPTT, streamed} × ckpt on/off, 32/32 OK at 1.25M and 18.07M params, one process per cell |
+| Streamed vs full BPTT | streamed **flat on both metrics** across K=1…8 (46.00 MiB reserved at 1.25M; 380.00 MiB at 18.07M); full BPTT grows (394 → 426 MiB reserved at 18.07M) |
+| Measurement artefact | whole-sweep-in-one-process inflates `reserved` via allocator carryover (process K=1: 428 vs true 396 MiB); per-process measurement required |
+| Checkpointing cost | 21 % (1.25M) to 70 % (18.07M) more step time to bound the peak |
 | GPU checkpoint resume | bitwise identical weights, optimizer state and loss sequence |
 | DDP smoke (first in repo) | 2 ranks, loss vs single-GPU reference max delta 3.1e-06, sampler covers dataset once, 1 checkpoint, resume bitwise identical |
 | DDP negative result | **7 % slower** than single-GPU at this scale on SYS/PCIe (no NVLink); does not add per-model memory |
