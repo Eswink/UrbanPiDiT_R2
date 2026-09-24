@@ -303,13 +303,20 @@ container skips them instead of failing.
 
 ## 9. CI binding
 
+Every measurement in §1–§7 was produced by the instruments at
+`45d5c93cd8a6360c4a15f4acd4d2c426d7915b32`.
+
 | Item | Value |
 | --- | --- |
-| Commit (this work) | `45d5c93cd8a6360c4a15f4acd4d2c426d7915b32` |
-| Push run / job | `35986500299` / `107590304929` — **success** (not skipped, not cancelled) |
-| Job steps | conventions, compile+whitespace, unit/integration/installed-wheel all `success` (10 steps, 0 failures) |
-| PR run at same SHA | `35986505853` — **skipped** by `ci.yml` design; **not used as evidence** |
+| Commit carrying instruments + this record | `45d5c93cd8a6360c4a15f4acd4d2c426d7915b32` |
+| Push run / job | `35986500299` / `107590304929` — **success**, 10 steps, 0 failures |
+| Doc-only follow-up commit | `375d1d2d` — push run `35987165980` / job `107592445423` — **success** |
+| Job steps (both runs) | conventions, compile+whitespace, unit/integration/installed-wheel all `success` |
+| PR runs at those SHAs | `35986505853`, `35987172000` — **skipped** by `ci.yml` design; **not used as evidence** |
 | Baseline commit (previous) | `50954c94eb0aa15fa61cb19440543b40c6c38326`, push run `35976102003` / job `107556844837` — success |
+
+This table names only already-published commits; the commit that adds these
+lines necessarily carries its own later run.
 
 Job-log download is not available to an unauthenticated caller
 (`GET /actions/jobs/.../logs` → **403 "Must have admin rights to Repository"**),
