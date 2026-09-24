@@ -312,7 +312,12 @@ Every measurement in §1–§7 was produced by the instruments at
 | Push run / job | `35986500299` / `107590304929` — **success**, 10 steps, 0 failures |
 | Doc-only follow-up commit | `375d1d2d` — push run `35987165980` / job `107592445423` — **success** |
 | Latest verification commit | `a3568f2` — push run `35987583870` / job `107593767696` — **success**, 10/10 steps |
+| Latest verification commit | `e4d38d9` — push run `35988134364` / job `107595525958` — **success**, 10/10 steps |
 | Job steps (all runs) | conventions, compile+whitespace, unit/integration/installed-wheel all `success` |
+
+The evidence-binding SHA for every measurement below is `45d5c93c`. Later
+doc-only commits each carry their own push-triggered run, so this table is a
+snapshot of verified SHAs rather than of the moving branch tip.
 | PR runs at those SHAs | `35986505853`, `35987172000` — **skipped** by `ci.yml` design; **not used as evidence** |
 | Baseline commit (previous) | `50954c94eb0aa15fa61cb19440543b40c6c38326`, push run `35976102003` / job `107556844837` — success |
 
