@@ -2,6 +2,13 @@
 
 **Reasoning-Driven Adaptive-Resolution Urban Weather Forecasting**
 
+> **当前活跃主线不是本节描述的 V6，而是 R7（`r7/weather-reasoning` 分支）。**
+> 接手开发前请先读 `AGENTS.md`（工程契约与任务路由）与
+> `docs/R7_TASK_QUEUE.md`（研究关卡与待办状态）。
+> R7 的入口点、数据与产物约定见 `docs/rules/`，多步骤流程见 `.agents/skills/`
+> （索引在 `docs/skills/README.md`）。
+> 下面各节记录的是已交付的 V6 MVP，仍然有效但不再是开发重点。
+
 本仓库是 `UrbanPiDiT-V5.3.1-MorphoProcessDiT` 的 V6 技术路线升级版。V6 不再把 0.25° 网格上的城市形态代理量与天气动力学强行放在同一固定分辨率中，而是将模型拆为：
 
 1. **Coarse Atmospheric Context**：大尺度/中尺度背景天气；

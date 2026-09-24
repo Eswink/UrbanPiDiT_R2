@@ -47,7 +47,11 @@ def select_device(name,bf16=False):
     if device.type=='cuda':
         if not torch.cuda.is_available():
             raise RuntimeError('CUDA requested but unavailable; no CPU fallback')
-        torch.cuda.set_device(device)
+        # set_device requires an integer index; a bare torch.device('cuda') has
+        # index None and is rejected by torch>=2.8. Fall back to the current
+        # device so plain 'cuda' keeps meaning "the default visible device"
+        # (and remains correct under CUDA_VISIBLE_DEVICES).
+        torch.cuda.set_device(device.index if device.index is not None else torch.cuda.current_device())
         if bf16 and not torch.cuda.is_bf16_supported():
             raise RuntimeError('BF16 requested but unsupported')
     return device

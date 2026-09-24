@@ -58,10 +58,15 @@ else:
                 n=len(base); ntr=max(1,int(n*0.75)); nv=max(1,int(n*0.125)); nt=n-ntr-nv
                 self.train_ds,self.val_ds,self.test_ds=random_split(base,[ntr,nv,nt],generator=torch.Generator().manual_seed(int(self.train_cfg.get('seed',42))))
             elif mode=='manifest_npz':
-                self.train_ds=ManifestNPZDataset(self.data_cfg['train_manifest']); self.val_ds=ManifestNPZDataset(self.data_cfg['val_manifest']); self.test_ds=ManifestNPZDataset(self.data_cfg['test_manifest'])
+                self.train_ds=ManifestNPZDataset(self.data_cfg['train_manifest'])
+                self.val_ds=ManifestNPZDataset(self.data_cfg['val_manifest'])
+                self.test_ds=ManifestNPZDataset(self.data_cfg['test_manifest'])
             else: raise ValueError(f"未知 data.mode: {mode}")
         def _loader(self, ds, shuffle=False):
-            return DataLoader(ds,batch_size=int(self.train_cfg.get('batch_size',1)),shuffle=shuffle,num_workers=int(self.train_cfg.get('num_workers',0)),pin_memory=bool(self.train_cfg.get('pin_memory',True)),persistent_workers=bool(self.train_cfg.get('num_workers',0)>0))
+            return DataLoader(ds,batch_size=int(self.train_cfg.get('batch_size',1)),shuffle=shuffle,
+                num_workers=int(self.train_cfg.get('num_workers',0)),
+                pin_memory=bool(self.train_cfg.get('pin_memory',True)),
+                persistent_workers=bool(self.train_cfg.get('num_workers',0)>0))
         def train_dataloader(self): return self._loader(self.train_ds,True)
         def val_dataloader(self): return self._loader(self.val_ds,False)
         def test_dataloader(self): return self._loader(self.test_ds,False)

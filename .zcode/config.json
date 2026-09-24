@@ -1,0 +1,70 @@
+{
+  "hooks": {
+    "enabled": true,
+    "timeoutMs": 20000,
+    "events": {
+      "PreToolUse": [
+        {
+          "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+          "hooks": [
+            {
+              "type": "process",
+              "command": "${ZCODE_PROJECT_DIR}/.venv/bin/python",
+              "args": [
+                "${ZCODE_PROJECT_DIR}/tools/agent_hooks/guard_protected_paths.py"
+              ],
+              "timeoutMs": 10000,
+              "statusMessage": "checking protected paths"
+            }
+          ]
+        },
+        {
+          "matcher": "Bash",
+          "hooks": [
+            {
+              "type": "process",
+              "command": "${ZCODE_PROJECT_DIR}/.venv/bin/python",
+              "args": [
+                "${ZCODE_PROJECT_DIR}/tools/agent_hooks/guard_destructive_git.py"
+              ],
+              "timeoutMs": 10000,
+              "statusMessage": "checking git safety"
+            }
+          ]
+        }
+      ],
+      "PostToolUse": [
+        {
+          "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+          "hooks": [
+            {
+              "type": "process",
+              "command": "${ZCODE_PROJECT_DIR}/.venv/bin/python",
+              "args": [
+                "${ZCODE_PROJECT_DIR}/tools/agent_hooks/check_model_digest_impact.py"
+              ],
+              "timeoutMs": 10000,
+              "statusMessage": "checking model digest impact"
+            }
+          ]
+        }
+      ],
+      "Stop": [
+        {
+          "hooks": [
+            {
+              "type": "process",
+              "command": "${ZCODE_PROJECT_DIR}/.venv/bin/python",
+              "args": [
+                "${ZCODE_PROJECT_DIR}/tools/check_conventions.py",
+                "--quiet"
+              ],
+              "timeoutMs": 20000,
+              "statusMessage": "running repository conventions"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

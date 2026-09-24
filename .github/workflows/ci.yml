@@ -32,9 +32,13 @@ jobs:
           pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4"
           pip install -r requirements.txt
           pip install -r requirements-r7-data.txt
+      - name: Check repository conventions
+        run: python tools/check_conventions.py
       - name: Compile active modules and check whitespace
         run: |
-          python -m compileall -q data model training train_r7_local.py evaluate_r7_local.py
-          git diff --check
+          python -m compileall -q data model training scripts train_r7_local.py evaluate_r7_local.py
+          # Inspect the newest commit rather than the working tree: on a clean
+          # checkout `git diff --check` has nothing to compare and silently passes.
+          git show --check --format= HEAD
       - name: Run unit, integration and installed-wheel tests
         run: pytest -q

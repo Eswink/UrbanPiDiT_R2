@@ -6,7 +6,12 @@ from .layers.sdpa import SDPAttention, FeedForward, CrossBlock
 
 class SharedProcessReasoningBlock(nn.Module):
     def __init__(self,dim:int=256,heads:int=8,mlp_ratio:float=3.0,dropout:float=0.0):
-        super().__init__(); self.n=nn.LayerNorm(dim); self.self_attn=SDPAttention(dim,heads,dropout); self.cross=CrossBlock(dim,heads,mlp_ratio,dropout); self.ffn=FeedForward(dim,mlp_ratio,dropout); self.n2=nn.LayerNorm(dim)
+        super().__init__()
+        self.n=nn.LayerNorm(dim)
+        self.self_attn=SDPAttention(dim,heads,dropout)
+        self.cross=CrossBlock(dim,heads,mlp_ratio,dropout)
+        self.ffn=FeedForward(dim,mlp_ratio,dropout)
+        self.n2=nn.LayerNorm(dim)
     def forward(self,p,context):
         p=p+self.self_attn(self.n(p)); p=self.cross(p,context); return p+self.ffn(self.n2(p))
 

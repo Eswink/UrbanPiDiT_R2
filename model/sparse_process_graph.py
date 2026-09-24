@@ -21,7 +21,9 @@ class SparseGridProcessGraph(nn.Module):
     """O(Nk) 局部消息传播，仅构造局部边列表，不生成全连接邻接矩阵。"""
     def __init__(self,dim:int,hidden:int|None=None,diagonal:bool=True):
         super().__init__(); hidden=hidden or dim; self.diagonal=diagonal
-        self.msg=nn.Sequential(nn.Linear(dim+2,hidden),nn.GELU(),nn.Linear(hidden,dim)); self.gate=nn.Sequential(nn.Linear(dim*2+2,hidden),nn.GELU(),nn.Linear(hidden,1),nn.Sigmoid()); self.norm=nn.LayerNorm(dim)
+        self.msg=nn.Sequential(nn.Linear(dim+2,hidden),nn.GELU(),nn.Linear(hidden,dim))
+        self.gate=nn.Sequential(nn.Linear(dim*2+2,hidden),nn.GELU(),nn.Linear(hidden,1),nn.Sigmoid())
+        self.norm=nn.LayerNorm(dim)
     def forward(self,tokens:torch.Tensor,hw:tuple[int,int]):
         B,N,D=tokens.shape; h,w=hw
         if N!=h*w: raise ValueError('SparseGridProcessGraph: N 与 hw 不一致')

@@ -11,7 +11,11 @@ class R2LightningModule(pl.LightningModule):
     def _step(self,batch,stage):
         out=self.net(batch,force_zoom=True,adaptive_reasoning=False,hard_route=False); dl=self.net.diffusion_loss(batch,out) if self.net.enable_diffusion else None; losses=self.loss_fn(batch,out,dl)
         batch_size=int(batch['urban_target'].shape[0])
-        self.log(f'{stage}/loss',losses.total,prog_bar=True,on_epoch=True,on_step=False,batch_size=batch_size); self.log(f'{stage}/forecast',losses.forecast,on_epoch=True,on_step=False,batch_size=batch_size); self.log(f'{stage}/verifier_loss',losses.verifier,on_epoch=True,on_step=False,batch_size=batch_size); self.log(f'{stage}/verifier_score',out.diagnostics.verifier_score.mean(),on_epoch=True,on_step=False,batch_size=batch_size); self.log(f'{stage}/zoom_prob',out.diagnostics.zoom_probability.mean(),on_epoch=True,on_step=False,batch_size=batch_size)
+        self.log(f'{stage}/loss',losses.total,prog_bar=True,on_epoch=True,on_step=False,batch_size=batch_size)
+        self.log(f'{stage}/forecast',losses.forecast,on_epoch=True,on_step=False,batch_size=batch_size)
+        self.log(f'{stage}/verifier_loss',losses.verifier,on_epoch=True,on_step=False,batch_size=batch_size)
+        self.log(f'{stage}/verifier_score',out.diagnostics.verifier_score.mean(),on_epoch=True,on_step=False,batch_size=batch_size)
+        self.log(f'{stage}/zoom_prob',out.diagnostics.zoom_probability.mean(),on_epoch=True,on_step=False,batch_size=batch_size)
         return losses.total
     def training_step(self,batch,batch_idx): return self._step(batch,'train')
     def validation_step(self,batch,batch_idx): return self._step(batch,'val')

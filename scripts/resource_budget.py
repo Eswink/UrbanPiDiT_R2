@@ -6,7 +6,11 @@ if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
 from model import UrbanPiDiTR2
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--config',default='configs/r2_v6_4090d.yaml'); a=ap.parse_args(); cfg=yaml.safe_load(open(a.config,encoding='utf-8')); m=UrbanPiDiTR2(**cfg['model']); n=sum(p.numel() for p in m.parameters());
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--config',default='configs/r2_v6_4090d.yaml')
+    a=ap.parse_args()
+    cfg=yaml.safe_load(open(a.config,encoding='utf-8'))
+    m=UrbanPiDiTR2(**cfg['model']); n=sum(p.numel() for p in m.parameters());
     print(f'参数量: {n/1e6:.2f}M')
     print(f'BF16 参数本体: {n*2/1024**2:.1f} MiB')
     print(f'FP32 AdamW 两个状态: {n*8/1024**2:.1f} MiB')

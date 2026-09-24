@@ -11,7 +11,11 @@ class ResidualDiffusionRefiner(nn.Module):
         super().__init__(); self.net=nn.Sequential(nn.Conv2d(channels*2+1,hidden,3,padding=1),nn.GELU(),nn.Conv2d(hidden,hidden,3,padding=1),nn.GELU(),nn.Conv2d(hidden,channels,3,padding=1))
     def _alpha(self,t): return torch.cos(t.clamp(0,1)*torch.pi/2)**2
     def training_loss(self,target_residual,condition):
-        B=target_residual.shape[0]; t=torch.rand(B,device=target_residual.device,dtype=target_residual.dtype); a=self._alpha(t).view(B,1,1,1); noise=torch.randn_like(target_residual); noisy=a.sqrt()*target_residual+(1-a).sqrt()*noise
+        B=target_residual.shape[0]
+        t=torch.rand(B,device=target_residual.device,dtype=target_residual.dtype)
+        a=self._alpha(t).view(B,1,1,1)
+        noise=torch.randn_like(target_residual)
+        noisy=a.sqrt()*target_residual+(1-a).sqrt()*noise
         tt=t.view(B,1,1,1).expand(B,1,*target_residual.shape[-2:]); pred=self.net(torch.cat([noisy,condition,tt],1)); return torch.nn.functional.mse_loss(pred,noise)
     @torch.no_grad()
     def sample(self,condition,steps:int=4):

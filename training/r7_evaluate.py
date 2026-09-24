@@ -168,6 +168,8 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
             'bucket_counts':{f'{m:02d}-{h:02d}':n for (m,h),n in clim['counts'].items()}},
         'initializations':initializations,'elapsed_seconds':time.perf_counter()-started,
         'timing_scope':'whole evaluation loop including IO and metrics, not isolated model latency',
+        'deterministic':True,
+        'determinism_scope':'no sampling: evaluation is deterministic given checkpoint, manifest and options; no seed field is recorded because none is consumed',
         'note':'offline local evaluation, no future forcing; monthly-hour climatology is not a WeatherBench2 reproduction'}
     with (out/'provenance.json').open('x',encoding='utf-8') as f:
         json.dump(provenance,f,ensure_ascii=False,indent=2,allow_nan=False)

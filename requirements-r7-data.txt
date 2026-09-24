@@ -1,3 +1,8 @@
+# R7 本地预处理与流水线测试依赖。
+# 适用场景：本地 preflight/发布流程、Zarr/NetCDF 读写，以及依赖这些库的测试。
+# CI：ci.yml 与全部实验 workflow 都会安装本文件。
+# 对应 pyproject.toml：optional-dependencies.data
+# （此处多出 s3fs，供 NCAR 匿名 S3 探测使用）。
 # Optional R7 local preprocessing and pipeline-test dependencies.
 xarray>=2025.1
 pandas>=2.2

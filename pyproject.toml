@@ -21,10 +21,21 @@ urbanpidit-r7-calibrate = "calibrate_r7_local:main"
 
 [tool.setuptools]
 include-package-data = false
-py-modules = ["train_r7_local", "evaluate_r7_local", "prepare_r7_local", "calibrate_r7_local"]
+# Root-level CLI entry points shipped in the wheel. The four urbanpidit-r7-* console
+# scripts plus the three diagnostics that tests invoke by bare filename with cwd=repo-root
+# (see AGENTS.md "入口点" and docs/rules/OPEN_QUESTIONS.md Q-002).
+py-modules = [
+    "train_r7_local",
+    "evaluate_r7_local",
+    "prepare_r7_local",
+    "calibrate_r7_local",
+    "diagnose_r7_gain",
+    "profile_r7_inference",
+    "tune_r7_halting",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["data", "data.preprocess*", "data.download*", "model", "model.layers*", "training"]
-exclude = ["*.__pycache__*", "*.legacy*", "tests*", "legacy_v531_full*"]
+exclude = ["*.__pycache__*", "*.legacy*", "tests*", "legacy_v531_full*", "legacy_v6*"]
 namespaces = true

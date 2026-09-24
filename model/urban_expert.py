@@ -7,8 +7,14 @@ from .cross_scale_adapter import CrossScaleAdapter
 from .sparse_process_graph import SparseGridProcessGraph
 
 class UrbanExpert(nn.Module):
-    def __init__(self,dynamic_channels:int,history_steps:int,static_channels:int,out_channels:int,coarse_dim:int,process_dim:int,dim:int=256,patch_size:int=4,depth:int=8,heads:int=8,window_size:int=8,dropout:float=0.0,graph_every:int=4,cross_every:int=2,use_checkpointing:bool=False):
-        super().__init__(); self.dynamic_channels=dynamic_channels; self.history_steps=history_steps; self.static_channels=static_channels; self.out_channels=out_channels; self.patch_size=patch_size; self.graph_every=max(1,graph_every); self.cross_every=max(1,cross_every); self.use_checkpointing=bool(use_checkpointing)
+    def __init__(self,dynamic_channels:int,history_steps:int,static_channels:int,out_channels:int,
+        coarse_dim:int,process_dim:int,dim:int=256,patch_size:int=4,depth:int=8,heads:int=8,
+        window_size:int=8,dropout:float=0.0,graph_every:int=4,cross_every:int=2,use_checkpointing:bool=False):
+        super().__init__()
+        self.dynamic_channels=dynamic_channels; self.history_steps=history_steps; self.static_channels=static_channels
+        self.out_channels=out_channels; self.patch_size=patch_size
+        self.graph_every=max(1,graph_every); self.cross_every=max(1,cross_every)
+        self.use_checkpointing=bool(use_checkpointing)
         cin=dynamic_channels*history_steps+static_channels
         self.stem=nn.Sequential(nn.Conv2d(cin,dim//2,3,padding=1),nn.GELU(),nn.Conv2d(dim//2,dim,kernel_size=patch_size,stride=patch_size))
         self.blocks=nn.ModuleList([WindowAttentionBlock(dim,heads,window_size,4.0,dropout,shift=bool(i%2)) for i in range(depth)])

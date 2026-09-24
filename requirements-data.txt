@@ -1,4 +1,7 @@
 # 生产级真实数据下载/预处理的可选依赖。
+# 适用场景：ARCO ERA5 下载、WorldCover COG 裁剪（需要 rasterio/Pillow）。
+# CI：**当前没有任何 workflow 安装本文件**。需要它的是本地 WorldCover/ARCO 路径；
+#     CI 上的真实数据流程安装的是 requirements-r7-data.txt。
 # 核心模型 smoke 不强制这些依赖；ARCO ERA5 下载需要全部安装。
 xarray>=2025.1
 pandas>=2.2

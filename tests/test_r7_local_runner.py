@@ -62,6 +62,34 @@ def test_cuda_unavailable_never_falls_back(monkeypatch):
         select_device('cuda')
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(),reason='requires a real CUDA device')
+def test_bare_cuda_device_is_accepted_on_real_gpu():
+    """`--device cuda` (no index) must work on a real device.
+
+    The sibling test above monkeypatches CUDA to unavailable, so it returns
+    before set_device runs and never covered this path. torch>=2.8 rejects
+    torch.device('cuda') in set_device (index is None), which made every
+    '--device cuda' entry point fail on a machine that actually had a GPU.
+    """
+    device=select_device('cuda')
+    assert device.type=='cuda'
+    assert torch.cuda.current_device()>=0
+    # an explicit index must keep working too
+    assert select_device('cuda:0').index==0
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(),reason='requires a real CUDA device')
+def test_select_device_rejects_bf16_when_unsupported(monkeypatch):
+    monkeypatch.setattr(torch.cuda,'is_bf16_supported',lambda:False)
+    with pytest.raises(RuntimeError,match='BF16'):
+        select_device('cuda',bf16=True)
+
+
+def test_select_device_rejects_unknown_type():
+    with pytest.raises(ValueError,match='single CPU/CUDA'):
+        select_device('mps')
+
+
 def test_process_labels_required_unless_explicit_ablation(tmp_path):
     cfg=options(tmp_path/'labels','process')
     cfg['process_weight']=.1

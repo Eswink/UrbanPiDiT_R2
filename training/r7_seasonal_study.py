@@ -86,7 +86,7 @@ def adaptive_comparison(fixed, selected, *, tolerance=.01):
         note='Reasoning counts are NOT wall-clock latency or FLOPs; test failures are retained')
 
 
-def run_seasonal_study(source, receipt, output_dir):
+def run_seasonal_study(source, receipt, output_dir, *, deadline_seconds=1080):
     from data.download.seasonal_pilot_replay import verify_seasonal_pilot
     from .r7_calibration_runner import run_calibration
     from .r7_policy_selection import run_policy_search
@@ -107,6 +107,8 @@ def run_seasonal_study(source, receipt, output_dir):
     manifests = out/'forecasts'/'manifests'
     controllers = []
     for seed in PLAN.seeds:
+        if time.monotonic() - started > deadline_seconds:
+            raise RuntimeError('seasonal study wall budget exhausted')
         checkpoint = out/'forecasts'/'training'/f'process_{seed}'/'update_0000200.pt'
         controller, calibration = run_calibration(checkpoint,manifests/'train.jsonl',
             output_dir=out/'controllers'/str(seed),updates=120,batch_size=2,max_steps=3,

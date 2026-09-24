@@ -1,3 +1,8 @@
+# 核心运行时 + 测试入口。
+# 适用场景：模型/训练代码本身；不装数据集依赖也能跑合成数据 smoke 与大部分单元测试。
+# CI：ci.yml 与全部实验 workflow 都会安装本文件。
+# 对应 pyproject.toml：dependencies + optional-dependencies.test
+# （此处多出 pytest，便于直接 pip install -r 后即可跑测试）。
 torch>=2.4
 numpy>=1.26
 PyYAML>=6.0

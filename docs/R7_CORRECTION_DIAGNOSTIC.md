@@ -26,3 +26,17 @@ artifact retrieval. The code snapshot and raw case/round measurements are kept.
 
 A stronger optimization control is independent work. Neither a useful oracle
 nor lower training loss establishes deployable improvements or publication SOTA.
+
+## Model-source digest requirement
+
+This workflow loads checkpoints produced by an earlier commit, so it must run
+under the model implementation those checkpoints recorded. `load_checkpoint`
+(`training/r7_experiment.py`) compares the checkpoint's `model_code_sha256`
+against the digest of every non-legacy `.py` under `model/` and fails closed on
+mismatch. Reformatting any `model/` file changes that digest.
+
+Current pinned digest after the Q-001/long-line clean-up: `d9fb07f2d38d41d681b45c0b4d539edb8f0f9620f44ba0c426c40b43d672f665`
+(previously `20196c64...`). To replay an older artifact, run it with the
+`code.zip` archived beside that artifact — never by bypassing the identity check.
+See `docs/rules/CHANGELOG.md` (2026-09-24, second pass) and
+`docs/rules/OPEN_QUESTIONS.md` Q-009.

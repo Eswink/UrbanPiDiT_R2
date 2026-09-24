@@ -1,12 +1,77 @@
+# UrbanPiDiT-R² 忽略规则。
+# 约定：本文件定义「什么算产物」。原始数据与派生产物一律不进版本控制，可重建；
+# 只有它们的占位文件（.gitkeep）例外。细则见 docs/rules/repository-layout.md（R-012）。
+
+# --- Python 运行时与缓存 ---
 __pycache__/
 *.pyc
+*.pyo
 .pytest_cache/
+
+# --- 静态分析缓存 ---
+# 当前未接入 ruff/mypy，先声明以免将来把它们的缓存误提交。
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- 构建产物 ---
+build/
+dist/
+*.egg-info/
+*.whl
+
+# --- 虚拟环境与本地机密 ---
+.venv/
+venv/
+.env
+.env.*
+
+# --- 运行产物：绝不进版本控制（R-012） ---
 outputs/
 logs/
 *.ckpt
+*.pt
+*.pth
+
+# --- 数据集产物 ---
+# 原始/中间/派生数据只保留 .gitkeep 占位；内容一律忽略（R-004、R-012）。
+# 注意：data/manifests/ 下的 real_smoke 溯源文件是刻意跟踪的（见 docs/DATA_SPEC.md），
+# 所以下面的规则只覆盖 raw/interim/processed，不要扩展到 manifests。
 data/raw/*
 !data/raw/.gitkeep
 data/interim/*
 !data/interim/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+
+# --- CI 实验的产物暂存目录 ---
+# 实验 workflow 用 actions/download-artifact 把归档产物解到仓库根（path: input_*）；
+# 本地复现 workflow 时会出现这些目录。它们是外部产物，不属于本仓库内容。
+/input_pilot/
+/input_seasonal/
+/input_study/
+/input_continuous/
+/input54/
+/input56/
+
+# --- 代理工具状态 ---
+# 判据（R-035）：一个新克隆是否需要它来理解、复现或审计这项工作？不需要就是工具态。
+# Mimosa 扫描结果、ZCode 会话计划、workflow 草稿都属于工具态。
+#
+# 例外（刻意进版本控制，换机器/协作者克隆后自动生效）：
+#   .zcode/config.json    —— 项目级 hooks 配置
+#   .zcode/workflows/     —— 可按名运行的 agent workflow 定义；客户端按固定路径发现，
+#                            放到别处会变成"文件存在但按名调不到"
+#
+# 写法要点：必须用 `.zcode/*` 而非 `.zcode/`。目录级排除无法用 `!` 重新包含子项；
+# 排除内容后在子目录上放行是可行的（已实测）。
+.mimosa/
+.zcode/*
+!.zcode/config.json
+!.zcode/workflows/
+
+# --- 归档快照说明 ---
+# legacy_v531_full/、data/legacy_v531/、model/legacy_v531/、legacy_v6/
+# 是刻意跟踪的只读对照材料（方法学记录），因此这里**不**忽略它们。
+# 它们不得被活跃代码 import 或写入，见 AGENTS.md 与 R-002/R-031。
