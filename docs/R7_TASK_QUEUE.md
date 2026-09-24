@@ -1,7 +1,7 @@
 # R7 conversation-driven task queue
 
-Updated after verified issues53–58 at code commit
-`a4d5eab9c0969169ae385e649dd2a3bbb1c56f63`.
+Updated after verified issue #13 regional acquisition at code commit
+`f37cebaede0d85ce89a8e40f2dd67ecacedc7961`.
 No scheduler, main merge/release, force push, paid GPU or uncontrolled data mirror.
 
 ## Accepted work in this iteration
@@ -67,7 +67,7 @@ traffic/RAM. Local replay needs no new cloud-source access.
 
 | Parent/task | State | Evidence/next useful action |
 | --- | --- | --- |
-| #13 representative data | IN_PROGRESS | Continuous temporal support exists; larger regional context and full representative coverage still require a bounded protocol. No blanket data-unavailable claim. |
+| #13 representative data | IN_PROGRESS | Bounded regional acquisition completed at `f37ceba`: 3 years x 4 seasons, 65x65 East-Asia, 48 exact 6-hourly timestamps, 9 variables, source SHA256 `d3fa1fba6da46ed59a535ce27f7501813afc2c93cb8b745c90e349454a40960a`. Converted through the audited publication path to a 17-channel store (8 windows per split, `BUILD_COMPLETE.json`, train-only statistics). Coverage is four 24-hour blocks per year, NOT continuous full-year; see [R7_REGIONAL_ACQUISITION.md](R7_REGIONAL_ACQUISITION.md). |
 | #5/#6 recurrence/process benefit | IN_PROGRESS | Three-seed controls show mixed outcomes. Spatial feedback helps some wind scores but worsens T500; process does not uniformly beat generic. Keep defaults and all negatives. |
 | #7 adaptive benefit | IN_PROGRESS | Existing strict policies fell back to full depth. This iteration does not change controller thresholds or certify savings. Reassess only against an explicitly frozen new validation protocol. |
 | #8 journal evaluation | IN_PROGRESS | Freeze broader, temporally spaced cases and meaningful uncertainty controls; preserve test separation. Cross-profile comparison now requires explicit cases/common-case audit. |

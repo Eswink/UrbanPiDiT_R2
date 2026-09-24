@@ -144,6 +144,14 @@ grid point.
 | Full `pytest -q` with `CUDA_VISIBLE_DEVICES=""` | 813 passed, 9 skipped, 0 failed |
 | `python tools/check_conventions.py` | 34 blocking rules, **0 violations** |
 
+Push CI for this commit: run `36034017115` (event `push`, workflow **R7 CPU CI**),
+job `107749511426`, conclusion **success**, all 10 steps green including
+`Check repository conventions` and
+`Run unit, integration and installed-wheel tests`. Per-test counts from that job
+were not retrievable without an authenticated log download (HTTP 403), so the
+pass/skip numbers above are the locally measured ones for the same commit
+content, not a transcription of the CI log.
+
 CI needs no network: every non-smoke test uses synthetic xarray fixtures. The
 real-subset assertions are gated on
 `outputs/r7_regional_real/source.nc` being present, which it is **not** in a
