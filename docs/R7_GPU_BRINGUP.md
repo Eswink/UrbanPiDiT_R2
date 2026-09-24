@@ -118,6 +118,18 @@ Protocol digest `3664318d35e78ced2ff868e423336859ff28cf8458b26a3cdb29aef7809aac6
 | generic | 8 | streamed | off | 371.65 | 428.00 | 0.2382 |
 | generic | 8 | streamed | on | 371.65 | 428.00 | 0.2762 |
 
+### Tensor shapes and batch
+
+Per the 11-channel / 12×12 data contract, each measured step uses:
+
+| Tensor | Shape | Notes |
+| --- | --- | --- |
+| `coarse_history` | `[4, 2, 11, 12, 12]` | batch 4, 2 history steps, 11 channels |
+| `atmos_target` | `[4, 11, 12, 12]` | forecast target, used only in the loss |
+| `process_targets` | `[4, 4]` | process rows only; 4 anchored proxies |
+| model config | `dim=384, depth=8, patch=2, heads=4, window=8` | `latent_tokens=16` (generic) / `anchored+free = 4+4` (process) |
+| dtype | FP32 master weights, BF16 autocast | `torch.cuda.is_bf16_supported() == True` |
+
 ### What the table shows
 
 - **Streamed truncated training is flat in K; full BPTT grows.** At scale A the
@@ -135,6 +147,43 @@ Protocol digest `3664318d35e78ced2ff868e423336859ff28cf8458b26a3cdb29aef7809aac6
 - **No memory crossover at these scales.** 18.07M params needs only ~372 MiB of
   a 23.56 GiB card. Single-GPU memory is *not* the binding constraint for the
   planned model size — this redirects the next decision (see §7).
+
+### Phase-time breakdown (scale B, seconds)
+
+Every row reports `batch_size`, `grid`, `in_channels`, `dim`, `depth`, `patch_size`,
+`dtype`, `params` and both peaks in `outputs/gpu_sweep_stageb/sweep.json`. The
+full phase split follows (means over the measured steps after warmup):
+
+| model | K | mode | ckpt | forward | backward | optim step | step total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| generic | 1 | full_bptt | off | 0.0170 | 0.0242 | 0.0040 | 0.0457 |
+| generic | 1 | full_bptt | on | 0.0210 | 0.0494 | 0.0039 | 0.0748 |
+| generic | 1 | streamed | off | — | — | — | 0.0675 |
+| generic | 1 | streamed | on | — | — | — | 0.1003 |
+| generic | 2 | full_bptt | off | 0.0195 | 0.0377 | 0.0040 | 0.0618 |
+| generic | 4 | full_bptt | off | 0.0303 | 0.0387 | 0.0041 | 0.0739 |
+| generic | 8 | full_bptt | off | 0.0543 | 0.0601 | 0.0050 | 0.1203 |
+| generic | 8 | full_bptt | on | 0.0568 | 0.0942 | 0.0042 | 0.1560 |
+| generic | 8 | streamed | off | — | — | — | 0.2382 |
+| generic | 8 | streamed | on | — | — | — | 0.2804 |
+| process | 1 | full_bptt | off | 0.0278 | 0.0244 | 0.0051 | 0.0581 |
+| process | 8 | full_bptt | off | 0.0572 | 0.0626 | 0.0048 | 0.1255 |
+| process | 8 | streamed | off | — | — | — | 0.2459 |
+| process | 8 | streamed | on | — | — | — | 0.2762 |
+
+(All 32 rows per scale are in the JSON; the subset above spans the K range.)
+
+**The streamed path has no separable forward/backward phases**, and reports
+`null` for them rather than an artefactual split: `backward_streamed_truncated`
+interleaves loss-backward with the recurrence, so any per-phase timing would
+measure the instrumentation rather than the work. Those rows give the total
+step time only — which is still a real wall-clock measurement with a
+`synchronize()` on both edges.
+
+Phase timings are means over **2 measured steps after 1 warmup** at scale B, so
+individual cells carry real step-to-step noise; the K trend (each phase grows
+with K) is consistent, but treat single-cell phase ratios as indicative. The
+scale-A run used 3 measured steps after 2 warmups.
 
 ## 4. Checkpoint save → load → resume on GPU (D3)
 
