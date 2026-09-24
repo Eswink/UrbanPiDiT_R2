@@ -26,4 +26,5 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 
 | 文件 | 主题 | 备注 |
 | --- | --- | --- |
-| （原 `docs/R7_GPU_BRINGUP_BRIEF.md`） | R7 GPU bring-up | 早于本约定，**保留原位**，新目标按上述命名放入本目录 |
+| [`gpu-bringup-3090.md`](gpu-bringup-3090.md) | R7 GPU 工程验收（双 3090） | 含 Stage A/B/C、交付物 D1–D7、数据限制、证据落点 |
+| `docs/R7_GPU_BRINGUP_BRIEF.md` | （已迁移） | R-034 登记为早于约定的例外；现仅为指向本目录的指针，不再维护第二份定义 |

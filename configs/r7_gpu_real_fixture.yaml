@@ -1,0 +1,30 @@
+# GPU bring-up against the ONE real (non-synthetic) dataset on this machine:
+# tests/fixtures/r7_arco_t2m.json - a 9x5x7 single-variable t2m ERA5 slice that
+# declares scientific_training_ready=false. Single channel by construction, so
+# this config is deliberately NOT the 11-channel R7 data contract.
+kind: generic
+
+model:
+  in_channels: 1
+  history_steps: 2
+  out_channels: 1
+  dim: 32
+  patch_size: 2
+  depth: 1
+  heads: 4
+  window_size: 2
+  dropout: 0.0
+  activation_checkpointing: false
+  periodic_width: false
+  latent_tokens: 8
+  default_reasoning_steps: 4
+  detach_between_steps: false
+
+train:
+  batch_size: 1
+  accumulation: 1
+  steps: 4
+  seed: 42
+  lr: 0.0002
+  process_weight: 0.0
+  clip: 1.0

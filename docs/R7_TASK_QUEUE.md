@@ -23,6 +23,26 @@ Detailed evidence, limits and mixed results:
 [R7_CPU_REFINEMENT_RESULTS.md](R7_CPU_REFINEMENT_RESULTS.md).
 Per-archive hashes: [R7_CPU_ITERATION_ARTIFACTS.json](R7_CPU_ITERATION_ARTIFACTS.json).
 
+## GPU bring-up on 2×3090 (engineering, not science)
+
+Measured at `50954c94eb0aa15fa61cb19440543b40c6c38326`. Full record:
+[R7_GPU_BRINGUP.md](R7_GPU_BRINGUP.md). Every artifact `scientific_claim: false`.
+
+| Item | Result |
+| --- | --- |
+| Single-GPU sweep | 2 models × K=1/2/4/8 × {full BPTT, streamed} × ckpt on/off, 32/32 OK at 1.25M and 18.07M params |
+| Streamed vs full BPTT | streamed allocated **flat 42.16 MiB for K=1…8**; full BPTT grows 41.14 → 49.43 MiB |
+| Checkpointing cost | ~7 MiB saved at K=8 for ~21 % more step time |
+| GPU checkpoint resume | bitwise identical weights, optimizer state and loss sequence |
+| DDP smoke (first in repo) | 2 ranks, loss vs single-GPU reference max delta 3.1e-06, sampler covers dataset once, 1 checkpoint, resume bitwise identical |
+| DDP negative result | **7 % slower** than single-GPU at this scale on SYS/PCIe (no NVLink); does not add per-model memory |
+| OOM boundary | 178.2M params / batch 48 / 128×128 / K=8; only streamed+checkpointing survived in every degradation variant |
+| Real 11-channel ERA5 | **not on this disk** (`data/*` = `.gitkeep` only) — memory numbers use synthetic shapes |
+
+Engineering child items for #20 are covered. The **multi-seed optimization
+comparison is not done**, and #5/#6/#7/#8 stay open — engineering passing is
+not a scientific result.
+
 ## Prior work is not pending
 
 Issues47–52 had already completed: source fill-value/budget correctness,
@@ -50,7 +70,7 @@ traffic/RAM. Local replay needs no new cloud-source access.
 | #5/#6 recurrence/process benefit | IN_PROGRESS | Three-seed controls show mixed outcomes. Spatial feedback helps some wind scores but worsens T500; process does not uniformly beat generic. Keep defaults and all negatives. |
 | #7 adaptive benefit | IN_PROGRESS | Existing strict policies fell back to full depth. This iteration does not change controller thresholds or certify savings. Reassess only against an explicitly frozen new validation protocol. |
 | #8 journal evaluation | IN_PROGRESS | Freeze broader, temporally spaced cases and meaningful uncertainty controls; preserve test separation. Cross-profile comparison now requires explicit cases/common-case audit. |
-| #20 4090D resource acceptance | BLOCKED, hardware explicitly deferred | Existing profiler available when hardware returns. No rental or fabricated CUDA measurement. |
+| #20 memory/resource acceptance | engineering DONE on local 2×3090, science open | Measured single-GPU and DDP baselines at `50954c94`: see [R7_GPU_BRINGUP.md](R7_GPU_BRINGUP.md). Multi-seed optimization comparison still pending; no rental used and no fabricated measurement. |
 | #9 finer-resolution expert | BLOCKED, scientific labels/core gates | Need real co-located finer-resolution dynamic targets; never interpolated truth. |
 | #1 / PR12 scientific release | IN_PROGRESS | Hypotheses unproven; PR remains Draft. Bounded CPU engineering success is not final SOTA. |
 

@@ -1,0 +1,37 @@
+# GPU bring-up config: bounded single-device runs for the dual-3090 acceptance.
+# Shapes follow the R7 data contract (11 channels, 12x12 native 0.25 deg) but the
+# data itself is the synthetic shape fixture, not real multivariate ERA5.
+kind: generic
+
+model:
+  in_channels: 11
+  history_steps: 2
+  out_channels: 11
+  dim: 128
+  patch_size: 2
+  depth: 4
+  heads: 4
+  window_size: 4
+  dropout: 0.0
+  activation_checkpointing: false
+  periodic_width: false
+  latent_tokens: 16
+  default_reasoning_steps: 4
+  detach_between_steps: false
+
+synthetic:
+  length: 32
+  hw: [12, 12]
+  history_steps: 2
+  channels: 11
+  lead_time_hours: 6.0
+  grid_spacing_deg: 0.25
+
+train:
+  batch_size: 2
+  accumulation: 1
+  steps: 4
+  seed: 42
+  lr: 0.0002
+  process_weight: 0.0
+  clip: 1.0
