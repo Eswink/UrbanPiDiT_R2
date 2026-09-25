@@ -9,7 +9,7 @@ import numpy as np
 from .contracts import chronological_splits,utc_time_index
 from .grid import regular_latlon_spacing
 from .r7_era5 import ERA5ChannelSpec,DEFAULT_R7_ERA5_CHANNELS,_coord_name,stack_era5_channels
-from .r7_era5_zarr import _window_records,build_r7_era5_zarr_from_dataset
+from .r7_era5_zarr import _window_records, _window_records_in_ranges, build_r7_era5_zarr_from_dataset, parse_split_time_ranges
 
 
 def _unit(value):
@@ -59,6 +59,14 @@ def inspect_era5(ds,config):
     if not names or len(set(names))!=len(names):
         raise ValueError('unique nonempty channel definitions required')
     splits=chronological_splits(config['split_years'])
+    ranges=None
+    if config.get('split_time_ranges') is not None:
+        import pandas as pd
+        ranges=parse_split_time_ranges(config['split_time_ranges'])
+        for key,rows in ranges.items():
+            for start,_ in rows:
+                if not pd.Timestamp(start).year in splits['train']:
+                    raise ValueError(f'{key} range start falls outside the declared train years')
     tn=_coord_name(ds,('time','valid_time'))
     ln=_coord_name(ds,('latitude','lat'))
     xn=_coord_name(ds,('longitude','lon'))
@@ -86,8 +94,11 @@ def inspect_era5(ds,config):
         ('history_steps',2),('history_interval_hours',6),('lead_time_hours',6),('sample_stride_hours',6))}
     if any(isinstance(v,bool) or not isinstance(v,int) or v<1 for v in options.values()):
         raise ValueError('positive integer cadence parameters required')
-    records=_window_records(times,split_sets=splits,store_path=Path('unwritten.zarr'),
-        manifest_dir=Path('unwritten-manifest'),**options)
+    records=(_window_records_in_ranges(times,split_ranges=ranges,
+                store_path=Path('unwritten.zarr'),manifest_dir=Path('unwritten-manifest'),**options)
+             if ranges is not None else
+             _window_records(times,split_sets=splits,store_path=Path('unwritten.zarr'),
+                manifest_dir=Path('unwritten-manifest'),**options))
     counts={k:len(v) for k,v in records.items()}
     if not all(counts.values()):
         raise ValueError('every split needs complete exact-time windows')
@@ -100,6 +111,12 @@ def inspect_era5(ds,config):
         'limitations':['one frame checked for values; full finite checks happen while writing',
             'raw state estimate excludes metadata/compression overhead and is not a disk-space guarantee',
             'unit metadata checks do not authenticate source observations']}
+    if ranges is not None:
+        import pandas as pd
+        report['split_mode']='time_ranges'
+        report['split_time_ranges']={
+            key:[[pd.Timestamp(start).isoformat(),pd.Timestamp(stop).isoformat()] for start,stop in rows]
+            for key,rows in ranges.items()}
     return report,specs
 
 
@@ -143,7 +160,8 @@ def prepare_local(source,config,*,write=False,store_path=None,manifest_dir=None,
         paths=build_r7_era5_zarr_from_dataset(ds,store_path=store_path,manifest_dir=manifest_dir,
             specs=specs,split_years=config['split_years'],**report['cadence'],
             compute_process_targets=bool(config.get('compute_process_targets',False)),
-            time_chunk=config.get('time_chunk',16),source_label=str(Path(source).resolve()))
+            time_chunk=config.get('time_chunk',16),source_label=str(Path(source).resolve()),
+            split_time_ranges=config.get('split_time_ranges'))
         report['mode']='written-local-cache'
         report['manifests']={k:str(v) for k,v in paths.items()}
         with (Path(manifest_dir)/'source_preflight.json').open('x',encoding='utf-8') as f:

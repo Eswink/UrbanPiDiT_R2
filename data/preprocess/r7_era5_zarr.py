@@ -15,6 +15,80 @@ def _write_jsonl(path, records):
             f.write(json.dumps(record, ensure_ascii=False)+'\n')
 
 
+def parse_split_time_ranges(split_ranges):
+    """Validate explicit time-range splits; fail closed on overlap or disorder.
+
+    The audited builder normally splits by calendar year (`chronological_splits`).
+    A single continuous segment (D1: 30 days of one year) cannot express three
+    non-empty *year* splits, so an engineering build may instead declare
+    half-open ``[start, stop)`` time ranges per split. Keys must be exactly
+    train/val/test; ranges within a split must be disjoint; the splits
+    themselves must be chronological (train < val < test), mirroring the year
+    contract. Returns ``{split: [(start_ns, stop_ns), ...]}``.
+    """
+    import pandas as pd
+    if not isinstance(split_ranges, Mapping) or set(split_ranges) != {'train', 'val', 'test'}:
+        raise ValueError('split_time_ranges must map exactly train, val and test')
+    parsed = {}
+    for key, ranges in split_ranges.items():
+        if isinstance(ranges, (str, bytes)) or not ranges:
+            raise ValueError(f'{key} needs at least one [start, stop) range')
+        rows = []
+        for start, stop in ranges:
+            a, b = pd.Timestamp(start), pd.Timestamp(stop)
+            if a.tz is not None or b.tz is not None:
+                raise ValueError('split_time_ranges must be naive UTC timestamps')
+            if a >= b:
+                raise ValueError(f'{key} range {start}..{stop} must satisfy start < stop')
+            rows.append((a.value, b.value))
+        rows.sort()
+        for (_, b1), (a2, _) in zip(rows, rows[1:]):
+            if b1 > a2:
+                raise ValueError(f'{key} ranges overlap')
+        parsed[key] = rows
+    for lower, upper in (('train', 'val'), ('val', 'test')):
+        if max(end for _, end in parsed[lower]) > min(start for start, _ in parsed[upper]):
+            raise ValueError(f'time-range splits must be chronological: {lower} < {upper}')
+    return parsed
+
+
+def _window_records_in_ranges(times, *, split_ranges, store_path, manifest_dir,
+                              history_steps, history_interval_hours, lead_time_hours,
+                              sample_stride_hours):
+    """Windows assigned by explicit time ranges; never crossing a boundary.
+
+    A window belongs to a split when its init time falls in one of that
+    split's ``[start, stop)`` intervals **and** every required time (history,
+    init, target) falls inside the SAME interval - the year-based contract's
+    "windows never cross a split boundary" guard, in time-range form.
+    """
+    import pandas as pd
+    index = {int(ts.value): i for i, ts in enumerate(times)}
+    records = {key: [] for key in ('train', 'val', 'test')}
+    for split, ranges in split_ranges.items():
+        for init in times:
+            value = int(init.value)
+            interval = next((r for r in ranges if r[0] <= value < r[1]), None)
+            if interval is None or value % (sample_stride_hours*3_600_000_000_000):
+                continue
+            history = [init-pd.Timedelta(hours=history_interval_hours*(history_steps-1-j)) for j in range(history_steps)]
+            target = init+pd.Timedelta(hours=lead_time_hours)
+            required = history+[target]
+            if any(not (interval[0] <= int(t.value) < interval[1]) or int(t.value) not in index
+                   for t in required):
+                continue
+            records[split].append({
+                'sample_id': f'era5z_{split}_{init:%Y%m%d%H}_p{lead_time_hours:03d}h',
+                'store_path': os.path.relpath(store_path.resolve(), manifest_dir.resolve()),
+                'split': split, 'history_indices': [index[int(t.value)] for t in history],
+                'target_index': index[int(target.value)],
+                'history_times': [t.isoformat() for t in history],
+                'init_time': init.isoformat(), 'target_time': target.isoformat(),
+                'lead_time_hours': lead_time_hours,
+            })
+    return records
+
+
 def _window_records(times, *, split_sets, store_path, manifest_dir,
                     history_steps, history_interval_hours, lead_time_hours, sample_stride_hours):
     import pandas as pd
@@ -50,11 +124,23 @@ def build_r7_era5_zarr_from_dataset(
     sample_stride_hours: int = 6, expected_grid_spacing_deg: float|None = .25,
     source_label: str = 'ERA5 regional subset', time_chunk: int = 64,
     spatial_chunk: tuple[int,int] = (64,64), compute_process_targets: bool = False,
+    split_time_ranges: Mapping[str, Sequence[Sequence[str]]] | None = None,
 ) -> dict[str, Path]:
     """Publish a new local, physical-unit store with train-only centered moments.
 
     Failure leaves an inspectable incomplete output. Reuse/overwrite is refused;
     choose a new destination to retry. This does not authenticate source_label.
+
+    ``split_time_ranges`` (optional) switches window assignment from the default
+    calendar-year policy to explicit half-open ``[start, stop)`` time ranges per
+    split - for engineering segments from a single continuous period (e.g. the
+    frozen D1 month), where three non-empty *year* splits cannot exist. The
+    ranges must be validated (``parse_split_time_ranges``), must lie inside the
+    declared ``split_years['train']`` years, and the years actually present
+    under the train ranges must equal the declared train years exactly, so the
+    reader-side normalization/leakage checks keep their meaning. Metadata
+    records ``split_mode='time_ranges'`` and the exact ranges; windows never
+    cross a range boundary.
     """
     import zarr
     ints = (history_steps, history_interval_hours, lead_time_hours, sample_stride_hours, time_chunk, *spatial_chunk)
@@ -62,6 +148,17 @@ def build_r7_era5_zarr_from_dataset(
         raise ValueError('steps, cadence and chunk sizes must be positive integers')
     splits = _validate_year_splits(split_years)
     specs = tuple(specs)
+    if split_time_ranges is not None:
+        ranges = parse_split_time_ranges(split_time_ranges)
+        import pandas as pd
+        for key, rows in ranges.items():
+            for start_ns, stop_ns in rows:
+                for bound in (pd.Timestamp(start_ns), pd.Timestamp(stop_ns)):
+                    if bound.year not in splits['train']:
+                        raise ValueError(
+                            f'{key} range boundary {bound.isoformat()} falls outside the '
+                            "declared train years; engineering time-range splits must "
+                            "subdivide the declared train years only")
     time_name = _coord_name(ds, ('time','valid_time'))
     lat_name, lon_name = _coord_name(ds, ('latitude','lat')), _coord_name(ds, ('longitude','lon'))
     ds = ds.sortby(time_name)
@@ -77,14 +174,31 @@ def build_r7_era5_zarr_from_dataset(
         compute_process_diagnostic_vector(first[0], names, lat, lon)
     del first
     years = np.asarray(times.year)
-    train_mask = np.isin(years, list(splits['train']))
+    store_path, manifest_dir = Path(store_path), Path(manifest_dir)
+    window_kwargs = dict(store_path=store_path, manifest_dir=manifest_dir,
+        history_steps=history_steps, history_interval_hours=history_interval_hours,
+        lead_time_hours=lead_time_hours, sample_stride_hours=sample_stride_hours)
+    split_mode = 'years'
+    if split_time_ranges is not None:
+        valid_ranges = parse_split_time_ranges(split_time_ranges)
+        import pandas as pd
+        stamps_ns = times.asi8
+        train_mask = np.zeros(len(times), dtype=bool)
+        for start_ns, stop_ns in valid_ranges['train']:
+            train_mask |= (stamps_ns >= start_ns) & (stamps_ns < stop_ns)
+        masked_years = sorted(set(np.asarray(times.year)[train_mask].tolist()))
+        if masked_years != sorted(splits['train']):
+            raise ValueError('train time ranges cover years '
+                             f'{masked_years}, but the declared train years are '
+                             f'{sorted(splits["train"])}; the declaration must match '
+                             'the data the normalization statistics are fit on')
+        records = _window_records_in_ranges(times, split_ranges=valid_ranges, **window_kwargs)
+        split_mode = 'time_ranges'
+    else:
+        train_mask = np.isin(years, list(splits['train']))
+        records = _window_records(times, split_sets=splits, **window_kwargs)
     if not train_mask.any():
         raise ValueError('no training observations')
-    store_path, manifest_dir = Path(store_path), Path(manifest_dir)
-    records = _window_records(times, split_sets=splits, store_path=store_path,
-        manifest_dir=manifest_dir, history_steps=history_steps,
-        history_interval_hours=history_interval_hours, lead_time_hours=lead_time_hours,
-        sample_stride_hours=sample_stride_hours)
     if any(not rows for rows in records.values()):
         raise ValueError('every split needs at least one complete exact-time window')
     T,C,H,W = len(times),len(names),len(lat),len(lon)
@@ -134,6 +248,13 @@ def build_r7_era5_zarr_from_dataset(
         'process_diagnostic_names':list(PROCESS_DIAGNOSTIC_NAMES) if compute_process_targets else [],
         'process_target_time_semantics':'input init time only',
     }
+    if split_mode == 'time_ranges':
+        import pandas as pd
+        common['split_mode'] = 'time_ranges'
+        common['split_time_ranges'] = {
+            key: [[pd.Timestamp(start).isoformat(), pd.Timestamp(stop).isoformat()]
+                  for start, stop in rows]
+            for key, rows in valid_ranges.items()}
     root.attrs.update(common)
     root.attrs['target_semantics'] = 'native ERA5 grid; physical units retained; no spatial upsampling'
     for split, rows in records.items():

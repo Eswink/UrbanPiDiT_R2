@@ -1,0 +1,20 @@
+# D1 engineering conversion (frozen Earthmover spatial segment, 2016-01-01..2016-01-30).
+# D1 is one continuous 30-day slice of the declared train year 2016; three non-empty
+# YEAR splits cannot exist, so window assignment uses explicit half-open time ranges
+# inside the declared train years (docs/decisions/0005-*.md). The val/test years here
+# are reader-contract declarations only - all data and normalization come from 2016.
+# No download or write occurs unless prepare_r7_local.py receives --write.
+split_years:
+  train: [2016]
+  val: [2017]
+  test: [2018]
+split_time_ranges:
+  train: [["2016-01-01T00:00:00", "2016-01-25T00:00:00"]]
+  val: [["2016-01-25T00:00:00", "2016-01-28T00:00:00"]]
+  test: [["2016-01-28T00:00:00", "2016-02-01T00:00:00"]]
+history_steps: 2
+history_interval_hours: 6
+lead_time_hours: 6
+sample_stride_hours: 6
+time_chunk: 16
+compute_process_targets: true
