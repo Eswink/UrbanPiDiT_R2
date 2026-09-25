@@ -2,9 +2,13 @@
 
 本文件是 goal 模式目标的长文源（R-034）。objective 有 4000 字符硬上限，细节在此。
 
-**状态：尚未执行。** 在线权威来源是 GitHub #59（EPIC）及各子 issue；本文件是执行摘要，
-与 #59 冲突时以 GitHub 为准。便携审阅副本：`01-R7_review_and_next_plan.md`（审阅提交
-`6748b6f`，远程 CI run `36130059293` = 887 passed/11 skipped/2 warnings/64.75s）。
+**状态：核心交付达成（2026-09-26）。** S0 三项（#60 `13ade3a`、#61 `92a2591`、
+#62 `4901a42`）与 #63 read-plan（`091b2dd`）均已关闭，四个提交各自 CI 绿；
+#63 的新年份获取 BLOCKED 于下载授权（成本选项已冻结在
+`docs/R7_ERA5_V2_READ_PLAN.md`）。#64–#68 未启动，属后续轮次。在线权威来源是
+GitHub #59（EPIC）及各子 issue；本文件是执行摘要，与 #59 冲突时以 GitHub 为准。
+便携审阅副本：`01-R7_review_and_next_plan.md`（审阅提交 `6748b6f`，远程 CI run
+`36130059293` = 887 passed/11 skipped/2 warnings/64.75s）。
 
 ---
 
