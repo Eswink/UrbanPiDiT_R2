@@ -386,3 +386,82 @@ Closure statement (only after the comment above is posted):
 > accuracy ceiling, and the per-variable tolerance admits no depth reduction.
 > Reaching an adaptive benefit would require restating the objective, not
 > re-tuning thresholds inside this one.
+
+---
+
+## #8 — [R7.5] Build 6–72h rollout and East-Asia evaluation protocol
+
+Draft comment (paste verbatim, minus this line):
+
+> **The acceptance sentence is satisfied at `b7f45ab`: evaluation scripts now
+> produce paper-ready metric tables without changing training code.** Three of the
+> issue's scope bullets are explicitly **not** done (listed below).
+>
+> The rollout machinery, RMSE accumulator and ACC accumulator already existed and
+> were covered by synthetic tests. What was missing was a script that drives
+> already-trained checkpoints through a 6/12/24/48/72 h autoregressive rollout on
+> the held-out year and emits comparable tables.
+>
+> **`scripts/rollout_r7_metric_tables.py`** evaluates only:
+>
+> - **No training code touched** — enforced by an AST-level test asserting no
+>   optimizer, `backward`, `step`, `run_local_updates` or
+>   `calibrate_controller_step` is referenced at all; the check runs on parsed
+>   code, not on prose.
+> - **Model generations cannot be mixed** — a checkpoint whose recorded
+>   `model_code_sha256` differs from the live `model/` digest aborts, with an
+>   instruction to replay via the archived `code.zip` instead of bypassing the
+>   identity check.
+> - **Datasets cannot be mixed** — one identical `data_identity`, matching channel
+>   order and units, or the run aborts.
+> - **Held-out split enforced**, **same-data persistence baseline included** by
+>   default on the same manifest/leads/case cap, **no cross-variable average**
+>   (K, Pa, m/s are not summable), **undefined ACC written as `undefined`, never 0**.
+>
+> **Real measurement** — held-out 2020 block of the #6 store (native 0.25°, 65x65,
+> 17 channels, real ERA5; `manifest_sha256 1a8636ed752b0438…`,
+> `data_identity 9c714f6189bb6b4b…`, train-only climatology over 2018), 4
+> initializations per model, 200-update checkpoints, K=3:
+>
+> RMSE (extract, physical units):
+>
+> | model | variable | 6h | 12h | 24h | 48h | 72h |
+> | --- | --- | --- | --- | --- | --- | --- |
+> | generic | t2m (K) | 3.72081 | 4.26451 | 4.42684 | 5.56105 | 5.61225 |
+> | generic | t500 (K) | 1.37051 | 2.27627 | 3.34248 | 3.58531 | 3.27549 |
+> | process_no_feedback | t2m (K) | 4.09721 | 4.65464 | 3.96513 | 5.39556 | 6.50987 |
+> | process_no_feedback | t500 (K) | 1.15669 | 1.84994 | 2.63029 | 3.80466 | 4.10074 |
+> | persistence | t2m (K) | 4.35171 | 5.07542 | 2.17555 | 2.90139 | 3.86503 |
+>
+> ACC: generic t2m 0.576725 / 0.466857 / 0.311284 / **−0.016203** / 0.336861 at
+> 6/12/24/48/72 h (negative at 48 h means no better than train-only climatology).
+>
+> **What these numbers do not say, stated plainly:**
+>
+> 1. **Persistence looks deceptively strong at 24 h** (2.18 K, better than both
+>    models) — this is **not** a bug and **not** a finding. With 4 initializations
+>    the 6/12/24 h targets land on different valid times of day (12:00, 18:00,
+>    06:00+1d), so each lead scores a different subset of the diurnal cycle. The
+>    case set is too small and too unevenly sampled for cross-lead ranking.
+> 2. **`process_no_feedback` beats generic on t500 at every lead but loses on t2m
+>    except at 24 h** — consistent with the #6 result that the process arms trade
+>    variables rather than dominate.
+> 3. **Four initializations is smoke scale**, not journal evidence.
+>
+> **NOT done** (scope bullets, not acceptance): accuracy–compute Pareto, average
+> reasoning depth versus accuracy, weather-complexity vs reasoning-depth
+> diagnostics, and extreme-event metrics. The script records `reasoning_steps` but
+> does not sweep it. I am listing them rather than quietly dropping them.
+>
+> `scientific_claim: false`. Verification: `pytest -q` 869 passed / 9 skipped / 0
+> failed with `CUDA_VISIBLE_DEVICES=""`; `python tools/check_conventions.py` 34
+> blocking rules, 0 violations. Full record: `docs/R7_ROLLOUT_TABLES.md`.
+
+Closure statement (only after the comment above is posted):
+
+> Closing on the acceptance criterion: evaluation scripts produce paper-ready
+> metric tables without changing training code, verified on real regional ERA5
+> over 6/12/24/48/72 h with RMSE, ACC, units, provenance and a same-data
+> persistence baseline. The un-done scope bullets (Pareto, complexity diagnostics,
+> extreme events) are recorded in the linked document rather than being represented
+> as complete.
