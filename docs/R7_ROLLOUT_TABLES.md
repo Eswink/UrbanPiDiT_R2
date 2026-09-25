@@ -93,9 +93,14 @@ them negative or cautionary:
 3. **ACC is near zero or negative at 48 h** for generic t2m (−0.016), i.e. the
    forecast is no better than the train-only climatology at that lead and
    initialization set.
-4. **`process_no_feedback` is better than `generic` on t500 at every lead** but
-   worse on t2m at every lead except 24 h — consistent with the #6 finding that
-   the process arms trade variables rather than dominating.
+4. **`process_no_feedback` trades variables against `generic`, and the trade
+   flips with lead time** (this sentence replaces an earlier, wrong summary —
+   see the correction log at the end of this file): on t500 it is better at
+   6/12/24 h (1.16 vs 1.37, 1.85 vs 2.28, 2.63 vs 3.34 K) but **worse at
+   48/72 h** (3.80 vs 3.59, 4.10 vs 3.28 K); on t2m it is better at 24/48 h
+   (3.97 vs 4.43, 5.40 vs 5.56 K) and worse at 6/12/72 h. This is consistent
+   with the #6 finding that the process arms trade variables rather than
+   dominating.
 5. **Four initializations is a smoke-scale case count.** It is enough to
    demonstrate that the table machinery produces correct, aligned, self-describing
    output; it is nowhere near enough for a journal claim.
@@ -142,3 +147,17 @@ CI needs no GPU and no network; the tests write into `tmp_path` only.
 - **No Pareto, complexity or extreme-event analysis** (see the acceptance table).
 - **Not SOTA, not journal evidence.** `scientific_claim: false` is written into
   every artifact.
+
+## Correction log (#62, 2026-09-26)
+
+The table **numbers above were never changed**; the following wording errors
+were corrected in place and are recorded here so the earlier text remains
+auditable:
+
+1. The previous "What these numbers do and do not say" item 4 claimed
+   `process_no_feedback` was "better than `generic` on t500 at every lead"
+   and "worse on t2m at every lead except 24 h". Both halves contradicted the
+   table: on t500 the arm is **worse at 48 h (3.80466 vs 3.58531 K) and
+   72 h (4.10074 vs 3.27549 K)**, and on t2m it is **better at 48 h
+   (5.39556 vs 5.56105 K)** as well as 24 h. The corrected per-lead statement
+   now stands above.

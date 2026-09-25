@@ -2,7 +2,9 @@
 
 This is an engineering bring-up instrument, not a weather-skill benchmark. It
 measures PyTorch peak allocated/reserved bytes and wall-clock phase times for
-the two R7 recursive models under full BPTT and streamed truncated training.
+the two R7 recursive models under full BPTT, retained truncated (detach between
+reasoning steps) and streamed truncated training. The three modes have distinct
+gradient semantics and are recorded under separate labels, never merged.
 
 Inputs are synthetic shapes. Nothing here downloads data or claims forecast
 skill; every result carries scientific_claim=false and explicit limitations.
@@ -29,7 +31,7 @@ from training.r7_streaming import backward_streamed_truncated
 from training.r7_experiment import canonical_digest
 
 MODEL_KINDS = ("generic", "process")
-TRAINING_MODES = ("full_bptt", "streamed_truncated")
+TRAINING_MODES = ("full_bptt", "retained_truncated", "streamed_truncated")
 
 
 def build_batch(batch_size, channels, grid, history_steps, anchored, device, seed=7):
@@ -129,9 +131,16 @@ def measure_streamed(model, batch, steps, device, bf16, clip=1.0):
 
 
 def measure_phase(model, optimizer, batch, case, device):
-    """Measure one optimizer step; caller owns peak-memory reset and sync."""
+    """Measure one optimizer step; caller owns peak-memory reset and sync.
+
+    `retained_truncated` uses the same forward/backward/optimizer split as
+    full BPTT: the model itself detaches between reasoning steps, so the
+    measured phases are identical while the gradient semantics differ (each
+    step's graph is retained, truncated between steps) — recorded under its
+    own label, never merged with full BPTT.
+    """
     started = time.perf_counter()
-    if case["training_mode"] == "full_bptt":
+    if case["training_mode"] in ("full_bptt", "retained_truncated"):
         pieces = measure_full_bptt(model, optimizer, batch, case["k"], device, case["bf16"])
     else:
         pieces = measure_streamed(model, batch, case["k"], device, case["bf16"])
@@ -208,6 +217,10 @@ def build_cases(args):
             for mode in args.modes:
                 for checkpointing in args.ckpt:
                     model_config = dict(base, activation_checkpointing=checkpointing)
+                    if mode == "retained_truncated":
+                        # Truncated BPTT with per-step retained graphs: the
+                        # model detaches between reasoning steps.
+                        model_config["detach_between_steps"] = True
                     if kind == "process":
                         # Process State replaces the generic latent bank with
                         # anchored + free process tokens; latent_tokens is not

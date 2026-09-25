@@ -652,3 +652,33 @@ not treating "all sub-issues touched" as satisfaction of G1–G4.
 >
 > BLOCKED：真实区域吞吐测量需要 #63 D1 连续 30 天段（现盘上仅 1 窗口
 > fixture）；streamed+DDP 与 Process-arm DDP 未核验，明确拒绝/不声明。
+
+## #62 — GPU 证据包与表文纠错（2026-09-26，API 评论 401，证据落 docs）
+
+> **状态：DONE（证据包发布方式待用户决定）。** 证据全文：
+> `docs/R7_GPU_AUDIT_PACK.md`。不改任何测量数值；不重跑 17 条旧实验。
+>
+> 纠错（原文均可审计，逐文件附 correction log）：R7_ROLLOUT_TABLES "每个时效
+> 更好" 与表相反（t500 48/72h、t2m 48h 实测相反）；R7_COREASONING_FAIR_BUDGET
+> v250 恶化臂归属写反（表中在 no_feedback 臂）、spatial_solver_feedback 与
+> use_forecast_feedback 两种消融不得互证的句子删除、"established" 降级为
+> 三 seed 描述性符号稳定；R7_GPU_BRINGUP "8.6 (sm_82, 82 SMs)" 拆分为
+> capability 8.6 = sm_86 架构 与 82 SM 硬件计数两回事、计时明确标注为短微基准
+> （1 warmup + 2–3 measure，不得外推长训吞吐）；R7_TASK_QUEUE 过时的
+> "#8 关闭待授权" 修正。原始数值零改动。
+>
+> ACC 自校正：`training/r7_acc.py` 的未再中心化 pooled ACC 不是 bug；新增
+> `training/r7_climatology_skill.py`（显式 climatology RMSE/MSE skill 基线 +
+> 单向恒等式 ACC<0 ⟹ skill<0、ACC>0 对 skill 无含义的反例测试），
+> 前提（同一冻结气候态、同案例、等权、不与 ACC 混同）写入模块文档。
+>
+> 审计包：`scripts/build_r7_gpu_audit_pack.py` 产出 write-once 包
+> （562 文件、SHA256 清单 + sidecar、二进制排除并列出、凭据内容拒收、
+> code SHA/环境/protocol/失败-skip 记录）；`scripts/rebuild_r7_gpu_tables.py`
+> 只读包重建内存/计时/多种子表并校验每行 metadata 契约（不同契约不成行、
+> 非 ok cell 逐个标记——实测 30 个均为真 oom/skip 探针）。补测
+> retained_truncated 内存 cell（12 个，scale-B 同契约）：内存对 K 平坦
+> （~366–373 MiB），补齐纯内存对照的三语义分层。
+>
+> 未做/待用户：包在 `outputs/`（按约定不入库），对外发布需 GitHub 连接器或
+> 用户上传——不擅自决定。

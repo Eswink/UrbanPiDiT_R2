@@ -19,7 +19,7 @@ push-triggered CI run passed (§9).
 | Item | Measured value |
 | --- | --- |
 | GPU ×2 | `NVIDIA GeForce RTX 3090`, 24576 MiB each (PyTorch reports 23.56 GiB) |
-| Compute capability | 8.6 (sm_82, 82 SMs) |
+| Compute capability | 8.6 — architecture `sm_86` (Ampere GA102); **82 SMs enabled** is a separate hardware count, not the capability tag (corrected in #62; the old row wrote "sm_82") |
 | Driver | `580.173.02` |
 | CUDA (torch build) | 12.8 |
 | PyTorch | `2.11.0+cu128` |
@@ -211,8 +211,11 @@ immune. Both sweeps are retained so the discrepancy is auditable.
 
 Step times differ by up to ~40 % between the two runs for identical cells
 (generic K=8 full BPTT off: 0.1203 s in-process vs 0.0850 s isolated) because
-only 1–2 steps are measured after warmup. **Treat absolute step times as
-indicative and compare within one run**; the K trend holds in both.
+only 1–2 steps are measured after warmup. **These are short microbenchmarks
+(1 warmup + 2–3 measured steps in a fresh process) and must not be extrapolated
+to long-training throughput**; treat absolute step times as indicative and
+compare within one run, holding every other switch (mode, checkpointing, dtype)
+fixed. The K trend holds in both runs.
 
 ### Tensor shapes and batch
 
@@ -578,3 +581,41 @@ assumed, checkpoints resume exactly, and two-card DDP is correct.
 that any parent research issue is satisfied. `#20`'s engineering items are
 covered; its **multi-seed optimization comparison is not**, and the parent
 research issues stay open. **Engineering passing is not a scientific result.**
+
+## Correction log (#62, 2026-09-26)
+
+No measured values were changed. Corrections:
+
+1. **Compute capability vs SM count were conflated.** The environment table
+   wrote "8.6 (sm_82, 82 SMs)". Compute capability 8.6 corresponds to
+   architecture `sm_86` (Ampere, GA102); "82 SMs" is the enabled-SM *count* of
+   the GA102 die in a 3090 and is a separate fact. The row now separates the
+   two and names the architecture correctly.
+2. **Timing rows are explicitly short microbenchmarks.** The methodology
+   sections above measured 1 warmup + 2–3 steps in fresh processes; that
+   wording now says plainly these numbers must not be extrapolated to
+   long-training throughput, and that cross-cell timing comparisons hold the
+   other switches (mode, checkpointing, dtype) fixed.
+3. **Mode semantics.** `full_bptt`, `retained_truncated` and
+   `streamed_truncated` have distinct gradient semantics (see
+   [R7_DDP_K_CONTRACT.md](R7_DDP_K_CONTRACT.md)); the streamed-vs-full
+   comparisons in this document are memory/latency comparisons between
+   different training semantics, never claims of implementation equivalence.
+   A pure-memory comparison that also includes `retained_truncated` cells is
+   re-derivable from the #62 audit pack
+   (`outputs/r7_gpu_audit_pack/`, tables via
+   `scripts/rebuild_r7_gpu_tables.py`).
+
+4. **`retained_truncated` now has its own memory cells** (the #62 gap: the
+   original sweep compared only full BPTT vs streamed). Measured 2026-09-26 on
+   the same scale-B contract (dim=384, depth=8, batch 4, 12x12, bf16, 1 warmup
+   + 2 measured steps, fresh process per cell, single seed 7 — short
+   microbenchmark, not a multi-seed mean): allocated memory is **flat in K**
+   (generic 366.3/367.7/367.7 MiB and process 366.3/367.7/367.7 MiB at
+   K=1/4/8, checkpointing off; ~373 MiB with checkpointing on) while step time
+   still grows with K (generic 56.7→92.6 ms, checkpointing off). Together
+   with the streamed rows this fills the pure-memory comparison: full BPTT
+   grows with K, both truncated modes stay flat — three distinct semantics,
+   three separate labels, never merged. Raw cells:
+   `outputs/gpu_sweep_retained/`; re-derivable from the #62 audit pack
+   (`outputs/r7_gpu_audit_pack/` via `scripts/rebuild_r7_gpu_tables.py`).

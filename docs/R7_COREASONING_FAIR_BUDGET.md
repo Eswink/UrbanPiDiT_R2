@@ -59,27 +59,32 @@ Restricting to deltas whose sign is consistent across all three seeds:
 | K=3 | process_feedback | 1 (`u10`) | 1 (`t2m`) | **15** |
 | K=3 | process_no_feedback | 2 (`t500`,`v10`) | 2 (`t2m`,`v250`) | 13 |
 
-`gate_met: false` for every arm and depth. Three facts are worth stating plainly:
+`gate_met: false` for every arm and depth. Three facts are worth stating plainly
+(all counts below are **descriptive sign stability across three seeds**, not
+statistical establishment — see the correction log at the end of this file):
 
-1. **The clearest established effect is a loss.** `t2m` worsens at K=0, K=1 and
+1. **The clearest sign-stable effect is a loss.** `t2m` worsens at K=0, K=1 and
    K=3 for both process arms, with all three seeds agreeing each time. The
    magnitude at K=3 is +0.23 K (`no_feedback`) and +0.30 K (`feedback`).
 2. **Forecast feedback does not rescue it.** At K=3 the feedback arm has *fewer*
-   established improvements (1) than the no-feedback arm (2), and adds a second
-   worsening not present in the no-feedback arm (`v250`). On this evidence
-   feedback is not the missing ingredient.
+   sign-stable improvements (1) than the no-feedback arm (2), and it is the
+   **no-feedback** arm that carries the second sign-stable worsening (`v250`)
+   while the feedback arm's only one is `t2m`. On this evidence feedback is not
+   the missing ingredient.
 3. **Most differences are unresolved.** At K=3, 15/17 deltas for the feedback arm
    and 13/17 for no-feedback flip sign between seeds. The honest reading is that
    the process arms are, for most variables, indistinguishable from generic at
    three seeds — not that they are better.
 
-A single-variable note where this reconciles with earlier work: `t500` is an
-established *improvement* for `process_no_feedback` at K=3 (−0.023 K, all seeds),
-while `t2m` is an established loss. That is consistent with the previously
-recorded mixed picture — some variables move one way, others the other — but the
-earlier framing that spatial feedback specifically hurts T500 does not reproduce
-here: this run shows T500 improving under the no-feedback arm and unresolved under
-the feedback arm at K=3.
+A single-variable note: `t500` is a sign-stable *improvement* for
+`process_no_feedback` at K=3 (−0.023 K, all three seeds), while `t2m` is a
+sign-stable loss. That is consistent with the previously recorded mixed picture —
+some variables move one way, others the other. The two sentences that previously
+followed here compared this run's `use_forecast_feedback` arms with an earlier
+`spatial_solver_feedback` result; those are **different ablations of different
+switches** (forecast-token feedback into the reasoner vs spatial feedback into
+the shared solver), so no reproduction or refutation between them is claimed.
+See the correction log.
 
 ## Tests
 
@@ -124,3 +129,31 @@ unresolved.
 
 Output directories must be new (`prepare_local` and the result writer both refuse
 existing paths).
+
+## Correction log (#62, 2026-09-26)
+
+The table **numbers were never changed**; the following wording errors were
+corrected in place and are recorded here:
+
+1. **The `v250` arm attribution was reversed.** The old point 2 said the
+   feedback arm "adds a second worsening not present in the no-feedback arm
+   (`v250`)". The table says the opposite: at K=3 the *no-feedback* arm's
+   sign-stable worsenings are `t2m` and `v250`; the feedback arm's is `t2m`
+   only.
+2. **Two different feedback ablations were conflated.** The old single-variable
+   note claimed an earlier finding "does not reproduce here". The earlier
+   finding concerns `spatial_solver_feedback` (spatial feedback into the
+   shared solver, #57); this run's arms differ only in `use_forecast_feedback`
+   (forecast-token feedback into the reasoner). They are different switches in
+   the model, so neither a reproduction nor a refutation can be claimed across
+   them. The cross-ablation sentence was removed; any future comparison needs
+   a run that toggles the same switch.
+3. **"established" was downgraded to descriptive sign stability.** Three seeds
+   agreeing on a direction is a descriptive statement about seed noise, not a
+   statistical establishment; the words now say sign-stable/descriptive.
+4. **Gate semantics moved (by #60).** The prose below the tests described
+   `gate_met` as a by-product of the comparison blocks; since #60 the gate is
+   a separate function (`evaluate_gate`) reading pre-frozen criteria, and
+   comparison blocks no longer carry `gate_met`. The historical result
+   referenced here was re-audited in
+   [R7_SEED_IDENTITY_COMPARATOR.md](R7_SEED_IDENTITY_COMPARATOR.md).
