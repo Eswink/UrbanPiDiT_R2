@@ -55,3 +55,31 @@ workflow，收尾提交只改文档。
 且用户明确声明本项目只用 git/SSH）；直接调 API 关 issue（实测 401，写路径不存在）；
 用 refspec 拼写绕过 hook 正则（属于本项目明令禁止的「审计发现的绕过」类，否决）；
 继续把判定留在本地草稿不发布（无法满足「GitHub 状态以页面为准」的停止条件）。
+
+## Addendum（2026-09-25 执行记录：写入被本地守卫阻断，issue 仍 open）
+
+按本决定执行受控写入，**未成功**，如实记录：
+
+1. 前置全部就绪：收尾提交 `e5be0c0a9dc43c9ccddadda58ca7499903c1a4d9`（含全部
+   `Closes #N`）已推到工作分支；ff 关系实测成立（origin/main
+   `92a8c4d0cfef7908e2b358e0ba2a6b4b3f45eebc` 为 HEAD 严格祖先，领先 167、落后 0）。
+2. 按逃生口移除 `.zcode/config.json` 中 `guard_destructive_git` 的 PreToolUse 条目，
+   并实测验证移除生效（JSON 可解析、PreToolUse 条目数 = 1、文件内
+   `guard_destructive_git` 出现次数 = 0）。随后 `git push origin main` 被
+   `guard_destructive_git` 以 `pushing to main` 拒绝；再用**只读**的
+   `git push --dry-run origin main` 探测一次，同样被拒。两次拒绝后即停止（不轰炸重试）。
+3. **环境发现（本轮的实质产出）**：ZCode 的 hook 定义在**会话启动时**加载；
+   会话中途修改 `.zcode/config.json` 不影响当前会话。因此 AGENTS.md 记载的逃生口
+   只在「条目移除**先于**会话启动」时可用；会话内移除→推送→恢复的顺序无效。
+   另实测不存在用户级 `~/.zcode/config.json`，项目 config 是唯一 hook 来源。
+4. 已采取的恢复动作：条目**立即恢复**并与 HEAD 逐字节核对（`git status` 干净、
+   `git diff HEAD` 为空、PreToolUse 两条目齐全）；任务队列与评论稿中所有
+   「已在 GitHub 关闭」的表述已改回「verdict 终局、GitHub 关闭待 main 写入」。
+   **8 个 issue 在 GitHub 上仍为 open。**
+5. 可行路径（按优先级）：（a）用户在自己终端（ZCode 之外，hook 不作用于直接
+   命令行）执行唯一一条 `git push origin main`（ff、禁 force），issue 即自动关闭、
+   PR #12 显示 merged；（b）在**先移除条目**之后启动的新会话里执行 push 并立即
+   恢复条目；（c）用户提供 PAT / `gh auth login`（用户侧动作）。
+6. Consequences 补充的代价：本轮停止条件下「GitHub 上 8 个 issue closed」
+   **未达成**；收尾提交已推送但不含 GitHub 状态变更；「skipped workflow 按设计
+   接受」与「不等待 CI」的处置不受影响。

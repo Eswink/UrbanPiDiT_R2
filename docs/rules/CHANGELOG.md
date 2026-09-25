@@ -23,6 +23,19 @@
 
 **代价（如实记录）**：main 到达分支顶端会使 PR #12 显示为 merged；main 的 push 不触发
 `ci.yml`，验收证据仍以工作分支上的绿色 push run 为准。此条不改变 R-027/R-029/R-030
+
+## 2026-09-25（补充）— hook 逃生口的会话边界实测
+
+**范围**：`tools/agent_hooks/` 的生效时机、对 `main` 的受控写入执行方式。
+**来源**：执行决策 0002 时的实测——`.zcode/config.json` 中 `guard_destructive_git`
+条目在会话中途移除并验证生效后，`git push origin main` 与只读 dry-run 探测**仍被拒**
+（两次 deny 后停止）。**发现**：ZCode 的 hook 定义在**会话启动时**加载，会话中途修改
+config 不影响当前会话；用户级 `~/.zcode/config.json` 不存在，项目 config 是唯一来源。
+**落点**：`AGENTS.md`「GitHub 通道」小节与 `docs/goals/open-issue-resolution.md` §4.3
+补入会话边界；完整证据与可行路径（会话启动前移除条目 / 人在 ZCode 外终端执行 /
+PAT）在 `docs/decisions/0002-*.md` 附录。
+**代价（如实记录）**：本轮 8 个 issue 的 GitHub 关闭**未完成**（仍 open）；「会话内
+移除→推送→恢复」顺序作废，逃生口仅当「条目移除先于会话启动」时可用。
 等任何既有规则的判据。
 
 ## 2026-09-24（第七遍）— 命名约束

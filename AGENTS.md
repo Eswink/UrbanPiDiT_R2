@@ -56,9 +56,13 @@
   CI 日志下载 403；`git push` 走 SSH（身份 `sqy941013`）可用。
 - **自动关闭 issue 只有唯一一条 git 路径**：`Closes/Fixes/Resolves #N` 出现在**默认分支 main**
   的提交里才会生效——推到工作分支无效。main 是本分支的严格祖先（ff 推送，禁 force）。
-  该写入受 `guard_destructive_git` 拦截；需要执行时走 AGENTS.md 记载的 hook 逃生口
-  （临时移除 `.zcode/config.json` 对应条目 → 完成后立即恢复），并把移除/恢复与授权来源
+  该写入受 `guard_destructive_git` 拦截；需要执行时走 hook 逃生口（临时移除
+  `.zcode/config.json` 对应条目 → 完成后立即恢复），并把移除/恢复与授权来源
   记入一份决策记录。**禁止**用 refspec 拼写绕过正则。
+  **实测边界（2026-09-25，决策 0002 附录）**：hook 配置在**会话启动时**读取——
+  会话中途移除条目不影响当前会话（两次 deny 实证）。逃生口只在「条目移除**先于**
+  会话启动」时可用；否则由人在 ZCode 之外的终端执行该单条命令（hook 不作用于
+  直接命令行）。
 - **17 条实验 workflow 是 commit-message 标签门控**（如 `[cpu-study]`、`[seasonal-study]`、
   `[real-smoke]`；全集见 `.github/workflows/r7-*.yml`）。普通 push 上它们显示 skipped 是
   **设计行为，不是失败**；需要运行某条就在 commit message 里带上它的标签。
