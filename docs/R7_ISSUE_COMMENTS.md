@@ -306,3 +306,83 @@ Closure statement (only after the comment above is posted):
 > sign-consistent effects are `t2m` worsening for both process arms and `t500`
 > improving for the no-feedback arm. Reported as a negative result rather than
 > tuned until it turns positive.
+
+---
+
+## #7 — [R7.4] Consistency and marginal-gain guided adaptive halting
+
+Draft comment (paste verbatim, minus this line):
+
+> **The gate is audited at `0f5df17` and found NOT satisfiable as stated. No
+> controller threshold was changed and no saving is claimed.**
+>
+> The gate says adaptive "should approach fixed-Kmax accuracy with meaningfully
+> lower average reasoning depth". That assumes fixed-Kmax is the accuracy worth
+> approaching. Before re-tuning any controller, I tested the assumption against a
+> measured error-versus-depth curve, reusing the K=0/1/3 evaluation from the #6
+> run (real regional ERA5, three seeds, validation split only).
+>
+> **Finding 1 — deeper is not better.** Equal-channel normalized RMSE (the
+> objective the training loss minimizes):
+>
+> | arm | K=0 | K=1 | K=3 | K=3 vs K=0 |
+> | --- | --- | --- | --- | --- |
+> | generic | 0.31079 | 0.30991 | 0.32117 | +3.3 % |
+> | process_feedback | 0.31519 | 0.31484 | 0.31976 | +1.5 % |
+> | process_no_feedback | 0.31594 | 0.31589 | 0.32166 | +1.8 % |
+>
+> Counted per seed, `process_no_feedback` is worse at K=3 than K=0 in **all three
+> seeds**; the others in two of three. The fixed-Kmax reference is therefore
+> **not** the best available accuracy on this data. Per-variable, the trend is
+> genuinely split: 5 variables consistently improve with depth, 5 consistently
+> worsen, 7 are unresolved.
+>
+> **Finding 2 — no shallower depth passes the per-variable tolerance.** Against
+> the K=3 reference, mirroring `select_validation_policy` (every variable must
+> meet the tolerance separately, no aggregation):
+>
+> | tolerance | K=0 | K=1 | any depth feasible | blocker |
+> | --- | --- | --- | --- | --- |
+> | 0 % | 9/17 | 9/17 | no | `z250` (1.190×) |
+> | 1 % | 11/17 | 12/17 | no | `z250` (1.190×) |
+> | 5 % | 15/17 | 16/17 | no | `z250` (1.190×) |
+> | 10 % | 16/17 | 16/17 | no | `z250` (1.190×) |
+>
+> This is the mechanism behind the previously reported "strict policy fell back to
+> full depth": `z250` sits 14–19 % above the reference at every shallower depth,
+> so no tolerance below 19 % admits a reduction, and at 10 % one variable vetoes it.
+>
+> **Combined:** `gate_satisfiable: false`, for two independent reasons, either of
+> which suffices.
+>
+> **A caveat I am recording rather than hiding:** `z250` is the blocker, but its
+> own numbers are seed-unstable (per-seed K=0 RMSEs 257.7 / 235.7 / 188.2; K=3−K=0
+> deltas −48.0 / +6.6 / −67.3, not same-sign). So the reliable statement is that
+> the per-variable tolerance rule is unsatisfiable here — the specific blocking
+> variable is not itself a robust finding. Both are stated because either alone
+> would mislead.
+>
+> **What this does not establish:** that adaptive halting is impossible. A
+> controller that reduces depth per-variable wherever depth is harmful could
+> still help, but that is a different objective from the one the gate states and
+> would need the gate rewritten before it can be tested. I did not relax the
+> tolerance and did not drop the blocking variable to manufacture a pass.
+>
+> `scientific_claim: false`; test split not read; three seeds is a noise-floor
+> check, not a significance test; substrate is a bounded CPU comparison (200
+> updates, dim=32, depth=2, ten January days per year, +6 h lead). Full record:
+> `docs/R7_HALTING_GATE_AUDIT.md`; tests
+> `tests/test_r7_halting_gate_audit.py` (9 offline). Verification: `pytest -q`
+> 859 passed / 9 skipped / 0 failed with `CUDA_VISIBLE_DEVICES=""`;
+> `python tools/check_conventions.py` 34 blocking rules, 0 violations.
+
+Closure statement (only after the comment above is posted):
+
+> Closing as answered-with-a-negative-result: the listed tasks exist (halt/gain
+> head, CONTINUE/STOP trained from observed marginal gain, per-sample halting with
+> Kmax fallback, compute-penalty warm-up; the consistency auxiliary loss is
+> optional and not implemented), and the research gate was audited against real
+> data. The gate is **not supported**: the fixed-Kmax reference is not the
+> accuracy ceiling, and the per-variable tolerance admits no depth reduction.
+> Reaching an adaptive benefit would require restating the objective, not
+> re-tuning thresholds inside this one.
