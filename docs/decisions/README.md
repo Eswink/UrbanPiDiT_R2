@@ -27,3 +27,4 @@
 | 编号 | 标题 | 状态 | 日期 |
 | --- | --- | --- | --- |
 | [0001](0001-artifact-storage-convention.md) | 成品存放约定：计划 / 决策 / 目标 / 工具态 | accepted | 2026-09-24 |
+| [0002](0002-controlled-main-write-for-issue-closing.md) | 受控 main 写入以在 GitHub 上关闭 8 个 open issue | accepted | 2026-09-25 |

@@ -1,14 +1,28 @@
 # R7 issue comments: paste-ready drafts
 
-Status: **NOT YET PUBLISHED.** This machine has no `gh` and no token.
-`POST /repos/Eswink/UrbanPiDiT_R2/issues/<n>/comments` was re-tested four times
-across the session (issues #13, #20, #1) and returned **HTTP 401
-`Requires authentication`** every time. Issue-artifact downloads returned **401**
-and CI log downloads returned **403** for the same reason. No comment here has been
-posted to GitHub, and no issue has been closed. Nothing in this file should be
-read as a published link or a changed issue state.
+Status: **CLOSED VIA THE GIT CHANNEL, COMMENTS NOT POSTED (2026-09-25).**
+This machine has no `gh` and no token: `POST /repos/Eswink/UrbanPiDiT_R2/issues/<n>/comments`
+was re-tested four times across the session (issues #13, #20, #1) and returned
+**HTTP 401 `Requires authentication`** every time. Issue-artifact downloads
+returned **401** and CI log downloads returned **403** for the same reason.
+**No comment below has been posted to GitHub.** The eight issues were instead
+closed by the only effective git path: a closing commit whose message carries
+`Closes #N` for all eight, fast-forwarded to the default branch `main`
+(authorized 2026-09-25; decision record `docs/decisions/0002-controlled-main-write-for-issue-closing.md`).
+The per-issue drafts below remain the canonical evidence record: each carries
+the verdict, the exact artifact SHAs, the limits and the negative results that
+the one-line closing commit message only points to.
 
-To publish, a human needs either `gh auth login` or a PAT with `issues:write`.
+CI coverage of the evidence (R7 CPU CI): direct green runs at `f37ceba` (#13),
+`7dfbea6` (#20), `1bc1eef` (#6), `0f5df17` (#7), `ffe501e` (#1). The push runs at
+`bf57fd4` (#5) and `b7f45ab` (#8) were **cancelled by the immediately following
+push** (`concurrency: cancel-in-progress`), and the identical code content is
+covered by green runs at the next docs-only commits: `90e7d14` run 36090656848
+(#5) and `598857d` run 36099444288 (#8). `6dc388d` (#9, docs-only) produced no
+run of its own; its content is contained in the green run at `ffe501e`.
+
+To post the full comments below, a human still needs `gh auth login` or a PAT
+with `issues:write`.
 
 ---
 
