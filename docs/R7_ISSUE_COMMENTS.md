@@ -522,3 +522,58 @@ Draft comment (paste verbatim, minus this line):
 > results rather than a stable positive core.
 
 No closure statement — this issue stays open on a real external dependency.
+
+---
+
+## #1 — [R7] Freeze MSc/Q2-Q3 research roadmap
+
+Draft comment (paste verbatim, minus this line):
+
+> **Cumulative G1–G4 status at `ffe501e`: no gate is positively supported.**
+> Every claim below is bound to a commit and a CI run; full record in
+> `docs/R7_ROADMAP_GATE_STATUS.md`.
+>
+> | Gate | Status | Evidence |
+> | --- | --- | --- |
+> | **G1** fixed recursion improves over K=1 | **NOT SUPPORTED** | `generic` normalized RMSE 0.31079 (K=0), 0.30991 (K=1), 0.32117 (K=3) — deeper is worse |
+> | **G2** process-aware improves over generic | **NOT SUPPORTED** | 3 seeds, matched budget: 10/17 variables nominally better but **15/17 deltas flip sign across seeds**; only sign-consistent effects are `t2m` worsening (+0.30 K) and `t500` improving (no-feedback arm) |
+> | **G3** adaptive approaches Kmax at lower average K | **NOT SATISFIABLE AS STATED** | Kmax is not the accuracy ceiling, and no shallower depth passes the per-variable tolerance at any tolerance ≤10 % |
+> | **G4** competitive on accuracy/parameter/compute Pareto | **PARTIALLY, NEGATIVELY** | 6–72 h tables with a same-data persistence baseline; generic t2m 3.72 → 5.61 K and **ACC −0.016 at 48 h** |
+>
+> **What the sequence did establish** (all reproducible, all bounded):
+>
+> 1. Real-data pipeline works: 65x65 native 0.25° East-Asia extraction →
+>    17-channel stores with `BUILD_COMPLETE.json` and train-only normalization.
+> 2. Training budget is measured, not assumed: 72/72 GPU cells at 3 seeds;
+>    streamed training is flat in K (−393 MiB at K=8 vs full BPTT) but slower at
+>    every K; checkpointing cuts 51.8–54.5 % of peak for +25–38 ms. **Memory
+>    reproduced bit-identically in all 72 cells across two runs; step time did not.**
+> 3. Baselines are genuinely comparable: +0.030 % parameters and
+>    +0.0001–0.0003 % forward FLOPs across K=1/2/4/6/8 — FLOP accounting did not
+>    previously exist anywhere in the repo.
+> 4. Evaluation produces paper-ready tables from frozen checkpoints without
+>    touching training code.
+> 5. Deep reasoning **trades variables**: at K=3 vs K=0, 5 consistently improve,
+>    5 consistently worsen, 7 unresolved.
+>
+> **Why this parent is not being closed by me:** its own dependency order says the
+> extension resumes "only after R7.1–R7.5 are stable". R7.3 and R7.4 produced
+> negative findings, not a stable positive core. Closing requires either the
+> hypotheses being demonstrated or an explicit **human decision to publish the
+> negative result set** — and PR #12 stays **Draft** because merging `main` needs
+> explicit human authorization.
+>
+> **What would change the picture:** (1) more data and longer training on the same
+> protocol — the stores are ten-day January blocks and the measured cost model is
+> ~25 s/timestamp regardless of ROI size; (2) restating G3 as a per-variable
+> halting objective, since depth helps some variables and hurts others; (3) more
+> seeds, because the sign-stability rule currently leaves 13–15 of 17 variables
+> unresolved per arm — a statement about statistical power, not about the models.
+>
+> `scientific_claim: false`. Verification across the sequence: final
+> `pytest -q` 875 passed / 3 skipped / 0 failed with GPU; 34 blocking conventions
+> rules, 0 violations; push CI runs `36098430851`, `36099444288`, `36100761867`,
+> `36101266162` all success.
+
+No closure statement — this parent stays open pending a human decision, and I am
+not treating "all sub-issues touched" as satisfaction of G1–G4.
