@@ -29,4 +29,5 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 | [`gpu-bringup-3090.md`](gpu-bringup-3090.md) | R7 GPU 工程验收（双 3090） | 含 Stage A/B/C、交付物 D1–D7、数据限制、证据落点 |
 | [`open-issue-resolution.md`](open-issue-resolution.md) | 按序解决并关闭全部 open issue（含真实数据） | 依赖顺序、真实 ERA5 源与实测成本、自迭代边界、停止条件；**已完成**（8/8 closed，2026-09-25） |
 | [`iteration-campaign.md`](iteration-campaign.md) | 迭代战役 #59–#68：先修验收链再验证过程递归 | S0–S5 依赖顺序、各 issue 验收、预算冻结、诚实纪律 |
+| [`d1-acquisition-and-b0.md`](d1-acquisition-and-b0.md) | D1 获取（Earthmover spatial，决策 0004）+ #64 B0 可学习性 | 源已冻结、实测速率、两段范围与非目标、预算/停止条件 |
 | `docs/R7_GPU_BRINGUP_BRIEF.md` | （已迁移） | R-034 登记为早于约定的例外；现仅为指向本目录的指针，不再维护第二份定义 |
