@@ -3,8 +3,13 @@
 Rationale (project rules, not invented here):
   * AGENTS.md hard constraints — no `main` merge, no force push, no destructive
     data operation without explicit authorization.
-  * `docs/R7_MANUAL_ITERATION.md:15` — "no force push"; the branch must stay
-    `r7/weather-reasoning` on Draft PR #12.
+  * `docs/R7_MANUAL_ITERATION.md:15` — "no force push".
+  * Decision `docs/decisions/0003-push-vs-merge-hook-policy.md` (2026-09-25,
+    explicit user authorization): non-force PUSHES to main are allowed; MERGES
+    (local `git merge` involving main, `gh pr merge`) stay gated and require
+    the user's explicit authorization. GitHub rejects non-fast-forward pushes,
+    and every force variant is denied below, so an allowed main push can only
+    advance main linearly over working-branch commits that already passed CI.
 
 Scope discipline: only genuinely destructive forms are denied. Read-only git
 (`status`, `log`, `diff`, `show`, `rev-parse`, `grep`, `ls-files`, `blame`) must
@@ -27,7 +32,12 @@ _GIT_GLOBS = r"(?:\s+(?:-[cC]\s+\S+|--[A-Za-z-]+(?:=\S+)?))*"
 _FORCE_PUSH = re.compile(
     r"\bgit" + _GIT_GLOBS + r"\s+push\b[^|;&]*(?:--force(?!-with-lease)\b|--force-with-lease\b|\s-f\b)",
 )
-_FORCE_PUSH_PLUS = re.compile(r"\bgit" + _GIT_GLOBS + r"\s+push\b[^|;&]*\+[A-Za-z0-9_./-]+:")
+# Hardened 2026-09-25 (decision 0003): the destination after ':' is optional so
+# a bare `+main` — force-moving the default branch with no refspec colon — is
+# caught too; the original pattern required `+src:dst` and missed it.
+_FORCE_PUSH_PLUS = re.compile(
+    r"\bgit" + _GIT_GLOBS + r"\s+push\b[^|;&]*\+[A-Za-z0-9_./-]+(?::[A-Za-z0-9_./-]+)?",
+)
 # `git reset --hard` discards uncommitted work irrecoverably.
 _RESET_HARD = re.compile(r"\bgit" + _GIT_GLOBS + r"\s+reset\b[^|;&]*--hard\b")
 # `git clean -fd` deletes untracked files; -x also removes ignored ones.
@@ -39,12 +49,29 @@ _BRANCH_FORCE_DELETE = re.compile(r"\bgit" + _GIT_GLOBS + r"\s+branch\b[^|;&]*(?
 _DISCARD_WORKTREE = re.compile(
     r"\bgit" + _GIT_GLOBS + r"\s+(?:checkout|restore)\b[^|;&]*(?:\s--\s+|\s)(?:\.|\./)\s*(?:$|[|;&])",
 )
+# `--mirror` force-updates every ref (main included) and deletes unmatched
+# remote branches. Never matched by any rule before 2026-09-25; lethal once
+# pushes to main are allowed, so it is explicitly denied.
+_MIRROR_PUSH = re.compile(r"\bgit" + _GIT_GLOBS + r"\s+push\b[^|;&]*--mirror\b")
+# Deleting the default branch (`git push origin :main`, `git push origin
+# --delete main`) is unrecoverable for the published repo. The empty-source
+# refspec form requires whitespace before the ':' so a normal ff refspec like
+# `HEAD:main` is not a hit; `--delete main` is spelled out because
+# _BRANCH_FORCE_DELETE only covers `--delete --force`.
+_DEFAULT_BRANCH_DELETE = re.compile(
+    r"\bgit" + _GIT_GLOBS + r"\s+push\b[^|;&]*"
+    r"(?:\s(?:origin\s+)?:\s*(?:main|master)\b|\s--delete\b[^|;&]*\s(?:origin\s+)?(?:main|master)\b)",
+)
 
-# Writes aimed at the default/integration branch. This project works on
-# r7/weather-reasoning and merges to main only with explicit authorization.
-_MAIN_BRANCH_WRITES = (
-    re.compile(r"\bgit" + _GIT_GLOBS + r"\s+push\b[^|;&]*\s(?:origin\s+)?(?:main|master)\b"),
-    re.compile(r"\bgit" + _GIT_GLOBS + r"\s+merge\b[^|;&]*\s(?:main|master)\b"),
+# Merges into the integration branch stay gated: they are release-adjacent
+# actions requiring the user's explicit authorization (AGENTS.md hard
+# constraints; decision 0003). Non-force pushes to main are NOT gated — see the
+# module docstring. Hardened 2026-09-25: `origin/main` (and `origin/master`)
+# are merges involving the integration branch too, so the `origin/` prefix is
+# accepted alongside the bare-branch form; the trailing `\b` keeps words like
+# `maintain` from matching.
+_MAIN_MERGE = (
+    re.compile(r"\bgit" + _GIT_GLOBS + r"\s+merge\b[^|;&]*\s(?:origin[/\s]+)?(?:main|master)\b"),
     re.compile(r"\bgh\s+pr\s+merge\b"),
 )
 
@@ -55,9 +82,10 @@ _RULES: tuple[tuple[re.Pattern, str], ...] = (
     (_CLEAN_FORCE, "git clean -f"),
     (_BRANCH_FORCE_DELETE, "git branch -D"),
     (_DISCARD_WORKTREE, "discarding working-tree changes"),
-    (_MAIN_BRANCH_WRITES[0], "pushing to main"),
-    (_MAIN_BRANCH_WRITES[1], "merging main locally"),
-    (_MAIN_BRANCH_WRITES[2], "gh pr merge"),
+    (_MIRROR_PUSH, "mirror push"),
+    (_DEFAULT_BRANCH_DELETE, "deleting the default branch"),
+    (_MAIN_MERGE[0], "merging main locally"),
+    (_MAIN_MERGE[1], "gh pr merge"),
 )
 
 _ADVICE = {
@@ -87,17 +115,26 @@ _ADVICE = {
         "This wipes uncommitted edits in the working tree.\n"
         "Commit or `git stash` them first so the work stays recoverable."
     ),
-    "pushing to main": (
-        "Work stays on `r7/weather-reasoning` (Draft PR #12); pushing to main is not authorized.\n"
-        "Push your branch and update the Draft PR instead."
+    "mirror push": (
+        "`--mirror` force-updates every ref (main included) and deletes remote "
+        "branches that have no local counterpart.\n"
+        "Push explicit refspecs instead; mirror pushes are not authorized."
+    ),
+    "deleting the default branch": (
+        "Deleting the default branch removes the published repo's integration "
+        "history and is not authorized.\n"
+        "If a branch must be removed, name it explicitly and never the default."
     ),
     "merging main locally": (
-        "Merging into the integration branch requires explicit authorization "
-        "(see AGENTS.md hard constraints)."
+        "Merges require the user's explicit authorization and cannot be verified "
+        "in-conversation.\n"
+        "Execute the merge outside ZCode, or remove this hook entry BEFORE the "
+        "session starts (hook config is read at session start; see AGENTS.md)."
     ),
     "gh pr merge": (
-        "Merging the PR is a release action requiring explicit authorization.\n"
-        "Prepare the branch and let the user decide when to merge."
+        "Merging the PR is a release action requiring explicit user authorization.\n"
+        "Let the user decide when to merge; the hook cannot verify in-conversation "
+        "authorization."
     ),
 }
 

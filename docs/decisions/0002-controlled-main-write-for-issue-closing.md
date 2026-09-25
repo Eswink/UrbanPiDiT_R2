@@ -1,7 +1,10 @@
 # 0002 受控 main 写入以在 GitHub 上关闭 8 个 open issue
 
 - **日期**：2026-09-25
-- **状态**：accepted
+- **状态**：superseded by 0003 — 本决策的执行机制（会话内临时移除 hook 条目的
+  「逃生口」）被实测证伪（hook 配置在会话启动时读取，见文末 Addendum），且用户
+  已在 0003 把策略改为 hook 级放行非 force 推送；本决策的 Context 与 Addendum
+  保留为历史记录。
 
 ## Context
 

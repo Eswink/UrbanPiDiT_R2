@@ -23,6 +23,7 @@
 
 **代价（如实记录）**：main 到达分支顶端会使 PR #12 显示为 merged；main 的 push 不触发
 `ci.yml`，验收证据仍以工作分支上的绿色 push run 为准。此条不改变 R-027/R-029/R-030
+等任何既有规则的判据。
 
 ## 2026-09-25（补充）— hook 逃生口的会话边界实测
 
@@ -36,7 +37,36 @@ config 不影响当前会话；用户级 `~/.zcode/config.json` 不存在，项�
 PAT）在 `docs/decisions/0002-*.md` 附录。
 **代价（如实记录）**：本轮 8 个 issue 的 GitHub 关闭**未完成**（仍 open）；「会话内
 移除→推送→恢复」顺序作废，逃生口仅当「条目移除先于会话启动」时可用。
-等任何既有规则的判据。
+
+## 2026-09-25（第二）— hook 策略：放行非 force 推送、合并仍需授权（用户指示）
+
+**范围**：`tools/agent_hooks/guard_destructive_git.py` 的规则集、`tests/test_agent_hooks.py`、
+`AGENTS.md`、`docs/rules/ci-and-verification.md`、`docs/rules/README.md`、
+`docs/decisions/0002-*.md`（superseded）与新建 `0003-*.md`、
+`docs/goals/open-issue-resolution.md`、`docs/R7_MANUAL_ITERATION.md`。
+**来源**：用户 2026-09-25 明确指示——"需要允许推送，但是如果是合并需要用户明确告知
+授权方可进行操作"；背景是决策 0002 的逃生口在会话内不可用（上一条目），goal 无法
+自行完成关闭推送。
+
+**变更**：
+
+1. **放行**：非 force 推送到 main（`origin main`、`<分支>:main`、`HEAD:main` 等全部
+   refspec 形态）——移除 `pushing to main` 规则。安全依据：GitHub 自身拒绝非 ff 推送、
+   全部 force 变体仍被拒，main 只会线性前进到工作分支上已过 CI 的提交。
+2. **保留拒绝**：合并——本地 `git merge` 涉及 main（本轮加固：`origin/main` 形态此前
+   从未被拦截，一并纳入）、`gh pr merge`。授权路径：用户在 ZCode 之外终端执行，或
+   会话启动前移除 hook 条目（会话边界实测仍成立）。
+3. **新增拒绝**（放行 main 推送后必须堵的洞）：裸 `+main` force 推送
+   （`_FORCE_PUSH_PLUS` 目的地改为可选）、删除默认分支（`:main` / `--delete main`，
+   此前从未被任何规则拦截）、`--mirror` 推送（会强推重写 main）。
+4. **测试**：`test_agent_hooks.py` 132 → 142 用例（push-to-main 迁入放行组并补三种
+   形态；新增 force/删除/mirror 拒绝用例与 `origin/main` 合并拒绝）。全量
+   885 passed, 3 skipped, 0 failed；34 条阻断规则 0 违规。
+
+**代价（如实记录）**：①"合并需授权"约束的是 agent 执行的 merge **操作**，merge
+commit 仍可经放行的 push 路径到达 main（ff 语义不区分）；②main 的 push 不触发
+`ci.yml`，验收证据口径不变；③自主写 main 成为常态策略，防线是 ff 语义 + force 全拒
++ 决策 0003 记录的授权边界。此条不改变 R-027/R-029/R-030 等任何既有规则的判据。
 
 ## 2026-09-24（第七遍）— 命名约束
 

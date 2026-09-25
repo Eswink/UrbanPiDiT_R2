@@ -128,16 +128,15 @@ GBIF/GCS 桶列表、`https://weatherbench2.storage.googleapis.com/`。
    的提交里才会自动关 issue。推到 `r7/weather-reasoning` 无效。
 2. **已实测 ff 可行**：`git merge-base --is-ancestor origin/main HEAD` 成立（领先 165、
    落后 0）⇒ 把分支顶端 fast-forward 推到 main 即可，**任何形式的 force 都禁止**。
-3. **hook 例外的受控使用**：该 main 写入会被 `guard_destructive_git` 拦截（文本匹配器，
-   连命令文本里出现 `git push origin main` 都会触发）。按 AGENTS.md 记载的逃生口：
-   临时移除 `.zcode/config.json` 里 `guard_destructive_git` 条目 → 执行**这一次**授权的
-   main 写入 → **立即恢复**该条目 → 把移除/恢复/授权来源写进一份决策记录（R-033 格式，
-   Consequences 必须含代价）。**禁止**用 refspec 拼写（如 `HEAD:main`）绕过正则——
-   那属于本项目明令禁止的"审计发现的绕过"类。
-   **实测修正（2026-09-25，决策 0002 附录）**：hook 配置只在**会话启动时**读取；
-   本轮按「会话内移除→推送→恢复」执行被拒两次（含只读 dry-run 探测），写入
-   **未完成**、8 个 issue 在 GitHub 上仍 open。后续轮次须改为「先移除条目→再启动
-   会话→push→立即恢复」，或由人在 ZCode 外终端执行该单条命令。
+3. **hook 已放行（2026-09-25，决策 0003）**：`guard_destructive_git` 的
+   `pushing to main` 规则已移除——**agent 可直接执行该 ff 推送**，无需逃生口。
+   安全依据：GitHub 拒绝非 ff；全部 force 变体、删除默认分支（`:main` /
+   `--delete main`）、`--mirror` 仍被 hook 拒绝。**合并仍被拒绝**（`git merge`
+   涉及 main、`gh pr merge`）——需用户明确授权后由用户在 ZCode 外终端执行，
+   或会话启动前移除 hook 条目（实测边界：hook 配置在会话启动时读取，决策 0002
+   附录）。**禁止**用 refspec 拼写绕过正则。
+   （历史：本轮早前按「会话内移除→推送→恢复」执行被拒两次、写入未完成——该
+   机制已被决策 0003 取代。）
 4. **两个必须写明的副作用**：main 到达分支顶端后 **PR #12 会显示为 merged**（这是本
    授权的自然结果，不是越权）；main 的 push 不触发 `ci.yml`（其 push 触发只限工作分支），
    所以验收证据是**分支上早前已核验的绿色 push run**（判定所绑定的那些 SHA），
@@ -182,10 +181,10 @@ GBIF/GCS 桶列表、`https://weatherbench2.storage.googleapis.com/`。
 - 改动 / 移动 / 删除 `data/raw|interim|processed` 与归档快照（`legacy_*`）；
 - 放宽或跳过测试与判据；把 CPU 结果说成 GPU 验证；把工程通过说成科研结论。
 
-**唯一例外的 main 写入**：把收尾提交 fast-forward 推到 main 以触发 closing keywords
-关闭 issue（§4）。这是用户 2026-09-25 明确授权的**单一用途**写入；必须按 §4 的受控
-流程执行（临时移除 hook 条目 → 完成 → 立即恢复 → 决策记录），且**仅此一次**——
-除此之外对 main 的任何写入仍然禁止。
+**main 写入的策略边界（2026-09-25，决策 0003）**：非 force 推送到 main 已被 hook
+放行——关闭推送可自主执行（§4）。仍然禁止：force 推送、删除默认分支、`--mirror`、
+合并（`git merge` 涉及 main / `gh pr merge`，需用户明确授权后由用户执行）、创建
+release。除此之外对 main 的历史改写一律禁止。
 
 **预算**：单次迭代 ≤ ~90 分钟；不跑通宵。每轮结束都要留下可核查证据并推送。
 

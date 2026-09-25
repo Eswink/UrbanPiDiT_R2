@@ -34,3 +34,13 @@ release, paid GPU rental, large data download/training, or destructive data
 operation without explicit authorization. Never present synthetic fixtures as
 weather truth, desired SOTA outcomes as measured results, or reasoning-step
 counts as wall-clock speedups. Preserve users' changes and existing assignees.
+
+## Addendum (2026-09-25, decision 0003): push vs merge
+
+Fast-forward pushes of the working branch to `main` are authorized and are how
+closing keywords take effect (`guard_destructive_git` now allows non-force
+pushes; it still denies force variants, default-branch deletion, `--mirror`,
+and merges involving `main`). Merges and releases still require explicit user
+authorization and are executed by the user outside ZCode. This addendum does
+not weaken any sentence above: no force push, no synthetic truth, no
+reasoning-step-count speedups, cancelled runs are not passes.

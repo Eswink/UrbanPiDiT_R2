@@ -141,9 +141,11 @@ closing keywords（`Closes/Fixes/Resolves #N`）只在**默认分支 main** 的�
 1. 在工作分支上做收尾提交，message 含 `Closes #N`（可多条）；
 2. main 是工作分支的严格祖先（2026-09-25 实测：领先 165、落后 0），所以把该提交
    **fast-forward 推到 main 即可，任何形式的 force 都被禁止**；
-3. 这次对 main 的写入受 `guard_destructive_git` 拦截。需要执行时按 AGENTS.md 记载的
-   逃生口：临时移除 `.zcode/config.json` 里该 hook 条目 → 完成后**立即恢复**，并把移除/
-   恢复与授权来源记入一份决策记录（R-033）。**禁止**用 refspec 拼写绕过匹配正则；
+3. **hook 自 2026-09-25 起放行非 force 推送到 main**（决策 0003）：`guard_destructive_git`
+   已移除 `pushing to main` 规则，agent 可直接执行该 ff 推送，无需逃生口。
+   **合并仍被拒绝**（`git merge` 涉及 main、`gh pr merge`）：需用户明确授权后由用户
+   在 ZCode 之外终端执行，或会话启动前移除 hook 条目（会话边界实测仍成立）。
+   **禁止**用 refspec 拼写绕过匹配正则；删除默认分支与 `--mirror` 亦被拒绝；
 4. 两个副作用须写明：main 到达分支顶端后 **PR #12 会显示为 merged**；且 main 的 push
    不触发 `ci.yml`（其 push 触发只限工作分支），所以验收证据是分支上的绿色 push run，
    而不是 main 上的任何 run。

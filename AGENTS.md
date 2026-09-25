@@ -56,13 +56,14 @@
   CI 日志下载 403；`git push` 走 SSH（身份 `sqy941013`）可用。
 - **自动关闭 issue 只有唯一一条 git 路径**：`Closes/Fixes/Resolves #N` 出现在**默认分支 main**
   的提交里才会生效——推到工作分支无效。main 是本分支的严格祖先（ff 推送，禁 force）。
-  该写入受 `guard_destructive_git` 拦截；需要执行时走 hook 逃生口（临时移除
-  `.zcode/config.json` 对应条目 → 完成后立即恢复），并把移除/恢复与授权来源
-  记入一份决策记录。**禁止**用 refspec 拼写绕过正则。
-  **实测边界（2026-09-25，决策 0002 附录）**：hook 配置在**会话启动时**读取——
-  会话中途移除条目不影响当前会话（两次 deny 实证）。逃生口只在「条目移除**先于**
-  会话启动」时可用；否则由人在 ZCode 之外的终端执行该单条命令（hook 不作用于
-  直接命令行）。
+  **非 force 推送到 main 已被 `guard_destructive_git` 放行**（2026-09-25 用户授权，
+  决策 0003）：GitHub 自身拒绝非 ff 推送、全部 force 变体与删除默认分支/--mirror 被
+  hook 拒绝，因此 main 只会线性前进到工作分支上已过 CI 的提交。
+  **合并仍被 hook 拒绝**（本地 `git merge` 涉及 main、`gh pr merge`）：合并需用户明确
+  授权后**由用户在 ZCode 之外的终端执行**，或在会话启动**前**移除 hook 条目——
+  **实测边界（2026-09-25，决策 0002 附录）**：hook 配置在**会话启动时**读取，会话中途
+  移除条目不影响当前会话（两次 deny 实证）；脚本级策略修改则每次调用即时生效。
+  **禁止**用 refspec 拼写绕过正则。
 - **17 条实验 workflow 是 commit-message 标签门控**（如 `[cpu-study]`、`[seasonal-study]`、
   `[real-smoke]`；全集见 `.github/workflows/r7-*.yml`）。普通 push 上它们显示 skipped 是
   **设计行为，不是失败**；需要运行某条就在 commit message 里带上它的标签。
@@ -94,7 +95,7 @@
 
 - 规则正文见 `docs/rules/`，每条含级别、范围、依据（E-xxx）、现状分类、执行方式、例外。
 - 机械可判定的规则由 `python tools/check_conventions.py` 检查（只读，标准库，纯 AST 判定）。
-  - 默认只跑**阻断规则**（A/B 类，当前 20 条）：失败即代表违反契约。
+  - 默认只跑**阻断规则**（A/B 类，当前 34 条）：失败即代表违反契约。
   - `--report` 追加**C 类目标态与趋势**规则的报告，仅供参考，不阻断。
   - 自测（含"故意违规必须报错"的反证与结构性防回归）在 `tests/test_check_conventions.py`。
 - 接入状态：已在 CI 中生效——`.github/workflows/ci.yml` 的 **Check repository conventions** 步骤。
@@ -108,9 +109,9 @@
 | 时机 | 脚本 | 行为 |
 | --- | --- | --- |
 | PreToolUse | `guard_protected_paths.py` | **拒绝**对 `data/raw|interim|processed`、归档快照的写/删/移动（R-002/R-004/R-031），以及 **`tests/` 下测试文件的删除**。读操作与正常命令一律放行 |
-| PreToolUse | `guard_destructive_git.py` | **拒绝** force-push、`reset --hard`、`clean -f`、`branch -D`、对 `main` 的写（依据硬约束与 R7_MANUAL_ITERATION.md）。只读 git 一律放行 |
+| PreToolUse | `guard_destructive_git.py` | **拒绝** force-push（含裸 `+ref`）、`reset --hard`、`clean -f`、`branch -D`、合并 main（`git merge` / `gh pr merge`）、删除默认分支、`--mirror`（决策 0003）。非 force 推送（含到 main 的 ff）放行；只读 git 一律放行 |
 | PostToolUse | `check_model_digest_impact.py` | **提示**（不阻断）：改了 `model/**.py` 会改变 `model_code_sha256`，需标记 `[model-digest-change]` |
-| Stop | `tools/check_conventions.py --quiet` | 收尾时跑 20 条阻断规则，有违规则要求先处理 |
+| Stop | `tools/check_conventions.py --quiet` | 收尾时跑 34 条阻断规则，有违规则要求先处理 |
 
 边界与开关：
 
@@ -121,7 +122,7 @@
 - **测试只禁删除**：新增、编辑、重构、运行测试都不受限；只有 `rm`/`git rm`/`find -delete`
   这类**移除**测试文件的操作被拦（R-009 只统计总数且仅报告，看不见整文件删除）。
 - 保护清单从 `tools/check_conventions.py` 的 `ARCHIVAL_PREFIXES` **推导**，不另造平行清单；
-  `tests/test_agent_hooks.py`（123 个用例，含 24 个"审计发现的绕过"反证）断言两者不会漂移。
+  `tests/test_agent_hooks.py`（142 个用例，含"审计发现的绕过"反证）断言两者不会漂移。
 - Stop hook 会**重复** CI 已有的检查。这是刻意的（本地收尾前就知道结果），不是替代 CI。
 - 这些 hook 只在本仓库、经由 ZCode 生效；直接命令行操作不受影响。
 
