@@ -7,6 +7,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+from .http_public import open_public
+
 UCI_ZIP = "https://archive.ics.uci.edu/static/public/381/beijing+pm2.5.zip"
 MIRROR_CSV = (
     "https://raw.githubusercontent.com/634671436/Air_Pollution_Forcast_Beijing/"
@@ -25,7 +27,7 @@ def sha256(path: Path) -> str:
 
 def _download(url: str, dst: Path, timeout: int = 60) -> None:
     req = urllib.request.Request(url, headers={"User-Agent": "UrbanPiDiT-R2/6 real-data-smoke"})
-    with urllib.request.urlopen(req, timeout=timeout) as r, dst.open("wb") as f:
+    with open_public(req, timeout=timeout) as r, dst.open("wb") as f:
         shutil.copyfileobj(r, f)
 
 

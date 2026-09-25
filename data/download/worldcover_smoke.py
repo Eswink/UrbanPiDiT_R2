@@ -7,6 +7,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from .http_public import open_public
+
 WMS_ENDPOINT = "https://titiler.terrascope.be/wms"
 LAYER_2021 = "esa-worldcover-map-10m-2021-v2_map"
 
@@ -44,13 +46,13 @@ def download_worldcover_preview(
     url = worldcover_wms_url(tuple(float(x) for x in bbox), size, size)
     req = urllib.request.Request(url, headers={"User-Agent": "UrbanPiDiT-R2/6 real-data-smoke"})
     try:
-        with urllib.request.urlopen(req, timeout=60) as response:
+        with open_public(req, timeout=60) as response:
             content_type = response.headers.get("Content-Type", "")
             payload = response.read()
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         raise RuntimeError(
-            "无法访问 Terrascope WorldCover WMS。当前环境可能无外网/DNS；"
-            "未使用任何伪造静态栅格替代该下载结果。"
+            "WorldCover WMS 下载被拒或失败（含 SSRF 防护拒绝非公网地址）；"
+            "当前环境可能无外网/DNS；未使用任何伪造静态栅格替代该下载结果。"
         ) from exc
     if not payload.startswith(b"\x89PNG"):
         raise RuntimeError(f"WorldCover WMS 未返回 PNG，Content-Type={content_type!r}")

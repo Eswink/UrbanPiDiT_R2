@@ -2,6 +2,15 @@
 
 本文件是 goal 模式目标的长文源（R-034）。objective 有 4000 字符硬上限，细节在此。
 
+**状态：已完成（2026-09-25）。** 8 个 issue 全部按判定关闭：#13/#20/#5/#8 为 DONE，
+#6/#7 为 DONE（负结果，科研门槛未过——见 `docs/R7_ROADMAP_GATE_STATUS.md`），#9 为
+BLOCKED（带 reopen 条件），#1 为已答复的负面结论。关闭机制：收尾提交 `e5be0c0`
+（含全部 `Closes #N`）经 hook 策略变更（决策 0003）后由 agent 自主 ff 推送落到 main
+（`92a8c4d..2d7da05`，10:11Z），PR #12 随之 merged；GitHub API 逐条核对。证据全文
+在 `docs/R7_ISSUE_COMMENTS.md`（评论正文因无 API 凭据未发布，已交叉链接进关闭提交）。
+后记：2026-09-25 第二次深度安全扫描确认下载层两条 SSRF 已修复，27 条归档侧发现
+按只读边界接受——见 `docs/R7_SECURITY_SCAN_TRIAGE.md`。
+
 **状态：尚未执行。** 本文件是任务定义，不是结果。
 
 ---

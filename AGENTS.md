@@ -5,7 +5,8 @@
 检查脚本在 `tools/check_conventions.py`，自动拦截在 `tools/agent_hooks/`。
 规则变更留痕在 `docs/rules/CHANGELOG.md`。
 
-工作分支 `r7/weather-reasoning`，Draft PR #12。当前处于**科研进行中**状态：
+工作分支 `r7/weather-reasoning`；PR #12 已于 2026-09-25 merged（此后到 main 的更新
+走非 force ff 推送，见下方「GitHub 通道」）。当前处于**科研进行中**状态：
 不能把工程通过当作科学结论，不能把合成 fixture 当作天气真值。
 
 ## 硬约束

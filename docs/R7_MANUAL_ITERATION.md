@@ -29,7 +29,8 @@ pass/skip counts and unresolved limitations, not repeated status placeholders.
 A conversation may finish with pending CI honestly recorded; no implied
 background work after the turn ends.
 
-Work stays on r7/weather-reasoning / Draft PR #12. No automatic main merge or
+Work stays on r7/weather-reasoning; PR #12 was merged on 2026-09-25 (see the
+push-vs-merge addendum below). No automatic main merge or
 release, paid GPU rental, large data download/training, or destructive data
 operation without explicit authorization. Never present synthetic fixtures as
 weather truth, desired SOTA outcomes as measured results, or reasoning-step
