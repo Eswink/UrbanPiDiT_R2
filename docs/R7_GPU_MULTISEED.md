@@ -48,7 +48,7 @@ it. The digest below is from the corrected run.
 | Protocol digest | `6c84be201134faa3a0895ebb9c1bfb1cf67f4161dd283fd613ba2a33fc70e7f7` |
 | Seeds | 41, 42, 43 |
 | Models | `generic`, `process` (forecast feedback off, to isolate the trick) |
-| K (reasoning steps) | 1, 4, 8 |
+| K (reasoning steps) | 1, 4, 8 — K=2 is covered **single-seed** by the bring-up sweep (`docs/R7_GPU_BRINGUP.md`), not replicated here |
 | Training modes | `full_bptt`, `streamed_truncated` |
 | Activation checkpointing | off, on |
 | Cells | 2 x 3 x 2 x 2 x 3 = **72** |
