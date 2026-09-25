@@ -63,3 +63,20 @@
 **备选方案与否决理由：** 维持 0002 机制并要求人执行单条 push（用户已明确改为策略级
 放行）；用 PAT / `gh auth login`（用户声明只用 git/SSH）；在 hook 里读取"授权标记
 文件"（agent 可自行创建该文件，等于自毁门禁，否决）。
+
+## Execution record (2026-09-25T10:11Z: closure push landed, 8 issues closed)
+
+1. Policy commit `2d7da05` ("allow non-force pushes to main…") pushed to the
+   working branch and **the guard allowed it** — the first main-push attempt
+   after the script change was not denied.
+2. Closure push executed: `git push origin r7/weather-reasoning:main` →
+   `92a8c4d..2d7da05`, fast-forward, no force, exit 0. `e5be0c0` (all eight
+   `Closes #N`) landed on the default branch.
+3. Verified against the GitHub API: #1/#5/#6/#7/#8/#9/#13/#20 all
+   `state=closed` (closed_at 2026-09-25T10:11:00Z–10:11:03Z); PR #12
+   `state=closed, merged=true, merged_at=2026-09-25T10:10:59Z` (fast-forward,
+   no merge commit, as predicted in Consequences).
+4. Comment bodies remain unpublished (API writes 401); `docs/R7_ISSUE_COMMENTS.md`
+   header and `docs/R7_TASK_QUEUE.md` updated to the closed state in the
+   follow-up docs commit. The 17 experimental workflows stayed skipped on the
+   branch pushes (tag-gated by design).
