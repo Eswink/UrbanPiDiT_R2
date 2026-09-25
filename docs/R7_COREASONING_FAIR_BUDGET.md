@@ -30,7 +30,7 @@ single aggregate number would be meaningless.
 | Ablation depths | K=0 (no recursion), K=1, K=3 |
 | Evaluation | validation split only, +6 h lead, 8 capped initializations, all 17 channels |
 | Parameters | 92,450 generic vs 92,547 process — a 97-parameter (0.10 %) process readout |
-| Data | `outputs/r7_coreasoning_data/source.nc`, SHA256 `db7c02191e520a81873ab90b2a35348a43d556fb65a82da0cd60cce03040…` |
+| Data | `outputs/r7_coreasoning_data/source.nc`, SHA256 `db7c02191e520a81873ab90b2a35348a43d556fb65a82da0cd60cce03041a2f4` |
 
 The extraction is one contiguous ten-day block from January 1 in each of
 2018/2019/2020 at native 0.25°, 65x65, all nine source variables with the full

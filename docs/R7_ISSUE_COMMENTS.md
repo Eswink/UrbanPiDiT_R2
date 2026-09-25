@@ -219,3 +219,90 @@ Closure statement (only after the comment above is posted):
 > `R7_PRESSURE_CPU_RESULTS.md` / `R7_CPU_REFINEMENT_RESULTS.md`. The acceptance
 > criterion of a comparable parameter/FLOP budget with R7.3 is now measured at
 > every K, with the counting convention stated.
+
+---
+
+## #6 — [R7.3] Implement Process–Forecast Co-Reasoning Loop
+
+Draft comment (paste verbatim, minus this line):
+
+> **The fair-budget comparison is done at `1bc1eef`. The gate is NOT met, and
+> this is now quantified rather than asserted.**
+>
+> #5 had just established that the arms are budget-comparable (+0.030 %
+> parameters, +0.0001–0.0003 % forward FLOPs), so what was missing was a run that
+> held budget and seed fixed while reporting **every** variable — with 17 channels
+> spanning K, Pa and m/s, an aggregate score would be meaningless.
+>
+> **Protocol** (frozen before any optimizer step, digest
+> `253c5a442934fa82f6d7bd2bbdfa8c1d0ca668175faad5bbfbcf700bf6bec296`): three arms
+> (`generic`, `process_no_feedback`, `process_feedback`) x seeds 41/42/43 x
+> identical 200-update budget, ablation at K=0 (no recursion) / K=1 / K=3,
+> validation split only, +6 h lead, 8 capped initializations, all 17 channels.
+> Parameters 92,450 vs 92,547 (a 97-parameter process readout). Data: a new
+> contiguous ten-day January block per year at native 0.25°, 65x65, real 17-channel
+> ERA5, SHA256 `db7c02191e520a81873ab90b2a35348a43d556fb65a82da0cd60cce03041a2f4`,
+> 38 windows per split through the audited converter.
+>
+> **Result.** Both process arms fail. At K=3, `process_feedback` has a lower mean
+> RMSE on 10 of 17 variables — and **15 of those 17 deltas change sign between
+> seeds**, so the win/loss split is not evidence. Counting only deltas whose sign
+> is consistent across all three seeds:
+>
+> | depth | arm | established improved | established worsened | unresolved |
+> | --- | --- | --- | --- | --- |
+> | K=0 | process_feedback | 1 | 6 | 10 |
+> | K=0 | process_no_feedback | 1 | 5 | 11 |
+> | K=1 | process_feedback | 3 | 5 | 9 |
+> | K=1 | process_no_feedback | 1 | 5 | 11 |
+> | K=3 | process_feedback | 1 | 1 | 15 |
+> | K=3 | process_no_feedback | 2 | 2 | 13 |
+>
+> `gate_met: false` for every arm and depth.
+>
+> **Three findings, stated plainly:**
+>
+> 1. The clearest established effect is a **loss**: `t2m` worsens at every depth
+>    for both arms with all seeds agreeing (+0.23 K no-feedback, +0.30 K feedback
+>    at K=3).
+> 2. **Forecast feedback does not rescue it.** At K=3 the feedback arm has fewer
+>    established improvements (1) than the no-feedback arm (2), and adds a
+>    worsening (`v250`) the no-feedback arm does not have. On this evidence
+>    feedback is not the missing ingredient.
+> 3. **Most differences are unresolved.** At K=3, 15/17 (feedback) and 13/17
+>    (no-feedback) deltas flip sign across seeds. The honest reading is that the
+>    process arms are largely **indistinguishable** from generic at three seeds —
+>    not better.
+>
+> **Correction to earlier framing.** The previously recorded statement that
+> spatial feedback helps some wind scores but worsens T500 does not reproduce
+> here: this run shows `t500` *improving* under the no-feedback arm (−0.023 K, all
+> seeds) and unresolved under the feedback arm at K=3. What does reproduce is the
+> general mixed pattern, with `t2m` as the consistent loser.
+>
+> The sign-stability rule is enforced in code, not just in prose: a comparison
+> block marks each delta `unresolved` when the per-seed deltas disagree, and
+> `gate_met` is true only if every sign-consistent variable improved. Two tests
+> pin exactly the case this run hit — an arm that looks better on average while
+> every per-seed delta flips sign must be reported unresolved, not as a win.
+>
+> `scientific_claim: false`; test split not read; three seeds is a noise-floor
+> check, not a significance test; ten January days per year and 200 updates at
+> `dim=32, depth=2` is a bounded CPU comparison, not a converged run. Full record:
+> `docs/R7_COREASONING_FAIR_BUDGET.md`; tests
+> `tests/test_r7_coreasoning_compare.py` (12 offline). Verification: `pytest -q`
+> 856 passed / 3 skipped / 0 failed with GPU, 850 / 9 / 0 with
+> `CUDA_VISIBLE_DEVICES=""`; `python tools/check_conventions.py` 34 blocking
+> rules, 0 violations.
+
+Closure statement (only after the comment above is posted):
+
+> Closing as answered-with-a-negative-result: the four listed tasks exist (feedback
+> path, forecast solver/refiner, complete P0,Y0..PK,YK trace, process-proxy
+> supervision hooks) and all four ablations (no process state, no forecast
+> feedback, no recursion, plus generic) were run under matched budget and seeds.
+> The research gate — "process-aware co-reasoning must beat generic R7.2 under
+> comparable budget" — is **not supported** by this comparison: the only
+> sign-consistent effects are `t2m` worsening for both process arms and `t500`
+> improving for the no-feedback arm. Reported as a negative result rather than
+> tuned until it turns positive.
