@@ -623,3 +623,32 @@ not treating "all sub-issues touched" as satisfaction of G1–G4.
 > 未做/非目标：不动预报权重、不重新训练、不取新数据；K3 的描述性结果
 > （10 improved/7 worsened/2 sign-consistent/15 unresolved）**不构成** #6
 > gate 通过；任何 gate 声明必须先冻结判据。未跑 GPU。
+
+## #61 — DDP 验证 K 与更新次数、resume 契约（2026-09-26，API 评论 401，证据落 docs）
+
+> **状态：DONE（CPU + 本地 2×RTX 3090 验收）；真实区域吞吐测量 BLOCKED 于数据
+> 依赖。** 证据全文：`docs/R7_DDP_K_CONTRACT.md`。全部产物在
+> `outputs/r7_ddp_smoke_61/`（未入库，本地可下载），`scientific_claim: false`。
+>
+> 修复：验证深度只来自 `--reasoning-steps`，forward hook 记录 cell 实际执行
+> 深度（验证逐 batch + 训练逐微批），未观测到请求深度即拒绝报告；
+> `validate_resume_contract` 对 seed/per_gpu_batch/accumulation/reasoning_steps/
+> training_mode/dataset_signature/world_size/model_code 逐字段拒绝，
+> 缺字段与自不一致签名同样拒绝；length 31/33 的 DistributedSampler padding
+> 显式记录（不再声称 no duplicates）；`no_sync` 规则=完整累积组仅最后微批
+> 同步（forward 包含在上下文内），不完整组必须同步；`full_bptt` /
+> `retained_truncated` / `streamed_truncated` 分标记且不互称等价，
+> streamed+DDP 明确拒绝而非静默回退。
+>
+> 实测（2×3090，bf16）：`steps=10, reasoning_steps=4` 观测验证 K=[4]×6、训练
+> 每微批 K=4；length 31 + accumulation 3 触发 padding（1 个重复索引）与部分
+> 累积组；DDP vs 单卡参考 loss max Δ=1.7e-06；resume 负面（K 4→5）被双 rank
+> 拒绝，正向同契约 resume 与不中断参考 **111/111 权重逐位相同、按 update 配对
+> loss Δ=0.0**；同全局 batch=4×30 更新：单卡 2.84s vs 双卡 2.65s，toy 规模
+> 无 DDP 吞吐优势 → 维持两卡独立 seed 决策。GPU 消耗 ≈0.1 GPU-hours。
+>
+> 测试：新增 30 个 CPU 契约测试（AST+动态假模型+resume 负例+padding+no_sync
+> 真值表+CPU 端到端微批步）；全仓 939 passed/3 skipped；34 条规则 0 违规。
+>
+> BLOCKED：真实区域吞吐测量需要 #63 D1 连续 30 天段（现盘上仅 1 窗口
+> fixture）；streamed+DDP 与 Process-arm DDP 未核验，明确拒绝/不声明。

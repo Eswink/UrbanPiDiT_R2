@@ -24,6 +24,7 @@ by design.
 | #57 optional spatial solver plus400update matched ablation | DONE (engineering/experiment) | actual35896740916; CI35896740912; defaultFalse retained |
 | #58 explicit case selection/common-case retrospective audit | DONE | actual35898091953; CI35898091928 |
 | #60 seed-identity comparator, fail-closed gates, historical re-aggregation (S0-A) | DONE (acceptance chain) | local 909 passed/3 skipped; conventions 34/0; audit 27/27 records, max mean diff 0.0, 0/34 directions changed; see R7_SEED_IDENTITY_COMPARATOR.md |
+| #61 DDP verified reasoning depth, resume contract, padded samplers (S0-B) | DONE (CPU+2×3090; real-region throughput BLOCKED on #63 D1) | local 939 passed/3 skipped; CUDA: eval K observed 4 with steps=10, resume 111/111 weight hashes identical, streamed+DDP refused; see R7_DDP_K_CONTRACT.md |
 
 Latest full code CI: **578passed,3old-fixture-skipped,2existingLightningwarnings**
 in49.25s, job107306975262, plus compile/whitespace/installed-wheel checks.
