@@ -608,4 +608,3 @@ def test_reaggregate_marks_unreadable_artifacts_blocked_without_fabrication(tmp_
     block = audit["comparison"][0]
     assert block["blocked_keys"], "the incomplete seed set must be reported"
     assert "seed sets differ" in block["blocked_keys"][0]["reason"]
-
