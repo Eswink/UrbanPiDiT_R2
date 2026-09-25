@@ -1,10 +1,12 @@
 # R7 issue comments: paste-ready drafts
 
 Status: **NOT YET PUBLISHED.** This machine has no `gh` and no token.
-`POST /repos/Eswink/UrbanPiDiT_R2/issues/<n>/comments` was re-tested in round 1 and once more before round 2
-and still returns **HTTP 401 `Requires authentication`**. No comment here has
-been posted to GitHub, and no issue has been closed. Nothing in this file should
-be read as a published link or a changed issue state.
+`POST /repos/Eswink/UrbanPiDiT_R2/issues/<n>/comments` was re-tested four times
+across the session (issues #13, #20, #1) and returned **HTTP 401
+`Requires authentication`** every time. Issue-artifact downloads returned **401**
+and CI log downloads returned **403** for the same reason. No comment here has been
+posted to GitHub, and no issue has been closed. Nothing in this file should be
+read as a published link or a changed issue state.
 
 To publish, a human needs either `gh auth login` or a PAT with `issues:write`.
 
