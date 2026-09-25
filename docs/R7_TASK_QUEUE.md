@@ -23,6 +23,7 @@ by design.
 | #56 pinned offline continuous-data800update control | DONE | actual35895446235; CI35895446093 |
 | #57 optional spatial solver plus400update matched ablation | DONE (engineering/experiment) | actual35896740916; CI35896740912; defaultFalse retained |
 | #58 explicit case selection/common-case retrospective audit | DONE | actual35898091953; CI35898091928 |
+| #60 seed-identity comparator, fail-closed gates, historical re-aggregation (S0-A) | DONE (acceptance chain) | local 909 passed/3 skipped; conventions 34/0; audit 27/27 records, max mean diff 0.0, 0/34 directions changed; see R7_SEED_IDENTITY_COMPARATOR.md |
 
 Latest full code CI: **578passed,3old-fixture-skipped,2existingLightningwarnings**
 in49.25s, job107306975262, plus compile/whitespace/installed-wheel checks.

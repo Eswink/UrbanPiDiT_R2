@@ -598,3 +598,28 @@ Draft comment (paste verbatim, minus this line):
 
 No closure statement — this parent stays open pending a human decision, and I am
 not treating "all sub-issues touched" as satisfaction of G1–G4.
+
+## #60 — 修复多种子比较的身份配对（2026-09-26，API 评论 401，证据落 docs）
+
+> **状态：DONE（验收链工程项；无新科研结论）。** 绑定 commit 见
+> `docs/R7_TASK_QUEUE.md`；证据全文：`docs/R7_SEED_IDENTITY_COMPARATOR.md`。
+>
+> 改动：`training/r7_coreasoning_compare.py` 以完整
+> `arm/depth/variable/unit/lead/seed` 键连接；seed 显式保留并按 seed 配对差分；
+> 缺/重 seed、单位冲突、案例集不一致（等 count 但 init 列表不同，经
+> provenance digest 判定）、NaN/负 RMSE、重复表项、缺 baseline 行、记录身份
+> 不一致全部 fail closed；`rmse_seed_mean` 与 `rmse_pooled_cases` 分名分报；
+> 逐 seed 的 rmse.csv 与 provenance 逐 case MSE 交叉核对（rel 1e-9）；
+> `gate_met` 从比较块中移除，`evaluate_gate` 只读实验前冻结判据
+> （unresolved 超冻结配额即失败）；`reaggregate_historical` 从原始产物
+> 重聚合并输出 write-once 审计差分，原始不覆盖、取不到标 blocked 不补造 ID。
+>
+> 验证：targeted 26 passed（含 #60 隔离复现：均值相同仅记录顺序不同 → 输出
+> 不变且按 seed 正确配对）；全仓 909 passed/3 skipped；34 条阻断规则 0 违规；
+> 真实历史产物重聚合：27/27 记录、blocked=0、153 个均值 max|diff|=0.0、
+> 0/34 方向变化（历史记录恰好按 seed 升序写入，旧位置 zip 恰好与 seed 身份
+> 重合——现在这是被验证的事实而非假设）。原始结果文件逐字节未动。
+>
+> 未做/非目标：不动预报权重、不重新训练、不取新数据；K3 的描述性结果
+> （10 improved/7 worsened/2 sign-consistent/15 unresolved）**不构成** #6
+> gate 通过；任何 gate 声明必须先冻结判据。未跑 GPU。
