@@ -682,3 +682,33 @@ not treating "all sub-issues touched" as satisfaction of G1–G4.
 >
 > 未做/待用户：包在 `outputs/`（按约定不入库），对外发布需 GitHub 连接器或
 > 用户上传——不擅自决定。
+
+## #63 — ERA5 数据 v2 read-plan（2026-09-26，API 评论 401，证据落 docs）
+
+> **状态：read-plan/metadata/离线验收 DONE；新年份获取 BLOCKED 于下载授权**
+> （issue 明文：缺授权只阻塞获取，不阻塞 read-plan 与离线测试）。证据全文：
+> `docs/R7_ERA5_V2_READ_PLAN.md`；冻结协议 sha256 3bf7ab2cce103545…（
+> `outputs/r7_era5_v2_read_plan.json`）。
+>
+> 冻结：65×65、27–43N/107–123E、17 通道顺序取自 `r7_era5.py` 发布定义并断言
+> （含 13 层子集与 geopotential m**2 s**-2 守卫）；train 2016–2018 / val 2019 /
+> **2020 排除出 test** / test 候选 2021 未封存待访问审计；D1=2016-01-01 起 30
+> 连续天（120 步、四 UTC 起报时刻全覆盖）；窗口=2 帧历史+至多 +72h，禁跨缺口
+> /split；halo 仅来自 t 及其历史；normalization 只拟合 train 且版本化。
+>
+> 成本表（仅元数据探测，2026-09-26 实测 chunk 几何；http=null 不冒充）：
+> D1 133 时次解码——ARCO wb13-6h（已 pin）**35.49 GiB ✓**；Earthmover
+> snapshot ZFKDHBCTBVHVXM3BQFV0 **9.77 GiB ✓**（最省）；full_37 97.22 GiB ✗
+> 超上限（未 pin，仅参考）。
+>
+> 离线重放（本地真实 120×17×65×65 store，30 连续天，无网络）：107 个完整
+> +72h 窗口；起报覆盖 {00:27, 06:27, 12:27, 18:26}；t2m/q850 finite 且物理
+> 范围内。eps=1e-6 floor 审计（真实数据）：moisture_advection_850_mean
+> （std 9.1e-9）与 moisture_convergence_850_mean（std 1.7e-8）被 floor 压制，
+> 归一化后近零占比 72.5%/39.2%，store 内已存 std 即 floor 值——原值/方差/
+> 截断比例已保留记录，新标准化留给 v2 构建由 train 统计决定并版本化。
+>
+> 测试：6 个新 read-plan 测试；全仓 954 passed/3 skipped；34 条规则 0 违规。
+>
+> BLOCKED/待用户：D1 获取（2016–2018）及 D2 扩量、2021 访问审计需要显式
+> 下载授权；成本选项已冻结（9.77 或 35.49 GiB，均在 64 GiB 上限内）。

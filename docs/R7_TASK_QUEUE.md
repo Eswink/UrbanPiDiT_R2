@@ -33,6 +33,7 @@ are fixed in place with per-file correction logs; no measured value changed.
 | #60 seed-identity comparator, fail-closed gates, historical re-aggregation (S0-A) | DONE (acceptance chain) | local 909 passed/3 skipped; conventions 34/0; audit 27/27 records, max mean diff 0.0, 0/34 directions changed; see R7_SEED_IDENTITY_COMPARATOR.md |
 | #61 DDP verified reasoning depth, resume contract, padded samplers (S0-B) | DONE (CPU+2×3090; real-region throughput BLOCKED on #63 D1) | local 939 passed/3 skipped; CUDA: eval K observed 4 with steps=10, resume 111/111 weight hashes identical, streamed+DDP refused; see R7_DDP_K_CONTRACT.md |
 | #62 GPU audit pack, doc corrections, climatology skill baseline (S0-C) | DONE (publish pack = user decision) | local tests incl. 9 new (5 ACC skill + 4 audit pack); real pack 562 files/0 credentials; tables rebuilt from pack only (104 rows, 30 oom/skip flagged); retained_truncated memory cells added; see R7_GPU_AUDIT_PACK.md |
+| #63 ERA5 v2 frozen read plan, cost table, offline replay, eps floor audit (S1) | read-plan DONE; acquisition BLOCKED on download authorization (cost options frozen: 9.77/35.49 GiB) | local 954 passed/3 skipped; protocol sha 3bf7ab2cce103545; 107 complete +72h windows on the real 30-day store; 2 moisture labels crushed by the 1e-6 floor (72.5%/39.2% near-zero); see R7_ERA5_V2_READ_PLAN.md |
 
 Latest full code CI: **578passed,3old-fixture-skipped,2existingLightningwarnings**
 in49.25s, job107306975262, plus compile/whitespace/installed-wheel checks.
