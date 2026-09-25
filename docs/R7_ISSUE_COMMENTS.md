@@ -465,3 +465,60 @@ Closure statement (only after the comment above is posted):
 > persistence baseline. The un-done scope bullets (Pareto, complexity diagnostics,
 > extreme events) are recorded in the linked document rather than being represented
 > as complete.
+
+---
+
+## #9 — [R7.X] Optional reasoning-guided adaptive-resolution urban extension
+
+Draft comment (paste verbatim, minus this line):
+
+> **Staying BLOCKED, with the dependency now evidenced rather than asserted.**
+> Recorded at `6dc388d`; no result is claimed.
+>
+> #9 needs three things at once: **co-located** truth (the R7 store actually used
+> covers **27.00–43.00 N, 107.00–123.00 E at 0.25°**), **dynamic** fields, and
+> **finer than 0.25°** genuinely — the issue excludes upsampled ERA5 as truth.
+>
+> **Access audit, each item checked against a live endpoint this round:**
+>
+> | Candidate | Result |
+> | --- | --- |
+> | HRRR (NOAA 3 km) | **Reachable and open (HTTP 200)**, but domains offered are **CONUS + Alaska only**. 107–123 °E is outside CONUS ⇒ not co-located. |
+> | HRCLDAS (CMA) | Described in the literature, but the CMA portal exposes **no product listing and no key-free machine-readable endpoint**; it is a registration/request route. |
+> | SMBFD | Only **4 OpenAlex works** match and they are *evaluations* over the Tibetan Plateau / lake districts — not an open km-scale dynamic download for East Asia. |
+> | WeatherBench2 | live bucket index: 2 top-level prefixes, **no km / urban / China / East-Asia product**. |
+> | ARCO ERA5 | live bucket index: 3 prefixes, all at the known ERA5 resolutions (**0.25° and coarser**). |
+> | NOAA PSL gridded archive | live dataset index: **no `cma`/`china`/`hrcldas`/`smbfd`**; the only km-scale regional family present is US (HRRR/RAP/NAM). |
+> | Search engines (`cn.bing.com` via WebFetch) | Returned **entirely unrelated results** (browser-game pages) for both HRCLDAS and SMBFD queries. Recorded because it shows a search summary must not be treated as evidence — the conclusion above rests on direct endpoint checks. |
+>
+> **Why not use the US 3 km product anyway:** #9 is an *urban extension of the R7
+> East-Asia forecast*. US-only truth would need either retraining the whole core on
+> CONUS (a different project) or scoring an East-Asia forecast against
+> non-overlapping truth (meaningless).
+>
+> **The shortcut I did not take:** regridding 0.25° ERA5 to 1 km and calling it
+> truth. An upsampled field has smoother gradients, so a model can score well on
+> small-scale error it never learned — and it would be invisible in a metric table.
+> Nothing was interpolated, upsampled, or synthesised here.
+>
+> **What would unblock it** (each needs a human decision or an outside account,
+> not more compute):
+>
+> 1. a **CMA data-service account** with HRCLDAS/CLDAS download rights and stated
+>    redistribution terms, so the subset can be fetched through `data/download/**`
+>    under the existing budget guards;
+> 2. a **co-located open km-scale analysis for 107–123 °E** (e.g. a national
+>    service publishing an anonymous object store);
+> 3. **pivoting the study domain to CONUS**, which makes open 3 km HRRR immediately
+>    usable at the cost of redoing core training on that domain — a scope decision.
+>
+> **Not done:** no HRCLDAS/SMBFD file downloaded (no key-free endpoint found), no
+> account created, no UrbanExpert change, no interpolation, and no metric computed
+> against anything that is not real reanalysis. Full record:
+> `docs/R7_URBAN_EXTENSION_BLOCKED.md`.
+>
+> Keeping this issue open as the stretch goal it is; #1's dependency ordering says
+> it resumes only after R7.1–R7.5 are stable, and #6/#7 have now produced negative
+> results rather than a stable positive core.
+
+No closure statement — this issue stays open on a real external dependency.

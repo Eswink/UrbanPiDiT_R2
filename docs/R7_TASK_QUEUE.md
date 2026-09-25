@@ -1,7 +1,7 @@
 # R7 conversation-driven task queue
 
 Updated after verified issue #13 regional acquisition at `f37ceba`, the #20
-multi-seed comparison at `7dfbea6`, the #5 budget-parity audit at `bf57fd4`, the #6 fair-budget comparison at `1bc1eef`, the #7 halting-gate audit at `0f5df17`, and the #8 rollout tables at `b7f45ab`.
+multi-seed comparison at `7dfbea6`, the #5 budget-parity audit at `bf57fd4`, the #6 fair-budget comparison at `1bc1eef`, the #7 halting-gate audit at `0f5df17`, the #8 rollout tables at `b7f45ab`, and the #9 access audit at `6dc388d`.
 No scheduler, main merge/release, force push, paid GPU or uncontrolled data mirror.
 
 ## Accepted work in this iteration
@@ -72,7 +72,7 @@ traffic/RAM. Local replay needs no new cloud-source access.
 | #7 adaptive benefit | audit DONE (negative) at `0f5df17` | Gate audited and found not satisfiable as stated: K=3 raises the equal-channel normalized objective 1.5–3.3% over K=0 (worse in all seeds for process_no_feedback), so fixed-Kmax is not the accuracy ceiling; and no shallower depth passes the per-variable tolerance at any tolerance ≤10% because `z250` stays 14–19% above the reference. This explains the earlier full-depth fallback. Controller thresholds were NOT changed and no savings are claimed — see [R7_HALTING_GATE_AUDIT.md](R7_HALTING_GATE_AUDIT.md). |
 | #8 journal evaluation | acceptance DONE at `b7f45ab`; Pareto/complexity/extremes NOT done | `scripts/rollout_r7_metric_tables.py` produces paper-ready 6/12/24/48/72 h per-variable RMSE and ACC tables from frozen checkpoints without touching training code (AST-enforced), refusing to mix model generations or datasets and including a same-data persistence baseline — see [R7_ROLLOUT_TABLES.md](R7_ROLLOUT_TABLES.md). Explicitly NOT done: accuracy–compute Pareto, weather-complexity vs depth diagnostics, and extreme-event metrics. Test separation preserved (train2018/val2019/test2020). |
 | #20 memory/resource acceptance | engineering DONE on local 2×3090; multi-seed comparison DONE at `7dfbea6`, science open | Multi-seed paired comparison on real 17-channel ERA5: 72/72 cells, 3 seeds, both tricks, at [R7_GPU_MULTISEED.md](R7_GPU_MULTISEED.md). Streamed stays flat in K (−393 MiB at K=8 vs full BPTT, all seeds agreeing) but is slower at every K; checkpointing cuts 51.8–54.5 % of peak for +25–38 ms. Memory reproduced bit-identically in all 72 cells across two runs; step time did not. No rental used and no fabricated measurement. |
-| #9 finer-resolution expert | BLOCKED, scientific labels/core gates | Need real co-located finer-resolution dynamic targets; never interpolated truth. |
+| #9 finer-resolution expert | **BLOCKED** at `6dc388d`, dependency named | Access audited against live endpoints: HRRR is open but CONUS+Alaska only (not co-located with 107–123 °E); HRCLDAS exposes no key-free endpoint and the CMA portal is a registration route; SMBFD has no open download; WeatherBench2/ARCO contain no km-scale East-Asia product; NOAA PSL has only US km-scale products. Unblocks via a CMA account, a co-located open km-scale store, or pivoting the domain to CONUS. No interpolation or synthetic truth produced — see [R7_URBAN_EXTENSION_BLOCKED.md](R7_URBAN_EXTENSION_BLOCKED.md). |
 | #1 / PR12 scientific release | IN_PROGRESS | Hypotheses unproven; PR remains Draft. Bounded CPU engineering success is not final SOTA. |
 
 ## Execution discipline
