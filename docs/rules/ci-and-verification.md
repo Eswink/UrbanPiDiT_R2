@@ -93,3 +93,60 @@
 
 **没有**任何静态分析门禁：全仓无 ruff / flake8 / mypy / black / pylint 配置，
 也没有 `.pre-commit-config.yaml`（E-080）。这是本次引导识别出的最大工程缺口，见 `MIGRATION.md`。
+
+## Workflow 触发契约与 GitHub 通道（2026-09-25 追加）
+
+背景：用户实测发现"GitHub 上很多 workflow 都是 skipped"，并明确本项目**只用 `git`/SSH
+操作 GitHub，不用 `gh`，也不要假定 PAT 存在**。这两点共同决定了 workflow 的触发与
+issue 的关闭方式。
+
+### 17 条实验 workflow 是 commit-message 标签门控
+
+每条 `r7-*.yml` 的 push 触发限定在 `r7/weather-reasoning`，且 job 上有
+`if: contains(github.event.head_commit.message, '[<tag>]')`。因此**普通 push 上它们显示
+skipped 是设计行为，不是失败**——它们是有意做成"按需运行"的实验入口：
+
+| 标签 | workflow |
+| --- | --- |
+| `[baseline-study]` | r7-baseline-study |
+| `[common-case]` | r7-common-case |
+| `[continuous-control]` | r7-continuous-control |
+| `[continuous-pilot]` | r7-continuous-pilot |
+| `[correction-audit]` | r7-correction-audit |
+| `[cpu-study]` | r7-cpu-study |
+| `[era5-temporal-probe]` | r7-earthmover-probe |
+| `[extended-control]` | r7-extended-control |
+| `[pressure-pilot]` | r7-pressure-pilot |
+| `[pressure-replay]` | r7-pressure-replay |
+| `[public-data]` | r7-public-data |
+| `[real-smoke]` | r7-real-smoke |
+| `[restored-diagnostic]` | r7-restored-diagnostic |
+| `[seasonal-pilot]` | r7-seasonal-pilot |
+| `[seasonal-study]` | r7-seasonal-study |
+| `[spatial-solver]` | r7-spatial-solver |
+| `[surface-pilot]` | r7-surface-pilot |
+
+需要运行某条实验时，把它的标签写进 commit message 再推到工作分支；一条 commit 可带多个
+标签。不要为了"消除 skip"而给它们加 `paths:` 过滤——那会改变既有触发契约且无证据支持。
+
+**用户决定（2026-09-25）：issue 关闭工作期间不主动触发实验 workflow**（运行成本过高，
+本轮无新实验）。skip 状态被接受为设计行为；验收证据以早前已核验的绿色 run 为准，
+不得因跳过 CI 而声称新的实验结论。
+
+### issue 的自动关闭只有一条 git 路径
+
+closing keywords（`Closes/Fixes/Resolves #N`）只在**默认分支 main** 的提交里生效；推到
+工作分支无效。本仓库无 `gh`、无 token（API 写实测 401），因此：
+
+1. 在工作分支上做收尾提交，message 含 `Closes #N`（可多条）；
+2. main 是工作分支的严格祖先（2026-09-25 实测：领先 165、落后 0），所以把该提交
+   **fast-forward 推到 main 即可，任何形式的 force 都被禁止**；
+3. 这次对 main 的写入受 `guard_destructive_git` 拦截。需要执行时按 AGENTS.md 记载的
+   逃生口：临时移除 `.zcode/config.json` 里该 hook 条目 → 完成后**立即恢复**，并把移除/
+   恢复与授权来源记入一份决策记录（R-033）。**禁止**用 refspec 拼写绕过匹配正则；
+4. 两个副作用须写明：main 到达分支顶端后 **PR #12 会显示为 merged**；且 main 的 push
+   不触发 `ci.yml`（其 push 触发只限工作分支），所以验收证据是分支上的绿色 push run，
+   而不是 main 上的任何 run。
+
+**依据**：用户 2026-09-25 的明确指示（用 git 而非 gh、要求真正关闭 8 个 open issue、
+要求处置"大量 skipped workflow"）；实测记录见 `docs/goals/open-issue-resolution.md`。

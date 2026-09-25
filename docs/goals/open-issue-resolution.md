@@ -106,7 +106,7 @@ GBIF/GCS 桶列表、`https://weatherbench2.storage.googleapis.com/`。
 | **#7** | adaptive 逼近 fixed-Kmax 精度且平均推理深度**显著更低** | 现有严格策略回退到 full depth；须在冻结的新验证协议下重评 |
 | **#8** | 评估脚本产出 paper-ready 指标表，**不改训练代码**；6–72h；东扩 | 需冻结更广、时间上分离的 case，保持 test 隔离 |
 | **#9** | 需**真实共址的高分辨率动态真值**（HRCLDAS/SMBFD/区域 NWP）；插值 ERA5 只能做 baseline | 我未找到开放免注册的该类数据；**若确认找不到，保持 BLOCKED 并写明依赖**，不要用插值冒充 |
-| **#1 / #12** | 假设被证明 + PR 就绪 | PR 仍 Draft；**合并 main / 发 release 需人显式授权**，不得自动做 |
+| **#1 / #12** | 假设被证明或被完整否定 + PR 就绪 | 四条 gate 的累积判定已写入 `docs/R7_ROADMAP_GATE_STATUS.md`（无一正面支持）。main 受控写入已获授权（§4），故 #1 可按"gate 判定完成"收尾并在评论中列明后续；PR #12 随 main 到达分支顶端显示为 merged；**发 release 仍需人显式授权** |
 
 ### 关闭纪律
 
@@ -119,20 +119,48 @@ GBIF/GCS 桶列表、`https://weatherbench2.storage.googleapis.com/`。
 
 ---
 
-## 4. 写入 issue 的现实（必须先验证）
+## 4. issue 关闭的 git 机制（用户 2026-09-25 已授权，取代早期"只出草稿"方案）
 
-**已实测：本机没有 `gh`、没有 token，`POST /issues/<n>/comments` 返回 401。**
-`~/.netrc` 只有 wandb 条目；`git push` 走 SSH（身份 `sqy941013`）可用。
+**用户明确声明：本项目只用 `git`/SSH，不用 `gh`，也不要假定 PAT。** 已实测：无 `gh`、
+无 token，API 写 401；但 `git push` 走 SSH 可用。因此关闭 issue 不走 API，走 git：
 
-因此"关闭 issue"这一步**当前无法自动完成**。处置顺序：
+1. **唯一生效路径**：closing keywords（`Closes/Fixes/Resolves #N`）出现在**默认分支 main**
+   的提交里才会自动关 issue。推到 `r7/weather-reasoning` 无效。
+2. **已实测 ff 可行**：`git merge-base --is-ancestor origin/main HEAD` 成立（领先 165、
+   落后 0）⇒ 把分支顶端 fast-forward 推到 main 即可，**任何形式的 force 都禁止**。
+3. **hook 例外的受控使用**：该 main 写入会被 `guard_destructive_git` 拦截（文本匹配器，
+   连命令文本里出现 `git push origin main` 都会触发）。按 AGENTS.md 记载的逃生口：
+   临时移除 `.zcode/config.json` 里 `guard_destructive_git` 条目 → 执行**这一次**授权的
+   main 写入 → **立即恢复**该条目 → 把移除/恢复/授权来源写进一份决策记录（R-033 格式，
+   Consequences 必须含代价）。**禁止**用 refspec 拼写（如 `HEAD:main`）绕过正则——
+   那属于本项目明令禁止的"审计发现的绕过"类。
+4. **两个必须写明的副作用**：main 到达分支顶端后 **PR #12 会显示为 merged**（这是本
+   授权的自然结果，不是越权）；main 的 push 不触发 `ci.yml`（其 push 触发只限工作分支），
+   所以验收证据是**分支上早前已核验的绿色 push run**（判定所绑定的那些 SHA），
+   而不是 main 上的任何 run。
+5. **关闭顺序**：先在工作分支推一条收尾提交（message 含全部 `Closes #N` 与对应证据的
+   精确 SHA）——**不等它的 CI**（§4b/§6 的用户决定），直接做 main 的 ff 推送。
+   若 GitHub 拒绝（分支保护），如实记录错误并标 BLOCKED，不得 force、不得重试轰炸。
 
-1. **先再确认一次**写路径（别假设，重新实测）；
-2. 若仍不可写 → 证据写入仓库 `docs/`，并产出**可直接粘贴的 issue 评论与关闭说明**
-   （含精确 SHA、run/job id、pass/skip 计数、未解决限制），**明确标注「尚未发布」**；
-3. **禁止**声称已发布、**禁止**伪造 issue 链接或状态。
+---
 
-> 如需真正自动关 issue，需用户提供 token（PAT，`issues:write`）或先 `gh auth login`。
-> 这一项是**用户侧动作**，不要反复重试耗尽预算。
+## 4b. skipped workflow 的处置（用户 2026-09-25 决定：**暂不运行**）
+
+17 条实验 workflow 是 **commit-message 标签门控**：`if: contains(github.event.head_commit.message,
+'[<tag>]')`。普通 push 上它们显示 skipped 是**设计行为，不是失败**——它们是按需运行的
+实验入口。标签全集见 `docs/rules/ci-and-verification.md`（`[cpu-study]`、`[seasonal-study]`、
+`[real-smoke]` 等 17 个）。
+
+**用户 2026-09-25 决定：本轮不触发它们**（实验 workflow 运行太浪费时间）。处置：
+
+1. **不携带任何实验标签**（17 个都不带），**不等待、不轮询**任何 CI run，
+   也不以新的绿色 CI run 作为关闭门槛——判定所依据的实验证据是此前各 SHA 上
+   已核验过的绿色 run（已在 `docs/R7_*.md` 绑定），不因本轮不跑 CI 而失效；
+2. 工作分支的常规 push 仍会自动触发 `ci.yml`（约 2 分钟），**让它自跑即可**：
+   报告里给出 run id，若仍在跑就如实写 "in progress"，不得为等它拖延 main 写入；
+3. 在收尾提交 message 里明说："实验 workflow 按标签门控设计保持 skipped，非失败；
+   需要时按标签运行"；
+4. **不要**加 `paths:` 过滤去"消除 skip"——那改变触发契约且无证据支持。
 
 ---
 
@@ -145,29 +173,33 @@ GBIF/GCS 桶列表、`https://weatherbench2.storage.googleapis.com/`。
 - 获取 §2 描述的**有界**真实 ERA5 子集。
 
 **仍必须停下或不得做**（项目硬约束，不因"自迭代授权"而解除）：
-- 合并 `main`、创建 release、force push、`reset --hard`、`branch -D`；
+- force push、`reset --hard`、`branch -D`、创建 release；
 - **付费 GPU 租赁**、大规模长训练、多年度全量下载、破坏性数据操作；
 - 改动 / 移动 / 删除 `data/raw|interim|processed` 与归档快照（`legacy_*`）；
 - 放宽或跳过测试与判据；把 CPU 结果说成 GPU 验证；把工程通过说成科研结论。
+
+**唯一例外的 main 写入**：把收尾提交 fast-forward 推到 main 以触发 closing keywords
+关闭 issue（§4）。这是用户 2026-09-25 明确授权的**单一用途**写入；必须按 §4 的受控
+流程执行（临时移除 hook 条目 → 完成 → 立即恢复 → 决策记录），且**仅此一次**——
+除此之外对 main 的任何写入仍然禁止。
 
 **预算**：单次迭代 ≤ ~90 分钟；不跑通宵。每轮结束都要留下可核查证据并推送。
 
 ---
 
-## 6. 每轮的固定动作
+## 6. 每轮的固定动作（2026-09-25 按"不跑实验 workflow"修订）
 
 1. `git rev-parse HEAD` 记录起点；
 2. 选当前顺序下**最早未完成**的一项（不要并行开多条主线）；
 3. 实现 → 测试 → 自查 → 修 → 再测；
 4. 跑全量 `pytest -q` 与 `python tools/check_conventions.py`（34 条阻断规则须 0 违规）；
-5. commit（遵循 `type(r7): summary (#N)`）+ push；
-6. **等 push 触发的 CI**（本分支 PR 触发被 `ci.yml` 刻意 skip，看 push run），
-   记录 run id / job id / 结论；
+5. commit（遵循 `type(r7): summary (#N)`；**不携带任何实验 workflow 标签**，见 §4b）+ push；
+6. **不等 CI**（用户 2026-09-25 决定）：分支 push 会自动触发 `ci.yml`，让它自跑，
+   报告里给 run id 即可，不得轮询、不得以它为门槛；
 7. 把结果写入 `docs/R7_*.md` 与 `docs/R7_TASK_QUEUE.md`，绑定精确 SHA；
 8. 判定该 issue：DONE（Acceptance 满足）或 BLOCKED（写出依赖）；
-9. 回到步骤 2。
-
-**CI 在等的时候不要空转**：转做下一项的源码审查、测试或文档。
+9. 全部判定完成后，按 §4 执行收尾提交 + main 的受控 ff 推送，逐条核对 8 个 issue
+   在 GitHub 上确实变为 closed，再回到步骤 7 记录最终状态。
 
 ---
 
@@ -203,12 +235,16 @@ DONE（列出满足的 Acceptance 条目）或 BLOCKED（写出真实依赖）
 全部满足即结束本轮 goal：
 
 - 每个 open issue 要么 **DONE 且有证据**，要么 **BLOCKED 且写出了真实依赖**；
+- 8 个 issue 在 GitHub 上**真实处于 closed 状态**（§4 的 git 路径生效后逐一核对，
+  不得只看本地草稿就宣称已关）；
 - 没有未推送的本地改动；没有进行中的实验；
-- 最新 SHA 有一条**未取消、未 skip 的绿色 push CI**；
-- issue 评论（若写路径恢复）已发布；若仍不可写，草稿已在 `docs/` 且标注未发布。
+- 临时移除的 hook 条目已恢复，且决策记录已写明移除/恢复与授权来源；
+- **不要求新的绿色 CI run**（用户 2026-09-25 决定暂不跑实验 workflow）：判定所依据的
+  证据是此前各 SHA 上已核验的绿色 run；但**不得**因跳过 CI 而声称任何新的实验结论
+  ——本轮收尾提交只改文档，不做实验。
 
 **不得**为了达成"全部关闭"而降低判据。若某 issue 的科研关卡未被证据支持，
-如实记录并保持开启（或按 §3 的"负结论"路径收尾），这**是**正确结果。
+按 §3 的"负结论"路径收尾并如实记录——这**是**正确结果。
 
 ---
 

@@ -2,6 +2,29 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-25 — GitHub 通道与 issue 关闭方式（用户授权的例外）
+
+**范围**：`.github/workflows/*.yml` 的触发语义、对 `main` 的受控写入、issue 的自动关闭。
+**来源**：用户 2026-09-25 明确指示——本项目**只用 `git`/SSH，不用 `gh`**；要求真正关闭
+8 个 open issue；要求处置"大量 skipped workflow"的观感问题。
+**落点**：`AGENTS.md` 新增「GitHub 通道与 issue 关闭」小节；
+`docs/rules/ci-and-verification.md` 新增「Workflow 触发契约与 GitHub 通道」。
+
+**记录的三件事**：
+
+1. **skipped 是设计行为**：17 条实验 workflow 由 commit-message 标签门控
+   （`[cpu-study]` 等全集见 `ci-and-verification.md`），普通 push 上 skip 不是失败。
+2. **issue 自动关闭的唯一 git 路径**：closing keywords 必须落在**默认分支 main** 的提交里；
+   实测 main 是工作分支的严格祖先（领先 165、落后 0），故 fast-forward 推送可行、
+   force 仍被禁止。
+3. **hook 例外的受控使用**：该 main 写入会被 `guard_destructive_git` 拦截；按 AGENTS.md
+   既有的逃生口，临时移除 `.zcode/config.json` 里该 hook 条目、完成后立即恢复，
+   全程记入决策记录。**禁止**用 refspec 拼写绕过匹配正则。
+
+**代价（如实记录）**：main 到达分支顶端会使 PR #12 显示为 merged；main 的 push 不触发
+`ci.yml`，验收证据仍以工作分支上的绿色 push run 为准。此条不改变 R-027/R-029/R-030
+等任何既有规则的判据。
+
 ## 2026-09-24（第七遍）— 命名约束
 
 **范围**：为文件/模块/包/类/函数/常量/测试/文档/配置建立命名规则。

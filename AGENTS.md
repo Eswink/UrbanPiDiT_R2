@@ -49,6 +49,21 @@
   未在 requirements 中声明。完整清单与复现命令见 `docs/rules/environment.md`（缺口见 Q-011）。
 - CI 是 CPU-only；本机有 2×RTX 3090，因此本地能跑而 CI 不能跑 GPU 路径（反之亦然）。
 
+## GitHub 通道与 issue 关闭（2026-09-25 起生效）
+
+- **本项目只用 `git`/SSH 操作 GitHub，不用 `gh`，也不要假定 PAT 存在。** 实测：
+  API 读匿名可用（public 仓库，限额 60 次/小时）；API 写（评论/关闭 issue）**401**；
+  CI 日志下载 403；`git push` 走 SSH（身份 `sqy941013`）可用。
+- **自动关闭 issue 只有唯一一条 git 路径**：`Closes/Fixes/Resolves #N` 出现在**默认分支 main**
+  的提交里才会生效——推到工作分支无效。main 是本分支的严格祖先（ff 推送，禁 force）。
+  该写入受 `guard_destructive_git` 拦截；需要执行时走 AGENTS.md 记载的 hook 逃生口
+  （临时移除 `.zcode/config.json` 对应条目 → 完成后立即恢复），并把移除/恢复与授权来源
+  记入一份决策记录。**禁止**用 refspec 拼写绕过正则。
+- **17 条实验 workflow 是 commit-message 标签门控**（如 `[cpu-study]`、`[seasonal-study]`、
+  `[real-smoke]`；全集见 `.github/workflows/r7-*.yml`）。普通 push 上它们显示 skipped 是
+  **设计行为，不是失败**；需要运行某条就在 commit message 里带上它的标签。
+  触发契约与判定纪律见 `docs/rules/ci-and-verification.md`。
+
 ## 按任务加载
 
 | 当你要做… | 先读 |
