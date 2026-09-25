@@ -156,3 +156,66 @@ Closure statement (only after the comment above is posted):
 > time for K=1/2/4/8 now include a multi-seed comparison of both training tricks
 > on real data. The reported limitations — three seeds as a noise check, and two
 > unresolved `process` rows — are recorded rather than smoothed over.
+
+---
+
+## #5 — [R7.2] Implement generic TRM-like recursive weather baseline
+
+Draft comment (paste verbatim, minus this line):
+
+> **The acceptance criterion — "comparable parameter/FLOP budget" — is now
+> measured rather than assumed, at `bf57fd4`.**
+>
+> The model, K=1/2/4/6/8 support, deep-supervised drafts and the
+> truncated-recursion option already existed; parameter counts were already
+> reported per variant. What did **not** exist anywhere in the repository was any
+> **FLOP accounting**, so the FLOP half of the criterion had never been checked.
+> A repo-wide case-insensitive search for `flop` (excluding the read-only archive)
+> returned no hits.
+>
+> **Result**, at `dim=128, depth=4`, batch 2, reading real 17-channel ERA5 windows
+> from the published regional store, with a 5 % tolerance declared before
+> measurement:
+>
+> | metric | generic | process | relative difference |
+> | --- | --- | --- | --- |
+> | parameters | 1,264,034 | 1,264,419 | +0.030 % |
+> | FLOPs K=1 | 5,006,418,176 | 5,006,422,272 | +0.0001 % |
+> | FLOPs K=2 | 5,662,100,736 | 5,662,108,928 | +0.0001 % |
+> | FLOPs K=4 | 6,973,465,856 | 6,973,482,240 | +0.0002 % |
+> | FLOPs K=6 | 8,284,830,976 | 8,284,855,552 | +0.0003 % |
+> | FLOPs K=8 | 9,596,196,096 | 9,596,228,864 | +0.0003 % |
+>
+> The 385-parameter gap is **entirely** the process readout (`process_readout`).
+> Backbone (862,225), recursive cell (331,008), correction head (42,897) and draft
+> encoder (9,088) are identical across the two models, and both carry a 16-token
+> recursive state — which is why the FLOP ratio stays at 1.0000 for every K even
+> as absolute cost grows about 1.9x from K=1 to K=8.
+>
+> **Counting convention is recorded in the report**, because a FLOP number without
+> it is not comparable: `FlopCounterMode` over one forward pass; elementwise and
+> normalization ops not counted; backward not counted and not assumed equal;
+> gradients required (the counter raises under `torch.no_grad()` on these models).
+> Attention uses `F.scaled_dot_product_attention`, which contributes no counted
+> parameters.
+>
+> **What this does not say.** A budget match is not evidence of forecast skill; it
+> only removes capacity as a confound, which is exactly what #6 needs. Whether
+> process state helps remains #6's question, and its three-seed evidence is mixed
+> (spatial feedback helps some wind scores but worsens T500). No test split was
+> touched.
+>
+> Full record: `docs/R7_BUDGET_PARITY.md`; tests:
+> `tests/test_r7_budget_audit.py` (8 offline). Verification: `pytest -q` 844
+> passed / 3 skipped / 0 failed with GPU, 838 / 9 / 0 with
+> `CUDA_VISIBLE_DEVICES=""`; `python tools/check_conventions.py` 34 blocking
+> rules, 0 violations.
+
+Closure statement (only after the comment above is posted):
+
+> Closing: all four listed tasks exist (parameter-shared recursive cell, K=1/2/4/6/8,
+> deep-supervised drafts, truncated-recursion option for bounded VRAM) and the
+> accuracy-vs-reasoning-steps reporting is in
+> `R7_PRESSURE_CPU_RESULTS.md` / `R7_CPU_REFINEMENT_RESULTS.md`. The acceptance
+> criterion of a comparable parameter/FLOP budget with R7.3 is now measured at
+> every K, with the counting convention stated.

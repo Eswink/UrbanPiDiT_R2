@@ -1,7 +1,7 @@
 # R7 conversation-driven task queue
 
-Updated after verified issue #13 regional acquisition at `f37ceba` and the #20
-multi-seed comparison at `7dfbea6`.
+Updated after verified issue #13 regional acquisition at `f37ceba`, the #20
+multi-seed comparison at `7dfbea6`, and the #5 budget-parity audit at `bf57fd4`.
 No scheduler, main merge/release, force push, paid GPU or uncontrolled data mirror.
 
 ## Accepted work in this iteration
@@ -68,7 +68,7 @@ traffic/RAM. Local replay needs no new cloud-source access.
 | Parent/task | State | Evidence/next useful action |
 | --- | --- | --- |
 | #13 representative data | IN_PROGRESS | Bounded regional acquisition completed at `f37ceba`: 3 years x 4 seasons, 65x65 East-Asia, 48 exact 6-hourly timestamps, 9 variables, source SHA256 `d3fa1fba6da46ed59a535ce27f7501813afc2c93cb8b745c90e349454a40960a`. Converted through the audited publication path to a 17-channel store (8 windows per split, `BUILD_COMPLETE.json`, train-only statistics). Coverage is four 24-hour blocks per year, NOT continuous full-year; see [R7_REGIONAL_ACQUISITION.md](R7_REGIONAL_ACQUISITION.md). |
-| #5/#6 recurrence/process benefit | IN_PROGRESS | Three-seed controls show mixed outcomes. Spatial feedback helps some wind scores but worsens T500; process does not uniformly beat generic. Keep defaults and all negatives. |
+| #5/#6 recurrence/process benefit | #5 acceptance DONE at `bf57fd4`; #6 science open | #5's parameter/FLOP parity criterion is now measured, not assumed: parameters +0.030% and forward FLOPs +0.0001–0.0003% across K=1/2/4/6/8 on real ERA5, so the budget match holds at every depth — see [R7_BUDGET_PARITY.md](R7_BUDGET_PARITY.md). #6 remains open: three-seed controls show mixed outcomes, spatial feedback helps some wind scores but worsens T500, and process does not uniformly beat generic. Keep defaults and all negatives. |
 | #7 adaptive benefit | IN_PROGRESS | Existing strict policies fell back to full depth. This iteration does not change controller thresholds or certify savings. Reassess only against an explicitly frozen new validation protocol. |
 | #8 journal evaluation | IN_PROGRESS | Freeze broader, temporally spaced cases and meaningful uncertainty controls; preserve test separation. Cross-profile comparison now requires explicit cases/common-case audit. |
 | #20 memory/resource acceptance | engineering DONE on local 2×3090; multi-seed comparison DONE at `7dfbea6`, science open | Multi-seed paired comparison on real 17-channel ERA5: 72/72 cells, 3 seeds, both tricks, at [R7_GPU_MULTISEED.md](R7_GPU_MULTISEED.md). Streamed stays flat in K (−393 MiB at K=8 vs full BPTT, all seeds agreeing) but is slower at every K; checkpointing cuts 51.8–54.5 % of peak for +25–38 ms. Memory reproduced bit-identically in all 72 cells across two runs; step time did not. No rental used and no fabricated measurement. |
