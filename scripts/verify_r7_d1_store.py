@@ -61,7 +61,8 @@ def verify(source_nc, receipt, manifest_dir, output_path):
     if not checks["build_complete"]:
         failures.append("manifests lack a BUILD_COMPLETE.json with build_complete=true")
 
-    root = zarr.open_group(str(Path(manifest_dir).parent / "cache.zarr"), mode="r")
+    store_path = Path(manifest_dir).parent / "cache.zarr"
+    root = zarr.open_group(str(store_path), mode="r")
     if root.attrs.get("build_complete") is not True or root.attrs.get("schema_version") != 1:
         failures.append("store is not a complete schema_version=1 R7 store")
     times = pd.DatetimeIndex(root["time_ns"][:].astype("datetime64[ns]"))
@@ -95,13 +96,17 @@ def verify(source_nc, receipt, manifest_dir, output_path):
     if not checks["split_mode_time_ranges"]:
         failures.append("store does not declare the time-range split mode")
 
+    # Ownership comes from the shared reader helper, not a local re-implementation:
+    # a replay that recomputes the rule can stay green while the readers disagree
+    # (the 0/10 val/test validate_record defect this script used to miss).
+    from data.r7_store import split_time_labels, validate_record
+    from data.r7_evaluation import fit_training_climatology
+    labels = split_time_labels(root)
+    if labels is None:
+        failures.append("store declares the time-range mode but yields no range labels")
+        labels = np.full(len(times), "", dtype=object)
+    split_of = labels
     stamps_ns = times.asi8
-    split_of = np.full(len(times), "", dtype=object)
-    for split, rows in ranges.items():
-        for start, stop in rows:
-            begin = pd.Timestamp(start).value
-            end = pd.Timestamp(stop).value
-            split_of[(stamps_ns >= begin) & (stamps_ns < end)] = split
     train_mask = split_of == "train"
     # fp64 accumulation: fp32 means drift ~1e-4 on 400k rows and would false-fail
     train_values = state[train_mask].astype(np.float64)
@@ -140,6 +145,32 @@ def verify(source_nc, receipt, manifest_dir, output_path):
     checks["window_counts_by_split"] = total_by_split
     if window_failures:
         failures.append(f"window placement violations: {window_failures[:3]}")
+
+    # The gap this closes: every published record must pass the *readers'* own
+    # validator, and the train-only climatology must fit on the declared train
+    # window rather than the whole store. Both used to fail on a range-mode store.
+    reader_failures = []
+    for split in ("train", "val", "test"):
+        for record in [json.loads(line) for line in
+                       (Path(manifest_dir) / f"{split}.jsonl").read_text(encoding="utf-8").splitlines()
+                       if line.strip()]:
+            try:
+                validate_record(root, record)
+            except ValueError as error:
+                reader_failures.append(f"{record['sample_id']}: {error}")
+    checks["validate_record_all_splits"] = not reader_failures
+    if reader_failures:
+        failures.append(f"reader validation rejected published records: {reader_failures[:3]}")
+
+    climatology = fit_training_climatology(store_path)
+    counted = int(sum(climatology["counts"].values()))
+    checks["climatology_train_steps"] = {
+        "counted_steps": counted, "train_range_steps": int(train_mask.sum()),
+        "store_steps": int(len(times))}
+    if counted != int(train_mask.sum()):
+        failures.append(
+            f"training climatology counted {counted} steps but the declared train "
+            f"range holds {int(train_mask.sum())} of {len(times)}")
 
     result = {
         "format": "r7-d1-replay-verification-v1",

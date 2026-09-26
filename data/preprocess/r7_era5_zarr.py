@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 import numpy as np
-from .contracts import fresh_outputs, RunningMoments, utc_time_index
+from .contracts import (fresh_outputs, parse_split_time_ranges, RunningMoments,
+                        utc_time_index)
 from .process_diagnostics import PROCESS_DIAGNOSTIC_NAMES, compute_process_diagnostic_vector
 from .r7_era5 import DEFAULT_R7_ERA5_CHANNELS, ERA5ChannelSpec, _coord_name, _grid_spacing, _validate_year_splits, stack_era5_channels
 
@@ -13,43 +14,6 @@ def _write_jsonl(path, records):
     with Path(path).open('x', encoding='utf-8') as f:
         for record in records:
             f.write(json.dumps(record, ensure_ascii=False)+'\n')
-
-
-def parse_split_time_ranges(split_ranges):
-    """Validate explicit time-range splits; fail closed on overlap or disorder.
-
-    The audited builder normally splits by calendar year (`chronological_splits`).
-    A single continuous segment (D1: 30 days of one year) cannot express three
-    non-empty *year* splits, so an engineering build may instead declare
-    half-open ``[start, stop)`` time ranges per split. Keys must be exactly
-    train/val/test; ranges within a split must be disjoint; the splits
-    themselves must be chronological (train < val < test), mirroring the year
-    contract. Returns ``{split: [(start_ns, stop_ns), ...]}``.
-    """
-    import pandas as pd
-    if not isinstance(split_ranges, Mapping) or set(split_ranges) != {'train', 'val', 'test'}:
-        raise ValueError('split_time_ranges must map exactly train, val and test')
-    parsed = {}
-    for key, ranges in split_ranges.items():
-        if isinstance(ranges, (str, bytes)) or not ranges:
-            raise ValueError(f'{key} needs at least one [start, stop) range')
-        rows = []
-        for start, stop in ranges:
-            a, b = pd.Timestamp(start), pd.Timestamp(stop)
-            if a.tz is not None or b.tz is not None:
-                raise ValueError('split_time_ranges must be naive UTC timestamps')
-            if a >= b:
-                raise ValueError(f'{key} range {start}..{stop} must satisfy start < stop')
-            rows.append((a.value, b.value))
-        rows.sort()
-        for (_, b1), (a2, _) in zip(rows, rows[1:]):
-            if b1 > a2:
-                raise ValueError(f'{key} ranges overlap')
-        parsed[key] = rows
-    for lower, upper in (('train', 'val'), ('val', 'test')):
-        if max(end for _, end in parsed[lower]) > min(start for start, _ in parsed[upper]):
-            raise ValueError(f'time-range splits must be chronological: {lower} < {upper}')
-    return parsed
 
 
 def _window_records_in_ranges(times, *, split_ranges, store_path, manifest_dir,

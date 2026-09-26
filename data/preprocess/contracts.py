@@ -1,5 +1,6 @@
 """Strict publication/time/statistics contracts for local R7 datasets."""
 from __future__ import annotations
+from collections.abc import Mapping
 from functools import wraps
 from inspect import signature
 from pathlib import Path
@@ -62,6 +63,46 @@ def chronological_splits(split_years):
     if not (max(result['train']) < min(result['val']) and max(result['val']) < min(result['test'])):
         raise ValueError('year splits must be disjoint and chronological: train < val < test')
     return result
+
+
+def parse_split_time_ranges(split_ranges):
+    """Validate explicit time-range splits; fail closed on overlap or disorder.
+
+    A single continuous segment (D1: 30 days of one year) cannot express three
+    non-empty *year* splits, so a build may instead declare half-open
+    ``[start, stop)`` time ranges per split instead (decision 0005). Keys must
+    be exactly train/val/test; ranges within a split must be disjoint; the
+    splits themselves must be chronological (train < val < test), mirroring the
+    year contract. Returns ``{split: [(start_ns, stop_ns), ...]}``.
+
+    This lives in the shared contract module because both the publishing
+    builder and the read-side window-ownership check call it: the declared
+    ranges must mean the same thing on write and on read.
+    """
+    import pandas as pd
+    if not isinstance(split_ranges, Mapping) or set(split_ranges) != {'train', 'val', 'test'}:
+        raise ValueError('split_time_ranges must map exactly train, val and test')
+    parsed = {}
+    for key, ranges in split_ranges.items():
+        if isinstance(ranges, (str, bytes)) or not ranges:
+            raise ValueError(f'{key} needs at least one [start, stop) range')
+        rows = []
+        for start, stop in ranges:
+            a, b = pd.Timestamp(start), pd.Timestamp(stop)
+            if a.tz is not None or b.tz is not None:
+                raise ValueError('split_time_ranges must be naive UTC timestamps')
+            if a >= b:
+                raise ValueError(f'{key} range {start}..{stop} must satisfy start < stop')
+            rows.append((a.value, b.value))
+        rows.sort()
+        for (_, b1), (a2, _) in zip(rows, rows[1:]):
+            if b1 > a2:
+                raise ValueError(f'{key} ranges overlap')
+        parsed[key] = rows
+    for lower, upper in (('train', 'val'), ('val', 'test')):
+        if max(end for _, end in parsed[lower]) > min(start for start, _ in parsed[upper]):
+            raise ValueError(f'time-range splits must be chronological: {lower} < {upper}')
+    return parsed
 
 
 def utc_time_index(values):

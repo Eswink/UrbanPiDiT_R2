@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from model.r7_rollout import validate_horizons
-from .r7_store import validate_store, normalization, HOUR_NS
+from .r7_store import validate_store, normalization, split_time_labels, HOUR_NS
 
 
 class ZarrRolloutDataset(Dataset):
@@ -32,14 +32,21 @@ class ZarrRolloutDataset(Dataset):
         self.longitude=np.asarray(root['longitude'][:],dtype=np.float32)
         self.times=pd.DatetimeIndex(raw.astype('datetime64[ns]'))
         index={int(t):i for i,t in enumerate(raw)}
-        allowed=set(root.attrs['split_years'][split])
+        labels=split_time_labels(root)
+        if labels is None:
+            allowed=set(root.attrs['split_years'][split])
+            def permitted(position):
+                return self.times[position].year in allowed
+        else:
+            def permitted(position):
+                return labels[position] == split
         self.windows=[]
         delta=step_hours*HOUR_NS
         for i,stamp in enumerate(raw):
-            if self.times[i].year not in allowed or int(stamp)%delta:
+            if not permitted(i) or int(stamp)%delta:
                 continue
             required=[int(stamp)+k*delta for k in range(-(history_steps-1),max(self.lead_hours)//step_hours+1)]
-            if any(t not in index or self.times[index[t]].year not in allowed for t in required):
+            if any(t not in index or not permitted(index[t]) for t in required):
                 continue
             history=[index[int(stamp)-delta*k] for k in reversed(range(history_steps))]
             targets=[index[int(stamp)+h*HOUR_NS] for h in self.lead_hours]
@@ -75,16 +82,29 @@ class ZarrRolloutDataset(Dataset):
 
 
 def fit_training_climatology(store_path):
-    """Train-only monthly/hourly grid-cell mean; not WeatherBench2's climatology."""
+    """Train-only monthly/hourly grid-cell mean; not WeatherBench2's climatology.
+
+    Membership follows the store's own declared split semantics: the declared
+    half-open train ``split_time_ranges`` when ``split_mode == 'time_ranges'``,
+    otherwise the declared train years. On a single-year engineering segment
+    the year filter cannot discriminate train from the held-out interior
+    windows, so it would fit the climatology on validation/test steps too.
+    """
     import zarr
     root=zarr.open_group(str(store_path),mode='r')
     raw=validate_store(root)
     times=pd.DatetimeIndex(raw.astype('datetime64[ns]'))
+    labels=split_time_labels(root)
     train=set(root.attrs['split_years']['train'])
+    n_selected=0
     means,counts={},{}
     for start in range(0,len(times),int(root['state'].chunks[0])):
         stop=min(len(times),start+int(root['state'].chunks[0]))
-        chosen=[i for i in range(start,stop) if times[i].year in train]
+        if labels is None:
+            chosen=[i for i in range(start,stop) if times[i].year in train]
+        else:
+            chosen=[i for i in range(start,stop) if labels[i]=='train']
+        n_selected+=len(chosen)
         for i in chosen:
             stamp=times[i]
             key=(stamp.month,stamp.hour)
@@ -96,8 +116,14 @@ def fit_training_climatology(store_path):
             counts[key]=n
     if not counts:
         raise ValueError('no training climatology records')
-    return {'kind':'train-only-month-hour-grid-mean-v1','training_years':sorted(train),
-        'means':means,'counts':counts,'channels':list(root.attrs['channels'])}
+    result={'kind':'train-only-month-hour-grid-mean-v1','training_years':sorted(train),
+        'means':means,'counts':counts,'channels':list(root.attrs['channels']),
+        'n_selected_steps':n_selected,
+        'selection':'declared_train_years' if labels is None else 'declared_train_time_ranges'}
+    if labels is not None:
+        result['split_mode']='time_ranges'
+        result['train_time_ranges']=root.attrs['split_time_ranges']['train']
+    return result
 
 
 def normalized_climatology(climatology,timestamps,mean,std):

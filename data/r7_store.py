@@ -3,10 +3,47 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import numpy as np
-from .preprocess.contracts import chronological_splits, utc_time_index
+from .preprocess.contracts import chronological_splits, parse_split_time_ranges, utc_time_index
 from .preprocess.grid import regular_latlon_spacing
 
 HOUR_NS = 3_600_000_000_000
+
+YEAR_SPLIT_MODE = 'years'
+TIME_RANGE_SPLIT_MODE = 'time_ranges'
+
+
+def split_time_labels(root):
+    """Per-timestep split ownership under the store's own declared semantics.
+
+    Returns ``None`` for the default **year** mode, where callers must keep
+    using ``root.attrs['split_years']`` exactly as before. When the store
+    declares ``split_mode == 'time_ranges'`` (decision 0005) it returns an
+    array with one entry per store timestep holding ``'train'``/``'val'``/
+    ``'test'``, or ``''`` for a step outside every declared interval.
+
+    **Precedence.** In time-range mode the declared ``split_time_ranges`` is
+    authoritative and ``split_years`` is *not* consulted for membership: a
+    one-year engineering segment necessarily carries placeholder year splits
+    (D1 declares train/val/test years 2016/2017/2018 while every observation is
+    from 2016), so the year declaration cannot describe the real partition.
+    ``split_years`` is retained in the metadata because older artifacts and
+    ``validate_store`` still reference it, and it keeps its meaning as the
+    declared normalization/leakage guard - the builder already requires every
+    range to fall inside the declared train years.
+
+    Fails closed on a store that declares the range mode without a parseable
+    declaration, so a malformed store cannot silently fall back to year
+    semantics.
+    """
+    if root.attrs.get('split_mode', YEAR_SPLIT_MODE) != TIME_RANGE_SPLIT_MODE:
+        return None
+    ranges = parse_split_time_ranges(root.attrs['split_time_ranges'])
+    stamps = utc_time_index(np.asarray(root['time_ns'][:]).astype('datetime64[ns]')).asi8
+    labels = np.full(stamps.shape, '', dtype=object)
+    for split, rows in ranges.items():
+        for start_ns, stop_ns in rows:
+            labels[(stamps >= start_ns) & (stamps < stop_ns)] = split
+    return labels
 
 
 def require_complete_manifest(manifest):
@@ -84,7 +121,16 @@ def validate_record(root, record):
         raise ValueError('lead time does not match timestamps')
     if len(h)>1 and not np.all(np.diff(actual[:-1]) == np.diff(actual[:-1])[0]):
         raise ValueError('history timestamps have irregular cadence')
-    years = set(root.attrs['split_years'][record['split']])
-    if any(t.year not in years for t in times):
-        raise ValueError('forecast window crosses split years')
+    labels = split_time_labels(root)
+    if labels is None:
+        years = set(root.attrs['split_years'][record['split']])
+        if any(t.year not in years for t in times):
+            raise ValueError('forecast window crosses split years')
+    else:
+        owner = record['split']
+        for index in indices:
+            if labels[index] != owner:
+                raise ValueError(
+                    f"forecast window crosses split boundaries: index {index} belongs "
+                    f"to {labels[index] or 'no declared range'}, not {owner}")
     return indices
