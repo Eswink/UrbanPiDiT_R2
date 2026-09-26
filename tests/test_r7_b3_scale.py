@@ -144,7 +144,17 @@ def _seed_record(seed, *, rmse=1.0, protocol="p", code="c", tmp_path=None):
     }
 
 
+def _write_protocol(tmp_path, digest="p"):
+    (Path(tmp_path) / "protocol.json").write_text(
+        json.dumps({"protocol_sha256": digest,
+                    "arms": [{"name": name, "kind": "native", "parameters": 18_000_000,
+                              "forward_flops": 1, "b2_parameters_at_2p8M": 2_800_000,
+                              "scale_factor_vs_b2": 6.5} for name in ARM_NAMES]}),
+        encoding="utf-8")
+
+
 def _write_seed_records(tmp_path, *, protocol="p", code="c"):
+    _write_protocol(tmp_path, digest=protocol)
     for seed in SCALE_SEEDS:
         path = Path(tmp_path) / f"scale_seed{seed}.json"
         path.write_text(json.dumps(_seed_record(seed, protocol=protocol, code=code,
@@ -167,11 +177,27 @@ def _write_seed_records(tmp_path, *, protocol="p", code="c"):
 
 
 def test_write_comparison_refuses_a_missing_declared_seed(tmp_path):
+    _write_protocol(tmp_path)
     for seed in SCALE_SEEDS[:-1]:
         (Path(tmp_path) / f"scale_seed{seed}.json").write_text(
             json.dumps(_seed_record(seed, tmp_path=tmp_path)), encoding="utf-8")
     with pytest.raises(FileNotFoundError, match="incomplete"):
         write_comparison(tmp_path)
+
+
+def test_write_comparison_finds_records_in_per_seed_directories(tmp_path):
+    """One process per card writes into its own directory; both layouts must work."""
+    _write_protocol(tmp_path)
+    target = Path(tmp_path) / f"seed{SCALE_SEEDS[0]}"
+    target.mkdir(parents=True)
+    (target / f"scale_seed{SCALE_SEEDS[0]}.json").write_text(
+        json.dumps(_seed_record(SCALE_SEEDS[0], tmp_path=tmp_path)), encoding="utf-8")
+    # the second seed is still absent, so the failure must name what it looked for
+    with pytest.raises(FileNotFoundError) as error:
+        write_comparison(tmp_path)
+    message = str(error.value)
+    assert f"seed{SCALE_SEEDS[1]}" in message
+    assert str(SCALE_SEEDS[1]) in message
 
 
 def test_cross_scale_comparison_reports_an_absent_b2_table_honestly(tmp_path):

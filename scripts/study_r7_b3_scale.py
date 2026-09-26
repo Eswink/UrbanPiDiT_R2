@@ -480,23 +480,49 @@ def write_comparison(output_dir, *, b2_rmse=B2_RESULTS):
     output_dir = Path(output_dir)
     records = {}
     for seed in SCALE_SEEDS:
-        path = output_dir / f"scale_seed{seed}.json"
-        if not path.is_file():
-            raise FileNotFoundError(f"declared seed {seed} is missing: {path}; an incomplete "
-                                    "stage is reported as incomplete")
+        # Each seed writes into its own directory (one process per card), so look
+        # there first and fall back to a flat layout; a declared seed that exists
+        # in neither place makes the stage incomplete, never narrower.
+        candidates = (output_dir / f"seed{seed}" / f"scale_seed{seed}.json",
+                      output_dir / f"scale_seed{seed}.json")
+        path = next((candidate for candidate in candidates if candidate.is_file()), None)
+        if path is None:
+            raise FileNotFoundError(
+                f"declared seed {seed} is missing (looked in "
+                f"{', '.join(str(c) for c in candidates)}); an incomplete stage is "
+                "reported as incomplete")
         records[seed] = json.loads(path.read_text(encoding="utf-8"))
     digests = {record["protocol_sha256"] for record in records.values()}
     if len(digests) != 1:
         raise RuntimeError(f"B3 seeds ran under different protocols: {sorted(digests)}")
+    codes = {record["model_code_sha256"] for record in records.values()}
+    if len(codes) != 1:
+        raise RuntimeError(f"B3 seeds ran on different model code: {sorted(codes)}")
 
-    first = records[SCALE_SEEDS[0]]
+    # The seed records carry the digest, not the protocol body; the arms table
+    # comes from the frozen protocol file, which is also re-checked against the
+    # digest every record claims.
+    protocol_path = next((candidate for candidate in
+                          (output_dir / f"seed{SCALE_SEEDS[0]}" / "protocol.json",
+                           output_dir / "protocol.json") if candidate.is_file()), None)
+    if protocol_path is None:
+        raise FileNotFoundError(f"no frozen protocol.json under {output_dir}")
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    if protocol.get("protocol_sha256") not in digests:
+        raise RuntimeError("the frozen protocol file does not match the digest the seed "
+                           "records ran under")
+    first = dict(records[SCALE_SEEDS[0]], protocol=protocol)
+    first["budget"] = {"training_seconds_total": sum(
+        entry["elapsed_seconds"] for record in records.values()
+        for entry in record["training"].values())}
     tables = {}
     tables["parameters"] = _parameter_table(first, output_dir)
     tables["flops"] = _flops_table(first, output_dir)
-    tables["wall_time"] = _wall_time_table(records, output_dir)
-    tables["cases"] = _case_table(records, output_dir)
-    tables["rmse"] = _rmse_table(records, output_dir)
-    comparison = _cross_scale_comparison(records, output_dir, b2_rmse=Path(b2_rmse))
+    enriched = {seed: dict(record, protocol=protocol) for seed, record in records.items()}
+    tables["wall_time"] = _wall_time_table(enriched, output_dir)
+    tables["cases"] = _case_table(enriched, output_dir)
+    tables["rmse"] = _rmse_table(enriched, output_dir)
+    comparison = _cross_scale_comparison(enriched, output_dir, b2_rmse=Path(b2_rmse))
     return {"tables": tables, "comparison": comparison}
 
 
