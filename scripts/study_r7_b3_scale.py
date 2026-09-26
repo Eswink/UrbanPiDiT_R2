@@ -249,8 +249,11 @@ def protocol_payload(manifests_dir, identity, channels, measured, spread):
             "cards": 2,
             "placement": "one independent seed per card, both cards busy concurrently",
             "ddp": False,
-            "ddp_reason": ("$64 B3 asks for one seed/arm per card first; the memory "
-                           "headroom is recorded per card rather than assumed"),
+            "ddp_reason": ("#64 B3 asks for one seed/arm per card first. The two 3090s are "
+                           "not NVLink-coupled and the measured DDP penalty on this host "
+                           "was never recovered, so independent seeds are both faster and "
+                           "better evidence here; per-card memory headroom is recorded "
+                           "from the probe rather than assumed"),
         },
         "arms": [{"name": name, "kind": kind,
                   "model_config": _arm_config(kind, channels, config),
