@@ -87,6 +87,15 @@ def test_evaluation_checkpoint_and_cli(tmp_path,monkeypatch):
     assert result['n_evaluated']==2 and result['checkpoint_sha256']
     assert all(keys=={'coarse_history','lead_time_hours'} for keys in observed)
     assert (tmp_path/'eval'/'rmse.csv').is_file() and (tmp_path/'eval'/'acc.csv').is_file()
+    # #64 D-3: the climatology baseline is scored on the same cases in the same run
+    skill_rows=list(csv.DictReader((tmp_path/'eval'/'climatology_skill.csv').open(encoding='utf-8')))
+    assert skill_rows and {int(r['n_initializations']) for r in skill_rows}=={2}
+    assert {r['variable'] for r in skill_rows}==set(result['channels'])
+    for row in skill_rows:
+        assert float(row['rmse_forecast'])>=0 and float(row['rmse_climatology'])>=0
+    identity=result['acc_skill_identity']
+    assert identity['consistent'] is True and identity['violations']==0
+    assert result['climatology']['baseline_table']=='climatology_skill.csv'
     with pytest.raises(FileExistsError):
         evaluate_local(paths['test'],output_dir=tmp_path/'eval',lead_hours=(6,12),max_samples=1)
     root=Path(__file__).resolve().parents[1]

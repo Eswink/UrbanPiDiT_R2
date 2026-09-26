@@ -34,6 +34,10 @@ DEFAULT_LEADS = (6, 12, 24, 48, 72)
 # undefined ACC is a real outcome, not a zero.
 RMSE_COLUMNS = ("lead_hours", "variable", "rmse", "unit", "n_initializations")
 ACC_COLUMNS = ("lead_hours", "variable", "pooled_acc", "status", "n_initializations")
+# The climatology baseline rides in the same table as the forecast RMSE (#64 D-3),
+# so `rmse` and `rmse_climatology` are always read off the same cases.
+SKILL_COLUMNS = ("lead_hours", "variable", "rmse_forecast", "rmse_climatology",
+                 "mse_skill", "unit", "n_initializations")
 
 
 def file_sha256(path):
@@ -89,6 +93,19 @@ def check_checkpoint(checkpoint, *, manifest):
     }
 
 
+def _collect_run(report, run_dir):
+    """The per-run metric rows every entry (neural or baseline) must carry."""
+    return {
+        "n_evaluated": report["n_evaluated"],
+        "channels": list(report["channels"]),
+        "units": list(report["units"]),
+        "rmse_rows": read_metric_csv(run_dir / "rmse.csv", RMSE_COLUMNS),
+        "acc_rows": read_metric_csv(run_dir / "acc.csv", ACC_COLUMNS),
+        "skill_rows": read_metric_csv(run_dir / "climatology_skill.csv", SKILL_COLUMNS),
+        "climatology": report["climatology"],
+    }
+
+
 def _evaluate_persistence(manifest, output_dir, *, leads, max_samples):
     """Checkpoint-free persistence baseline on the same manifest and cases."""
     from training.r7_evaluate import evaluate_local
@@ -98,15 +115,13 @@ def _evaluate_persistence(manifest, output_dir, *, leads, max_samples):
                             max_samples=max_samples, device_name="cpu")
     if report["split"] != "test":
         raise ValueError("persistence was evaluated on a non-test split")
-    return {
+    entry = {
         "label": "persistence", "checkpoint": None, "checkpoint_sha256": None,
         "model_code_sha256": None, "data_identity": None, "updates": None,
-        "manifest": str(manifest), "n_evaluated": report["n_evaluated"],
-        "channels": list(report["channels"]), "units": list(report["units"]),
-        "rmse_rows": read_metric_csv(run_dir / "rmse.csv", RMSE_COLUMNS),
-        "acc_rows": read_metric_csv(run_dir / "acc.csv", ACC_COLUMNS),
-        "climatology": report["climatology"],
+        "manifest": str(manifest),
     }
+    entry.update(_collect_run(report, run_dir))
+    return entry
 
 
 def evaluate_checkpoints(manifest, checkpoints, output_dir, *, leads=DEFAULT_LEADS,
@@ -133,15 +148,8 @@ def evaluate_checkpoints(manifest, checkpoints, output_dir, *, leads=DEFAULT_LEA
             raise ValueError(f"{label} was evaluated on split {report['split']}, not the held-out test split")
         if tuple(report["lead_hours"]) != tuple(leads):
             raise ValueError(f"{label} evaluated leads {report['lead_hours']} != {tuple(leads)}")
-        info.update({
-            "label": label,
-            "n_evaluated": report["n_evaluated"],
-            "channels": list(report["channels"]),
-            "units": list(report["units"]),
-            "rmse_rows": read_metric_csv(run_dir / "rmse.csv", RMSE_COLUMNS),
-            "acc_rows": read_metric_csv(run_dir / "acc.csv", ACC_COLUMNS),
-            "climatology": report["climatology"],
-        })
+        info.update({"label": label})
+        info.update(_collect_run(report, run_dir))
         entries.append(info)
     if len(identities) != 1:
         raise RuntimeError(
@@ -150,6 +158,10 @@ def evaluate_checkpoints(manifest, checkpoints, output_dir, *, leads=DEFAULT_LEA
         raise RuntimeError("checkpoints disagree on the channel order")
     if len({tuple(entry["units"]) for entry in entries}) != 1:
         raise RuntimeError("checkpoints disagree on channel units")
+    # Every model must also carry the climatology baseline on its own cases, or the
+    # skill column would be read off a different case set than the RMSE column.
+    if len({entry["climatology"]["selection"] for entry in entries}) != 1:
+        raise RuntimeError("entries disagree on how the training climatology was selected")
     if with_persistence:
         # Same manifest, same case cap: persistence must share the exact case set
         # or it is not a same-data baseline.
@@ -162,6 +174,12 @@ def evaluate_checkpoints(manifest, checkpoints, output_dir, *, leads=DEFAULT_LEA
         if first["n_initializations"] != base_first["n_initializations"]:
             raise RuntimeError("persistence was not scored on the same number of cases")
         entries = entries + [baseline]
+    for entry in entries:
+        case_counts = {row["n_initializations"] for row in entry["skill_rows"]}
+        if case_counts != {str(entry["n_evaluated"])}:
+            raise RuntimeError(
+                f"{entry['label']} climatology rows cover {case_counts} cases but "
+                f"n_evaluated is {entry['n_evaluated']}")
     return {
         "manifest": str(manifest),
         "manifest_sha256": manifest_sha,
@@ -218,6 +236,26 @@ def write_tables(collected, out_dir):
                         cells.append(_fmt(row["pooled_acc"]))
                 writer.writerow([entry["label"], variable] + cells)
 
+    skill_path = out_dir / "rollout_climatology_skill_table.csv"
+    undefined_skill = 0
+    with skill_path.open("x", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["model", "metric", "variable", "unit"] + [f"{h}h" for h in leads])
+        for entry in entries:
+            index = _index(entry["skill_rows"], "mse_skill")
+            for metric in ("rmse_forecast", "rmse_climatology", "mse_skill"):
+                for variable, unit in zip(variables, units):
+                    cells = []
+                    for lead in leads:
+                        row = index.get((lead, variable))
+                        value = "" if row is None else row[metric]
+                        if value == "":
+                            undefined_skill += 1
+                            cells.append("undefined")
+                        else:
+                            cells.append(_fmt(value))
+                    writer.writerow([entry["label"], metric, variable, unit] + cells)
+
     provenance = {
         "format": "r7-rollout-metric-tables-v1",
         "scientific_claim": False,
@@ -229,16 +267,28 @@ def write_tables(collected, out_dir):
         "reasoning_steps": collected["reasoning_steps"],
         "max_samples": collected["max_samples"],
         "models": [{k: v for k, v in entry.items()
-                    if k not in ("rmse_rows", "acc_rows")} for entry in entries],
-        "tables": {"rmse": rmse_path.name, "acc": acc_path.name},
+                    if k not in ("rmse_rows", "acc_rows", "skill_rows")} for entry in entries],
+        "tables": {"rmse": rmse_path.name, "acc": acc_path.name,
+                   "climatology_skill": skill_path.name},
         "undefined_acc_cells": undefined,
+        "undefined_skill_cells": undefined_skill,
         "aggregation": (
             "per variable and lead only; no cross-variable average, because K, Pa and "
             "m/s are not summable"
         ),
+        "climatology_baseline": {
+            "columns": ["rmse_forecast", "rmse_climatology", "mse_skill"],
+            "definition": "mse_skill = 1 - MSE_forecast / MSE_climatology",
+            "scope": ("scored on the same cases as the row's rmse, one frozen "
+                      "train-only climatology shared by all models in this table"),
+            "caveat": ("rmse_climatology is not a WeatherBench2 climatology and is not a "
+                       "held-out-year climatology; it is the declared train-only "
+                       "month-hour grid mean"),
+        },
         "limitations": [
             "held-out year is small; n_evaluated is recorded per row",
             "ACC is undefined where the climatology anomaly energy is zero",
+            "MSE skill is undefined where the climatology error energy is zero",
             "identical initialization sets are enforced by the shared manifest",
             "single seed per checkpoint unless several are supplied",
             "not a converged benchmark; bounded CPU checkpoints",
@@ -247,6 +297,10 @@ def write_tables(collected, out_dir):
     if undefined:
         provenance["limitations"].append(
             f"{undefined} ACC cells are undefined and written as 'undefined', never as zero")
+    if undefined_skill:
+        provenance["limitations"].append(
+            f"{undefined_skill} MSE-skill cells are undefined and written as 'undefined', "
+            "never as zero")
     with (out_dir / "table_provenance.json").open("x", encoding="utf-8") as handle:
         json.dump(provenance, handle, indent=2, ensure_ascii=False, allow_nan=False)
     return provenance

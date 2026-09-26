@@ -36,7 +36,7 @@ def _write_metric(path, rows, columns):
             writer.writerow(row)
 
 
-def _entry(label, channels, units, *, rmse, acc, n=3, identity="d" * 40):
+def _entry(label, channels, units, *, rmse, acc, n=3, identity="d" * 40, skill=None):
     rmse_rows = [
         {"lead_hours": str(lead), "variable": variable, "rmse": value,
          "unit": units[channels.index(variable)], "n_initializations": str(n)}
@@ -47,13 +47,30 @@ def _entry(label, channels, units, *, rmse, acc, n=3, identity="d" * 40):
          "status": status, "n_initializations": str(n)}
         for (lead, variable), (value, status) in acc.items()
     ]
+    if skill is None:
+        skill_rows = [
+            {"lead_hours": str(lead), "variable": variable,
+             "rmse_forecast": str(rmse[(lead, variable)]),
+             "rmse_climatology": "2", "mse_skill": "0.75",
+             "unit": units[channels.index(variable)], "n_initializations": str(n)}
+            for (lead, variable) in rmse
+        ]
+    else:
+        skill_rows = [
+            {"lead_hours": str(lead), "variable": variable, "rmse_forecast": forecast,
+             "rmse_climatology": baseline, "mse_skill": value,
+             "unit": units[channels.index(variable)], "n_initializations": str(n)}
+            for (lead, variable), (forecast, baseline, value) in skill.items()
+        ]
     return {
         "label": label, "checkpoint": None, "checkpoint_sha256": None,
         "model_code_sha256": None, "data_identity": identity, "updates": 200,
         "manifest": "test.jsonl", "n_evaluated": n, "channels": list(channels),
         "units": list(units), "rmse_rows": rmse_rows, "acc_rows": acc_rows,
+        "skill_rows": skill_rows,
         "climatology": {"kind": "train-only-month-hour-grid-mean-v1",
-                        "training_years": [2018]},
+                        "training_years": [2018],
+                        "selection": "declared_train_years"},
     }
 
 
@@ -105,7 +122,97 @@ def test_tables_are_wide_per_variable_with_explicit_units(tmp_path):
     assert provenance["training_code_changed"] is False
     assert provenance["scientific_claim"] is False
     assert provenance["tables"] == {"rmse": "rollout_rmse_table.csv",
-                                    "acc": "rollout_acc_table.csv"}
+                                    "acc": "rollout_acc_table.csv",
+                                    "climatology_skill": "rollout_climatology_skill_table.csv"}
+
+
+def test_climatology_baseline_lands_in_the_same_table(tmp_path):
+    """#64 D-3: rmse_climatology/mse_skill must be readable beside the forecast RMSE."""
+    module = _module()
+    leads = (6, 12)
+    rmse = {(6, "t2m"): 1.0, (12, "t2m"): 3.0}
+    acc = {(6, "t2m"): (0.25, "defined"), (12, "t2m"): (0.1, "defined")}
+    skill = {(6, "t2m"): ("1", "2", "0.75"), (12, "t2m"): ("3", "4", "0.4375")}
+    entry = _entry("persistence", ["t2m"], ["K"], rmse=rmse, acc=acc, skill=skill)
+    provenance = module.write_tables(_collected([entry], leads=leads), tmp_path)
+
+    with (tmp_path / "rollout_climatology_skill_table.csv").open(encoding="utf-8") as handle:
+        rows = list(csv.reader(handle))
+    assert rows[0] == ["model", "metric", "variable", "unit", "6h", "12h"]
+    by_metric = {row[1]: row for row in rows[1:]}
+    assert set(by_metric) == {"rmse_forecast", "rmse_climatology", "mse_skill"}
+    assert by_metric["rmse_forecast"][4:] == ["1", "3"]
+    assert by_metric["rmse_climatology"][4:] == ["2", "4"]
+    assert by_metric["mse_skill"][4:] == ["0.75", "0.4375"]
+    assert by_metric["mse_skill"][3] == "K"
+    # the baseline is declared as same-case and train-only so it cannot be read as
+    # a held-out-year climatology
+    baseline = provenance["climatology_baseline"]
+    assert baseline["definition"] == "mse_skill = 1 - MSE_forecast / MSE_climatology"
+    assert "same cases" in baseline["scope"]
+    assert "not a WeatherBench2 climatology" in baseline["caveat"]
+    # no cross-variable aggregate sneaks into the new table either
+    assert not any("mean" in cell.lower() or "average" in cell.lower()
+                   for row in rows for cell in row)
+
+
+def test_undefined_mse_skill_is_written_as_undefined_not_zero(tmp_path):
+    module = _module()
+    lead = 6
+    rmse = {(lead, "t2m"): 1.0}
+    acc = {(lead, "t2m"): (0.5, "defined")}
+    skill = {(lead, "t2m"): ("1", "0", "")}  # zero climatology energy
+    entry = _entry("generic", ["t2m"], ["K"], rmse=rmse, acc=acc, skill=skill)
+    provenance = module.write_tables(_collected([entry], leads=(lead,)), tmp_path)
+    with (tmp_path / "rollout_climatology_skill_table.csv").open(encoding="utf-8") as handle:
+        rows = list(csv.reader(handle))
+    skill_row = next(row for row in rows if row[1] == "mse_skill")
+    assert skill_row[4] == "undefined"
+    # rmse_climatology itself is still reported: only the skill is undefined
+    baseline_row = next(row for row in rows if row[1] == "rmse_climatology")
+    assert baseline_row[4] == "0"
+    assert provenance["undefined_skill_cells"] == 1
+    assert any("MSE-skill cells are undefined" in line for line in provenance["limitations"])
+
+
+def test_climatology_case_count_must_match_the_scored_cases(tmp_path, monkeypatch):
+    """A skill column computed on other cases must not silently enter the table."""
+    module = _module()
+    run_dir_seen = {}
+
+    def fake_evaluate_local(manifest, *, output_dir, checkpoint=None, lead_hours, max_samples,
+                            reasoning_steps=None, device_name="cpu"):
+        run_dir = Path(output_dir)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        run_dir_seen["dir"] = run_dir
+        _write_metric(run_dir / "rmse.csv",
+                      [[6, "t2m", 1.0, "K", 3]], module.RMSE_COLUMNS)
+        _write_metric(run_dir / "acc.csv",
+                      [[6, "t2m", 0.5, "defined", 3]], module.ACC_COLUMNS)
+        # the climatology baseline was scored on only 2 of the 3 scored cases
+        _write_metric(run_dir / "climatology_skill.csv",
+                      [[6, "t2m", 1.0, 2.0, 0.75, "K", 2]], module.SKILL_COLUMNS)
+        return {"split": "test", "lead_hours": [6], "n_evaluated": 3,
+                "channels": ["t2m"], "units": ["K"],
+                "climatology": {"kind": "k", "training_years": [2018],
+                                "selection": "declared_train_years"}}
+
+    monkeypatch.setattr("training.r7_experiment.load_checkpoint",
+                        lambda path: {"model_code_sha256": module.file_sha256(__file__),
+                                      "contract": {"data_identity": "d" * 40}, "updates": 200})
+    monkeypatch.setattr("training.r7_experiment.model_code_digest",
+                        lambda: module.file_sha256(__file__))
+    import training.r7_evaluate as evaluate_module
+    monkeypatch.setattr(evaluate_module, "evaluate_local", fake_evaluate_local)
+
+    checkpoint = tmp_path / "ckpt.pt"
+    checkpoint.write_bytes(b"checkpoint")
+    manifest = tmp_path / "test.jsonl"
+    manifest.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="climatology rows cover"):
+        module.evaluate_checkpoints(manifest, [str(checkpoint)], tmp_path / "out",
+                                    leads=(6,), max_samples=3, labels=["generic"],
+                                    with_persistence=False)
 
 
 def test_undefined_acc_is_written_as_undefined_not_zero(tmp_path):

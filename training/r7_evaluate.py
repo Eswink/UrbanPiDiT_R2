@@ -14,6 +14,7 @@ from model.r7_rollout import autoregressive_rollout
 from .r7_experiment import make_model,load_checkpoint,dataset_identity,select_device
 from .r7_rollout_metrics import RolloutRMSEAccumulator
 from .r7_acc import RolloutACCAccumulator
+from .r7_climatology_skill import RolloutClimatologySkillAccumulator,verify_acc_skill_consistency
 
 
 class Persistence(nn.Module):
@@ -109,6 +110,10 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     rmse=RolloutRMSEAccumulator(ds.lead_hours,ds.names,
         training_std=None if normalized else ds.std,units=None if normalized else ds.units)
     acc=RolloutACCAccumulator(ds.lead_hours,ds.names)
+    # Climatology as an explicit forecast baseline on exactly these cases (#64 D-3):
+    # rmse_climatology / mse_skill land in the same table as the forecast RMSE so
+    # the two are never compared across different case sets.
+    skill=RolloutClimatologySkillAccumulator(ds.lead_hours,ds.names)
     boundary=None
     if boundary_margins is not None:
         from .r7_boundary_metrics import BoundaryRMSEAccumulator,boundary_masks
@@ -132,6 +137,7 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         climate=normalized_climatology(clim,sample['valid_times'],ds.mean,ds.std).unsqueeze(0)
         rmse.update(prediction,targets,sample['latitude'])
         acc.update(prediction,targets,climate,sample['latitude'])
+        skill.update(prediction,targets,climate,sample['latitude'])
         if boundary is not None:
             boundary.update(prediction,targets,sample['latitude'])
         case=RolloutRMSEAccumulator(ds.lead_hours,ds.names,
@@ -145,6 +151,19 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     rmse.write_csv(out/'rmse.csv')
     if boundary is not None:
         boundary.write_csv(out/'boundary_rmse.csv')
+    skills=skill.compute()
+    with (out/'climatology_skill.csv').open('x',encoding='utf-8',newline='') as f:
+        writer=csv.writer(f)
+        writer.writerow(['lead_hours','variable','rmse_forecast','rmse_climatology',
+            'mse_skill','unit','n_initializations'])
+        for i,lead in enumerate(ds.lead_hours):
+            for j,name in enumerate(ds.names):
+                forecast=float(skills['rmse_forecast'][i,j])
+                baseline=float(skills['rmse_climatology'][i,j])
+                value=float(skills['mse_skill'][i,j])
+                writer.writerow([lead,name,forecast,baseline,
+                    value if torch.isfinite(skills['mse_skill'][i,j]) else '',
+                    rmse.units[j],skill.initializations])
     values=acc.compute()
     with (out/'acc.csv').open('x',encoding='utf-8',newline='') as f:
         writer=csv.writer(f)
@@ -165,7 +184,11 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         'split':ds.split,'lead_hours':list(ds.lead_hours),'step_hours':step_hours,
         'n_available_windows':len(ds),'n_evaluated':len(initializations),'selection':'first N in chronological order; explicit cap',
         'climatology':{'kind':clim['kind'],'training_years':clim['training_years'],
-            'bucket_counts':{f'{m:02d}-{h:02d}':n for (m,h),n in clim['counts'].items()}},
+            'bucket_counts':{f'{m:02d}-{h:02d}':n for (m,h),n in clim['counts'].items()},
+            'selection':clim['selection'],'n_selected_steps':clim['n_selected_steps'],
+            'baseline_table':'climatology_skill.csv',
+            'baseline_scope':'rmse_climatology/mse_skill scored on exactly these n_evaluated cases; no cross-variable average'},
+        'acc_skill_identity':verify_acc_skill_consistency(acc.compute(),skills['mse_skill']),
         'initializations':initializations,'elapsed_seconds':time.perf_counter()-started,
         'timing_scope':'whole evaluation loop including IO and metrics, not isolated model latency',
         'deterministic':True,

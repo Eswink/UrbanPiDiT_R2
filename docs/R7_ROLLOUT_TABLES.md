@@ -29,12 +29,22 @@ checkpoints; they are not a converged benchmark or a SOTA claim.
 - **The held-out split is enforced.** A report whose split is not `test` aborts.
 - **A same-data persistence baseline is included** by default, scored on the same
   manifest, leads and case cap — with a check that the case count really matches.
+- **A same-data climatology baseline is included** (#64 D-3): every entry also
+  writes `climatology_skill.csv` carrying `rmse_forecast`, `rmse_climatology` and
+  `mse_skill = 1 - MSE_forecast / MSE_climatology` per lead and variable, and the
+  table refuses to publish a skill cell whose case count differs from that entry's
+  `n_evaluated`. The baseline's scope is declared in provenance: it is the
+  **declared train-only** month-hour grid mean scored on exactly these cases, not
+  a WeatherBench2 climatology and not a held-out-year climatology.
 - **No cross-variable average is produced.** K, Pa, m/s, kg/kg and m²/s² are not
   summable, so tables are per variable and lead with an explicit unit column.
 - **Undefined ACC is written as `undefined`, never as zero**, and the count of such
   cells is recorded.
+- **Undefined MSE skill is written as `undefined`, never as zero** (`rmse_climatology`
+  itself is still reported when only the skill is undefined).
 
-Outputs: `rollout_rmse_table.csv`, `rollout_acc_table.csv`, `table_provenance.json`
+Outputs: `rollout_rmse_table.csv`, `rollout_acc_table.csv`,
+`rollout_climatology_skill_table.csv`, `table_provenance.json`
 (manifest SHA256, data identity, per-model checkpoint hash and updates, leads,
 aggregation rule, limitations). All are created exclusively.
 
