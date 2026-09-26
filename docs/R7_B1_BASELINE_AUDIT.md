@@ -335,6 +335,19 @@ B1 的协议里必须写清报的是 `fwd` 还是 `fwd+bwd`，并直接给实测
 
 ## 9. 实际执行的验证与计数
 
+### 9.0 一处路径更正（避免 B1 用错 store）
+
+本轮任务书把「store 在 `outputs/r7_coreasoning_v2/dataset/cache.zarr`，窗口 94/10/10」
+并列陈述；实测二者**不是同一个 store**：
+
+| 路径 | 窗口 train/val/test | 时间范围 | 用途 |
+| --- | --- | --- | --- |
+| `outputs/r7_d1_earthmover/store/cache.zarr` | **94/10/10** | 2016-01-01 .. 01-30（决策 0005 时间段切分） | **B0/B1 的真实数据**（`outputs/r7_b0_learnability_run2/protocol.json` 的 `train_manifest` 指向这里） |
+| `outputs/r7_coreasoning_v2/dataset/cache.zarr` | 38/38/38 | 2018/2019/2020 | 更早的 January 构建，**不是** B0 所用 |
+
+本页所有 D1 结论都基于**前者**（94/10/10）。B1 若误指向后者，会拿到 38/38/38 的
+旧 January 数据且 `split_mode='year'`（无 §5.2 泄漏，但窗口数与时间覆盖都不同）。
+
 下表命令均在本段实跑。可复现的探针片段（参数量、FLOPs、墙钟、边界与阈值反证）见 §9.1。
 
 | 命令 | 结果 |
