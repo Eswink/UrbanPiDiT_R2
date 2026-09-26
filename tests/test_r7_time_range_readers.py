@@ -155,6 +155,49 @@ def test_climatology_uses_only_the_declared_train_window(tmp_path):
     assert _timestamps(root)[TRAIN_STEPS].isoformat() == "2016-01-10T00:00:00"
 
 
+def test_declared_ranges_are_half_open_so_the_boundary_step_has_one_owner(tmp_path):
+    """The endpoint convention is decidable, not a convention of convenience.
+
+    Adjacent D1-style ranges touch: train's ``stop`` equals val's ``start``
+    (``2016-01-10T00:00`` in this fixture). Under a half-open ``[start, stop)``
+    reading that step belongs to val alone and the three splits partition the
+    store exactly. Under an inclusive ``[start, stop]`` reading it would have to
+    belong to train *and* val at once, which contradicts the builder's own
+    ownership test (``r7_era5_zarr``: ``interval[0] <= t < interval[1]``) and
+    its chronology guard (``contracts``: rejects only ``b1 > a2``, i.e. touching
+    is legal, overlapping is not).
+    """
+    build(tmp_path, stamps=80)
+    root = zarr.open_group(str(tmp_path / "store.zarr"), mode="r")
+    labels = split_time_labels(root)
+    stamps = _timestamps(root)
+    boundary = pd.Timestamp("2016-01-10T00:00:00")
+    position = int(np.flatnonzero(stamps == boundary)[0])
+    assert labels[position] == "val", "the shared endpoint must have exactly one owner"
+    assert int((labels == "").sum()) == OUTSIDE_STEPS
+    # the splits partition every assigned step: no step is counted twice
+    assigned = sum(int((labels == split).sum()) for split in ("train", "val", "test"))
+    assert assigned + int((labels == "").sum()) == len(stamps)
+    assert {int((labels == split).sum()) for split in ("train", "val", "test")} \
+        == {TRAIN_STEPS, VAL_STEPS, TEST_STEPS}
+    # what an inclusive reading would have produced, and why it is refused:
+    train_start = pd.Timestamp("2016-01-01T00:00:00")
+    half_open_train = int(((stamps >= train_start) & (stamps < boundary)).sum())
+    inclusive_train = int(((stamps >= train_start) & (stamps <= boundary)).sum())
+    assert half_open_train == TRAIN_STEPS
+    assert inclusive_train == TRAIN_STEPS + 1, (
+        "inclusive endpoints would count the shared boundary step a second time, "
+        "giving it two owners")
+    with pytest.raises(ValueError, match="chronological"):
+        from data.preprocess.contracts import parse_split_time_ranges
+        # val starting before train ends is refused outright - so overlapping
+        # splits can never reach a reader, let alone two owners for one step
+        parse_split_time_ranges({
+            "train": [["2016-01-01T00:00:00", "2016-01-10T00:00:00"]],
+            "val": [["2016-01-09T12:00:00", "2016-01-15T00:00:00"]],
+            "test": [["2016-01-15T00:00:00", "2016-01-20T00:00:00"]]})
+
+
 def test_year_mode_reader_behaviour_is_unchanged(tmp_path):
     """The year path must still select by declared years only."""
     paths = _year_mode_store(tmp_path, stamps=40)
@@ -198,3 +241,82 @@ def test_publication_replay_delegates_ownership_to_the_readers():
     assert "validate_record(root, record)" in source
     # a local re-derivation of ownership would reintroduce the blind spot
     assert "split_of[(stamps_ns >= begin)" not in source
+
+
+def test_d1_scale_counts_follow_the_half_open_declaration():
+    """D1's own numbers, recomputed from its declaration (96/24, not 97/23).
+
+    The #64 task text expects the train-only climatology to select 97 of 120
+    steps, leaking 23. That is the count an *inclusive* ``[start, stop]``
+    reading produces. D1 declares adjacent, touching ranges (train ends exactly
+    where val begins), so the inclusive reading would give the boundary step
+    ``2016-01-25T00:00`` two owners; the builder's ownership test is strict
+    (``interval[0] <= t < interval[1]``) and its chronology guard allows touching
+    but not overlapping. Half-open therefore yields 96 train steps and 24 held
+    out. This is asserted against D1's real declaration rather than a fixture.
+    """
+    store = Path(__file__).resolve().parents[1] / "outputs/r7_d1_earthmover/store/cache.zarr"
+    if not store.is_dir():  # pragma: no cover - artifact absent in a clean checkout
+        pytest.skip("D1 store artifact is not present in this checkout")
+    root = zarr.open_group(str(store), mode="r")
+    ranges = root.attrs["split_time_ranges"]
+    stamps = _timestamps(root)
+    assert len(stamps) == 120
+    counts = {}
+    for split in ("train", "val", "test"):
+        mask = np.zeros(len(stamps), dtype=bool)
+        for start, stop in ranges[split]:
+            mask |= np.asarray(stamps >= pd.Timestamp(start)) & np.asarray(stamps < pd.Timestamp(stop))
+        counts[split] = int(mask.sum())
+    assert counts == {"train": 96, "val": 12, "test": 12}
+    assigned = sum(counts.values())
+    assert assigned == len(stamps), "half-open splits partition every step exactly once"
+    # the inclusive counterfactual, computed on the same declaration
+    train_start, train_stop = ranges["train"][0]
+    inclusive = int(((stamps >= pd.Timestamp(train_start))
+                     & (stamps <= pd.Timestamp(train_stop))).sum())
+    assert inclusive == 97, "the task text's 97 comes from inclusive endpoints"
+    assert inclusive - counts["train"] == 1, "exactly the shared boundary step"
+    boundary = pd.Timestamp(train_stop)
+    assert boundary == pd.Timestamp(ranges["val"][0][0]), "train stop == val start"
+    assert int(np.flatnonzero(stamps == boundary)[0]) == counts["train"]
+    # the readers' own labels agree with this half-open reading
+    labels = split_time_labels(root)
+    assert {split: int((labels == split).sum()) for split in ("train", "val", "test")} == counts
+    # and the climatology must select the train count, not the inclusive one
+    assert fit_training_climatology(store)["n_selected_steps"] == counts["train"]
+    # The decisive fingerprint: the store's normalization statistics were computed
+    # by the builder from whatever IT considered train. Recomputed under each
+    # reading, only the half-open set reproduces them to fp32 precision; the
+    # inclusive set is off by ~1e-2 relative, i.e. orders of magnitude worse.
+    state = np.asarray(root["state"][:], dtype=np.float64)
+    stored_mean = np.asarray(root["normalization_mean"][:], dtype=np.float64)
+    stored_std = np.asarray(root["normalization_std"][:], dtype=np.float64)
+
+    def _moments(mask):
+        values = state[np.asarray(mask)].transpose(0, 2, 3, 1).reshape(-1, state.shape[1])
+        return values.mean(0), values.std(0)
+
+    half_mean, half_std = _moments((stamps >= pd.Timestamp(train_start))
+                                   & (stamps < pd.Timestamp(train_stop)))
+    incl_mean, incl_std = _moments((stamps >= pd.Timestamp(train_start))
+                                   & (stamps <= pd.Timestamp(train_stop)))
+
+    def _relative(values, reference):
+        return float(np.abs(values - reference).max()
+                     / np.maximum(np.abs(reference), 1e-12).max())
+
+    half_error = max(_relative(half_mean, stored_mean), _relative(half_std, stored_std))
+    incl_error = max(_relative(incl_mean, stored_mean), _relative(incl_std, stored_std))
+    assert half_error < 1e-6, f"half-open moments must reproduce the stored ones: {half_error}"
+    assert incl_error > 1e-4, f"inclusive moments must not reproduce them: {incl_error}"
+    assert incl_error / half_error > 1000, (
+        "the half-open reading must be decisively closer to the builder's own statistics")
+    # the published manifests must still reproduce under this reading
+    manifests = store.parent / "manifests"
+    if manifests.is_dir():
+        window_counts = {split: len([line for line in
+                                     (manifests / f"{split}.jsonl").read_text(
+                                         encoding="utf-8").splitlines() if line.strip()])
+                         for split in ("train", "val", "test")}
+        assert window_counts == {"train": 94, "val": 10, "test": 10}
