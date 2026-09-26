@@ -278,6 +278,20 @@ def run_study(manifests_dir, output_dir, *, updates=UPDATES, device_name="cuda")
             raise ValueError(f"{name} did not reach the fixed update endpoint")
         checkpoints[name] = checkpoint
         samples_seen = int(sum(entry["samples"] for entry in report["losses"]))
+        # Single-update losses are noisy (0.08-0.29 within one epoch here), and the
+        # 200-update endpoint ends mid-epoch, so a first-vs-last ratio would report the
+        # shuffle rather than the trend. Report full-epoch means instead and mark how
+        # many updates form the trailing partial epoch.
+        by_epoch = {}
+        for entry in report["losses"]:
+            by_epoch.setdefault(entry["epoch"], []).append(entry["loss"])
+        epoch_means = {str(epoch): sum(values) / len(values)
+                       for epoch, values in sorted(by_epoch.items())}
+        epoch_sizes = {str(epoch): len(values) for epoch, values in sorted(by_epoch.items())}
+        full_epochs = [epoch for epoch, values in by_epoch.items()
+                       if len(values) == max(len(v) for v in by_epoch.values())]
+        first_full = min(full_epochs)
+        last_full = max(full_epochs)
         results["training"][name] = {
             "updates": report["updates_this_run"],
             "samples_seen": samples_seen,
@@ -285,18 +299,27 @@ def run_study(manifests_dir, output_dir, *, updates=UPDATES, device_name="cuda")
             "seconds_per_update": report["elapsed_seconds"] / report["updates_this_run"],
             "wall_time_includes_io": True,
             "wall_time_note": report["note"],
-            "first_loss": report["losses"][0]["loss"],
-            "final_loss": report["losses"][-1]["loss"],
-            "loss_ratio": (report["losses"][-1]["loss"] / report["losses"][0]["loss"]
-                           if report["losses"][0]["loss"] else None),
+            "epoch_mean_loss": epoch_means,
+            "epoch_update_counts": epoch_sizes,
+            "first_full_epoch": first_full,
+            "last_full_epoch": last_full,
+            "loss_ratio_first_to_last_full_epoch": (epoch_means[str(last_full)]
+                                                    / epoch_means[str(first_full)]),
+            "first_update_loss": report["losses"][0]["loss"],
+            "last_update_loss": report["losses"][-1]["loss"],
+            "single_update_noise_note": (
+                "first/last single-update losses are noisy and the endpoint ends "
+                "mid-epoch; use the full-epoch mean ratio for the trend"),
             "peak_allocated_bytes": report["peak_allocated_bytes"],
             "checkpoint": str(checkpoint),
             "checkpoint_sha256": _sha256_file(checkpoint),
             "parameters": measured[name]["parameters"],
         }
-        print(json.dumps({"trained": name, "loss_ratio": results["training"][name]["loss_ratio"],
-                          "seconds": report["elapsed_seconds"], "samples": samples_seen}),
-              flush=True)
+        print(json.dumps({"trained": name,
+                          "full_epoch_loss_ratio": results["training"][name][
+                              "loss_ratio_first_to_last_full_epoch"],
+                          "epochs": epoch_means, "seconds": report["elapsed_seconds"],
+                          "samples": samples_seen}), flush=True)
     results["budget"]["training_seconds_total"] = time.perf_counter() - training_started
 
     # ---- evaluate every arm and both parameter-free controls on the same val cases --
@@ -396,10 +419,11 @@ def write_tables(results, output_dir):
                          "eval_seconds_total", "eval_timing_scope"])
         for name in models:
             train = results["training"].get(name)
-            eval_seconds = sum(entry["elapsed_seconds"] for key, entry in results["evaluation"].items()
-                               if entry["model"] == name)
-            scope = next(entry["timing_scope"] for key, entry in results["evaluation"].items()
-                         if entry["model"] == name)
+            entries = [entry for entry in results["evaluation"].values()
+                       if entry["model"] == name]
+            eval_seconds = sum(entry["elapsed_seconds"] for entry in entries)
+            scopes = {entry["timing_scope"] for entry in entries}
+            scope = scopes.pop() if len(scopes) == 1 else (sorted(scopes)[0] if scopes else "")
             writer.writerow([
                 name,
                 train["updates"] if train else 0,
@@ -442,7 +466,7 @@ def write_tables(results, output_dir):
                                  row["rmse"],
                                  skill_row.get("rmse_climatology", ""),
                                  skill_row.get("mse_skill", "") or "undefined",
-                                 row["n_initializations"]])
+                                 row.get("n_initializations", entry["n_evaluated"])])
     tables["rmse"] = rmse_path.name
     return tables
 
