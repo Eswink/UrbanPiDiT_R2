@@ -256,10 +256,12 @@ B1/B2 要借鉴时的现状记录，非已发生的借用：
 - **不要用参数 hook**：本仓注意力走 `F.scaled_dot_product_attention`
   （`model/layers/sdpa.py:17`、`model/layers/window_attention.py:135`），**SDPA 无参数**，
   参数 hook 会漏掉全部注意力 matmul 且不报错——静默低估。
-- **forward 与 backward 都要记录实测值，并声明报的是哪个量。** 既有文档
-  `docs/R7_BUDGET_PARITY.md:39` 写「Backward is not counted. It is roughly 2x forward …
-  so only forward is reported」。**「only forward」是这句话的关键**：一个只报 forward 的
-  数字会让训练成本看起来约为实际的三分之一。本段实测：
+- **forward 与 backward 都要记录实测值，并声明报的是哪个量。** 既有约定明确「只报 forward」：
+  `training/r7_budget_audit.py:16-17` 写 "Backward is not counted. It is roughly 2x forward
+  for these graphs, but that ratio is architecture-dependent, so only forward is reported
+  and compared"；`docs/R7_BUDGET_PARITY.md:39-40` 同样写 "neither measured nor assumed"。
+  **「only forward」是这件事的关键**：一个只报 forward 的数字会让训练成本看起来约为实际的
+  三分之一。本段实测：
 
 | 基线 | forward FLOPs | forward+backward FLOPs | `fwd+bwd`/`fwd`（总比） |
 | --- | --- | --- | --- |
