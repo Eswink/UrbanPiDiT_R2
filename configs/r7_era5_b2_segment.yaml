@@ -1,0 +1,22 @@
+# B2 multiseed conversion (frozen Earthmover segment, 2016-01-01..2016-02-05).
+# The 36-day segment strictly contains the frozen D1 120-stamp request as a
+# prefix, so its train range is byte-identical to D1 while its held-out blocks
+# are wide enough for a free 72 h rollout (decision 0008). Window assignment
+# uses explicit half-open time ranges inside the declared train years
+# (docs/decisions/0005-*.md); the val/test years below are reader-contract
+# declarations only - all data and normalization come from 2016. No download or
+# write occurs unless prepare_r7_local.py receives --write.
+split_years:
+  train: [2016]
+  val: [2017]
+  test: [2018]
+split_time_ranges:
+  train: [["2016-01-01T00:00:00", "2016-01-25T00:00:00"]]
+  val: [["2016-01-25T00:00:00", "2016-02-01T00:00:00"]]
+  test: [["2016-02-01T00:00:00", "2016-02-06T00:00:00"]]
+history_steps: 2
+history_interval_hours: 6
+lead_time_hours: 6
+sample_stride_hours: 6
+time_chunk: 16
+compute_process_targets: true
