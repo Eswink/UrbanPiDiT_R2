@@ -196,6 +196,9 @@ RMSE 全表在 `b1_rmse_table.csv`（68 个 (变量, lead) 单元 × 6 模型 = 
 
 **一致性与可复现**：
 
+- **CI**：`ci.yml` 自跑 **run `36258059039`（completed success，sha `fe29b690`）**；
+  本地全量 **999 passed / 3 skipped**、34 条阻断规则 0 违规。17 条实验 workflow
+  在本轮 commit **没有**带实验标签，因此显示 `skipped`——这是设计行为，不是失败。
 - 独立复算：直接从 store 手算 persistence t2m/6h RMSE = **5.0978 K**，与 harness 报告
   **逐位一致**（10 例，纬向加权），说明指标链路（归一化/反归一化/加权）无误。
 - **重复运行**（两次独立 `--out`）：协议 digest 相同、抽样顺序相同、68 个单元的
