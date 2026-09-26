@@ -27,9 +27,14 @@ class Persistence(nn.Module):
 def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,72),
                    step_hours=6,max_samples=32,device_name='cpu',normalized=False,reasoning_steps=None,
                    controller_checkpoint=None,min_reasoning_steps=1,force_full_depth=False,
-                   policy_selection=None,validation_thresholds=None,boundary_margins=None):
+                   policy_selection=None,validation_thresholds=None,boundary_margins=None,
+                   baseline=None):
     if isinstance(max_samples,bool) or not isinstance(max_samples,int) or max_samples<1:
         raise ValueError('max_samples must be a positive explicit cap')
+    if baseline not in (None,'persistence','climatology'):
+        raise ValueError("baseline must be None, 'persistence' or 'climatology'")
+    if baseline is not None and checkpoint:
+        raise ValueError('a parameter-free baseline takes no checkpoint')
     if controller_checkpoint and not checkpoint:
         raise ValueError('controller evaluation requires its parent checkpoint')
     if force_full_depth and not controller_checkpoint:
@@ -103,10 +108,11 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         elif contract['kind']!='native':
             inference['reasoning_steps']=contract['steps'] if reasoning_steps is None else reasoning_steps
         checkpoint_hash=hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
+        clim=fit_training_climatology(store)
+        model=model.to(device).eval()
     else:
-        model=Persistence()
-    model=model.to(device).eval()
-    clim=fit_training_climatology(store)
+        clim=fit_training_climatology(store)
+        model=None if baseline=='climatology' else Persistence().to(device).eval()
     rmse=RolloutRMSEAccumulator(ds.lead_hours,ds.names,
         training_std=None if normalized else ds.std,units=None if normalized else ds.units)
     acc=RolloutACCAccumulator(ds.lead_hours,ds.names)
@@ -128,13 +134,20 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     started=time.perf_counter()
     for i in range(min(max_samples,len(ds))):
         sample=ds[i]
-        initial={'coarse_history':sample['coarse_history'].unsqueeze(0).to(device),
-            'lead_time_hours':sample['lead_time_hours'].reshape(1).to(device)}
-        trajectory=autoregressive_rollout(model,initial,lead_hours=ds.lead_hours,
-            step_hours=step_hours,history_interval_hours=step_hours,inference_kwargs=inference)
-        prediction=trajectory.forecasts.cpu()
-        targets=sample['rollout_targets'].unsqueeze(0)
         climate=normalized_climatology(clim,sample['valid_times'],ds.mean,ds.std).unsqueeze(0)
+        if baseline=='climatology':
+            # A climatology is not a roll-out: it is one fixed field per valid time,
+            # broadcast over the batch, so it must not go through autoregressive_rollout.
+            prediction=climate.clone()
+            steps=[0]
+        else:
+            initial={'coarse_history':sample['coarse_history'].unsqueeze(0).to(device),
+                'lead_time_hours':sample['lead_time_hours'].reshape(1).to(device)}
+            trajectory=autoregressive_rollout(model,initial,lead_hours=ds.lead_hours,
+                step_hours=step_hours,history_interval_hours=step_hours,inference_kwargs=inference)
+            prediction=trajectory.forecasts.cpu()
+            steps=trajectory.cumulative_reasoning_steps.cpu().tolist()[0]
+        targets=sample['rollout_targets'].unsqueeze(0)
         rmse.update(prediction,targets,sample['latitude'])
         acc.update(prediction,targets,climate,sample['latitude'])
         skill.update(prediction,targets,climate,sample['latitude'])
@@ -145,7 +158,7 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         case.update(prediction,targets,sample['latitude'])
         initializations.append({'init_time':sample['init_time'],'valid_times':sample['valid_times'],
             'mse':case.compute().square().tolist(),
-            'cumulative_reasoning_steps':trajectory.cumulative_reasoning_steps.cpu().tolist()[0]})
+            'cumulative_reasoning_steps':steps})
     if device.type=='cuda':
         torch.cuda.synchronize(device)
     rmse.write_csv(out/'rmse.csv')
@@ -159,9 +172,9 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         for i,lead in enumerate(ds.lead_hours):
             for j,name in enumerate(ds.names):
                 forecast=float(skills['rmse_forecast'][i,j])
-                baseline=float(skills['rmse_climatology'][i,j])
+                climatology_rmse=float(skills['rmse_climatology'][i,j])
                 value=float(skills['mse_skill'][i,j])
-                writer.writerow([lead,name,forecast,baseline,
+                writer.writerow([lead,name,forecast,climatology_rmse,
                     value if torch.isfinite(skills['mse_skill'][i,j]) else '',
                     rmse.units[j],skill.initializations])
     values=acc.compute()
@@ -174,6 +187,7 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
                 writer.writerow([lead,name,value if torch.isfinite(values[i,j]) else '',
                     'defined' if torch.isfinite(values[i,j]) else 'undefined_zero_anomaly_energy',acc.initializations])
     provenance={'scientific_claim':False,'checkpoint_sha256':checkpoint_hash,'training_identity':training_identity,
+        'parameter_free_baseline':baseline,'trainable_parameters':0 if baseline else None,
         'controller_sha256':controller_hash,'controller_policy':controller_policy,'inference_options':inference,
         'halting_policy':effective_policy,'policy_selection_sha256':selection_hash,
         'boundary_scoring':None if boundary is None else {

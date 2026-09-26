@@ -104,3 +104,31 @@ def test_evaluation_checkpoint_and_cli(tmp_path,monkeypatch):
     run=subprocess.run(command,cwd=root,capture_output=True,text=True,timeout=90)
     assert run.returncode==0,run.stdout+run.stderr
     assert json.loads((tmp_path/'cli'/'provenance.json').read_text())['n_evaluated']==2
+
+
+def test_climatology_is_a_standalone_forecast_baseline(tmp_path):
+    """#64 B1: climatology must be scorable as its own forecast, at 0 parameters.
+
+    Scored against itself the MSE skill is exactly 0 (the forecast *is* the
+    climatology), which is the cheapest available check that the baseline path
+    uses the same normalization, cases and units as every other arm.
+    """
+    paths=build(tmp_path/'data')
+    result=evaluate_local(paths['test'],output_dir=tmp_path/'clim',baseline='climatology',
+        lead_hours=(6,12),max_samples=3)
+    assert result['parameter_free_baseline']=='climatology' and result['trainable_parameters']==0
+    assert result['checkpoint_sha256'] is None and result['n_evaluated']==3
+    rows=list(csv.DictReader((tmp_path/'clim'/'climatology_skill.csv').open(encoding='utf-8')))
+    assert rows and {int(r['n_initializations']) for r in rows}=={3}
+    for row in rows:
+        assert abs(float(row['mse_skill']))<1e-12
+        assert float(row['rmse_forecast'])==float(row['rmse_climatology'])
+    # the self-comparison also keeps the one-sided ACC/skill identity
+    assert result['acc_skill_identity']['violations']==0
+    # a baseline cannot be combined with a checkpoint, and unknown names are refused
+    with pytest.raises(ValueError,match='takes no checkpoint'):
+        evaluate_local(paths['test'],output_dir=tmp_path/'x',checkpoint=tmp_path/'c.pt',
+            baseline='climatology',lead_hours=(6,),max_samples=1)
+    with pytest.raises(ValueError,match='baseline must be'):
+        evaluate_local(paths['test'],output_dir=tmp_path/'y',baseline='nope',
+            lead_hours=(6,),max_samples=1)
