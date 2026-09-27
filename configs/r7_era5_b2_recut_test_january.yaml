@@ -1,0 +1,42 @@
+# #67 sealed-test re-cut (January-only held-out).
+#
+# Why this config exists. The frozen B2 segment cut its held-out blocks across the
+# January/February boundary: val [01-25, 02-01) and test [02-01, 02-06). The
+# train-only month-hour climatology is fitted from January only, so the February
+# test block has no matching (month, hour) bucket and
+# data/r7_evaluation.normalized_climatology refuses a held-out fallback (by design).
+# That made the sealed test unevaluable for every arm, not just the climatology
+# baseline.
+#
+# This re-cut moves the held-out boundary so BOTH val and test stay inside January,
+# while keeping the train block byte-identical to the frozen chain:
+#   train [2016-01-01, 2016-01-25) -> unchanged, 96 stamps
+#   val   [2016-01-25, 2016-01-27) -> 8 stamps, all January
+#   test  [2016-01-27, 2016-02-01) -> 20 stamps, all January
+# Both held-out blocks then need only (1, 00/06/12/18), the four buckets the
+# train-only climatology actually has.
+#
+# The val block is deliberately kept short so the test block is long enough to carry
+# a 48h and a 72h rollout; #67's protocol requires those leads. The small validation
+# set is recorded as a limitation rather than hidden.
+#
+# The checkpoints from the frozen chain are NOT reusable here: data_identity covers
+# split_time_ranges, so this is a new experiment and every arm is retrained.
+#
+# split_years stays 2016/2017/2018 as reader-contract declarations only (all data is
+# 2016); the authoritative partition is split_time_ranges (decision 0005).
+# No download and no write occurs unless prepare_r7_local.py receives --write.
+split_years:
+  train: [2016]
+  val: [2017]
+  test: [2018]
+split_time_ranges:
+  train: [["2016-01-01T00:00:00", "2016-01-25T00:00:00"]]
+  val: [["2016-01-25T00:00:00", "2016-01-27T00:00:00"]]
+  test: [["2016-01-27T00:00:00", "2016-02-01T00:00:00"]]
+history_steps: 2
+history_interval_hours: 6
+lead_time_hours: 6
+sample_stride_hours: 6
+time_chunk: 16
+compute_process_targets: true
