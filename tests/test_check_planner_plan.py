@@ -262,11 +262,59 @@ def test_cli_rejects_malformed_json(validator, tmp_path, capsys):
     capsys.readouterr()
 
 
+# ------------------------------------------------- the reply-transport contract
+
+def test_load_accepts_bare_json(validator):
+    plan, fenced = validator.load_plan_text(json.dumps(valid_plan()))
+    assert plan["slug"] == "demo-iteration-plan" and fenced is False
+
+
+@pytest.mark.parametrize("lang", ["json", "JSON", ""])
+def test_load_accepts_one_enclosing_fence(validator, lang):
+    """A real delegation returned one fence despite the planner's instruction.
+
+    Tolerating exactly one enclosing fence keeps the reply-to-object contract
+    usable without accepting prose around the plan.
+    """
+    body = json.dumps(valid_plan(), ensure_ascii=False)
+    text = f"```{lang}\n{body}\n```"
+    plan, fenced = validator.load_plan_text(text)
+    assert plan["slug"] == "demo-iteration-plan" and fenced is True
+
+
+@pytest.mark.parametrize("text", [
+    "Here is the plan:\n```json\n{}\n```",
+    "```json\n{}\n```\nHope this helps!",
+    "```json\n{}\n```\n```json\n{}\n```",
+    "```json\n{}\n",
+    "plain prose with no JSON at all",
+])
+def test_load_rejects_prose_and_extra_fences(validator, text):
+    with pytest.raises(ValueError):
+        validator.load_plan_text(text)
+
+
+def test_cli_accepts_fenced_plan_and_reports_it(validator, tmp_path, capsys):
+    body = json.dumps(valid_plan(), ensure_ascii=False)
+    target = tmp_path / "fenced.json"
+    target.write_text(f"```json\n{body}\n```", encoding="utf-8")
+    assert validator.main(["--plan", str(target), "--quiet"]) == 0
+    parsed = json.loads(capsys.readouterr().out)
+    assert parsed == {"verified": True, "fence_stripped": True, "failures": 0}
+
+
+def test_cli_rejects_fenced_plan_with_prose(validator, tmp_path, capsys):
+    target = tmp_path / "prose.json"
+    target.write_text("Sure! Here you go:\n```json\n{}\n```", encoding="utf-8")
+    assert validator.main(["--plan", str(target)]) == 2
+    capsys.readouterr()
+
+
 def test_cli_quiet_output_is_json_with_the_verdict(validator, tmp_path, capsys):
     good = _write(tmp_path, valid_plan())
     validator.main(["--plan", str(good), "--quiet"])
     parsed = json.loads(capsys.readouterr().out)
-    assert parsed == {"verified": True, "failures": 0}
+    assert parsed == {"verified": True, "fence_stripped": False, "failures": 0}
 
 
 def test_validator_is_read_only(validator, tmp_path):

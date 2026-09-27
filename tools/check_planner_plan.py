@@ -55,6 +55,14 @@ REQUIRED_KEYS = (
 OPTIONAL_KEYS = ("open_questions", "budget_notes")
 STEP_KEYS = ("id", "action", "verify", "depends_on", "files")
 
+# A real delegation run returned the plan wrapped in one ```json fence, despite
+# the planner's own instruction to emit bare JSON. That is a transport artifact
+# rather than a content defect, so exactly one enclosing fence is tolerated and
+# reported. Prose around the JSON, two fences, or an unterminated fence still
+# fail: tolerating those would weaken the "the reply is the object" contract.
+_FENCE_RE = re.compile(r"```[A-Za-z0-9_-]*[ \t]*\r?\n(?P<body>.*?)\r?\n?```",
+                       re.DOTALL)
+
 # Paths that must never appear in a plan's intended file list. The archival
 # half is imported from the convention checker; the read-only data directories
 # are stated in AGENTS.md hard constraints and R-004.
@@ -197,6 +205,24 @@ def _check_files(value, out: list) -> None:
                 break
 
 
+def load_plan_text(text: str):
+    """Parse the reply into a plan object; return (plan, fence_stripped).
+
+    Accepts bare JSON, or JSON inside exactly one enclosing code fence with
+    nothing but whitespace outside it. Raises ValueError otherwise.
+    """
+    stripped = text.strip()
+    if stripped.startswith("{"):
+        if stripped.count("```"):
+            raise ValueError("JSON must not contain code fences")
+        return json.loads(stripped), False
+    match = _FENCE_RE.fullmatch(stripped)
+    if match is None:
+        raise ValueError("reply must be a JSON object, optionally in one code fence; "
+                         "no prose or extra fences are accepted")
+    return json.loads(match.group("body")), True
+
+
 def validate_plan(plan) -> list:
     """Return a list of violation strings; empty means the plan is acceptable."""
     out: list = []
@@ -248,8 +274,8 @@ def main(argv=None) -> int:
         print(f"error: plan file not found: {path}", file=sys.stderr)
         return 2
     try:
-        plan = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        plan, fence_stripped = load_plan_text(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         print(f"error: unreadable plan JSON: {exc}", file=sys.stderr)
         return 2
 
@@ -257,12 +283,14 @@ def main(argv=None) -> int:
     report = {
         "plan": str(path),
         "verified": not failures,
+        "fence_stripped": fence_stripped,
         "required_keys": list(REQUIRED_KEYS),
         "protected_prefixes": list(protected_prefixes()),
         "failures": failures,
     }
     if args.quiet:
         print(json.dumps({"verified": report["verified"],
+                          "fence_stripped": fence_stripped,
                           "failures": len(failures)}, ensure_ascii=False))
     else:
         print(json.dumps(report, ensure_ascii=False, indent=1, allow_nan=False))
