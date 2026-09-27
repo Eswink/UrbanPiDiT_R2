@@ -256,7 +256,12 @@ bash scripts/run_71_72_multiseed.sh
 | SHA | 内容 | `ci.yml` run（R7 CPU CI / pytest） |
 | --- | --- | --- |
 | `2586477` | #71/#72 第一轮实现（model/data/training）+ 4 个测试文件 + 两个既有输入集合断言改写 + 实验脚本 + 本文件 + 决策 0013 + R-009 基线 | `36347857577` **completed / success** |
-| 见下条提交 | 本节补齐 + `.gitignore` 回填 `.zcode/agents/` | 该提交自身的 run（文档/配置改动） |
+| `17d7722` | 本节补齐 + `.gitignore` 回填 `.zcode/agents/` | `36348084358` **completed / success** |
+| `26ceb17`-之后 | 安全扫描分诊补记（`docs/R7_SECURITY_SCAN_TRIAGE.md`）与本表末行 | 该提交自身的 run |
+
+（`2586477` 是本轮的功能提交，`17d7722` 是文档/配置提交；两者都跑在
+`push` 到 `r7/weather-reasoning` 上。空的第二列不留白：没有独立 run 的提交属于
+「同一次 push 只在分支尖端触发一次 workflow」的语义，其覆盖由同一树上的 run 提供。）
 
 核对方式（匿名只读 API，AGENTS.md 记载本项目 API 写 401、读可用）：
 

@@ -78,3 +78,25 @@ pickle/yaml.load、路径拼接与 SQL 字符串拼接是 V5.3.1 时代的既有
   宣称 DNS rebinding 免疫。
 - 归档内 27 条不修复：边界受两条阻断级规则持续守护，修复它们等于改写冻结的
   历史基线，代价大于收益。
+
+## 复扫（2026-09-28，#71/#72 第一轮收尾）
+
+起因：本轮 `git commit`/`git push` 时 hook 再次报 `scanner_enobufs`（未取得完整结论），
+故按提示主动跑一次全仓深度扫描。结果如下（**未**据此宣称任何安全性）。
+
+- scanId：`scan-2026-09-27T20-23-50.106Z-f2810810d5e8`
+- seal：`sha256:399496deefef72173350d80f01f2765f2ed20791d7e56b8c05a19a6b936f21ea`
+- depth：deep；依赖扫描 102 个包（2 个匹配、5 条 advisory、5 个 unknown）
+- **run status：`inconclusive`**，覆盖缺口写明为「调用图部分不完整：部分调用为动态派发
+  或超出分析规模，跨文件可达性可能不完整」；`verdictEffect: none`
+- **findings：27**（high 22 / medium 4 / low 1）——与 2026-09-25 复扫是**同一集合**，
+  且**全部**位于 `legacy_v531_full/**`（只读归档，处置见上一节）
+- **本轮改动集（model / data / training / scripts / tests）内 0 条命中**：按本轮新增与
+  修改的文件名检索该报告，无任何条目指向 `model/spacetime_conditioning_r7.py`、
+  `model/process_readout_r7.py`、`model/r7_rollout.py`、`data/r7_store.py`、
+  `tests/test_r7_switched_path_equivalence.py` 或 `scripts/study_r7_71_72_spacetime_rwa.py`。
+- 附带说明（本轮唯一的"扫描发现→修复"闭环，发生在代码入库**之前**）：早期草稿里
+  两个测试辅助写法被写入前的扫描器拦下——`subprocess.run` 配非字面量 argv
+  （命令注入模式）、以及 `tarfile.extractall` 的无校验回退（路径穿越）。最终提交的
+  `tests/test_r7_switched_path_equivalence.py` 只用**全字面量 argv** 调 `git archive`，
+  并自行实现带边界校验的归档解包（逐成员 `is_relative_to` 检查，**不**调用 `extractall`）。
