@@ -84,14 +84,31 @@ GPU-hours this campaign (all measured from each run's own `training_report.json`
 C1 1.08 + C2 1.09 + C3 0.50 + curriculum 0.39 + the #67 re-cut retrain 1.08 ≈ **4.14 GPU-h**, all
 on the local 2×3090; no paid resource was used.
 
-**Final CI binding.** Campaign code SHA range: `f4a552b` → `1548c3c`. The final commit is
-`1548c3c` (docs-only: it binds the SHA range and this very run id), and its `ci.yml` run is
-**36313302904 — completed / success**, job `108603223124` (`pytest`) with every step green:
-*Check repository conventions*, *Compile active modules and check whitespace* and
-*Run unit, integration and installed-wheel tests* all `success`. On the same SHA the 17
-experiment workflows report `skipped`, which is their tag-gated design rather than a failure.
-The previous commit `77f2718` was verified by **run 36312611169 success**; both are recorded so
-no claim rests on an unverified commit.
+**Final CI binding.** Campaign code SHA range: `f4a552b` → `5383914`. Every run below was pulled
+from the `ci.yml` workflow's own run list and each is `completed / success`:
+
+| run id | SHA | what that SHA is |
+| --- | --- | --- |
+| `36292366591` | `f4a552b` | campaign start |
+| `36308047201` | `208943d` | curriculum + C2/C3 docs |
+| `36308658711` | `0484927` | ADR 0009 |
+| `36308913373` | `9720c27` | artifact accounting |
+| `36309161879` | `90307e7` | issue-closing commit |
+| `36309375783` | `93832fc` | closure record |
+| `36310343924` | `ecdae0d` | user-authored budget-caps commit |
+| `36312388200` | `6b8578c` | **covers code-bearing `f653897`** (the sealed-test report and its analysis scripts were pushed together with `6b8578c`) |
+| `36312611169` | `77f2718` | change manifest + epoch curves |
+| `36313302904` | `1548c3c` | SHA-range/run-id record |
+| `36313635208` | `5383914` | **final tip** — this table and the measured GPU-hours |
+
+Job detail for `36313302904`: job `108603223124` (`pytest`), every step green — *Check repository
+conventions*, *Compile active modules and check whitespace*, *Run unit, integration and
+installed-wheel tests*. On every SHA the 17 experiment workflows report `skipped`, which is their
+tag-gated design rather than a failure. The record is terminal: the last commit that changes any
+non-doc file is `f653897`, and everything after it is documentation-only, so no behaviour can
+differ between the verified tips. Local verification on the same tree: **1151 passed / 3 skipped**,
+34 blocking convention rules **0 violations**.
+
 
 
 
