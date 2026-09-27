@@ -9,6 +9,20 @@
 > （索引在 `docs/skills/README.md`）。
 > 下面各节记录的是已交付的 V6 MVP，仍然有效但不再是开发重点。
 
+## R7 分栏导航
+
+按你**想要的结论强度**选择入口；三栏的证据等级不同，不要混用它们的数字（#67）。
+
+| 栏 | 是什么 | 入口 | 能说什么 |
+| --- | --- | --- | --- |
+| **① Smoke / 工程** | 小规模 CPU 或 GPU 检查：可学习性、内存、DDP 契约、数据契约、下载通道 | `docs/R7_B0_LEARNABILITY.md`、`docs/R7_GPU_BRINGUP.md`、`docs/R7_DDP_K_CONTRACT.md`、`docs/R7_STREAMED_TRAINING.md`、`docs/R7_SECURITY_SCAN_TRIAGE.md` | 「代码按设计工作」。**不**是科学结论 |
+| **② Negative study / 负结果集** | 已完成的对照实验，多数结论为负或 mixed，全部按预注册判据报告 | `docs/R7_B1_D1_COMPARISON.md`、`docs/R7_B2_MULTISEED.md`、`docs/R7_B3_SCALE.md`、`docs/R7_65_PREDIAGNOSTIC.md`、`docs/R7_65_C1_PROCESS_SUPERVISION.md`、`docs/R7_65_C2_C3_FEEDBACK_AND_DEPTH.md`、`docs/R7_66_GATE_AUDIT.md`、`docs/R7_ROADMAP_GATE_STATUS.md` | 「在这些数据与预算下，哪些方法**没有**被证明有效」 |
+| **③ Publication benchmark / 封存基准** | 期刊评估的冻结协议与封存 test 报告 | 协议：`docs/R7_67_PUBLICATION_PROTOCOL.md`（**已冻结**）；报告：`docs/R7_67_SEALED_TEST_REPORT.md`（**BLOCKED**：冻结 test 划分在 2 月，train-only 气候态桶只有 1 月，读者正确拒绝回退） | 「协议已定；test 数字**尚未产出**，且原因已查明」 |
+
+**现状一句话**：R7 目前是**负结果为主的科学状态**——过程递归、辅助监督、草稿反馈与
+自适应推理都没有建立可重复的收益；工程链（数据契约、身份校验、CI、hooks）已完整。
+不要把 ① 的通过当作 ② 或 ③ 的结论。
+
 本仓库是 `UrbanPiDiT-V5.3.1-MorphoProcessDiT` 的 V6 技术路线升级版。V6 不再把 0.25° 网格上的城市形态代理量与天气动力学强行放在同一固定分辨率中，而是将模型拆为：
 
 1. **Coarse Atmospheric Context**：大尺度/中尺度背景天气；
