@@ -68,7 +68,7 @@ def _recursive_step(model, state, context, draft, token_hw):
     if process_model:
         state = model._reason(state, recurrent_context)
         prediction = model._process_prediction(state)
-        summary = model.process_to_context(state.mean(1))
+        summary = model.process_conditioning(state, context, token_hw)
     else:
         state = model._cell(state, recurrent_context)
         prediction = None

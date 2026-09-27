@@ -1,12 +1,27 @@
 from __future__ import annotations
 from typing import Dict, Any
+import numpy as np
 import torch
 from torch.nn import functional as F
 from torch.utils.data import Dataset
 
+from .r7_store import HOUR_NS, init_time_fields
+
+# 2016-01-01T00:00Z, the segment every R7 engineering store starts from. The
+# synthetic fixture must not invent a *different* calendar convention from the
+# real readers, so it uses the same derivation (``init_time_fields``) on a
+# synthetic stamp.
+SYNTHETIC_EPOCH_NS = int(np.datetime64('2016-01-01T00:00').astype('datetime64[ns]').astype(np.int64))
+
 
 class SyntheticAtmosDataset(Dataset):
-    """Deterministic forecast-native synthetic fixture for R7 smoke/CI only."""
+    """Deterministic forecast-native synthetic fixture for R7 smoke/CI only.
+
+    The initialization-time fields are synthetic *inputs* (derived from the epoch
+    above plus the sample index), not observations: this fixture exists so the
+    space-time pathway can be exercised offline, and nothing in it is a claim
+    about real weather.
+    """
 
     def __init__(
         self,
@@ -51,6 +66,9 @@ class SyntheticAtmosDataset(Dataset):
 
         latitude=torch.linspace(60.0,25.0,H)
         longitude=torch.arange(W,dtype=torch.float32)*self.grid+100.0
+        # Whole-hour steps so the synthetic initialization time stays hour-aligned,
+        # which is what the derivation requires of every real store.
+        init_ns=SYNTHETIC_EPOCH_NS+int(round(idx*self.lead))*HOUR_NS
         return {
             'coarse_history':history.float(),
             'atmos_target':target.float(),
@@ -59,4 +77,6 @@ class SyntheticAtmosDataset(Dataset):
             'longitude':longitude.float(),
             'grid_spacing_deg':torch.tensor(self.grid,dtype=torch.float32),
             'sample_id':f'synthetic_atmos_{idx:05d}',
+            **{name:torch.tensor(float(value),dtype=torch.float32)
+               for name,value in init_time_fields(init_ns).items()},
         }

@@ -10,7 +10,7 @@ from torch import nn
 from data.r7_zarr_dataset import ZarrAtmosWindowDataset
 from data.r7_store import validate_record
 from data.r7_evaluation import ZarrRolloutDataset,fit_training_climatology,normalized_climatology
-from model.r7_rollout import autoregressive_rollout
+from model.r7_rollout import autoregressive_rollout,rollout_model_input
 from .r7_experiment import make_model,load_checkpoint,dataset_identity,select_device
 from .r7_rollout_metrics import RolloutRMSEAccumulator
 from .r7_acc import RolloutACCAccumulator
@@ -145,8 +145,7 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
             prediction=climate.clone()
             steps=[0]
         else:
-            initial={'coarse_history':sample['coarse_history'].unsqueeze(0).to(device),
-                'lead_time_hours':sample['lead_time_hours'].reshape(1).to(device)}
+            initial=rollout_model_input(sample,lead_hours=float(sample['lead_time_hours']),device=device)
             trajectory=autoregressive_rollout(model,initial,lead_hours=ds.lead_hours,
                 step_hours=step_hours,history_interval_hours=step_hours,inference_kwargs=inference)
             prediction=trajectory.forecasts.cpu()

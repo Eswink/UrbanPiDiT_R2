@@ -86,8 +86,13 @@ PARAM_MAX = 8
 
 # R-009: recorded strength of the test suite. Update deliberately when tests are
 # intentionally added or restructured, and note it in docs/rules/CHANGELOG.md.
-TEST_FUNCTION_BASELINE = 320
-ASSERT_BASELINE = 613
+# 2026-09-28 (#71/#72 round one): 320/613 -> 715/1778. Thirty-two test instances
+# were added across four files (bitwise switch equivalence + its counterproof,
+# space-time field causality, the seven-path input-set pin, positional-readout
+# probes); two existing input-set pins were re-expressed against
+# DECLARED_MODEL_INPUTS rather than a literal list. Nothing was removed.
+TEST_FUNCTION_BASELINE = 715
+ASSERT_BASELINE = 1778
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")

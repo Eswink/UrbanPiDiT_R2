@@ -87,7 +87,7 @@ def score_validation(model, dataset, *, kind, device, steps, lead_hours=(6,), st
     model's normalized space. The value ranks checkpoints and stops training; it
     must never be reported as a physical-unit score - that is ``evaluate_local``.
     """
-    from model.r7_rollout import autoregressive_rollout
+    from model.r7_rollout import autoregressive_rollout, rollout_model_input
 
     # Validate before converting: int(6.5) silently becomes 6, which would score
     # a different horizon than the one the protocol declared.
@@ -110,8 +110,7 @@ def score_validation(model, dataset, *, kind, device, steps, lead_hours=(6,), st
             raise ValueError("validation scoring requires a held-out rollout dataset "
                              "(samples carrying rollout_targets), not the training set")
         history = sample["coarse_history"].unsqueeze(0).to(device)
-        batch = {"coarse_history": history,
-                 "lead_time_hours": torch.tensor([float(step_hours)], device=device)}
+        batch = rollout_model_input(sample, lead_hours=float(step_hours), device=device)
         trajectory = autoregressive_rollout(
             model, batch, lead_hours=horizons, step_hours=int(step_hours),
             history_interval_hours=int(step_hours), inference_kwargs=inference)

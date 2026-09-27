@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from .coarse_encoder import CoarseEncoder
 from .coarse_forecast import CoarseForecastHead,LeadTimeEmbedding
+from .spacetime_conditioning_r7 import SpacetimeConditioning, isolated_stream
 
 
 @dataclass
@@ -20,8 +21,11 @@ class NativeAtmosForecaster(nn.Module):
     def __init__(self,in_channels:int,history_steps:int=2,out_channels:Optional[int]=None,
                  dim:int=128,patch_size:int=2,depth:int=4,heads:int=4,window_size:int=8,
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
-                 default_lead_hours:float=6.):
+                 default_lead_hours:float=6.,spacetime_inputs:bool=False):
         super().__init__()
+        if type(spacetime_inputs) is not bool:
+            raise ValueError('spacetime_inputs 必须是布尔开关')
+        self.spacetime_inputs=spacetime_inputs
         self.in_channels=int(in_channels)
         self.history_steps=int(history_steps)
         self.out_channels=int(out_channels or in_channels)
@@ -32,6 +36,16 @@ class NativeAtmosForecaster(nn.Module):
             heads,window_size,dropout,activation_checkpointing,periodic_width,pad_to_patch=True)
         self.lead_time=LeadTimeEmbedding(dim)
         self.head=CoarseForecastHead(dim,self.out_channels,patch_size)
+        # Built last and under a rewound stream: with the switch off nothing is
+        # constructed, and with it on every pre-existing parameter keeps the value
+        # the same seed gives it without the pathway. That is what makes the two
+        # arms of the study comparable - they differ by the pathway, not by a
+        # shifted initialization.
+        if self.spacetime_inputs:
+            with isolated_stream():
+                self.spacetime=SpacetimeConditioning(
+                    dim,patch_size,periodic_width=periodic_width,
+                    default_lead_hours=self.default_lead_hours)
 
     def forward(self,batch:Mapping[str,torch.Tensor])->R7ForecastOutput:
         history=batch['coarse_history']
@@ -42,6 +56,9 @@ class NativeAtmosForecaster(nn.Module):
         lead=self.lead_time(batch.get('lead_time_hours'),batch=B,device=tokens.device,
             dtype=tokens.dtype,default_hours=self.default_lead_hours)
         context=tokens+lead[:,None,:]
+        if self.spacetime_inputs:
+            context=context+self.spacetime(
+                batch,history=history,token_hw=token_hw).to(tokens.dtype)
         base=batch.get('atmos_baseline')
         if base is None:
             base=history[:,-1,:self.out_channels]

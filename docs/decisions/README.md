@@ -38,3 +38,4 @@
 | [0010](0010-units-defect-and-two-month-segment.md) | 单位缺陷修正与双月（M2）段 | accepted | 2026-09-27 |
 | [0011](0011-issue-tracking-exemption.md) | 会话内无 GitHub 写通道，issue 追踪按环境限制豁免 | accepted | 2026-09-28 |
 | [0012](0012-planner-delegation-scope.md) | planner 子智能体的委派边界与 JSON 契约 | accepted | 2026-09-27 |
+| [0013](0013-v2-round-one-switched-pathway.md) | V2 第一轮：时空输入与位置化 process 读写，双开关默认关 + 逐位等价证明 | accepted | 2026-09-28 |

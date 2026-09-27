@@ -7,7 +7,9 @@ from torch import nn
 from torch.utils.checkpoint import checkpoint
 
 from .coarse_forecast import CoarseForecastHead
+from .process_readout_r7 import PositionalProcessReadout
 from .recursive_weather_r7 import DraftTokenEncoder, GenericRecursiveCell, solver_conditioning
+from .spacetime_conditioning_r7 import isolated_stream
 from .weather_forecaster_r7 import NativeAtmosForecaster
 
 
@@ -64,11 +66,18 @@ class ProcessForecastCoReasoner(nn.Module):
         detach_between_steps:bool=False,
         use_forecast_feedback:bool=True,
         spatial_solver_feedback:bool=False,
+        spacetime_inputs:bool=False,
+        positional_process_readout:bool=False,
     ):
         super().__init__()
-        if type(spatial_solver_feedback) is not bool:
-            raise ValueError("spatial_solver_feedback must be boolean")
+        for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
+                           (spacetime_inputs,'spacetime_inputs'),
+                           (positional_process_readout,'positional_process_readout')):
+            if type(value) is not bool:
+                raise ValueError(f"{name} must be boolean")
         self.spatial_solver_feedback=spatial_solver_feedback
+        self.spacetime_inputs=spacetime_inputs
+        self.positional_process_readout=positional_process_readout
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -102,6 +111,7 @@ class ProcessForecastCoReasoner(nn.Module):
             activation_checkpointing=activation_checkpointing,
             periodic_width=periodic_width,
             default_lead_hours=default_lead_hours,
+            spacetime_inputs=spacetime_inputs,
         )
 
         self.process_queries=nn.Parameter(
@@ -127,6 +137,28 @@ class ProcessForecastCoReasoner(nn.Module):
             out_channels=self.out_channels,
             patch_size=patch_size,
         )
+        # Same rule as the space-time term: the pathway is constructed last and
+        # under a rewound stream, so switching it on cannot move any other weight.
+        if self.positional_process_readout:
+            with isolated_stream():
+                self.process_reader=PositionalProcessReadout(dim,heads,dropout)
+
+    def process_conditioning(
+        self,
+        process:torch.Tensor,
+        context:torch.Tensor,
+        token_hw:tuple[int,int],
+    )->torch.Tensor:
+        """The solver-facing read of the process state, at every output position.
+
+        With the positional switch off this is the pooled ``[B,D]`` summary that
+        the pre-RW-A model broadcast; with it on it is a ``[B,N,D]`` read in
+        which each position queries the process tokens itself. Either way the
+        result is *added* to the solver context by ``solver_conditioning``.
+        """
+        if self.positional_process_readout:
+            return self.process_reader(process,context,token_hw)
+        return self.process_to_context(process.mean(dim=1))
 
     def _reason(
         self,
@@ -213,7 +245,7 @@ class ProcessForecastCoReasoner(nn.Module):
                 self._process_prediction(process)
             )
 
-            summary=self.process_to_context(process.mean(dim=1))
+            summary=self.process_conditioning(process,context,token_hw)
             solver_context=solver_conditioning(context,summary,draft_tokens,
                 spatial_feedback=self.spatial_solver_feedback and feedback_flag)
             draft,final_correction=self.correction_head(

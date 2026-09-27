@@ -9,6 +9,8 @@ import time
 import torch
 from torch.utils.data import default_collate
 
+from model.r7_halting import forecast_inputs
+
 
 def _positive(value,name,maximum):
     if isinstance(value,bool) or not isinstance(value,int) or not 1<=value<=maximum:
@@ -51,12 +53,11 @@ def profile_forward(model,batch,*,forward_kwargs=None,warmup=3,repetitions=10,pr
             raise ValueError('model and inputs must share device and FP32 floating storage')
     if device.type=='cuda' and precision=='bf16' and not torch.cuda.is_bf16_supported():
         raise RuntimeError('CUDA BF16 unsupported; no fallback')
-    inputs={'coarse_history':history.detach().clone()}
-    if 'lead_time_hours' in batch:
-        lead=batch['lead_time_hours']
-        if not isinstance(lead,torch.Tensor) or lead.device!=device or not torch.isfinite(lead).all():
-            raise ValueError('lead time must be a finite tensor on the input device')
-        inputs['lead_time_hours']=lead.detach().clone()
+    inputs=dict(forecast_inputs(batch))
+    for name,value in inputs.items():
+        if not isinstance(value,torch.Tensor) or value.device!=device or not torch.isfinite(value).all():
+            raise ValueError(f'{name} must be a finite tensor on the input device')
+    inputs={name:value.detach().clone() for name,value in inputs.items()}
     kwargs=dict(forward_kwargs or {})
     # Reject data-like extras in kwargs as well; only scalar inference controls.
     allowed={'reasoning_steps','max_steps','min_steps','force_full_depth'}
@@ -201,7 +202,7 @@ def profile_local(manifest,*,checkpoint,output,controller_checkpoint=None,force_
     device=select_device(device_name,bf16=precision=='bf16')
     batch=default_collate([ds[i] for i in range(batch_size)])
     # Transfers are intentionally outside model-forward timing; no target is moved.
-    inputs={k:batch[k].to(device) for k in ('coarse_history','lead_time_hours') if k in batch}
+    inputs={k:v.to(device) for k,v in forecast_inputs(batch).items()}
     report=profile_forward(model.to(device).eval(),inputs,forward_kwargs=kwargs,
         warmup=warmup,repetitions=repetitions,precision=precision)
     report.update(checkpoint_sha256=file_sha256(checkpoint),controller_sha256=controller_hash,

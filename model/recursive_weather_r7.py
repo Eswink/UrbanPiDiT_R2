@@ -13,17 +13,31 @@ from .layers.patch_grid import pad_patch_grid
 def solver_conditioning(context, summary, draft_tokens=None, *, spatial_feedback=False):
     """Optional aligned draft evidence for S(C, P, E(Y)); no added parameters.
 
+    ``summary`` is either the pooled ``[B,D]`` vector the pre-RW-A model
+    broadcast to every position, or the per-position ``[B,N,D]`` read produced by
+    the positional process readout. Both are **added**; the branch is on the rank
+    of the summary and nothing else about the update changes.
+
     False preserves the original pooled-summary equation exactly. True adds
     the already-encoded draft at the same patch positions, without global
     attention or access to target fields.
     """
     if type(spatial_feedback) is not bool:
         raise ValueError("spatial_feedback must be boolean")
-    if context.ndim != 3 or summary.shape != (context.shape[0], context.shape[2]):
-        raise ValueError("solver context/summary shapes must be [B,N,D]/[B,D]")
+    if context.ndim != 3:
+        raise ValueError("solver context must be [B,N,D]")
+    if summary.ndim == 2:
+        if summary.shape != (context.shape[0], context.shape[2]):
+            raise ValueError("solver context/summary shapes must be [B,N,D]/[B,D]")
+        conditioned = context + summary[:, None, :]
+    elif summary.ndim == 3:
+        if summary.shape != context.shape:
+            raise ValueError("per-position solver summary must match the [B,N,D] context exactly")
+        conditioned = context + summary
+    else:
+        raise ValueError("solver summary must be pooled [B,D] or positional [B,N,D]")
     if summary.device != context.device:
         raise ValueError("solver summary/context devices differ")
-    conditioned = context + summary[:, None, :]
     if spatial_feedback:
         if draft_tokens is None or draft_tokens.shape != context.shape or draft_tokens.device != context.device:
             raise ValueError("aligned [B,N,D] draft tokens required for spatial solver feedback")
@@ -77,11 +91,17 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                  dim:int=128,patch_size:int=2,depth:int=4,heads:int=4,window_size:int=8,
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
                  default_lead_hours:float=6.,latent_tokens:int=16,default_reasoning_steps:int=4,
-                 detach_between_steps:bool=False,spatial_solver_feedback:bool=False):
+                 detach_between_steps:bool=False,spatial_solver_feedback:bool=False,
+                 spacetime_inputs:bool=False):
         super().__init__()
-        if type(spatial_solver_feedback) is not bool:
-            raise ValueError("spatial_solver_feedback must be boolean")
+        for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
+                           (spacetime_inputs,'spacetime_inputs')):
+            if type(value) is not bool:
+                raise ValueError(f"{name} must be boolean")
         self.spatial_solver_feedback=spatial_solver_feedback
+        # Exposed, not just forwarded: the rollout asks the model which lead
+        # convention it was configured for.
+        self.spacetime_inputs=spacetime_inputs
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -89,7 +109,8 @@ class GenericRecursiveWeatherForecaster(nn.Module):
         self.detach_between_steps=bool(detach_between_steps)
         self.activation_checkpointing=bool(activation_checkpointing)
         self.backbone=NativeAtmosForecaster(in_channels,history_steps,self.out_channels,dim,patch_size,
-            depth,heads,window_size,dropout,activation_checkpointing,periodic_width,default_lead_hours)
+            depth,heads,window_size,dropout,activation_checkpointing,periodic_width,default_lead_hours,
+            spacetime_inputs=spacetime_inputs)
         self.latent=nn.Parameter(torch.randn(1,int(latent_tokens),dim)*.02)
         self.draft_encoder=DraftTokenEncoder(self.out_channels,dim,patch_size)
         self.cell=GenericRecursiveCell(dim,heads,mlp_ratio=3.,dropout=dropout)

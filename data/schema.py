@@ -82,3 +82,20 @@ def validate_forecast_sample(
             raise TypeError('longitude 必须是 torch.Tensor')
         if lon.shape[-1]!=history.shape[-1]:
             raise ValueError('longitude 长度必须匹配 W')
+
+    # #71 initialization-time fields. Validated here so a malformed sample fails
+    # at the data boundary, not inside the model's phase arithmetic.
+    for name in ('init_utc_hour','init_day_of_year','init_year'):
+        if name not in sample:
+            continue
+        value=sample[name]
+        if not isinstance(value,torch.Tensor):
+            raise TypeError(f'{name} 必须是 torch.Tensor')
+        if not torch.isfinite(value).all():
+            raise ValueError(f'{name} 必须为有限值')
+        if value.ndim>1:
+            raise ValueError(f'{name} 应为标量或 [B]')
+    if 'init_utc_hour' in sample and bool(((sample['init_utc_hour']<0)|(sample['init_utc_hour']>=24)).any()):
+        raise ValueError('init_utc_hour 必须在 [0,24) 内')
+    if 'init_day_of_year' in sample and bool(((sample['init_day_of_year']<1)|(sample['init_day_of_year']>366)).any()):
+        raise ValueError('init_day_of_year 必须在 [1,366] 内')

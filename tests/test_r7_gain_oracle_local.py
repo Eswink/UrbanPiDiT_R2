@@ -10,6 +10,7 @@ from training.r7_experiment import make_model,load_checkpoint
 from training.r7_halting import per_sample_latitude_mse
 from training.r7_gain_oracle import collect_process_errors,run_oracle_diagnostic
 from data.r7_zarr_dataset import ZarrAtmosWindowDataset
+from model.r7_halting import DECLARED_MODEL_INPUTS
 
 
 def test_streaming_diagnostics_match_drafts_and_hide_targets(tmp_path):
@@ -21,7 +22,11 @@ def test_streaming_diagnostics_match_drafts_and_hide_targets(tmp_path):
     hook=model.backbone.register_forward_pre_hook(lambda module,args:seen.append(set(args[0])))
     errors=collect_process_errors(model,batch,max_steps=4)
     hook.remove()
-    assert seen==[{'coarse_history','lead_time_hours'}]
+    # #71: the whitelist now also carries the declared initialization-time fields,
+    # so this pin is expressed against the model's own declaration instead of a
+    # literal list, and the target-bearing keys are still asserted absent.
+    assert seen==[set(DECLARED_MODEL_INPUTS)]
+    assert not ({'atmos_target','rollout_targets','process_targets'} & seen[0])
     with torch.no_grad():
         out=model(batch,reasoning_steps=4)
         expected=torch.stack([per_sample_latitude_mse(out.draft_forecasts[:,k],batch['atmos_target'],batch['latitude']) for k in range(1,5)],1)

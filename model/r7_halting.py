@@ -8,6 +8,7 @@ from typing import Mapping, TYPE_CHECKING
 import torch
 from torch import nn
 from .recursive_weather_r7 import solver_conditioning
+from .spacetime_conditioning_r7 import SPACETIME_INPUT_FIELDS
 
 if TYPE_CHECKING:
     from .process_forecast_r7 import ProcessForecastCoReasoner
@@ -19,11 +20,21 @@ def positive_int(value: int, name: str) -> int:
     return value
 
 
+DECLARED_MODEL_INPUTS = ("coarse_history", "lead_time_hours") + SPACETIME_INPUT_FIELDS
+
+
 def forecast_inputs(batch: Mapping[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-    """Whitelist initialization-time fields; never forward targets/baselines."""
+    """Whitelist initialization-time fields; never forward targets/baselines.
+
+    ``DECLARED_MODEL_INPUTS`` is the one declaration of the field set a model may
+    see; every path that reaches a model through this helper hands it the same
+    set, and a field the caller does not have is simply absent (a model whose
+    space-time switch is on then raises rather than falling back).
+    """
     result = {"coarse_history": batch["coarse_history"]}
-    if "lead_time_hours" in batch:
-        result["lead_time_hours"] = batch["lead_time_hours"]
+    for name in DECLARED_MODEL_INPUTS[1:]:
+        if name in batch:
+            result[name] = batch[name]
     return result
 
 
@@ -121,7 +132,7 @@ class AdaptiveProcessForecaster(nn.Module):
             recurrent_context = torch.cat([context, draft_tokens], dim=1)
         process = model._reason(process, recurrent_context)
         prediction = model._process_prediction(process)
-        summary = model.process_to_context(process.mean(dim=1))
+        summary = model.process_conditioning(process, context, token_hw)
         conditioned = solver_conditioning(context, summary, draft_tokens,
             spatial_feedback=model.spatial_solver_feedback and model.use_forecast_feedback)
         draft, correction = model.correction_head(

@@ -2,6 +2,41 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-28 — #71/#72 第一轮：测试强度基线更新（未改任何规则判据）
+
+**范围**：只更新 `tools/check_conventions.py` 的 R-009 基线与其说明；**未改任何规则正文、
+判据、阈值或执行分组**。规则文件本身（`docs/rules/*.md`）本轮未修改。
+
+**来源**：`docs/goals/m1-and-rw-a-iteration.md`（#71 时空输入贯通、#72 RW-A 位置化读写）
+落地后，测试套件从 320/613（函数/断言）增长到 **715/1778**。
+
+**新增（32 个测试实例，四个文件）**
+
+| 文件 | 覆盖 |
+| --- | --- |
+| `tests/test_r7_switched_path_equivalence.py` | 开关关闭时与**改动前实现**逐位相同（23 个 digest，`git archive` 取冻结实现、同进程双包名导入、import 改写可逆校验）+ 扰动反证 + 默认关断言 |
+| `tests/test_r7_spacetime_inputs.py` | 读取器按 store 时间戳导出 init 时刻；缺字段显式失败；改相位/lead→输出变、改未读字段→逐位不变；纬度轴反转（均值不变）→输出变；模块无时钟源（AST） |
+| `tests/test_r7_input_path_consistency.py` | 七条路径的模型输入键集合互锁 == `DECLARED_MODEL_INPUTS`；泄漏类键不在其中；声明集合与**实际读取集合**相等（缺失访问集合钉为 `{atmos_baseline}`）；rollout 只对相位模型传累积 lead |
+| `tests/test_r7_process_readout_positional.py` | `[B,N,D]` 位置化摘要；单 token 扰动各位置响应不均匀（对照臂 spread 恒为 0）；N×M 注意力形状；加法语义；集合语义（对 token 顺序不变）；开启只新增 reader 参数 |
+
+**顺带更正（两处既有断言，均为**加强**而非放宽）**
+
+- `tests/test_r7_gain_oracle_local.py:24` 与 `tests/test_r7_evaluation_windows.py:88` 原本把
+  "模型收到的键集合"写死为 `{coarse_history, lead_time_hours}`。#71 之后 rollout 必须携带
+  声明的初始时刻字段，故两条改为**引用 `DECLARED_MODEL_INPUTS`**（不再有平行清单可漂移），
+  并各自新增"目标类键不在集合内"的断言。**判据未放宽**：断言的对象集合变大且新增一条约束。
+
+**代价（如实记录）**：①基线抬到当前实测值意味着今后**任何**测试数量的下降都会触发 R-009
+报告（该规则本就是报告型）；②逐位等价测试依赖仓库历史（`git archive <起点 SHA>`），
+在无历史的克隆上**失败而不是跳过**——已按项目纪律选择 fail-closed。
+
+**验证**：`pytest -q` **1257 passed / 3 skipped**（3 个 skip 仍是"可选真实数据 fixture
+未跟踪、禁止合成回退"）；34 条阻断规则中 **R-044 在本机报 1 条阻断命中**，来源是本轮早期
+遗留、未跟踪、未提交的 `tests/fixtures/r7_equivalence_recipe.py`（内容已并入
+`tests/test_r7_switched_path_equivalence.py`）；该文件因
+`guard_protected_paths` 拒绝一切 `tests/` 下的删除而**无法在本会话内移除**，
+处置方式与影响见 `docs/R7_71_72_M1_AND_RWA.md` §8/§12。**CI 不受影响**（跑提交树）。
+
 ## 2026-09-27 — planner 委派协议（新能力，含机械 JSON 契约）
 
 **范围**：新增一条委派能力与其契约校验器；不改任何 hook、不改科学判据。

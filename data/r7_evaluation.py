@@ -6,7 +6,8 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from model.r7_rollout import validate_horizons
-from .r7_store import validate_store, normalization, split_time_labels, HOUR_NS
+from .r7_store import (HOUR_NS, init_time_fields, validate_store, normalization,
+    split_time_labels)
 
 
 class ZarrRolloutDataset(Dataset):
@@ -78,7 +79,11 @@ class ZarrRolloutDataset(Dataset):
             'latitude':torch.from_numpy(self.latitude.copy()),'longitude':torch.from_numpy(self.longitude.copy()),
             'lead_time_hours':torch.tensor(float(self.step_hours)),
             'init_time':self.times[history[-1]].isoformat(),
-            'valid_times':[self.times[i].isoformat() for i in targets]}
+            'valid_times':[self.times[i].isoformat() for i in targets],
+            # The same derivation the training reader uses, so the two producers
+            # cannot drift into different definitions of "initialization time".
+            **{name:torch.tensor(float(value)) for name,value in
+               init_time_fields(int(self.times[history[-1]].value)).items()}}
 
 
 def fit_training_climatology(store_path):

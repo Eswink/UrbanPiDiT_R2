@@ -85,7 +85,12 @@ def test_evaluation_checkpoint_and_cli(tmp_path,monkeypatch):
     monkeypatch.setattr(module,'make_model',checked_model)
     result=evaluate_local(paths['test'],output_dir=tmp_path/'eval',checkpoint=checkpoint,lead_hours=(6,12),max_samples=2)
     assert result['n_evaluated']==2 and result['checkpoint_sha256']
-    assert all(keys=={'coarse_history','lead_time_hours'} for keys in observed)
+    # #71: the rollout carries the declared initialization-time fields as well; the
+    # declared set is imported from the model so this pin cannot drift from it, and
+    # the target-bearing keys are still absent from what the model sees.
+    from model.r7_halting import DECLARED_MODEL_INPUTS
+    assert observed and all(keys==set(DECLARED_MODEL_INPUTS) for keys in observed)
+    assert not any({'atmos_target','rollout_targets','process_targets'} & keys for keys in observed)
     assert (tmp_path/'eval'/'rmse.csv').is_file() and (tmp_path/'eval'/'acc.csv').is_file()
     # #64 D-3: the climatology baseline is scored on the same cases in the same run
     skill_rows=list(csv.DictReader((tmp_path/'eval'/'climatology_skill.csv').open(encoding='utf-8')))

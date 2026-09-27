@@ -7,9 +7,45 @@ from .preprocess.contracts import chronological_splits, parse_split_time_ranges,
 from .preprocess.grid import regular_latlon_spacing
 
 HOUR_NS = 3_600_000_000_000
+DAY_NS = 24 * HOUR_NS
 
 YEAR_SPLIT_MODE = 'years'
 TIME_RANGE_SPLIT_MODE = 'time_ranges'
+
+
+def init_time_fields(stamp_ns):
+    """Initialization-time phase inputs derived from a stored UTC timestamp.
+
+    Returns ``init_utc_hour`` (0-23), ``init_day_of_year`` (1-366) and
+    ``init_year``. #71 requires the model to condition on the initialization
+    time without ever reading the machine clock, so these are computed here -
+    from the store's own ``time_ns`` entry for the window's last history step -
+    and carried in the sample dict like any other input field.
+
+    The arithmetic is exact integer arithmetic on the stored nanoseconds (numpy
+    datetime64 for the calendar part); no float time math and no timezone
+    inference is involved.
+
+    Fails closed on a timestamp that is not hour-aligned: the phase fields carry
+    no sub-hour precision, and flooring silently would make the phase a rounded
+    quantity without recording that it was rounded.
+    """
+    if isinstance(stamp_ns, bool) or not isinstance(stamp_ns, (int, np.integer)):
+        raise TypeError('init time must be an integer nanosecond timestamp')
+    stamp_ns = int(stamp_ns)
+    if stamp_ns < 0:
+        raise ValueError('init time must be a nonnegative UTC timestamp since the epoch')
+    if stamp_ns % HOUR_NS:
+        raise ValueError('init time must be hour-aligned; the phase fields carry '
+                         'no sub-hour precision')
+    day, remainder = divmod(stamp_ns, DAY_NS)
+    date = np.datetime64(day, 'D')
+    start = date.astype('datetime64[Y]').astype('datetime64[D]')
+    return {
+        'init_utc_hour': float(remainder // HOUR_NS),
+        'init_day_of_year': float((date - start) / np.timedelta64(1, 'D')) + 1.0,
+        'init_year': float(date.astype('datetime64[Y]').astype(np.int64)) + 1970.0,
+    }
 
 
 def split_time_labels(root):

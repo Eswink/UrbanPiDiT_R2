@@ -5,6 +5,28 @@ from torch import nn
 from .layers.patch_grid import crop_native_grid
 
 
+def resolve_lead_hours(lead_time_hours, *, batch:int, device:torch.device,
+                       dtype:torch.dtype, default_hours:float=6.)->torch.Tensor:
+    """Coerce a declared lead to a finite [B] FP32-style tensor of hours.
+
+    The single place that decides what a missing or oddly-shaped lead means, so
+    the lead embedding and the space-time phase cannot disagree about it. A
+    missing lead becomes ``default_hours`` (the declared transition cadence);
+    nothing here reads a clock.
+    """
+    if lead_time_hours is None:
+        hours=torch.full((batch,1),default_hours,device=device,dtype=dtype)
+    else:
+        hours=torch.as_tensor(lead_time_hours,device=device,dtype=dtype)
+        if hours.ndim==0:
+            hours=hours.expand(batch).reshape(batch,1)
+        else:
+            hours=hours.reshape(batch,-1)[:,:1]
+    if not torch.isfinite(hours).all():
+        raise ValueError('lead_time_hours must be finite')
+    return hours
+
+
 class LeadTimeEmbedding(nn.Module):
     def __init__(self,dim:int,hidden:int|None=None):
         super().__init__()
@@ -13,14 +35,8 @@ class LeadTimeEmbedding(nn.Module):
 
     def forward(self,lead_time_hours:Optional[torch.Tensor],*,batch:int,device:torch.device,
                 dtype:torch.dtype,default_hours:float=6.)->torch.Tensor:
-        if lead_time_hours is None:
-            hours=torch.full((batch,1),default_hours,device=device,dtype=dtype)
-        else:
-            hours=torch.as_tensor(lead_time_hours,device=device,dtype=dtype)
-            if hours.ndim==0:
-                hours=hours.expand(batch).reshape(batch,1)
-            else:
-                hours=hours.reshape(batch,-1)[:,:1]
+        hours=resolve_lead_hours(lead_time_hours,batch=batch,device=device,dtype=dtype,
+            default_hours=default_hours)
         return self.net(hours/24.)
 
 
