@@ -5,10 +5,15 @@
 
 | 项 | C2 | C3 |
 | --- | --- | --- |
-| 协议 digest | `9a5ce6c50365626449aee83d936389f8499331c15582c0f984f126f0d7d13eff` | 见 `outputs/r7_65_c3/protocol.json` |
-| 训练 | 4 臂 × 3 seed × 800 update，**12/12 无早停**，3926.2 s ≈ **1.09 GPU-h** | 2 臂 × 3 seed × 800 update，1939–？ s，见产物 |
+| 协议 digest | `9a5ce6c50365626449aee83d936389f8499331c15582c0f984f126f0d7d13eff` | `4b1d9103a5b4c3e3d79a00bca5bf81564a747b60e83714a062c5728ea00e5498` |
+| 训练 | 4 臂 × 3 seed × 800 update，**12/12 无早停**，3926.2 s ≈ **1.09 GPU-h** | 2 臂 × 3 seed × 800 update，**6/6 无早停**，1801.2 s ≈ **0.50 GPU-h** |
 | 评估 | val only，`test_read: false`，5 时效 | 同上 + **测试时 K 扫描（K=1/2/4 自同一 checkpoint）** |
 | 产物 | `outputs/r7_65_c2/`、`outputs/r7_65_c2_analysis/` | `outputs/r7_65_c3/`、`outputs/r7_65_c3_analysis/` |
+
+**无效运行如实保留**：首次 C3（见 §2.1）保留在 `outputs/r7_65_c3_invalid_k1_config/`，
+未被删除、也**未**被当作结果。它按 `--run` 规则被 pruner 拒绝（其
+`selected_checkpoint` 指向重命名前的旧路径）——这是 fail-closed 行为，
+该目录因此仍保留全部 30 个 checkpoint（0.945 GiB）。
 
 ---
 
@@ -122,17 +127,39 @@ baseline**。
 | 48h | 5.2459 | 5.1406 | **5.0667** |
 | 72h | 5.6457 | **5.6366** | 6.1716 |
 
-**（b）独立训练的 K=1 vs K=4**（各自在自己的训练深度上评估）见产物
-`ablation_result.json` / `analyze_r7_65_ablation.py` 的配对表。
+**（b）独立训练的 K=1 vs K=4**（各自在自己的训练深度上评估，#60 比较器，
+参考 = `process8_aux010_k4`）：
+
+| 臂 | forward FLOPs | forward+bwd FLOPs | wall time（均值） | improved | worsened | unresolved |
+| --- | --- | --- | --- | --- | --- | --- |
+| process8_aux010_k4 | 14,162,671,488 | 42,374,270,208 | 326.8 s | — | — | — |
+| **process8_aux010_k1** | **10,205,989,248（−27.9%）** | 30,617,967,744 | **273.3 s（−16.4%）** | 18 | 14 | 53 |
+
+t2m 逐时效（K1 相对 K4 的 delta）：
+
+| lead | 判定 | 三 seed delta |
+| --- | --- | --- |
+| 6h | unresolved | −0.178 / −0.006 / +0.020 |
+| 12h | **improved** | −0.141 / −0.022 / −0.134 |
+| 24h | unresolved | −0.356 / +0.138 / +0.132 |
+| 48h | **worsened** | +0.132 / +0.332 / +0.126 |
+| 72h | **improved** | −0.984 / −0.425 / −1.497 |
 
 **结论（mixed）**：
 
-1. **测试时加深在训练时效（6h）有用，在长时效不一致**：K=4 在 6h 最好
-   （3.1539），但在 24h 与 72h 反而是 K=1/K=2 更好。**所以「免费 scaling」不成立**——
-   这与预诊断 §3 的 K 轨迹同向（K=3、K=4 的修正开始变差，相邻 cosine 趋于 0.98）。
-2. **K6/K8 未测**，也不在本次声明范围内（#65 明确：未训练过的深度不得称免费 scaling）。
-3. 「从 K=4 评 K=1」与「独立训练 K=1」**是两个不同问题**，本次**分开报告**，
-   未把前者当作后者的证据。
+1. **测试时加深在训练时效（6h）有用，在长时效不一致**：从同一个 K=4 checkpoint
+   评不同 K 时，K=4 在 6h 最好（3.1539），但在 24h 与 72h 反而是 K=1/K=2 更好
+   （24h: K=1 3.9923 < K=2 4.0162 < K=4 4.1881；72h: K=2 5.6366 < K=1 5.6457 < K=4 6.1716）。
+   **所以「免费 scaling」不成立**——这与预诊断 §3 的 K 轨迹同向（K=3、K=4 的修正
+   开始变差，相邻 cosine 趋于 0.98）。
+2. **独立训练的 K=1 用 −27.9% 算力换来 mixed 结果**：18 格 improved / 14 格 worsened /
+   53 格 unresolved。它在 t2m 上 12h 与 72h **三 seed 同号改善**，48h **三 seed 同号变差**。
+   方向不一致 ⇒ **不能声称浅层更划算**，只能说「−27.9% 算力下的结果与深层互有胜负、
+   且没有一个时效显著落后」这一描述性结论。
+3. **K6/K8 未测**，也不在本次声明范围内（#65 明确：未训练过的深度不得称免费 scaling）。
+4. 「从 K=4 评 K=1」与「独立训练 K=1」**是两个不同问题**，本次**分开报告**，
+   未把前者当作后者的证据。前者在 6h 明显更差（3.3010 vs 3.1539），
+   后者在 6h 与 K=4 打平（三 seed delta 跨号）——这正说明两者的区别是真实的。
 
 ## 3. 局限
 
@@ -156,3 +183,30 @@ baseline**。
 .venv/bin/python scripts/analyze_r7_65_ablation.py --run outputs/r7_65_c3 \
     --reference process8_aux010_k4 --out outputs/r7_65_c3_analysis
 ```
+
+## 5. 预算记录（新产物上限）
+
+C1 + C2 + C3 三次运行**未剪枝前**共写 **5.758 GiB** 新产物，把累计推到
+**16.03 / 16 GiB** —— **越界**。授权规定「若突破则缩小范围」，故执行了
+**证据保全式剪枝**：只删除每臂 `training_report.json` 里 `selected_checkpoint`
+**之外**的中间 checkpoint，保留全部评估目录、`rmse.csv`、报告、协议与结果 JSON。
+
+| 目录 | 剪枝前 | 剪枝后 | 删除 | 保留的 endpoint |
+| --- | --- | --- | --- | --- |
+| r7_65_c1 | 1.951 GiB | 0.380 GiB | 50 个 / 1608.7 MiB | 12 个 |
+| r7_65_c2 | 1.886 GiB | 0.379 GiB | 48 个 / 1543.2 MiB | 12 个 |
+| r7_65_c3 | 0.976 GiB | 0.191 GiB | 25 个 / 804.5 MiB | 6 个 |
+| r7_65_c3_invalid_k1_config | 0.945 GiB | 0.945 GiB（**未剪**） | 0 | 30 个 |
+
+- 工具：`tools/prune_r7_run_checkpoints.py`（默认 dry-run，`--apply` 才删除；
+  9 个测试在 `tests/test_prune_r7_run_checkpoints.py`，含「端点缺失即拒绝」
+  「无报告即拒绝」「未 `--apply` 不动文件」「非 checkpoint 产物全部保留」四类反证）。
+- 每个被剪目录写入 `checkpoint_prune_receipt.json`，逐文件记录
+  `path`/`bytes`/`sha256`，所以 `du` 的下降是**可审计的删除**而不是无法解释的损失。
+- 每次运行发布的数字都由 **selected endpoint** 产生，该 endpoint **被保留**，
+  且其 SHA256 已记在 `ablation_result.json` 的 `training.*.checkpoint_sha256` ——
+  因此**已发布的数值仍可从保留的产物复现**。
+- 剪枝后累计：**12.165 / 16 GiB**（余量 3.835 GiB）。
+- `r7_65_c3_invalid_k1_config` 未剪是因为 pruner 的 fail-closed 检查拒绝了它
+  （其报告里的 `selected_checkpoint` 指向重命名前的路径）。**有意保留**这条无效运行
+  及其全部 checkpoint，作为 §2.1 所述缺陷的实物证据；代价 0.945 GiB 已计入上面的余量。
