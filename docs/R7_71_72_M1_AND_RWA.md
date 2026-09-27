@@ -253,8 +253,28 @@ bash scripts/run_71_72_multiseed.sh
 
 ## 11. 提交与 CI
 
-见本文件末尾一节（随提交更新）：提交 SHA、`ci.yml` run id 与结论、以及
-17 条实验 workflow 的 `skipped`（commit-message 标签门控，设计行为）。
+| SHA | 内容 | `ci.yml` run（R7 CPU CI / pytest） |
+| --- | --- | --- |
+| `2586477` | #71/#72 第一轮实现（model/data/training）+ 4 个测试文件 + 两个既有输入集合断言改写 + 实验脚本 + 本文件 + 决策 0013 + R-009 基线 | `36347857577` **completed / success** |
+| 见下条提交 | 本节补齐 + `.gitignore` 回填 `.zcode/agents/` | 该提交自身的 run（文档/配置改动） |
+
+核对方式（匿名只读 API，AGENTS.md 记载本项目 API 写 401、读可用）：
+
+```bash
+curl -s "https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs?head_sha=<full sha>" \
+  | python -c "import json,sys;[print(r['id'],r['name'],r['status'],r['conclusion']) for r in json.load(sys.stdin)['workflow_runs']]"
+```
+
+**17 条实验 workflow 本次全部 skip**，且是**设计行为**：它们的触发是 `push` 到本分支，
+但 job 级 `if: contains(github.event.head_commit.message, '<tag>')` 未命中——本轮提交的
+message 里**没有**任何标签（`[cpu-study]`、`[seasonal-study]`、`[real-smoke]` 等）。
+逐 run 核对过 job 级结论（`.../actions/runs/<id>/jobs` → `completed / skipped`），
+不是失败，也不是排队。本轮的实验证据来自**本机 2×RTX 3090**，不走 workflow。
+
+**CI 与本机的差异（如实）**：CI 是 Python 3.11 + CPU-only torch；本机是 3.12 + cu128。
+逐位等价测试**不依赖**任何预存 digest（它在同一进程里跑冻结实现与当前实现），
+所以在 CI 机器上同样是有效比较——run `36347857577` 的 success 就是这条在**另一台机器**上的
+独立复现（含 `git archive` 路径与 `fetch-depth: 0`）。
 
 ## 12. 遗留文件的处置（需要用户）
 
