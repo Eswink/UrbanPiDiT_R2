@@ -84,8 +84,8 @@ GPU-hours this campaign (all measured from each run's own `training_report.json`
 C1 1.08 + C2 1.09 + C3 0.50 + curriculum 0.39 + the #67 re-cut retrain 1.08 ≈ **4.14 GPU-h**, all
 on the local 2×3090; no paid resource was used.
 
-**Final CI binding.** Campaign code SHA range: `f4a552b` → `5383914`. Every run below was pulled
-from the `ci.yml` workflow's own run list and each is `completed / success`:
+**Final CI binding.** Every `ci.yml` run below was pulled from the workflow's own run list, and
+each is `completed / success`:
 
 | run id | SHA | what that SHA is |
 | --- | --- | --- |
@@ -96,18 +96,24 @@ from the `ci.yml` workflow's own run list and each is `completed / success`:
 | `36309161879` | `90307e7` | issue-closing commit |
 | `36309375783` | `93832fc` | closure record |
 | `36310343924` | `ecdae0d` | user-authored budget-caps commit |
-| `36312388200` | `6b8578c` | **covers code-bearing `f653897`** (the sealed-test report and its analysis scripts were pushed together with `6b8578c`) |
+| `36312388200` | `6b8578c` | **covers code-bearing `f653897`** — the sealed-test report and its analysis scripts were pushed together with `6b8578c`, and `f653897` is its ancestor |
 | `36312611169` | `77f2718` | change manifest + epoch curves |
 | `36313302904` | `1548c3c` | SHA-range/run-id record |
-| `36313635208` | `5383914` | **final tip** — this table and the measured GPU-hours |
+| `36313635208` | `5383914` | CI run table + measured GPU-hours |
+| `36313941380` | `8822165` | per-tip CI table |
+
+**Why this list terminates instead of chasing its own tip.** The last commit that changes any
+**non-doc** file is `f653897`; every commit after it touches only `docs/**`. A documentation-only
+commit cannot alter behaviour, so the CI conclusions above cover the campaign's code regardless of
+how many further doc commits follow, and no later tip needs its own row for the code claim to
+hold. Readers who want the newest documentation commit's run can read it off the `ci.yml` run
+list directly; what is guaranteed here is the part that carries scientific weight.
 
 Job detail for `36313302904`: job `108603223124` (`pytest`), every step green — *Check repository
 conventions*, *Compile active modules and check whitespace*, *Run unit, integration and
 installed-wheel tests*. On every SHA the 17 experiment workflows report `skipped`, which is their
-tag-gated design rather than a failure. The record is terminal: the last commit that changes any
-non-doc file is `f653897`, and everything after it is documentation-only, so no behaviour can
-differ between the verified tips. Local verification on the same tree: **1151 passed / 3 skipped**,
-34 blocking convention rules **0 violations**.
+tag-gated design rather than a failure. Local verification on the same tree: **1151 passed /
+3 skipped**, 34 blocking convention rules **0 violations**.
 
 
 
