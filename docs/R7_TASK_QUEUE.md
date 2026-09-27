@@ -81,7 +81,7 @@ receipt's `kept` list. Campaign artifacts now total **2.273 GiB**, i.e. cumulati
 16 GiB**. The invalid C3 run is deliberately **not** pruned — the tool's fail-closed check
 refuses it, and its checkpoints are the physical evidence for the harness defect above.
 GPU-hours this campaign: C1 1.08 + C2 1.09 + C3 0.50 + curriculum 0.39 ≈ **3.06 GPU-h**, all on
-the local 2×3090; no paid resource was used. Campaign code SHA range: `f4a552b` → `90307e7`.
+the local 2×3090; no paid resource was used. Campaign code SHA range: `f4a552b` → `77f2718`. Final CI: **run 36312611169 success** on `77f2718`; the 17 experiment workflows on the same SHA report `skipped`, which is the tag-gated design rather than a failure.
 
 
 Latest full code CI: **578passed,3old-fixture-skipped,2existingLightningwarnings**
