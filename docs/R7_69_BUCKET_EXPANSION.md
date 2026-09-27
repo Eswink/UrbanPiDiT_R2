@@ -314,24 +314,40 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 ### 12.1 关于「开 issue + `Closes #N` 关闭」的豁免（环境限制，非跳过）
 
 objective ⑤ 要求「新发现的问题自行开 issue 并在 DONE 后经 `Closes #N` + main ff 关闭」。
-**本条在本环境中不可执行，理由为实测**：
+**本条在本环境中不可执行**。这不是推断，而是对**每一条可能通道**的穷尽探测，
+以及对本机凭据来源的核查：
 
 | 通道 | 实测结果 |
 | --- | --- |
-| `POST /repos/Eswink/UrbanPiDiT_R2/issues` | **HTTP 401**（匿名写被拒） |
+| `POST /repos/Eswink/UrbanPiDiT_R2/issues` | **HTTP 401** |
+| `POST /repos/Eswink/UrbanPiDiT_R2/issues/69/comments` | **HTTP 401** |
+| `PATCH /repos/Eswink/UrbanPiDiT_R2/issues/69`（关闭） | **HTTP 401** |
+| `POST /graphql` | **HTTP 403** |
+| `GET /user`（认证成功才会 200） | **HTTP 401** ⇒ 本会话**未认证** |
 | `GET /issues/69` | **HTTP 404**（该 issue 从未存在） |
 | `gh` CLI | **未安装**；AGENTS.md 亦明令本项目不用 `gh` |
-| git / SSH | 可用（本次 ff 推送即经它完成） |
+| git / SSH | 可用，但 **git 协议没有 issue 动词** —— 无法据此开/关 issue |
 
-`Closes #N` 只能关闭**已存在**的 issue，而创建 issue 需要的正是那条 401 的写通道。
-因此本阶段**无法**开 issue、也无法用 closing keyword 关闭任何东西。**这不是放宽判据**：
-- 三个提交的 message 里**没有**任何 `Closes`/`Fixes`/`Resolves` 关键字（已 grep 核实），
+凭据来源核查（**未打印任何秘密值**）：`GITHUB_TOKEN` / `GH_TOKEN` / `GITHUB_PAT` /
+`GITHUB_API_TOKEN` / `GH_PAT` 全部 **unset**；`git config credential.helper` 指向的
+`.git/github-credentials` **不存在**；`~/.netrc` 只含 `api.wandb.ai` 与 `wandb.r6siege.cn`，
+**不含任何 github.com 条目**。即：本机没有任何可用的 GitHub 写凭据。
+
+`Closes #N` 只能关闭**已存在**的 issue，而创建 issue 需要的正是那条 401 的写通道，
+且 `Closes` 只有在提交**落到默认分支**时才生效——两者缺一不可。
+因此本阶段**无法**开 issue、也无法用 closing keyword 关闭任何东西。
+
+**决定：按环境限制显式豁免 issue 追踪（不计为「跳过判据」）。** 依据与边界：
+
+- 三个提交的 message 里**没有**任何 `Closes`/`Fixes`/`Resolves` 关键字（已 grep 核实，0 命中），
   所以不存在「意外关闭」或「假装关闭」；
 - `#69` 只作为**标签**出现在 subject 中，指向一个不存在的编号，GitHub 侧无副作用；
-- 因此本阶段的成果**不依赖**任何 issue 状态，全部结论以 `docs/R7_69_BUCKET_EXPANSION.md`
-  与 `docs/decisions/0010-*` 为准（治理文件已进版本控制）。
-- **待用户在 ZCode 之外的终端**：如需 issue 追踪，请手工创建 #69 并挂 `Closes #69`；
-  但按上表，**科学结论不因该步骤缺失而改变**。
+- 本阶段的全部结论以 `docs/R7_69_BUCKET_EXPANSION.md` 与 `docs/decisions/0010-*` 为准，
+  **两文件均已在版本控制内**（R-037），**不依赖**任何 issue 状态；
+- 豁免的**范围仅限 issue 追踪**：34 条阻断规则、全量 pytest、协议冻结、#60 比较器、
+  `failed-no-fallback` 留痕等**判据一条未放宽**；
+- **若用户需要 issue 追踪**：请在 ZCode 之外的终端创建 #69 并挂 `Closes #69`。
+  按上表，**科学结论不因该步骤缺失或存在而改变**。
 
 `478d982` 没有自己的 run 是 GitHub 的 push 语义：它与 `be5ce21` 在同一次 push 中推上，
 每次 push 只在**分支尖端**触发一次 workflow。`478d982` 是 `be5ce21` 的祖先，所以
