@@ -2,6 +2,49 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-27 — planner 委派协议（新能力，含机械 JSON 契约）
+
+**范围**：新增一条委派能力与其契约校验器；不改任何 hook、不改科学判据。
+**来源**：用户新增 user 级只读子智能体 `planner`（Read/Grep/Glob/WebFetch/WebSearch，
+不写文件、只回 JSON），要求迭代中需要计划文件或 TODO 时先委派它，planner 不可用时
+降级自规划。实测本仓此前**无任何委派/子智能体协议**（`subagent`/`planner`/`委派`/
+`子智能体` 在活跃区零命中），故这是新能力而非补充。
+
+**新增能力（1 个）**
+
+| 能力 | 触发条件 | 用途 | 证据 |
+| --- | --- | --- | --- |
+| [`planner-delegation`](../../.agents/skills/planner-delegation/SKILL.md) | 多步方案设计、迭代计划/TODO 撰写、架构选型、大改动前风险评估 | 委派只读 planner → JSON 过契约校验 → 由 agent 转成目标产物；含降级路径 | `tools/check_planner_plan.py` 36 个测试（含自洽与防漂移）；决策 0012 |
+
+**新增执行面**
+
+- `tools/check_planner_plan.py`：只读、fail-closed 的 JSON 契约校验器（0 合法 / 1 违规 /
+  2 用法错误）。顶层 key 严格（多余即拒，沿用 `test_agent_hooks.py` 的 no-extra-keys 先例）。
+- 已加入 R-037 的 `GOVERNANCE_ASSETS`（它是被执行的治理资产）。
+- 两条边界**机械编码**而非仅文字约定：①`science_criteria_refs` 每项必须是文档指针
+  （含 `/` 且以 `.md` 结尾），裸数字/阈值即拒——落实"科学判据不外委"；
+  ②`files_to_touch` 不得命中 `data/raw|interim|processed` 或归档前缀，且该清单
+  **从 `check_conventions.ARCHIVAL_PREFIXES` 推导**，有防漂移测试断言两者相等。
+
+**顺带修正（同轮发现）**
+
+- `docs/skills/README.md` 缺 `decision-record` 行（8 个 skill 只登记了 7 个）——已补；
+- 同文件"20 条阻断规则"已过期（实际 34）——已改；
+- `docs/decisions/README.md` 索引只列到 0006，而 0007–0011 已存在——已补齐至 0012，
+  并验证全部链接可达。
+
+**代价（如实记录）**：①planner 的系统提示词是 user 级配置、**不在版本控制内**，行为可能
+漂移——仓库唯一的护栏是 JSON 校验器，它拦得住结构越界、**拦不住内容质量**；
+②委派链路比自规划长，单步任务用它是净损失（skill 已写明不适用）；
+③planner 工具集无 Bash，读不到 `outputs/` 产物，可能与既有证据脱节，现状须由主 agent
+写进委派提示词；④存在把 planner 输出当证据的误用风险，已在 skill 的「常见失败」写明。
+
+**验证**：`pytest tests/test_check_planner_plan.py -q` **36 passed**（含缺 key/未知 key/
+非 kebab slug/重复与未知 step id/前向依赖/无 mitigation/裸阈值/保护路径/绝对路径与
+上溯路径等反证，以及防漂移与 skill 自洽两个结构性断言）；全量 `pytest -q`
+**1216 passed / 3 skipped**；34 条阻断规则 **0 违规**（R-037 在暂存前按设计拦住了
+新校验器一次——未跟踪即干净克隆上失效，这正是该规则的作用）。
+
 ## 2026-09-25 — GitHub 通道与 issue 关闭方式（用户授权的例外）
 
 **范围**：`.github/workflows/*.yml` 的触发语义、对 `main` 的受控写入、issue 的自动关闭。

@@ -914,6 +914,7 @@ GOVERNANCE_ASSETS = (
     "AGENTS.md",
     "docs/skills/README.md",
     "tools/check_conventions.py",
+    "tools/check_planner_plan.py",
     "tests/test_check_conventions.py",
     "tests/test_agent_hooks.py",
 )

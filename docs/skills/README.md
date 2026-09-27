@@ -18,6 +18,8 @@ ZCode 的 skill 发现路径，模型会按 `description` 里的触发条件自�
 | [`environment-rebuild`](../../.agents/skills/environment-rebuild/SKILL.md) | 换机器/容器、`ModuleNotFoundError`、CUDA 不可用 | 虚拟环境搭建顺序 + 未声明依赖清单 | 2026-09-24 实测重建；4 个未声明依赖 + torch≥2.8 不兼容（E-157, Q-011, Q-012） |
 | [`ci-workflow-triage`](../../.agents/skills/ci-workflow-triage/SKILL.md) | CI 失败、运行 pending/取消、要判断"算不算通过" | 18 条 workflow 分类 → 触发标签 → run-id pin → 禁网验证 | 18 条 workflow；`R7_MANUAL_ITERATION.md:17-21`；`R7_TASK_QUEUE.md` |
 | [`issue-lifecycle`](../../.agents/skills/issue-lifecycle/SKILL.md) | 开始/推进/关闭 issue，或判断能否标 DONE | 四态推进 + 绑定精确 SHA + 证据要求 | `R7_TASK_QUEUE.md:59` + 6 个真实 issue（#53–#58） |
+| [`decision-record`](../../.agents/skills/decision-record/SKILL.md) | 要做或记录一个影响架构/约定/长期行为的决定 | ADR 模板 + 状态生命周期 + 编号规则 + 与 OPEN_QUESTIONS 的分工 | R-033/R-036 的机械检查 + `docs/decisions/` 12 份记录 |
+| [`planner-delegation`](../../.agents/skills/planner-delegation/SKILL.md) | 多步方案设计、迭代计划/TODO 撰写、架构选型、大改动前风险评估 | 委派只读 planner → JSON 过契约校验 → 由 agent 转成目标产物；含降级路径 | `tools/check_planner_plan.py` 36 个测试（含自洽与防漂移）；决策 0012 |
 
 ## 未立为 SOP 的候选（仅观察）
 
@@ -31,6 +33,8 @@ ZCode 的 skill 发现路径，模型会按 `description` 里的触发条件自�
 
 ## 相关的执行面
 
-- `tools/check_conventions.py` — 20 条阻断规则，已接入 CI 与 Stop hook。
+- `tools/check_conventions.py` — 34 条阻断规则，已接入 CI 与 Stop hook。
+- `tools/check_planner_plan.py` — planner 委派计划的 JSON 契约校验器（只读；保护前缀
+  与 `check_conventions.ARCHIVAL_PREFIXES` 同源，有防漂移测试），见 `planner-delegation`。
 - `tools/agent_hooks/` — 三个 PreToolUse/PostToolUse hook（保护路径、破坏性 git、
   model digest 提醒），配置在 `.zcode/config.json`，见 `AGENTS.md`。

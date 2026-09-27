@@ -32,3 +32,9 @@
 | [0004](0004-d1-source-selection.md) | D1 数据源选择（Earthmover spatial） | accepted | 2026-09-26 |
 | [0005](0005-time-range-split-mode.md) | 发布契约新增「时间段切分」模式 | accepted | 2026-09-26 |
 | [0006](0006-split-mode-reader-precedence.md) | 时间段模式下读者以 `split_time_ranges` 为准 | accepted | 2026-09-26 |
+| [0007](0007-b1-data-scope-d1-only.md) | D-1 数据范围：B1 只用 D1 工程段 | accepted | 2026-09-27 |
+| [0008](0008-b2-segment-extension.md) | B2 数据范围：D1 段扩到 36 天（train 逐位不变） | accepted | 2026-09-27 |
+| [0009](0009-campaign-scope-and-narrowing.md) | 全自动战役 S3–S5 的执行决策与范围收窄 | accepted | 2026-09-27 |
+| [0010](0010-units-defect-and-two-month-segment.md) | 单位缺陷修正与双月（M2）段 | accepted | 2026-09-27 |
+| [0011](0011-issue-tracking-exemption.md) | 会话内无 GitHub 写通道，issue 追踪按环境限制豁免 | accepted | 2026-09-28 |
+| [0012](0012-planner-delegation-scope.md) | planner 子智能体的委派边界与 JSON 契约 | accepted | 2026-09-27 |

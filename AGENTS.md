@@ -82,6 +82,7 @@
 | 排查 CI 失败或判断"算不算通过" | `.agents/skills/ci-workflow-triage/SKILL.md` |
 | 开始/推进/关闭 issue | `.agents/skills/issue-lifecycle/SKILL.md` |
 | 记一个决定（架构 / 约定 / 长期行为） | `.agents/skills/decision-record/SKILL.md` |
+| 多步方案设计 / 迭代计划 / 大改动前风险评估 | `.agents/skills/planner-delegation/SKILL.md` |
 | 成品该放哪（计划 / 决策 / 目标 / 工具态） | `docs/rules/artifact-storage.md` |
 | 新文件/模块/函数该叫什么 | `docs/rules/naming.md` |
 | 全部能力清单与触发条件 | `docs/skills/README.md` |
@@ -134,6 +135,7 @@
 | 产物 | 放哪 | 提交 |
 | --- | --- | --- |
 | 计划（工作态 / 定稿） | `.zcode/plans/` → `docs/plans/NNNN-<slug>.md` | 工作态否 / 定稿是 |
+| 计划者委派返回的 JSON（工作态草稿） | 临时路径（如 `/tmp/`）；定稿仍按上一行整理 | 否 |
 | 决策记录 | `docs/decisions/NNNN-<slug>.md` | 是 |
 | 目标长文（goal 模式） | `docs/goals/<slug>.md` | 是 |
 | 规则细则 / 证据 / 待决问题 | `docs/rules/` | 是 |
