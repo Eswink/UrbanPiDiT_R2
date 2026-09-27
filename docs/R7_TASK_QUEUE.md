@@ -64,12 +64,14 @@ are fixed in place with per-file correction logs; no measured value changed.
 narrowing storage, not evidence: `tools/prune_r7_run_checkpoints.py` removes only `update_*.pt`
 files that are not each arm's recorded `selected_checkpoint`, keeps every evaluation directory /
 CSV / protocol / result JSON, is dry-run by default, and writes a receipt with path+bytes+sha256
-per deletion (9 tests in `tests/test_prune_r7_run_checkpoints.py`). Applied: **3,731.4 MiB
-reclaimed, 30 endpoints kept**, footprint now **12.165 / 16 GiB**. The invalid C3 run is
-deliberately **not** pruned — the tool's fail-closed check refuses it, and its checkpoints are the
-physical evidence for the harness defect above. GPU-hours this campaign: C1 1.08 + C2 1.09 +
-C3 0.50 + curriculum 0.39 ≈ **3.06 GPU-h**, all on the local 2×3090; no paid resource was used.
-Campaign code SHA range: `f4a552b` → `208943d`.
+per deletion (9 tests in `tests/test_prune_r7_run_checkpoints.py`). Applied to C1/C2/C3
+(**3,731.4 MiB reclaimed, 30 endpoints kept**) and to the curriculum run (836.5 MiB, 12 kept).
+Verified after pruning: all 6 curriculum `final_checkpoint` paths still exist and appear in the
+receipt's `kept` list. Campaign artifacts now total **2.273 GiB**, i.e. cumulative **12.543 /
+16 GiB**. The invalid C3 run is deliberately **not** pruned — the tool's fail-closed check
+refuses it, and its checkpoints are the physical evidence for the harness defect above.
+GPU-hours this campaign: C1 1.08 + C2 1.09 + C3 0.50 + curriculum 0.39 ≈ **3.06 GPU-h**, all on
+the local 2×3090; no paid resource was used. Campaign code SHA range: `f4a552b` → `0484927`.
 
 
 Latest full code CI: **578passed,3old-fixture-skipped,2existingLightningwarnings**
