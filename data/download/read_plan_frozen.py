@@ -47,6 +47,13 @@ LEAD_HOURS = (6, 12, 24, 48, 72)
 MAX_LEAD_HOURS = 72
 FIRST_STAGE_NEW_ARTIFACT_BYTES_CAP = 16 * 2**30
 FIRST_STAGE_DECODED_BYTES_CAP = 64 * 2**30
+# Second-stage caps (user-authorized 2026-09-27). The first-stage constants above
+# stay untouched because `frozen_protocol()` hashes them: the D1 and B2 receipts
+# archived `protocol_sha256 = d3161af5...`, and editing those numbers would make a
+# re-run derive a digest that no longer matches its own receipt. A later stage
+# therefore gets its own caps and its own digest rather than mutating stage one.
+SECOND_STAGE_NEW_ARTIFACT_BYTES_CAP = 100 * 2**30
+SECOND_STAGE_DECODED_BYTES_CAP = 256 * 2**30
 
 
 def channel_plan():
@@ -219,8 +226,22 @@ def d1_request(days=D1_DAYS, start=D1_START, cadence_hours=CADENCE_HOURS):
             "season": "Jan" if start_time.month == 1 else f"{start_time.month:02d}"}
 
 
-def frozen_protocol(source_pins=(), cost_rows=()):
-    """Machine-readable frozen plan; hashed with the canonical digest."""
+def frozen_protocol(source_pins=(), cost_rows=(), *,
+                    new_artifact_bytes_cap=FIRST_STAGE_NEW_ARTIFACT_BYTES_CAP,
+                    decoded_bytes_cap=FIRST_STAGE_DECODED_BYTES_CAP,
+                    stage="first"):
+    """Machine-readable frozen plan; hashed with the canonical digest.
+
+    Called with no cap arguments this is the **first-stage identity**: the caps
+    are the ones the D1/B2 receipts archived (`protocol_sha256 = d3161af5...`),
+    so the digest must stay reproducible byte-for-byte. Second-stage work passes
+    `SECOND_STAGE_*` caps and a distinct `stage` label, which yields a different
+    digest by construction - the earlier identity is never rewritten.
+    """
+    if new_artifact_bytes_cap < 1 or decoded_bytes_cap < 1:
+        raise ValueError("budget caps must be positive")
+    if stage not in ("first", "second"):
+        raise ValueError(f"unknown stage label {stage!r}")
     body = {
         "format": "r7-era5-v2-read-plan-v1",
         "frozen_before_any_download": True,
@@ -248,8 +269,8 @@ def frozen_protocol(source_pins=(), cost_rows=()):
                          "sources/times/variables require an independent identity",
         "case_identity": "explicit init/valid-time lists per #60; equal counts "
                          "never imply the same cases",
-        "budget_caps": {"new_artifacts_bytes": FIRST_STAGE_NEW_ARTIFACT_BYTES_CAP,
-                        "decoded_source_bytes": FIRST_STAGE_DECODED_BYTES_CAP},
+        "budget_caps": {"new_artifacts_bytes": new_artifact_bytes_cap,
+                        "decoded_source_bytes": decoded_bytes_cap},
         "source_pins": list(source_pins),
         "cost_rows": list(cost_rows),
         "limitations": [
@@ -260,4 +281,8 @@ def frozen_protocol(source_pins=(), cost_rows=()):
             "audit passes",
         ],
     }
+    if stage != "first":
+        # Only later stages carry the label, so the first-stage body (and thus
+        # its archived digest) is unchanged byte-for-byte.
+        body["stage"] = stage
     return dict(body, protocol_sha256=canonical_digest(body))

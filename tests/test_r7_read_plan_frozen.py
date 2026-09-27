@@ -108,6 +108,49 @@ def test_frozen_protocol_seals_scope_and_excludes_2020_from_test():
         {key: value for key, value in protocol.items() if key != "protocol_sha256"})
 
 
+def test_second_stage_caps_do_not_rewrite_the_first_stage_identity():
+    """Stage-two budgets must not mutate stage one's archived digest.
+
+    The D1 and B2 receipts archived ``protocol_sha256 = d3161af5...``, derived
+    from a body that hashed the 16 GiB / 64 GiB caps. Raising the cap for later
+    work must therefore add a new identity, never edit that one - otherwise a
+    re-run would derive a digest that no longer matches its own receipt.
+    """
+    from data.download.read_plan_frozen import (
+        FIRST_STAGE_NEW_ARTIFACT_BYTES_CAP,
+        SECOND_STAGE_DECODED_BYTES_CAP,
+        SECOND_STAGE_NEW_ARTIFACT_BYTES_CAP,
+        frozen_protocol,
+    )
+
+    archived = "d3161af5302f824b454905eda4a362e86c5dfd4bad7b78b3bc57a627c040da35"
+    default = frozen_protocol()
+    assert default["protocol_sha256"] == archived, \
+        "the first-stage identity must stay reproducible byte-for-byte"
+    assert "stage" not in default, "stage-one body must not gain a label key"
+    assert default["budget_caps"]["new_artifacts_bytes"] == FIRST_STAGE_NEW_ARTIFACT_BYTES_CAP
+
+    second = frozen_protocol(
+        new_artifact_bytes_cap=SECOND_STAGE_NEW_ARTIFACT_BYTES_CAP,
+        decoded_bytes_cap=SECOND_STAGE_DECODED_BYTES_CAP,
+        stage="second",
+    )
+    assert second["protocol_sha256"] != archived
+    assert second["stage"] == "second"
+    assert second["budget_caps"]["new_artifacts_bytes"] == SECOND_STAGE_NEW_ARTIFACT_BYTES_CAP
+    assert second["budget_caps"]["decoded_source_bytes"] == SECOND_STAGE_DECODED_BYTES_CAP
+    # Raising a cap is not a way to relax the scope freeze: region, channels and
+    # splits must be identical between stages.
+    assert second["region"] == default["region"]
+    assert second["channels"] == default["channels"]
+    assert second["splits"] == default["splits"]
+
+    with pytest.raises(ValueError):
+        frozen_protocol(stage="third")
+    with pytest.raises(ValueError):
+        frozen_protocol(new_artifact_bytes_cap=0)
+
+
 def test_normalization_floor_audit_reports_crushed_small_magnitude_channels():
     audit = _load("norm_audit", AUDIT)
     # A moisture-flux-convergence-like label: values ~1e-9, std below the floor.
