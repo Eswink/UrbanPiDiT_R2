@@ -59,6 +59,15 @@ are fixed in place with per-file correction logs; no measured value changed.
 | #64 remainder: 1→2→4 lead-time curriculum (S2) | **DONE** at `208943d` (**negative**): 2 arms × 3 seeds × 800 updates, **6/6 no early stop**, 1,411 s ≈ **0.39 GPU-h**, protocol digest `7bebc8b6c2269b6f…`. Parameters and FLOPs are **bit-identical** between arms and the stage budget sums exactly to the control's, so the only declared difference is the target distribution. The curriculum worsens t2m with a consistent sign at **all three short leads** (+1.58…+1.61 K at the trained 6h lead, ≈+56%) and the 85-cell table is **5 improved / 58 worsened / 22 unresolved**; the single consistent gain is at 48h (−1.55…−2.55 K), making the trade real but **net negative** under the pre-registered rule. Mechanism is structural: it gives up half its +6h updates, so a retest must **add** budget rather than reallocate. This axis is prediction lead time, kept distinct from the internal reasoning depth K | 1138 passed/3 skipped; see R7_64_CURRICULUM.md |
 | #68 transport-layer boundary (parallel) | **DONE** at `f5ce02f`: `data/download/http_pinned.py` pins the connection to the addresses that were validated (one resolution shared by check and connect), validates scheme/host/**port** and the resolved addresses per redirect hop, declares the proxy policy instead of inheriting `*_proxy`, and keeps SNI plus certificate verification on the default verifying context. `http_public.py` now re-exports it, so the existing downloaders gain the stronger behaviour without changing their imports (a test asserts both modules expose the same objects and that neither downloader calls `urlopen` directly). 37 offline cases in `tests/test_http_pinned.py`, whose headline case scripts a name that answers publicly first and privately second — a pre-resolution check passes that, the pinned connection refuses it and **no socket is ever created**. The triage doc states the boundary precisely: this is an address constraint, **not** an allowlist, not content inspection, and not immunity from an attacker-controlled public origin | 1138 passed/3 skipped; 34 blocking rules 0 violations; see R7_SECURITY_SCAN_TRIAGE.md |
 
+**2026-09-27 campaign closure.** All six campaign issues carry a terminal verdict and were
+closed through `Closes #N` on `main` (fast-forward `3bb9001..90307e7`, the only git path that
+works here): **#64, #65, #68 DONE; #66, #67 BLOCKED with their missing conditions written down;
+#59 closed as the epic now that every child is terminal.** No issue was closed on the strength
+of a cancelled or queued run, and no closure implies the process-recursion hypothesis was
+validated — the campaign's scientific outcome is negative-to-mixed. CI on the closing commit:
+**run 36309161879 success**; local verification at the same tree **1138 passed / 3 skipped**,
+34 blocking convention rules **0 violations**.
+
 **2026-09-27 campaign artifact accounting (new-artifact cap 16 GiB).** C1+C2+C3 wrote
 5.758 GiB unpruned, taking the cumulative footprint to **16.03 GiB — over cap**. Resolved by
 narrowing storage, not evidence: `tools/prune_r7_run_checkpoints.py` removes only `update_*.pt`
@@ -71,7 +80,7 @@ receipt's `kept` list. Campaign artifacts now total **2.273 GiB**, i.e. cumulati
 16 GiB**. The invalid C3 run is deliberately **not** pruned — the tool's fail-closed check
 refuses it, and its checkpoints are the physical evidence for the harness defect above.
 GPU-hours this campaign: C1 1.08 + C2 1.09 + C3 0.50 + curriculum 0.39 ≈ **3.06 GPU-h**, all on
-the local 2×3090; no paid resource was used. Campaign code SHA range: `f4a552b` → `0484927`.
+the local 2×3090; no paid resource was used. Campaign code SHA range: `f4a552b` → `90307e7`.
 
 
 Latest full code CI: **578passed,3old-fixture-skipped,2existingLightningwarnings**
