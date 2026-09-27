@@ -1,0 +1,48 @@
+# M2 two-month (January + February 2016) segment for the bucket-count experiment (#69).
+#
+# Why this config exists. Every earlier R7 segment is a single January, so the
+# train-only (month, hour) climatology has exactly four buckets, and the held-out
+# block sits inside the same 30 days those buckets were averaged from. The #67
+# sealed report read the resulting baseline strength as "the neural arms lose to a
+# zero-parameter climatology on all 85 cells", which cannot be separated from the
+# data range: with four buckets the baseline is close to memorising the mean field
+# of the very month it is scored on.
+#
+# This split covers two months, doubling the bucket count to eight, and separates
+# the scored block from the days the February buckets were fitted on:
+#   train [2016-01-01, 2016-02-17) -> 188 stamps: all 31 January days (buckets
+#          (1,00/06/12/18)) plus 16 February days (buckets (2,00/06/12/18)) = 8 buckets
+#   val   [2016-02-17, 2016-02-23) -> 24 stamps, 11 windows at a 72 h horizon
+#   test  [2016-02-23, 2016-03-01) -> 28 stamps, 15 windows at a 72 h horizon
+#
+# Held-out width is the reason val is six days and not less: a 72 h free rollout
+# needs one history frame plus twelve lead frames inside the split, so a block of
+# N stamps carries N-13 windows at 72 h. The January re-cut's 8-stamp val block
+# carried none, which is why model selection could not use 48/72 h there. Both
+# held-out blocks here clear that bar.
+#
+# Every test valid time is in February, and the February buckets exist in train,
+# so the fail-closed `normalized_climatology` refusal (deliberate anti-leakage:
+# no held-out fallback) is not triggered. The February buckets are fitted on
+# 2016-02-01..02-16 while the scored block is 2016-02-23..02-29, so the baseline
+# is evaluated a week away from the days it was averaged over.
+#
+# This is still one winter region and one year: it buys a bucket-count test, not
+# a cross-season or cross-year claim. split_years stays 2016/2017/2018 as
+# reader-contract declarations only (all data is 2016); the authoritative
+# partition is split_time_ranges (decision 0005).
+# No download and no write occurs unless prepare_r7_local.py receives --write.
+split_years:
+  train: [2016]
+  val: [2017]
+  test: [2018]
+split_time_ranges:
+  train: [["2016-01-01T00:00:00", "2016-02-17T00:00:00"]]
+  val: [["2016-02-17T00:00:00", "2016-02-23T00:00:00"]]
+  test: [["2016-02-23T00:00:00", "2016-03-01T00:00:00"]]
+history_steps: 2
+history_interval_hours: 6
+lead_time_hours: 6
+sample_stride_hours: 6
+time_chunk: 16
+compute_process_targets: true
