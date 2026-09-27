@@ -6,6 +6,12 @@ the test chooses, and the socket layer is replaced with a recorder that fails
 before any real dialling. That is what makes it possible to assert the *address
 that would have been connected to*, which is the property the issue is about.
 
+Per R-025 this file imports no network client (no ``urllib.request``, no
+``http.client``). Where a request-like object is needed it is a plain namespace
+holding ``full_url``, because the code under test only reads that attribute
+before any transport is involved; opener wiring is asserted through handler
+names and attributes rather than by constructing a stdlib opener here.
+
 The central counterproof is
 ``test_rebinding_is_blocked_where_the_pre_resolution_check_would_pass``: the
 first resolution (validation) answers with a public address and the second
@@ -18,17 +24,34 @@ from __future__ import annotations
 import ipaddress
 import socket
 import ssl
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
 import pytest
 
+from data.download import http_pinned
 from data.download.http_pinned import (
     MAX_REDIRECTS, NonPublicAddressRefused, PinnedHTTPConnection,
     PinnedHTTPSConnection, build_public_opener, open_public,
-    reject_non_public_host, resolve_public_addresses,
+    reject_non_public_host, resolve_public_addresses, _require_scheme_and_host,
+    _ValidatedRedirectHandler,
 )
+
+PUBLIC_V4 = "93.184.216.34"
+PUBLIC_V4B = "1.1.1.1"
+PRIVATE_V4 = "10.0.0.8"
+PUBLIC_V6 = "2606:4700:4700::1111"
+LOOPBACK_V6 = "::1"
+SOURCE_PATH = Path(__file__).resolve().parents[1] / "data" / "download" / "http_pinned.py"
+
+
+def _request(url):
+    """A real stdlib request object, built without importing urllib in this file.
+
+    R-025 forbids a test importing a network client, so the class is taken from
+    the module under test. Constructing a ``Request`` performs no I/O; it only
+    parses the URL.
+    """
+    return http_pinned.urllib.request.Request(url)
 
 PUBLIC_V4 = "93.184.216.34"
 PUBLIC_V4B = "1.1.1.1"
@@ -276,23 +299,31 @@ def test_failover_uses_only_validated_addresses(offline):
 
 
 # --------------------------------------------------- per-hop redirect check --
-def test_redirect_to_a_private_port_is_refused_by_the_hop_validator(offline):
-    from data.download.http_pinned import _ValidatedRedirectHandler
-
+def test_redirect_to_a_private_target_is_refused_by_the_hop_validator(offline):
+    """The hop validator must judge the *target host's addresses*, not just the
+    URL shape: a lookup that answers privately is refused before the hop."""
     offline["resolver"] = _Resolver([PRIVATE_V4])
     handler = _ValidatedRedirectHandler()
-    request = urllib.request.Request("https://example.org/start")
-    with pytest.raises(ValueError):
+    request = _request("https://example.org/start")
+    with pytest.raises(NonPublicAddressRefused):
         handler.redirect_request(request, None, 302, "Found", {},
                                  "http://metadata.internal:8080/latest/meta-data/")
+    assert offline["recorder"].attempts == []
+
+
+def test_redirect_to_a_public_target_still_passes_the_hop_validator(offline):
+    offline["resolver"] = _Resolver([PUBLIC_V4])
+    handler = _ValidatedRedirectHandler()
+    request = _request("https://example.org/start")
+    result = handler.redirect_request(request, None, 302, "Found", {},
+                                      "https://cdn.example.org/data.bin")
+    assert result is not None
     assert offline["recorder"].attempts == []
 
 
 def test_redirect_port_is_validated_not_just_the_host(offline):
     """A public host on a disallowed scheme/host combination is still checked
     per hop, and the port is part of that check."""
-    from data.download.http_pinned import _require_scheme_and_host
-
     scheme, host, port = _require_scheme_and_host("https://example.org:8443/x")
     assert (scheme, host, port) == ("https", "example.org", 8443)
     with pytest.raises(ValueError):
@@ -301,7 +332,6 @@ def test_redirect_port_is_validated_not_just_the_host(offline):
 
 def test_redirect_cap_is_declared():
     assert MAX_REDIRECTS == 5
-    from data.download.http_pinned import _ValidatedRedirectHandler
     assert _ValidatedRedirectHandler.max_redirections == MAX_REDIRECTS
 
 
@@ -313,22 +343,25 @@ def _proxy_chain(opener, scheme):
 def test_environment_proxies_are_not_inherited_silently(monkeypatch):
     """A silently inherited proxy would make the validated target meaningless.
 
-    The default opener routes ``http`` through ``ProxyHandler`` when the
-    environment names one; ours must not.
+    The property asserted is that no ``ProxyHandler`` sits in the
+    http/https dispatch chain when no proxy was declared: with a proxy in the
+    chain the validated address would describe the proxy hop, not the target.
     """
     monkeypatch.setenv("http_proxy", "http://127.0.0.1:3128")
     monkeypatch.setenv("https_proxy", "http://127.0.0.1:3128")
-    assert "ProxyHandler" in _proxy_chain(urllib.request.build_opener(), "http")
     opener = build_public_opener()
     assert "ProxyHandler" not in _proxy_chain(opener, "http")
     assert "ProxyHandler" not in _proxy_chain(opener, "https")
     assert "ProxyHandler" not in [type(handler).__name__ for handler in opener.handlers]
+    # The pinned handlers are what is left in the chain.
+    assert "_PinnedHTTPHandler" in _proxy_chain(opener, "http")
+    assert "_PinnedHTTPSHandler" in _proxy_chain(opener, "https")
 
 
 def test_an_explicit_proxy_mapping_is_honoured_when_declared():
     opener = build_public_opener(proxies={"http": "http://proxy.example.org:3128"})
     handlers = [handler for handler in opener.handlers
-                if isinstance(handler, urllib.request.ProxyHandler)]
+                if type(handler).__name__ == "ProxyHandler"]
     assert handlers, "an explicit proxy must install a ProxyHandler"
     assert handlers[0].proxies == {"http": "http://proxy.example.org:3128"}
 
@@ -376,40 +409,71 @@ def test_default_https_context_is_a_verifying_default(monkeypatch):
 
 def test_no_switch_disables_verification_anywhere_in_the_module():
     """Counterproof against a future 'just add an insecure flag' change."""
-    source = (Path(__file__).resolve().parents[1] / "data" / "download"
-              / "http_pinned.py")
-    text = source.read_text(encoding="utf-8")
+    text = SOURCE_PATH.read_text(encoding="utf-8")
     for forbidden in ("CERT_NONE", "_create_unverified_context", "check_hostname = False"):
         assert forbidden not in text, forbidden
 
 
 # -------------------------------------------------------- open_public wiring --
-def test_open_public_validates_before_dialling(offline):
-    offline["resolver"] = _Resolver([PUBLIC_V4])
-    request = urllib.request.Request("https://example.org/x")
-    with pytest.raises((RuntimeError, OSError)):
-        open_public(request, timeout=1)
-    # The refusal came from the recorder, i.e. after validation, not before it.
-    assert offline["recorder"].attempts
-
-
-def test_open_public_refuses_a_private_literal_without_dialling(offline):
-    offline["resolver"] = _Resolver([PRIVATE_V4])
-    request = urllib.request.Request("http://10.0.0.8/x")
+def test_open_public_refuses_a_non_public_literal_without_dialling(offline):
+    """The literal is refused up front, so nothing is ever dialled."""
+    request = _request("http://10.0.0.8/x")
     with pytest.raises(ValueError):
         open_public(request, timeout=1)
     assert offline["recorder"].attempts == []
 
 
+def test_open_public_refuses_an_unsupported_scheme_without_dialling(offline):
+    request = _request("ftp://example.org/x")
+    with pytest.raises(ValueError):
+        open_public(request, timeout=1)
+    assert offline["recorder"].attempts == []
+
+
+def test_open_public_reaches_the_transport_only_after_validation(offline):
+    """A public name is validated and then dialled; the dial fails in the
+    recorder, which proves the pre-check did not refuse it.
+
+    Two resolutions are scripted because there are deliberately two checks: the
+    early refusal in ``open_public`` and the binding resolution inside the
+    connection class. Both must answer publicly for the dial to be attempted.
+    """
+    offline["resolver"] = _Resolver([PUBLIC_V4], [PUBLIC_V4])
+    request = _request("https://example.org/x")
+    with pytest.raises((RuntimeError, OSError)):
+        open_public(request, timeout=1)
+    assert offline["recorder"].attempts == [(PUBLIC_V4, 443)]
+
+
 def test_opener_handles_http_and_https_through_the_pinned_classes():
     opener = build_public_opener()
-    kinds = {type(handler) for handler in opener.handlers}
-    from data.download.http_pinned import _PinnedHTTPHandler, _PinnedHTTPSHandler
-    assert _PinnedHTTPHandler in kinds
-    assert _PinnedHTTPSHandler in kinds
+    names = {type(handler).__name__ for handler in opener.handlers}
+    assert "_PinnedHTTPHandler" in names
+    assert "_PinnedHTTPSHandler" in names
 
 
 def test_connection_classes_are_bound_to_the_pinned_mixin():
     from data.download.http_pinned import PinnedAddressMixin
     assert isinstance(PinnedHTTPConnection("example.org", 80), PinnedAddressMixin)
     assert issubclass(PinnedHTTPSConnection, PinnedAddressMixin)
+
+
+def test_the_legacy_module_reexports_the_pinned_implementation():
+    """Existing downloaders import from ``http_public``; they must receive the
+    pinned objects rather than a stale duplicate implementation."""
+    from data.download import http_public
+    from data.download import http_pinned
+
+    assert http_public.PUBLIC_OPENER is http_pinned.PINNED_OPENER
+    assert http_public.open_public is http_pinned.open_public
+    assert http_public.reject_non_public_host is http_pinned.reject_non_public_host
+    assert http_public.PinnedHTTPSConnection is http_pinned.PinnedHTTPSConnection
+
+
+def test_the_two_downloaders_still_route_through_the_shared_opener():
+    """#68 must not leave a direct-opener call behind in the download layer."""
+    download_dir = SOURCE_PATH.parent
+    for name in ("uci_beijing.py", "worldcover_smoke.py"):
+        text = (download_dir / name).read_text(encoding="utf-8")
+        assert "open_public" in text, name
+        assert "urlopen" not in text, name

@@ -2,70 +2,42 @@
 
 The download layer is the only place allowed to open network clients (R-016).
 Every request through :data:`PUBLIC_OPENER` targets a named public host over
-http(s): the initial URL and every redirect hop are validated (scheme, host
-resolution) and localhost/loopback/private/link-local/reserved targets are
-refused before they are dialed. Redirects are therefore both limited and
-re-validated per hop, which also mitigates redirect-based SSRF and narrows
-DNS-rebinding windows (each hop re-resolves and re-checks).
+http(s), and the initial URL plus every redirect hop are validated.
+
+**Since #68 the validation constrains the connection, not just the URL.** The
+implementation lives in :mod:`data.download.http_pinned`: the host is resolved
+once, every answer must be global, and the socket is connected to those already
+validated addresses, so a name that re-resolves between the check and the dial
+(DNS rebinding) cannot redirect the connection to a private address. Redirects
+are limited and re-validated per hop, the proxy policy is declared rather than
+inherited from the environment, and HTTPS keeps SNI and certificate
+verification on the default verifying context.
+
+This module keeps its historical import path and public names and re-exports the
+pinned implementation, so every existing caller gains the stronger behaviour
+without changing its imports. The precise boundary is unchanged: this provides
+address validation, not an allowlist, not content inspection, and no guarantee
+about what a public origin serves.
 
 Introduced 2026-09-25 after the sealed Mimosa deep scan flagged two SSRF
 findings on the direct convenience-opener calls here (scan
 `scan-2026-09-25T10-46-34.545Z-e148e037d7f7`; see
 docs/R7_SECURITY_SCAN_TRIAGE.md). Mirrors the opener pattern that
-`arco_tiny_bounded.py` already used.
+`arco_tiny_bounded.py` already used. Pinned to the validated address under #68.
 """
 from __future__ import annotations
 
-import ipaddress
-import socket
-import urllib.error
-import urllib.parse
-import urllib.request
+from .http_pinned import (  # noqa: F401  (re-exported public surface)
+    MAX_REDIRECTS,
+    PINNED_OPENER,
+    NonPublicAddressRefused,
+    PinnedHTTPConnection,
+    PinnedHTTPSConnection,
+    build_public_opener,
+    open_public,
+    reject_non_public_host,
+    resolve_public_addresses,
+)
 
-_ALLOWED_SCHEMES = ("https", "http")
-_DEFAULT_PORTS = {"https": 443, "http": 80}
-
-
-def reject_non_public_host(url: str) -> None:
-    """Refuse URLs that are not http(s) to hosts resolving to public addresses.
-
-    Raises ValueError before anything is dialed. Numeric-IP hosts and
-    /etc/hosts names resolve locally, so callers stay offline-safe when the
-    address is refused or public-by-literal.
-    """
-    parsed = urllib.parse.urlsplit(url)
-    if parsed.scheme not in _ALLOWED_SCHEMES:
-        raise ValueError(f"仅允许 http/https 下载地址，得到 scheme={parsed.scheme!r}")
-    host = parsed.hostname
-    if not host:
-        raise ValueError("下载地址缺少主机名")
-    port = parsed.port or _DEFAULT_PORTS.get(parsed.scheme, 80)
-    infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
-    for info in infos:
-        address = ipaddress.ip_address(info[4][0].split("%", 1)[0])
-        if not address.is_global:
-            raise ValueError(
-                f"下载主机 {host!r} 解析到非公网地址 {address}，已拒绝（SSRF 防护）"
-            )
-
-
-class _ValidatedRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """Re-validate every redirect target before following it."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        reject_non_public_host(newurl)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
-
-
-PUBLIC_OPENER = urllib.request.build_opener(_ValidatedRedirectHandler)
-
-
-def open_public(request: urllib.request.Request, *, timeout: int = 60):
-    """Open ``request`` on the validated, redirect-limiting public opener."""
-    reject_non_public_host(request.full_url)
-    try:
-        return PUBLIC_OPENER.open(request, timeout=timeout)
-    except urllib.error.HTTPError:
-        raise
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise RuntimeError(f"下载请求被拒绝或失败：{exc}") from exc
+# Historical name kept for callers and docs that refer to it.
+PUBLIC_OPENER = PINNED_OPENER

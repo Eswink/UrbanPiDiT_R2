@@ -62,8 +62,19 @@ pickle/yaml.load、路径拼接与 SQL 字符串拼接是 V5.3.1 时代的既有
 
 ## 残留与如实声明
 
-- 扫描器为静态分析：`http_public` 的解析-校验-连接之间存在理论上的 DNS
-  rebinding 窗口（urllib 不固定已解析 IP）；目标 URL 全部为固定 https 常量、
-  重定向逐跳重校验，风险评定为可接受并在此如实记录。
+- 扫描器为静态分析。**2026-09-27（#68）起，解析-校验-连接之间的 DNS rebinding
+  窗口已被关闭**：原先的 `reject_non_public_host` 只是**预解析检查**（解析后丢弃
+  结果），实际连接仍由 urllib 按原 hostname 二次解析，check 与 use 之间存在窗口。
+  现改为 `data/download/http_pinned.py`：**只解析一次**、逐地址要求 `is_global`、
+  并把 socket 连接到**已被校验的那批 `sockaddr`**（不再把 hostname 交给 socket 层
+  二次解析）。重定向逐跳校验 scheme / **host** / **port** 与解析结果；代理策略显式化
+  （不再静默继承 `*_proxy`）；HTTPS 用 URL hostname 作 SNI 并保留证书与主机名校验。
+  `http_public.py` 保留历史导入路径并**再导出**该实现，既有调用方无需改动即获得
+  更强行为。离线回归见 `tests/test_http_pinned.py`（33 例），其中
+  「首次解析公网、连接时重解析非公网」的脚本化反证是本项的核心证据。
+  **边界如实声明**：本实现提供**连接地址约束**（非公网地址不会被拨号），
+  但**不**提供 allowlist、不检查响应内容、也不保证一个公网 origin 提供什么。
+  「预解析检查」与「连接地址约束」的区别已写入模块 docstring——只做前者不得
+  宣称 DNS rebinding 免疫。
 - 归档内 27 条不修复：边界受两条阻断级规则持续守护，修复它们等于改写冻结的
   历史基线，代价大于收益。

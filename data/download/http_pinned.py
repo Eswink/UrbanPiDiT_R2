@@ -221,15 +221,25 @@ def build_public_opener(proxies=None, context=None):
 
 
 PUBLIC_OPENER = build_public_opener()
+# Alias with a name that states the property, so callers importing from either
+# module refer to the same pinned opener.
+PINNED_OPENER = PUBLIC_OPENER
 
 
 def open_public(request, *, timeout=60, proxies=None, context=None, opener=None):
     """Open ``request`` on a pinned, redirect-validating, proxy-declared opener.
 
+    The URL is fully validated - scheme, host, port **and resolved addresses** -
+    before the transport is touched, so a non-public literal is refused with a
+    ``ValueError`` rather than a connection error. The connection classes repeat
+    the address check as the binding guarantee; this early pass exists so
+    callers see a clear refusal and nothing is dialled at all.
+
     ``timeout`` is passed to the socket layer, so a hung peer cannot hold the
     caller indefinitely. Callers keep their own byte caps.
     """
-    _require_scheme_and_host(request.full_url)
+    _scheme, host, port = _require_scheme_and_host(request.full_url)
+    resolve_public_addresses(host, port)
     active = opener
     if active is None:
         active = PUBLIC_OPENER if proxies is None and context is None \
