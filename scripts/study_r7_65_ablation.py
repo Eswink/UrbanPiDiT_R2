@@ -166,25 +166,39 @@ def _phase_arms(phase):
     if phase == "c2":
         return tuple((name, kind, dict(extra), 0.1)
                      for name, kind, extra in C2_ARMS)
-    # C3 trains the same C1 process arm at the engaged weight plus a shallow control.
+    # C3 trains the same C1 process arm at the engaged weight plus a shallow
+    # control. The training depth is part of the frozen protocol, so it is
+    # declared per arm in the protocol body rather than read off the model
+    # config: a model whose ``default_reasoning_steps`` is 1 still trains at
+    # whatever depth the runner is told, and those must not silently disagree.
     return (
         ("process8_aux010_k4", "process",
-         {"use_forecast_feedback": True}, 0.1),
+         {"use_forecast_feedback": True}, 0.1, 4),
         ("process8_aux010_k1", "process",
          {"use_forecast_feedback": True, "default_reasoning_steps": SHALLOW_TRAINED_STEPS},
-         0.1),
+         0.1, SHALLOW_TRAINED_STEPS),
     )
+
+
+def _arm_train_steps(phase, name):
+    """The declared training depth of one arm in a phase."""
+    for entry in _phase_arms(phase):
+        if entry[0] == name:
+            return entry[4] if len(entry) > 4 else TRAIN_REASONING_STEPS
+    raise ValueError(f"unknown arm {name!r} for phase {phase!r}")
 
 
 def protocol_payload(phase, manifests_dir, identity, channels, measured):
     """The frozen body. Phase membership lives outside it so the digest cannot
     move between phases."""
     arms = []
-    for name, kind, extra, weight in _phase_arms(phase):
+    for entry in _phase_arms(phase):
+        name, kind, extra, weight = entry[0], entry[1], entry[2], entry[3]
         arms.append({
             "name": name, "kind": kind,
             "model_config": _arm_config(kind, channels, extra),
             "auxiliary_weight": weight,
+            "train_reasoning_steps": entry[4] if len(entry) > 4 else TRAIN_REASONING_STEPS,
             "parameters": measured[name]["parameters"],
             "forward_flops": measured[name]["forward_flops"],
             "forward_backward_flops": measured[name]["forward_backward_flops"],
@@ -218,7 +232,9 @@ def protocol_payload(phase, manifests_dir, identity, channels, measured):
             "batch_size": BATCH_SIZE,
             "validation_every": VALIDATION_EVERY,
             "validation_lead_hours": list(VALIDATION_LEADS),
-            "train_reasoning_steps": TRAIN_REASONING_STEPS,
+            "train_reasoning_steps": {
+                spec[0]: (spec[4] if len(spec) > 4 else TRAIN_REASONING_STEPS)
+                for spec in _phase_arms(phase)},
             "early_stopping_rule": (f"stop when {EARLY_STOPPING_PATIENCE} consecutive "
                                     f"validation checks fail to improve by "
                                     f"{MINIMUM_IMPROVEMENT:.1%} relative; validation only"),
@@ -346,15 +362,18 @@ def run_phase(manifests_dir, output_dir, *, phase, seeds=TRAIN_SEEDS,
         warmup = WARMUP_UPDATES
         validation_every = VALIDATION_EVERY
     measured = {}
-    for name, kind, extra, _weight in arms:
+    for entry in arms:
+        name, kind, extra = entry[0], entry[1], entry[2]
+        steps_for_arm = entry[4] if len(entry) > 4 else TRAIN_REASONING_STEPS
         seed_everything(TRAIN_SEEDS[0])
         model = make_model(kind, _arm_config(kind, channels, extra))
         forward, forward_backward = count_flops(
-            model, probe_batch, reasoning_steps=TRAIN_REASONING_STEPS,
+            model, probe_batch, reasoning_steps=steps_for_arm,
             recursive=(kind != "native"))
         measured[name] = {"parameters": count_parameters(model),
                           "forward_flops": forward,
-                          "forward_backward_flops": forward_backward}
+                          "forward_backward_flops": forward_backward,
+                          "train_reasoning_steps": steps_for_arm}
         del model
 
     protocol = protocol_payload(phase, manifests_dir, identity, channels, measured)
@@ -385,19 +404,28 @@ def run_phase(manifests_dir, output_dir, *, phase, seeds=TRAIN_SEEDS,
     training_started = time.perf_counter()
     for seed in seeds:
         per_seed = {}
-        for name, kind, extra, weight in arms:
+        for entry in arms:
+            name, kind, extra, weight = entry[0], entry[1], entry[2], entry[3]
+            steps_for_arm = entry[4] if len(entry) > 4 else TRAIN_REASONING_STEPS
             run_dir = output_dir / "training" / f"seed{seed}" / name
             config = _arm_config(kind, channels, extra)
             checkpoint, report = run_scheduled_updates(
                 dataset, kind=kind, model_config=config, data_identity=identity,
                 output_dir=run_dir, total_updates=updates, batch_size=BATCH_SIZE,
-                steps=TRAIN_REASONING_STEPS, seed=seed, lr=LR, clip=CLIP,
+                steps=steps_for_arm, seed=seed, lr=LR, clip=CLIP,
                 process_weight=weight, warmup_updates=warmup,
                 minimum_lr_ratio=MINIMUM_LR_RATIO, validation_every=validation_every,
                 early_stopping_patience=EARLY_STOPPING_PATIENCE,
                 minimum_improvement=MINIMUM_IMPROVEMENT,
                 validation_lead_hours=VALIDATION_LEADS, device_name=device_name,
                 validation_dataset=validation_dataset)
+            saved_steps = report["contract"]["steps"]
+            if saved_steps != steps_for_arm:
+                raise RuntimeError(
+                    f"{name} trained at steps={saved_steps} but declares "
+                    f"{steps_for_arm}; the runner and the declared training depth "
+                    "must not disagree (this is how a 'trained K=1' control can "
+                    "silently be a second K=4 run)")
             by_epoch = {}
             for entry in report["losses"]:
                 by_epoch.setdefault(entry["epoch"], []).append(entry["loss"])
@@ -439,8 +467,13 @@ def run_phase(manifests_dir, output_dir, *, phase, seeds=TRAIN_SEEDS,
     results["budget"] = {"training_seconds_total": time.perf_counter() - training_started}
 
     # ---- evaluation: val only, one run per (arm, seed, lead) -----------------
+    # Each arm is evaluated at the depth it was trained at; evaluating a K=1-
+    # trained model at K=4 would answer a different question than the one the
+    # arm exists to answer, and the two depths are reported separately.
     for seed in seeds:
-        for name, _kind, _extra, _weight in arms:
+        for entry in arms:
+            name = entry[0]
+            steps_for_arm = entry[4] if len(entry) > 4 else TRAIN_REASONING_STEPS
             for lead in EVALUATION_LEADS:
                 run_dir = output_dir / "evaluation" / f"seed{seed}" / name / f"lead_{lead:03d}h"
                 selected = results["training"][str(seed)][name]["selected_update"]
@@ -449,7 +482,7 @@ def run_phase(manifests_dir, output_dir, *, phase, seeds=TRAIN_SEEDS,
                     checkpoint=(output_dir / "training" / f"seed{seed}" / name
                                 / f"update_{selected:07d}.pt"),
                     lead_hours=(lead,), max_samples=64, device_name=device_name,
-                    reasoning_steps=TRAIN_REASONING_STEPS)
+                    reasoning_steps=steps_for_arm)
                 if report["split"] != "val":
                     raise ValueError(f"{name} was evaluated on split {report['split']}")
                 results["evaluation"][f"seed{seed}/{name}@{lead}h"] = {
@@ -459,6 +492,7 @@ def run_phase(manifests_dir, output_dir, *, phase, seeds=TRAIN_SEEDS,
                     "elapsed_seconds": report["elapsed_seconds"],
                     "timing_scope": report["timing_scope"],
                     "trainable_parameters": report["trainable_parameters"],
+                    "evaluation_reasoning_steps": steps_for_arm,
                     "rmse_csv": str(run_dir / "rmse.csv"),
                     "evaluation_dir": str(run_dir),
                 }
@@ -467,8 +501,8 @@ def run_phase(manifests_dir, output_dir, *, phase, seeds=TRAIN_SEEDS,
     # every arm must be scored on the identical case set within a lead
     for lead in EVALUATION_LEADS:
         for seed in seeds:
-            counts = {name: results["evaluation"][f"seed{seed}/{name}@{lead}h"]["n_evaluated"]
-                      for name, _k, _e, _w in arms}
+            counts = {entry[0]: results["evaluation"][f"seed{seed}/{entry[0]}@{lead}h"]["n_evaluated"]
+                      for entry in arms}
             if len(set(counts.values())) != 1:
                 raise RuntimeError(f"arms scored on different case counts at {lead}h "
                                    f"seed {seed}: {counts}")
@@ -516,20 +550,22 @@ def _write_tables(results, output_dir, arms):
     """The four cost tables plus the accuracy table, all machine-readable."""
     parameter_rows, flop_rows, wall_rows, count_rows = [], [], [], []
     for seed in results["seeds"]:
-        for name, _k, _e, _w in arms:
-            entry = results["training"][str(seed)][name]
+        for entry in arms:
+            name = entry[0]
+            steps_for_arm = entry[4] if len(entry) > 4 else TRAIN_REASONING_STEPS
+            trained = results["training"][str(seed)][name]
             parameter_rows.append({"seed": seed, "arm": name,
-                                   "parameters": entry["parameters"],
-                                   "nominal_parameters": entry["parameters"]})
+                                   "parameters": trained["parameters"],
+                                   "nominal_parameters": trained["parameters"]})
             flop_rows.append({"seed": seed, "arm": name,
-                              "forward_flops": entry["forward_flops"],
-                              "forward_backward_flops": entry["forward_backward_flops"],
-                              "train_reasoning_steps": TRAIN_REASONING_STEPS})
+                              "forward_flops": trained["forward_flops"],
+                              "forward_backward_flops": trained["forward_backward_flops"],
+                              "train_reasoning_steps": steps_for_arm})
             wall_rows.append({"seed": seed, "arm": name,
-                              "wall_time_seconds": entry["elapsed_seconds"],
-                              "seconds_per_update": entry["seconds_per_update"],
-                              "samples_seen": entry["samples_seen"],
-                              "updates_run": entry["updates_run"]})
+                              "wall_time_seconds": trained["elapsed_seconds"],
+                              "seconds_per_update": trained["seconds_per_update"],
+                              "samples_seen": trained["samples_seen"],
+                              "updates_run": trained["updates_run"]})
     for key, entry in results["evaluation"].items():
         count_rows.append({"key": key, "seed": entry["seed"], "arm": entry["arm"],
                            "lead_hours": entry["lead_hours"],
