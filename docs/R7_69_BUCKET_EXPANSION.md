@@ -166,7 +166,29 @@ generic 更好）。**在 M2 上 process 结构依然没有可分离的收益。
 | 新产物 | **3.588 GiB**（第二阶段档位 100 GiB，用掉 3.6%） |
 | 第二阶段累计 GPU-h | 1.204（本阶段唯一训练） |
 
-## 7. 交付清单与验证
+## 7. resume 一致性（在 M2 store 上实跑，非引用 fixture）
+
+本阶段要求 resume 一致性被覆盖。用 `scripts/study_r7_69_resume_check.py` 在 **M2 store**
+上跑三条腿：参考跑（端点到 12，每 6 更新验证一次并因此发布一个中间 checkpoint）、
+从该**中间 checkpoint** 续跑的腿、以及一条同种子全新跑作为对照。比较 8 个字段
+（`model` / `optimizer` / `rng` / `cursor` / `epoch` / `updates` / `model_code_sha256` / `contract`）。
+
+| 设备 | 两条全新跑的位级噪声底 | resume 腿相对参考的最大偏差 | 判定 |
+| --- | --- | --- | --- |
+| **CPU** | **0.0**（逐位相同） | **0.0**（全部 8 个字段） | **bitwise consistent** |
+| GPU | 1.229e-07 | 1.192e-07 | 在平台噪声底之内 |
+
+**必须记录的一次方法论纠正**：这个检查的**第一版是我的测试设计错误**，不是代码缺陷。
+第一版让「前半腿」用 `total_updates = 6` 训练、而参考腿用 `total_updates = 12`；
+`warmup_cosine_factor` 是 `total_updates` 的函数，所以前者的前 6 步**不是**后者的前缀——
+两条腿每一步的学习率都不同，差值 5.2e-4 完全由测试构造产生。
+改为从参考跑**自己的**中间 checkpoint 续跑（schedule、验证节奏、样本顺序、contract
+签名全部一致）之后，CPU 上偏差归零。**若不设对照腿，这个错误会被误报成「resume 有缺陷」。**
+
+另外，checkpoint 一律经仓库自带的 `load_checkpoint` 读取（`weights_only=True`，
+digest 不符即 fail closed），脚本不使用任意对象的反序列化。
+
+## 8. 交付清单与验证
 
 | 判据 | 状态 |
 | --- | --- |
@@ -181,8 +203,9 @@ generic 更好）。**在 M2 上 process 结构依然没有可分离的收益。
 | #60 比较器为唯一口径 | ✅ process/generic 与对两控制的判定全部经它 |
 | 单位不再跨比 | ✅ `rmse.csv` 与 `climatology_skill.csv` 现在同单位；比较器在这两个文件的 unit 不一致时**拒绝比较** |
 | 失败留痕 | ✅ 一次按时限失败写 `part_b_receipt.json` = `failed-no-fallback`，**保留未删**，无合成替代 |
+| resume 一致性 | ✅ 在 M2 store 上实跑三条腿；**CPU 逐位一致（8/8 字段偏差 0.0）**，GPU 在自测噪声底内（§7） |
 
-## 8. 局限（如实）
+## 9. 局限（如实）
 
 | 局限 | 说明 |
 | --- | --- |
@@ -193,7 +216,7 @@ generic 更好）。**在 M2 上 process 结构依然没有可分离的收益。
 | 逐格计数未做多重比较校正 | 1275 个单元按符号计数，未做 FDR；报告的是方向与一致性 |
 | 只有一条 val 协议 | val 22 窗口（72h 11 个）可支撑选择，但本阶段未做选型对照 |
 
-## 9. 复现
+## 10. 复现
 
 ```bash
 # 1) 只读 preflight（不写任何东西）
@@ -227,9 +250,15 @@ bash scripts/run_m2_multiseed.sh
 .venv/bin/python scripts/study_r7_69_bucket_comparison.py \
     --manifests outputs/r7_m2_segment/store/manifests \
     --train-root outputs/r7_m2_multiseed --out outputs/r7_m2_comparison
+# 8) resume 一致性（CPU 上应给出逐位一致；GPU 上与自测噪声底比较）
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  .venv/bin/python scripts/study_r7_69_resume_check.py \
+    --out outputs/r7_m2_resume_check_cpu --device cpu
+.venv/bin/python scripts/study_r7_69_resume_check.py \
+    --out outputs/r7_m2_resume_check --device cuda
 ```
 
-## 10. 结论
+## 11. 结论
 
 1. **桶数扩展达成**：4 → **8**（实测）。
 2. **「climatology 在 t2m 上占优」在 8 桶上依然成立**：t2m 74/75 单元、3/3 seed 同向，
