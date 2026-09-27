@@ -11,7 +11,7 @@
 | 重切 config | `configs/r7_era5_b2_recut_test_january.yaml`（commit `4058c9d`） |
 | 数据来源 | 冻结的 `outputs/r7_b2_segment/source.nc`（sha256 `2ba504fe…1af31`），**无新下载** |
 | 新 `data_identity` | `4055fc7e30fd4677ff30a58137466ff5ef9e8eda0da7cc6946205c26fb031bca` |
-| 重训 | 5 臂 × 3 seed × 800 update，**15/15 完成**（1 个早停，见 §5），约 **1.35 GPU-h** |
+| 重训 | 5 臂 × 3 seed × 800 update，**15/15 完成**（1 个早停，见 §5），实测 **1.08 GPU-h**（15 份 `training_report.json` 的 `elapsed_seconds` 求和 = 3899.6 s） |
 | test 报告 | `outputs/r7_67_sealed_report/`（`sealed_test_report.json` + 3 张表 + 75 个评估目录） |
 | 分析 | `outputs/r7_67_sealed_analysis/sealed_analysis.json`（60 个 paired 单元 + 75 个 region 单元） |
 | 一次性声明 | `read_count: 1`；`test_read: true` |
