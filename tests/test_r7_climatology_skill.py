@@ -149,3 +149,50 @@ def test_rejects_mismatched_fields_and_empty_updates():
     nan_field[0, 0, 0, 0, 0] = float("nan")
     with pytest.raises(ValueError, match="finite"):
         skill.update(nan_field, target, climatology, latitude)
+
+
+def test_training_std_restores_physical_units_like_the_rmse_accumulator():
+    """Regression for the defect that produced the #67 "9.09x" headline.
+
+    Both accumulators must agree on the units of their RMSE output. Before the
+    fix the skill accumulator had no std argument at all, so its RMSE columns
+    stayed normalized while `rmse.csv` was physical - and both files were
+    written with the same physical `unit` string.
+    """
+    rmse_module = _load("r7_rollout_metrics_under_test", ROOT / "training" / "r7_rollout_metrics.py")
+    _, skill_module = _modules()
+    prediction, target, climatology, latitude = _fields()
+    std = [9.4, 1325.5]
+    units = ["K", "m**2 s**-2"]
+    skill = skill_module.RolloutClimatologySkillAccumulator(
+        [6, 12], ["t2m", "z500"], training_std=std, units=units)
+    rmse = rmse_module.RolloutRMSEAccumulator(
+        [6, 12], ["t2m", "z500"], training_std=std, units=units)
+    skill.update(prediction, target, climatology, latitude)
+    rmse.update(prediction, target, latitude)
+    result = skill.compute()
+    # The forecast column must equal the same-case forecast RMSE under the same
+    # rescale, or the two tables cannot be compared.
+    assert torch.allclose(result["rmse_forecast"], rmse.compute(), rtol=1e-12)
+    assert tuple(skill.units) == tuple(units)
+    # Physical RMSE is the normalized one times the std, channel by channel.
+    normalized = skill_module.RolloutClimatologySkillAccumulator([6, 12], ["t2m", "z500"])
+    normalized.update(prediction, target, climatology, latitude)
+    base = normalized.compute()
+    assert torch.allclose(result["rmse_climatology"],
+                          base["rmse_climatology"] * torch.tensor(std, dtype=torch.float64),
+                          rtol=1e-12)
+    # The skill ratio is unit-free and must be identical in both conventions.
+    assert torch.allclose(result["mse_skill"], base["mse_skill"], rtol=1e-12)
+
+
+def test_physical_units_require_an_explicit_std():
+    """A physical unit label without a rescale is refused, not guessed."""
+    _, skill_module = _modules()
+    with pytest.raises(ValueError, match="physical units cannot be claimed"):
+        skill_module.RolloutClimatologySkillAccumulator(
+            [6], ["t2m"], units=["K"])
+    with pytest.raises(ValueError, match="units"):
+        skill_module.RolloutClimatologySkillAccumulator(
+            [6], ["t2m"], training_std=[1.0])
+    assert skill_module.RolloutClimatologySkillAccumulator([6], ["t2m"]).units == ("normalized",)

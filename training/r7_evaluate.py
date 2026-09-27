@@ -118,8 +118,12 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     acc=RolloutACCAccumulator(ds.lead_hours,ds.names)
     # Climatology as an explicit forecast baseline on exactly these cases (#64 D-3):
     # rmse_climatology / mse_skill land in the same table as the forecast RMSE so
-    # the two are never compared across different case sets.
-    skill=RolloutClimatologySkillAccumulator(ds.lead_hours,ds.names)
+    # the two are never compared across different case sets. It takes the same
+    # training_std/units contract as the forecast RMSE; without it its RMSE columns
+    # were normalized numbers stamped with physical units, which silently broke every
+    # forecast-vs-climatology ratio built from that file.
+    skill=RolloutClimatologySkillAccumulator(ds.lead_hours,ds.names,
+        training_std=None if normalized else ds.std,units=None if normalized else ds.units)
     boundary=None
     if boundary_margins is not None:
         from .r7_boundary_metrics import BoundaryRMSEAccumulator,boundary_masks
@@ -165,6 +169,11 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     if boundary is not None:
         boundary.write_csv(out/'boundary_rmse.csv')
     skills=skill.compute()
+    # Fail closed if the two accumulators ever disagree on units again: this file
+    # exists to be compared against rmse.csv, and a silent label mismatch is
+    # exactly how a normalized baseline got read as a physical one.
+    if tuple(skill.units)!=tuple(rmse.units):
+        raise ValueError(f'climatology skill units {skill.units} do not match forecast units {rmse.units}')
     with (out/'climatology_skill.csv').open('x',encoding='utf-8',newline='') as f:
         writer=csv.writer(f)
         writer.writerow(['lead_hours','variable','rmse_forecast','rmse_climatology',
@@ -176,7 +185,7 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
                 value=float(skills['mse_skill'][i,j])
                 writer.writerow([lead,name,forecast,climatology_rmse,
                     value if torch.isfinite(skills['mse_skill'][i,j]) else '',
-                    rmse.units[j],skill.initializations])
+                    skill.units[j],skill.initializations])
     values=acc.compute()
     with (out/'acc.csv').open('x',encoding='utf-8',newline='') as f:
         writer=csv.writer(f)

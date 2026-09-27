@@ -76,6 +76,30 @@ REASONING_STEPS = 3
 PROCESS_WEIGHT = 0.0  # process arm is generic+process tokens here, not the process loss
 NOMINAL_PARAMETERS = 2_800_000
 PARAMETER_BAND = 0.05
+# The B2 segment's declared split ranges and the exact text the archived B2
+# protocol (digest 244af00b...) carries. Both are guards: `protocol_payload`
+# refuses to describe a store that is not this segment unless the caller supplies
+# its own note, and the digest regression test pins the text + these ranges.
+# All three splits are pinned because the January re-cut reused B2's train range.
+B2_SPLIT_RANGES = {
+    "train": [["2016-01-01T00:00:00", "2016-01-25T00:00:00"]],
+    "val": [["2016-01-25T00:00:00", "2016-02-01T00:00:00"]],
+    "test": [["2016-02-01T00:00:00", "2016-02-06T00:00:00"]],
+}
+B2_SEGMENT_NOTE = ("36 consecutive January days; train [01-01, 01-25) is byte-identical "
+                   "to the frozen D1 train range (same normalization statistics, same "
+                   "94 windows), so B1 and B2 share one train distribution")
+B2_LIMITATIONS = [
+    "B2 is one 36-day engineering segment (January 2016) of real ERA5",
+    "all of it is January: no seasonal or cross-year conclusion is testable",
+    "climatology has only 4 (month,hour) buckets here, so it is NOT a strong "
+    "seasonal climatology; a climatology win on t2m is a property of this "
+    "data range, not evidence that the baseline is strong",
+    "the val/test blocks are engineering re-splits inside 2016, not the v2 2019 "
+    "validation year or the 2021 test candidate",
+    "not a converged benchmark; bounded GPU checkpoints",
+    "the skill gate is a descriptive pre-registered check, not a significance test",
+]
 # The #60 comparator keys rows by (arm, depth, variable, unit, lead). B2 does not
 # ablate reasoning depth (#65 owns that), so every row carries one declared depth
 # and the comparison is read at it.
@@ -216,14 +240,57 @@ def _trainable_state(model):
             for name, tensor in model.state_dict().items()}
 
 
-def protocol_payload(manifests_dir, identity, channels, measured):
+def _store_split_ranges(manifests_dir):
+    """The declared half-open split ranges of the store these manifests belong to.
+
+    All three splits are returned, not just train: the January re-cut kept B2's
+    train range while moving val and test, so a train-only guard would let a
+    store describe itself with another segment's text.
+    """
+    import zarr
+    store = Path(manifests_dir).parent / "cache.zarr"
+    root = zarr.open_group(str(store), mode="r")
+    ranges = dict(root.attrs).get("split_time_ranges")
+    if not ranges or set(ranges) != {"train", "val", "test"}:
+        raise ValueError(f"store {store} declares no complete split_time_ranges; "
+                         "refusing to describe an undeclared segment")
+    return {split: [[str(a), str(b)] for a, b in ranges[split]]
+            for split in ("train", "val", "test")}
+
+
+def protocol_payload(manifests_dir, identity, channels, measured, *, segment_note=None,
+                     limitations=None):
     """The frozen B2 protocol. Its digest is identical in both phases.
 
     Phase membership is deliberately **outside** this body: if the digest moved
     between the exploration and confirmatory phases, a confirmatory run could
     never reuse an exploration run, and the "frozen protocol" would be two
     protocols. Which phase is executing is recorded in the result file instead.
+
+    ``segment_note`` describes the data this run actually trains on. The default
+    text describes the B2 segment, whose digest ``244af00b...`` is archived in
+    ``docs/R7_B2_MULTISEED.md`` and must stay reproducible byte-for-byte — so any
+    store whose declared split ranges differ from B2's **must** pass its own note
+    or this refuses to run. ``limitations`` is gated the same way, because the B2
+    text asserts that the climatology has only four buckets and that every day is
+    January, which is false for a two-month segment. A frozen protocol that
+    misdescribes its own data is worse than no protocol.
     """
+    train_ranges = _store_split_ranges(manifests_dir)
+    if segment_note is None:
+        if train_ranges != B2_SPLIT_RANGES:
+            raise ValueError(
+                f"this store's split ranges {train_ranges} are not B2's "
+                f"{B2_SPLIT_RANGES}, so the default B2 segment text would misdescribe "
+                "the data; pass an explicit segment_note")
+        segment_note = B2_SEGMENT_NOTE
+    if limitations is None:
+        if train_ranges != B2_SPLIT_RANGES:
+            raise ValueError(
+                "this store is not the B2 segment, so the default B2 limitations "
+                "(four month-hour buckets, all of it January) would misdescribe it; "
+                "pass explicit limitations")
+        limitations = B2_LIMITATIONS
     body = {
         "format": "r7-b2-multiseed-protocol-v1",
         "frozen_before_any_step": True,
@@ -243,9 +310,7 @@ def protocol_payload(manifests_dir, identity, channels, measured):
             "data_identity": str(identity),
             "split_mode": "time_ranges (docs/decisions/0005-*.md, 0008-*.md)",
             "normalization": "store train-only centered mean/std, applied at read time",
-            "segment": ("36 consecutive January days; train [01-01, 01-25) is byte-identical "
-                        "to the frozen D1 train range (same normalization statistics, same "
-                        "94 windows), so B1 and B2 share one train distribution"),
+            "segment": segment_note,
         },
         "phases": {
             "explore": {"seeds": list(EXPLORATION_SEEDS),
@@ -346,17 +411,7 @@ def protocol_payload(manifests_dir, identity, channels, measured):
         },
         "skill_criteria": SKILL_CRITERIA,
         "scientific_claim": False,
-        "limitations": [
-            "B2 is one 36-day engineering segment (January 2016) of real ERA5",
-            "all of it is January: no seasonal or cross-year conclusion is testable",
-            "climatology has only 4 (month,hour) buckets here, so it is NOT a strong "
-            "seasonal climatology; a climatology win on t2m is a property of this "
-            "data range, not evidence that the baseline is strong",
-            "the val/test blocks are engineering re-splits inside 2016, not the v2 2019 "
-            "validation year or the 2021 test candidate",
-            "not a converged benchmark; bounded GPU checkpoints",
-            "the skill gate is a descriptive pre-registered check, not a significance test",
-        ],
+        "limitations": limitations,
     }
     from training.r7_experiment import canonical_digest
 
@@ -378,8 +433,12 @@ def _trainable_state(model):
 
 
 def run_phase(manifests_dir, output_dir, *, phase, seeds, updates=UPDATES,
-              device_name="cuda", protocol_file=None):
-    """Run one phase (explore or confirm) of the B2 comparison."""
+              device_name="cuda", protocol_file=None, segment_note=None, limitations=None):
+    """Run one phase (explore or confirm) of the B2 comparison.
+
+    ``segment_note`` and ``limitations`` must describe the store being trained on
+    whenever that store is not B2 itself; see ``protocol_payload``.
+    """
     from data.r7_zarr_dataset import ZarrAtmosWindowDataset
     from training.r7_evaluate import evaluate_local
     from training.r7_experiment import (dataset_identity, load_checkpoint, make_model,
@@ -428,7 +487,8 @@ def run_phase(manifests_dir, output_dir, *, phase, seeds, updates=UPDATES,
                           "forward_backward_flops": forward_backward}
         del model
 
-    protocol = protocol_payload(manifests_dir, identity, channels, measured)
+    protocol = protocol_payload(manifests_dir, identity, channels, measured,
+                                segment_note=segment_note, limitations=limitations)
     if protocol_file is not None:
         frozen = _read_protocol(protocol_file)
         if frozen.get("protocol_sha256") != protocol.get("protocol_sha256"):
@@ -910,9 +970,22 @@ def main():
                         help="CUDA device to pin (the two 3090s are not NVLink-coupled)")
     parser.add_argument("--protocol", default=None,
                         help="path to a frozen protocol.json to refuse drift against")
+    parser.add_argument("--segment-note", default=None,
+                        help=("description of the segment actually being trained on; "
+                              "required whenever the store is not the B2 segment, "
+                              "because the default text would misdescribe the data"))
+    parser.add_argument("--limitations", default=None,
+                        help=("JSON list of limitations for the frozen protocol; "
+                              "required whenever the store is not the B2 segment"))
     args = parser.parse_args()
     declared = EXPLORATION_SEEDS if args.phase == "explore" else CONFIRMATORY_SEEDS
 
+    limitations = None
+    if args.limitations is not None:
+        limitations = json.loads(args.limitations)
+        if not isinstance(limitations, list) or not all(
+                isinstance(entry, str) and entry for entry in limitations):
+            parser.error("--limitations must be a JSON list of non-empty strings")
     if args.mode == "seed":
         if args.seed is None:
             parser.error("--mode seed requires --seed")
@@ -924,7 +997,8 @@ def main():
             args.device = f"cuda:{args.device_index}"
         run_phase(args.manifests, Path(args.out) / f"seed{args.seed}", phase=args.phase,
                   seeds=(args.seed,), updates=args.updates, device_name=args.device,
-                  protocol_file=args.protocol)
+                  protocol_file=args.protocol, segment_note=args.segment_note,
+                  limitations=limitations)
         return
 
     results = merge_phase_runs(args.out, phase=args.phase, seeds=declared)

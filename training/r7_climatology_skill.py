@@ -22,9 +22,18 @@ climatology shared by the anomalies and the skill reference; equal weight per
 initialization with latitude-area means inside a field; skill is stated only
 on exactly the same cases that were scored and is never averaged across
 variables, across ACC definitions, or across case sets.
+
+Units. Inputs are normalized fields, so both RMSE columns are normalized unless
+a training-only std is supplied to restore physical units - mirroring
+``RolloutRMSEAccumulator``. Without that rescale the two RMSE columns are
+**not** comparable to a physical-units forecast RMSE, and labelling them with
+physical units would silently corrupt any ratio built from them. The unit-free
+``mse_skill`` is a ratio of two MSEs over the same fields and is therefore
+identical in either convention.
 """
 from __future__ import annotations
 import torch
+from typing import Sequence
 from model.r7_rollout import validate_horizons
 
 
@@ -35,14 +44,36 @@ class RolloutClimatologySkillAccumulator:
     baseline) and the MSE skill 1 - MSE_forecast / MSE_climatology. Zero-energy
     climatology targets leave the skill undefined (NaN) instead of inventing a
     value. No cross-variable aggregate is produced.
+
+    ``training_std`` restores physical error units exactly as in
+    ``RolloutRMSEAccumulator``: without it both RMSE columns are explicitly
+    labelled normalized, and asking for physical units without a std is refused
+    rather than guessed.
     """
 
-    def __init__(self, lead_hours, variables):
+    def __init__(self, lead_hours, variables, *,
+                 training_std: torch.Tensor | Sequence[float] | None = None,
+                 units: Sequence[str] | None = None):
         self.lead_hours = validate_horizons(lead_hours)
         self.variables = tuple(variables)
         if not self.variables or len(set(self.variables)) != len(self.variables):
             raise ValueError("unique nonempty variables required")
-        shape = (len(self.lead_hours), len(self.variables))
+        c = len(self.variables)
+        self.std = torch.ones(c, dtype=torch.float64)
+        if training_std is not None:
+            self.std = torch.as_tensor(training_std, dtype=torch.float64).detach().cpu().clone()
+            if self.std.shape != (c,) or not torch.isfinite(self.std).all() or (self.std <= 0).any():
+                raise ValueError("training_std must be positive finite [C]")
+            if units is None:
+                raise ValueError("physical metrics require explicit variable units")
+            self.units = tuple(units)
+        else:
+            if units is not None:
+                raise ValueError("physical units cannot be claimed without training_std")
+            self.units = ("normalized",) * c
+        if len(self.units) != c or any(not isinstance(u, str) or not u for u in self.units):
+            raise ValueError("units must match variables")
+        shape = (len(self.lead_hours), c)
         self.forecast_squared_error = torch.zeros(shape, dtype=torch.float64)
         self.climatology_squared_error = torch.zeros(shape, dtype=torch.float64)
         self.initializations = 0
@@ -75,8 +106,13 @@ class RolloutClimatologySkillAccumulator:
 
         forecast_error = (prediction.double() - target.double())
         climatology_error = (target.double() - climatology.double())
-        self.forecast_squared_error += reduce(forecast_error.square())
-        self.climatology_squared_error += reduce(climatology_error.square())
+        # Restore physical units exactly as RolloutRMSEAccumulator does: the shared
+        # normalization mean cancels in a difference, so one std factor per channel
+        # is the whole conversion. The skill ratio is unaffected because both
+        # errors carry the same factor.
+        scale = self.std.to(forecast_error.device)[None, None, :, None, None]
+        self.forecast_squared_error += reduce((forecast_error * scale).square())
+        self.climatology_squared_error += reduce((climatology_error * scale).square())
         self.initializations += b
 
     def compute(self):

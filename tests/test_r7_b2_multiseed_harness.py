@@ -105,13 +105,33 @@ def test_validation_leads_are_integers():
         assert isinstance(lead, int) and not isinstance(lead, bool) and lead > 0
 
 
-def _minimal_protocol(tmp_path, identity="identity", channels=4, measured=None):
+def _minimal_protocol(tmp_path, identity="identity", channels=4, measured=None,
+                      split_ranges=None, **kwargs):
+    """Build a protocol against a tiny store declaring the given split ranges.
+
+    ``protocol_payload`` now reads the store's declared ``split_time_ranges`` so it
+    cannot describe one segment with another's text, so the fixture has to declare
+    ranges. The default is the real B2 split.
+    """
     if measured is None:
         measured = {name: {"parameters": 1000 + index, "forward_flops": 10,
                            "forward_backward_flops": 30}
                     for index, name in enumerate(ARM_NAMES)}
+    if split_ranges is None:
+        split_ranges = harness.B2_SPLIT_RANGES
     manifests = Path(tmp_path) / "manifests"
-    return protocol_payload(manifests, identity, channels, measured)
+    manifests.mkdir(parents=True, exist_ok=True)
+    _write_store(Path(tmp_path) / "cache.zarr", split_ranges)
+    return protocol_payload(manifests, identity, channels, measured, **kwargs)
+
+
+def _write_store(store_path, split_ranges):
+    """Minimal zarr group carrying only the attrs the protocol reads."""
+    import zarr
+
+    root = zarr.open_group(str(store_path), mode="w")
+    root.attrs["split_time_ranges"] = split_ranges
+    return store_path
 
 
 def test_protocol_digest_ignores_phase_membership(tmp_path):
@@ -160,6 +180,66 @@ def test_protocol_digest_changes_when_measured_budget_changes(tmp_path):
                       "forward_backward_flops": 30}
                for index, name in enumerate(ARM_NAMES)}
     assert _minimal_protocol(tmp_path, measured=changed)["protocol_sha256"] != baseline
+
+
+def test_b2_segment_text_and_split_ranges_are_pinned():
+    """The two values that make the archived B2 digest reproducible.
+
+    ``docs/R7_B2_MULTISEED.md`` archives ``protocol_sha256 = 244af00b...`` for the
+    B2 protocol. `protocol_payload` builds its ``data.segment`` string from
+    ``B2_SEGMENT_NOTE`` and decides whether that default is even legal from
+    ``B2_SPLIT_RANGES``, so editing either one silently rewrites an archived
+    digest - this test is the tripwire for that.
+    """
+    assert harness.B2_SPLIT_RANGES == {
+        "train": [["2016-01-01T00:00:00", "2016-01-25T00:00:00"]],
+        "val": [["2016-01-25T00:00:00", "2016-02-01T00:00:00"]],
+        "test": [["2016-02-01T00:00:00", "2016-02-06T00:00:00"]],
+    }
+    assert harness.B2_SEGMENT_NOTE == (
+        "36 consecutive January days; train [01-01, 01-25) is byte-identical "
+        "to the frozen D1 train range (same normalization statistics, same "
+        "94 windows), so B1 and B2 share one train distribution")
+
+
+def test_protocol_refuses_to_describe_a_store_it_is_not(tmp_path):
+    """A frozen protocol that misdescribes its own segment is worse than none.
+
+    The January re-cut kept B2's *train* range while moving val and test, so a
+    guard that only compared train ranges would have let that store describe
+    itself with B2's text. All three splits are compared.
+    """
+    recut = {
+        "train": harness.B2_SPLIT_RANGES["train"],
+        "val": [["2016-01-25T00:00:00", "2016-01-27T00:00:00"]],
+        "test": [["2016-01-27T00:00:00", "2016-02-01T00:00:00"]],
+    }
+    with pytest.raises(ValueError, match="would misdescribe the data"):
+        _minimal_protocol(tmp_path, split_ranges=recut)
+    # The limitations text is gated the same way: the B2 list asserts four
+    # buckets and an all-January segment, both false on any other store.
+    with pytest.raises(ValueError, match="pass explicit limitations"):
+        _minimal_protocol(tmp_path, split_ranges=recut,
+                          segment_note="some other segment")
+    # An explicit note and limitations list are accepted, and they are what lands
+    # in the protocol.
+    note = "M2 two-month segment: train [01-01, 02-17) with 8 month-hour buckets"
+    limits = ["M2 is one 60-day winter segment (January-February 2016) of real ERA5",
+              "climatology has 8 (month,hour) buckets here, twice B2's count"]
+    protocol = _minimal_protocol(tmp_path, split_ranges=recut, segment_note=note,
+                                 limitations=limits)
+    assert protocol["data"]["segment"] == note
+    assert protocol["limitations"] == limits
+    assert protocol["protocol_sha256"] != _minimal_protocol(tmp_path)["protocol_sha256"]
+
+
+def test_protocol_refuses_a_store_without_full_split_ranges(tmp_path):
+    with pytest.raises(ValueError, match="complete split_time_ranges"):
+        _minimal_protocol(tmp_path, split_ranges={"train": harness.B2_SPLIT_RANGES["train"]})
+    with pytest.raises(ValueError, match="not B2's"):
+        _minimal_protocol(tmp_path, split_ranges={"train": [["2016-03-01T00:00:00",
+                                                            "2016-03-02T00:00:00"]],
+                                                 "val": [], "test": []})
 
 
 def _seed_payload(seed, *, phase="confirm", digest="d", code="c"):
