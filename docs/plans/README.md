@@ -38,3 +38,4 @@
 | --- | --- | --- | --- |
 | [0001](0001-artifact-storage-convention.md) | 成品存放约定（plan / decision / goal / workflow） | 已完成（4 处与计划的差异，见文内） | 2026-09-24 |
 | [0002](0002-agent-hooks-and-skills.md) | 项目专属 hooks 与 skills（含覆盖率审计） | 已完成（修 24 处绕过；1 项原理性上限如实声明） | 2026-09-24 |
+| [0003](0003-goal-loop-skill.md) | goal-loop 技能 + 只读 goal 长文校检器 | 已完成（4 处与计划的差异，含决策编号 0014→0015 冲突的处置） | 2026-09-28 |
