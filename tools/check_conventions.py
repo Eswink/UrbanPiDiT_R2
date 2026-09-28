@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import contextlib
 import os
 import re
 import subprocess
@@ -116,8 +117,19 @@ PARAM_MAX = 8
 # same forward FLOPs, the declared input set being mode-independent, the eleven
 # frozen digests of the `fields` path captured before the change, and a
 # counterproof that the pin moves when the path moves. Nothing was removed.
-TEST_FUNCTION_BASELINE = 742
-ASSERT_BASELINE = 1846
+# 2026-09-28 (local gate scope + pre-commit gate, decision 0017): 742/1846 ->
+# 761/1885. Nineteen test instances in two files: seven for the tracked-scope rule
+# (untracked reported but not enforced, staging flips it to blocking, no git
+# metadata stays strict, tracked stays strict, the --paths filter, a named path
+# judged as commit content, uniform wrapping of every rule), eight for the
+# pre-commit gate (a staged violation refused, a clean tree commits, the same
+# command line may stage, non-commit commands ignored, whole-tree operands, an
+# operand that is not a plain path, fail-open when the gate cannot run, the refusal
+# message naming the rule), and four for the refined tests/-removal rule (untracked
+# scratch allowed, staged denied, test-named denied, real-repo denials). Nothing
+# was removed.
+TEST_FUNCTION_BASELINE = 761
+ASSERT_BASELINE = 1885
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")
@@ -169,6 +181,95 @@ class Finding:
     def __init__(self, rule: str, path: str, line: int, detail: str, tolerated: bool = False):
         self.rule, self.path, self.line = rule, path, line
         self.detail, self.tolerated = detail, tolerated
+
+
+# Blocking verdicts are scoped to content git can see.
+#
+# CI checks out a commit, so a blocking rule can only ever fail there on content
+# that is in the index. This checker also walks the working tree, which on a
+# developer machine holds untracked scratch, debris and half-written files - and a
+# hit on one of those is a red light that no commit can reproduce. A gate that is
+# permanently red is a gate nobody reads, which is exactly how a real violation
+# gets waved through.
+#
+# So: a finding whose subject has no tracked content stays visible but is marked
+# tolerated, and tolerated findings never fail a rule. The moment a file is staged
+# it is in the index, its findings become blocking again, and the local verdict
+# matches CI by construction. When the tracked set cannot be established (a tmp
+# tree in a unit test, a checkout without git) nothing is tolerated and the strict
+# verdict stands. See docs/decisions/0017-local-gate-scope-and-commit-guard.md.
+
+_TRACKED_CACHE: dict[str, "frozenset[str] | None"] = {}
+# Paths the caller has declared to be commit content. The pre-commit guard judges
+# `git add X && git commit` before the staging happens, so for those paths the
+# local index state says nothing about what CI will see: they are judged as if
+# committed. CI does exactly that - it judges the commit, not an index.
+_COMMITTED_PATHS: set = set()
+
+
+@contextlib.contextmanager
+def judge_as_committed(paths):
+    """Scope findings under ``paths`` as commit content: untracked is no defence."""
+    previous = set(_COMMITTED_PATHS)
+    _COMMITTED_PATHS.clear()
+    _COMMITTED_PATHS.update(paths or ())
+    try:
+        yield
+    finally:
+        _COMMITTED_PATHS.clear()
+        _COMMITTED_PATHS.update(previous)
+
+
+def tracked_files(root: Path):
+    """Repo-relative paths in the git index, or None when git cannot answer."""
+    key = str(Path(root).resolve())
+    if key not in _TRACKED_CACHE:
+        tracked = None
+        try:
+            completed = subprocess.run(["git", "-C", key, "ls-files", "-z"],
+                                       capture_output=True, text=True, timeout=30)
+            if completed.returncode == 0:
+                tracked = frozenset(name for name in completed.stdout.split("\0") if name)
+        except Exception:
+            tracked = None  # unknown, and unknown tolerates nothing
+        _TRACKED_CACHE[key] = tracked
+    return _TRACKED_CACHE[key]
+
+
+def _refers_to_untracked(root: Path, path, tracked) -> bool:
+    """True when ``path`` names something in the tree with no tracked content."""
+    if tracked is None or not isinstance(path, str):
+        return False
+    rel = path.strip().rstrip("/")
+    if not rel or rel in (".", "..") or rel.startswith(("/", "../")):
+        return False
+    if any(rel == committed or rel.startswith(committed + "/")
+           or committed.startswith(rel + "/") for committed in _COMMITTED_PATHS):
+        return False  # declared commit content: judged as if it were in the commit
+    if any(name == rel or name.startswith(rel + "/") for name in tracked):
+        return False
+    return (Path(root) / rel).exists()
+
+
+def scope_to_tracked(fn):
+    """Wrap a rule so untracked subjects are reported, never enforced."""
+    def scoped(root, allowed):
+        findings = fn(root, allowed)
+        tracked = tracked_files(root)
+        if tracked is None:
+            return findings
+        for finding in findings:
+            if finding.tolerated:
+                continue
+            if _refers_to_untracked(root, finding.path, tracked):
+                finding.tolerated = True
+                finding.detail = (f"{finding.detail} "
+                                  "[untracked: not part of any commit]")
+        return findings
+    scoped.__name__ = getattr(fn, "__name__", "scoped")
+    scoped.__doc__ = getattr(fn, "__doc__", None)
+    scoped.scoped_to_tracked = True  # asserted by tests/test_check_conventions.py
+    return scoped
 
 
 def iter_py(root: Path):
@@ -1510,6 +1611,11 @@ RULES = {
     "R-048": ("参数名缩写（C 类目标态，报告）", r_048_parameter_abbreviations),
 }
 
+# Every rule is scoped to tracked content, uniformly: no hand-maintained subset
+# list that could drift, and no rule that is red locally for a reason CI cannot
+# reproduce. The scoping only ever moves a hit from "fails" to "reported".
+RULES = {rule: (statement, scope_to_tracked(fn)) for rule, (statement, fn) in RULES.items()}
+
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Read-only UrbanPiDiT-R2 convention checker.")
@@ -1518,6 +1624,11 @@ def main(argv=None) -> int:
     ap.add_argument("--report", action="store_true", help="also run C-class reporting rules")
     ap.add_argument("--quiet", action="store_true", help="print rule status only")
     ap.add_argument("--max-detail", type=int, default=5, help="detail lines per rule (0 = all)")
+    ap.add_argument("--paths", nargs="*", default=None,
+                    help="only judge these repo-relative paths, plus repo-level findings, "
+                         "and judge them as commit content (used by the pre-commit guard "
+                         "to judge exactly what is staged, including a path whose stage "
+                         "happens later in the same command line)")
     args = ap.parse_args(argv)
 
     root = Path(args.root).resolve()
@@ -1534,9 +1645,23 @@ def main(argv=None) -> int:
 
     blocking_failures = 0
     report_hits = 0
+    only = None
+    if args.paths:
+        only = [p.strip().rstrip("/") for p in args.paths if p and p.strip()]
+        if not only:
+            print("error: --paths was given but no path survived normalisation", file=sys.stderr)
+            return 2
     for rule in selected:
         statement, fn = RULES[rule]
-        findings = fn(root, set(selected))
+        with judge_as_committed(only or ()):
+            findings = fn(root, set(selected))
+        if only is not None:
+            # A path-carrying finding is judged only when it names something about
+            # to be committed; repo-level findings ("." or no path at all) are not
+            # attributable to a file and are always kept.
+            findings = [f for f in findings
+                        if not f.path or f.path == "."
+                        or any(f.path == p or f.path.startswith(p + "/") for p in only)]
         blocking = rule in BLOCKING_RULES
         tolerated = [f for f in findings if f.tolerated]
         real = [f for f in findings if not f.tolerated]

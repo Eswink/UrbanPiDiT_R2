@@ -19,7 +19,9 @@ A broken guard must not wedge the session.
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -47,9 +49,20 @@ PROTECTED_PREFIXES = _ARCHIVES + _IMMUTABLE
 # below a baseline that is easy to bump by hand. Deleting tests is the exact
 # failure mode the hard constraints forbid, so removal is blocked here while
 # *adding* or *editing* tests stays completely unrestricted.
+#
+# What is protected is the *committed* suite, because that is what CI and the
+# evidence trail can see. A file under tests/ that the index does not know about
+# cannot be deleted out of any commit, and blocking its removal left untracked
+# debris unremovable from inside a session (it took all three delivered rounds to
+# notice). So removal is refused when the target is tracked, or when it is named
+# like a test; untracked scratch with another name may go. See decision 0017.
 DELETION_ONLY_PREFIXES = ("tests/",)
 # Verbs that remove their operands outright.
 _DELETING_VERBS = {"rm", "rmdir", "unlink", "shred"}
+# A name that says "this is a test", even when the file is not tracked yet: a
+# half-written test is work in progress, and deleting it is the forbidden move
+# rather than housekeeping.
+_TEST_FILE_NAMES = re.compile(r"^(?:test_.*\.py|conftest\.py)$")
 
 # Bare tokens used for a cheap "does this command touch a protected area?" test.
 PROTECTED_TOKENS = tuple(sorted({p.rstrip("/") for p in PROTECTED_PREFIXES}))
@@ -213,7 +226,11 @@ def _reason(prefix: str, what: str) -> str:
             f"Adding, editing and refactoring tests are NOT blocked. If a test is genuinely\n"
             f"obsolete, that is a decision to record and make deliberately (with the reason in\n"
             f"the commit and CHANGELOG), not something to do silently mid-task. To retire a\n"
-            f"test, state the intent first and adjust R-009's baseline in the same change."
+            f"test, state the intent first and adjust R-009's baseline in the same change.\n"
+            f"\n"
+            f"Removing *untracked* scratch under tests/ that is not named test_*.py or\n"
+            f"conftest.py is allowed (decision 0017): it is in no commit, so it cannot be a\n"
+            f"silent loss of coverage. This one is either tracked or named like a test."
         )
     if prefix.startswith(("legacy_v531", "legacy_v6")) or "legacy" in prefix:
         return (
@@ -263,30 +280,79 @@ def _under_tests(value: str) -> str | None:
 
 
 def _deletion_verdict(verb: str, operands: list, segment: str) -> str | None:
-    """Return a protected path when the command REMOVES something under tests/.
+    """Return a protected path when the command REMOVES protected test content.
 
-    Only removal is guarded. Authoring, editing and refactoring tests stay
-    unrestricted, which is why this is a separate, narrowly-scoped check rather
-    than an entry in PROTECTED_PREFIXES.
+    Only removal of *committed* test content is guarded. Authoring, editing and
+    refactoring tests stay unrestricted, and so does removing untracked scratch
+    that happens to live under tests/ - it is in no commit, so it cannot be a
+    silent loss of coverage. See `_removal_is_allowed`.
     """
     candidates = [op for op in operands if _under_tests(op)]
     if not candidates:
         return None
 
+    removed = None
     if verb in _DELETING_VERBS:
-        return candidates[0]
-    if verb == "find" and _FIND_DESTRUCTIVE.search(segment):
-        return candidates[0]
-    if verb == "git":
+        removed = candidates[0]
+    elif verb == "find" and _FIND_DESTRUCTIVE.search(segment):
+        removed = candidates[0]
+    elif verb == "git":
         # `git rm` / `git mv` out of the tree / `git clean` over it.
         sub = operands[0] if operands else ""
-        if sub in ("rm",) or (sub == "clean" and _FIND_DESTRUCTIVE.search(segment)):
-            return candidates[0]
-        if sub == "mv":
+        if sub == "rm" or (sub == "clean" and _FIND_DESTRUCTIVE.search(segment)):
+            removed = candidates[0]
+        elif sub == "mv":
             remaining = [op for op in operands[1:] if _under_tests(op)]
             if not remaining or remaining[0] == candidates[0]:
-                return candidates[0]
-    return None
+                removed = candidates[0]
+    if removed is None or _removal_is_allowed(removed):
+        return None
+    return removed
+
+
+def _repo_root() -> Path:
+    """The checkout this guard protects."""
+    declared = os.environ.get("ZCODE_PROJECT_DIR")
+    if declared and (Path(declared) / ".git").exists():
+        return Path(declared).resolve()
+    return Path(__file__).resolve().parents[2]
+
+
+def tracked_under(rel: str, *, root: "Path | None" = None) -> bool:
+    """Does the index hold this path or anything beneath it?
+
+    True means "hands off": tracked content is what the deletion rule protects.
+    Any failure answering the question is reported as tracked, so an unreadable
+    index can never turn into permission to delete.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root or _repo_root()), "ls-files", "-z", "--", rel],
+            capture_output=True, text=True, timeout=20)
+    except Exception:
+        return True
+    if completed.returncode != 0:
+        return True
+    return bool(completed.stdout.replace("\0", "").strip())
+
+
+def _removal_is_allowed(target: str) -> bool:
+    """Untracked, not named like a test, and present in this checkout.
+
+    Everything else keeps the strict verdict: tracked content, anything whose
+    name says "test", paths this guard cannot resolve (an absolute path it does
+    not recognise normalizes to the empty string), and anything missing from the
+    tree - "I could not identify that file" is not a reason to allow removing it.
+    """
+    rel = _normalize(target)
+    if not rel or rel == ".":
+        return False
+    if _TEST_FILE_NAMES.match(Path(rel).name):
+        return False
+    root = _repo_root()
+    if not (root / rel).exists():
+        return False
+    return not tracked_under(rel, root=root)
 
 
 def _blank_heredocs(command: str) -> str:

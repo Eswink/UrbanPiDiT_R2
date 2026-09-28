@@ -106,13 +106,14 @@
 
 ## 自动拦截（hooks）
 
-`.zcode/config.json` 注册了 4 个 hook，脚本在 `tools/agent_hooks/`（纯标准库，全部 **fail-open**：
+`.zcode/config.json` 注册了 5 个 hook，脚本在 `tools/agent_hooks/`（纯标准库，全部 **fail-open**：
 脚本自身出错时放行并打印原因，不会卡死会话）。自测在 `tests/test_agent_hooks.py`（含反证）。
 
 | 时机 | 脚本 | 行为 |
 | --- | --- | --- |
-| PreToolUse | `guard_protected_paths.py` | **拒绝**对 `data/raw|interim|processed`、归档快照的写/删/移动（R-002/R-004/R-031），以及 **`tests/` 下测试文件的删除**。读操作与正常命令一律放行 |
+| PreToolUse | `guard_protected_paths.py` | **拒绝**对 `data/raw|interim|processed`、归档快照的写/删/移动（R-002/R-004/R-031），以及 **`tests/` 下已跟踪内容或名字像测试的文件的删除**（决策 0017）。读操作与正常命令一律放行 |
 | PreToolUse | `guard_destructive_git.py` | **拒绝** force-push（含裸 `+ref`）、`reset --hard`、`clean -f`、`branch -D`、合并 main（`git merge` / `gh pr merge`）、删除默认分支、`--mirror`（决策 0003）。非 force 推送（含到 main 的 ff）放行；只读 git 一律放行 |
+| PreToolUse | `guard_conventions_before_commit.py` | **拒绝**会让 CI 变红的 `git commit`：判 `git diff --cached` ∪ 同一命令行 `git add/rm/mv` 的操作数 ∪（`-a` 时）已修改的已跟踪文件（决策 0017）。合规提交与只读 git 一律放行 |
 | PostToolUse | `check_model_digest_impact.py` | **提示**（不阻断）：改了 `model/**.py` 会改变 `model_code_sha256`，需标记 `[model-digest-change]` |
 | Stop | `tools/check_conventions.py --quiet` | 收尾时跑 34 条阻断规则，有违规则要求先处理 |
 
@@ -122,11 +123,17 @@
   `python -m data.download.arco_era5`、`python scripts/prepare_real_smoke.py` 等按脚本默认值写
   `data/raw/`，一律放行。被拦的只有**绕过脚本、直接在 shell 里改写/删除**这些目录的操作。
   若某条 deny 拦住了正当工作，删掉 `.zcode/config.json` 里对应条目即可。
-- **测试只禁删除**：新增、编辑、重构、运行测试都不受限；只有 `rm`/`git rm`/`find -delete`
-  这类**移除**测试文件的操作被拦（R-009 只统计总数且仅报告，看不见整文件删除）。
+- **测试只禁删除，且只禁"提交会包含的那些"**：新增、编辑、重构、运行测试都不受限；
+  `rm`/`git rm`/`find -delete` 只在目标是**已跟踪内容**或**名字像测试**（`test_*.py`/`conftest.py`）
+  时被拦（R-009 只统计总数且仅报告，看不见整文件删除）。**未跟踪且非测试名**的草稿可以清理——
+  三轮交付里那个删不掉的遗留文件正是被旧的全禁规则锁住的（决策 0017）。
+- **阻断判定按已跟踪集合计**：命中对象"自身及其下都无已跟踪内容"时**照常打印但不计失败**，
+  于是「本地阻断失败」⟺「提交树上有违规」（`git add` 之后立刻恢复阻断）；git 回答不出来时不宽容。
 - 保护清单从 `tools/check_conventions.py` 的 `ARCHIVAL_PREFIXES` **推导**，不另造平行清单；
-  `tests/test_agent_hooks.py`（142 个用例，含"审计发现的绕过"反证）断言两者不会漂移。
+  `tests/test_agent_hooks.py`（164 个用例，含"审计发现的绕过"反证）断言两者不会漂移。
 - Stop hook 会**重复** CI 已有的检查。这是刻意的（本地收尾前就知道结果），不是替代 CI。
+- **提交闸门是新增的"会拒绝"项**：它拦的是"这条提交会让 CI 变红"，被判路径与失败规则都会打印。
+  配置在**会话启动时读取**，新增条目要**重启会话**才生效（脚本级修改即时生效）。
 - 这些 hook 只在本仓库、经由 ZCode 生效；直接命令行操作不受影响。
 
 ## 成品存放

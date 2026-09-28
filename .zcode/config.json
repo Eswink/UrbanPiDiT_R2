@@ -31,6 +31,20 @@
               "statusMessage": "checking git safety"
             }
           ]
+        },
+        {
+          "matcher": "Bash",
+          "hooks": [
+            {
+              "type": "process",
+              "command": "${ZCODE_PROJECT_DIR}/.venv/bin/python",
+              "args": [
+                "${ZCODE_PROJECT_DIR}/tools/agent_hooks/guard_conventions_before_commit.py"
+              ],
+              "timeoutMs": 120000,
+              "statusMessage": "checking conventions before commit"
+            }
+          ]
         }
       ],
       "PostToolUse": [

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -548,3 +549,99 @@ def test_cli_report_rule_does_not_fail_build(checker, tmp_path):
 
 def test_cli_rejects_unknown_rule(checker):
     assert checker.main(["--root", str(ROOT), "--rule", "R-999"]) == 2
+
+
+# ------------------------------------------ blocking is scoped to tracked content
+#
+# Added with decision 0017. CI checks out a commit, so a blocking rule can only
+# fail there on content in the index; this checker also walks the working tree,
+# where untracked debris lives. A hit with no tracked content must stay visible
+# and must not fail the gate, and staging the file must make it fail again -
+# otherwise the local red light means something different from the CI red light.
+
+def _git(root: Path, *args: str) -> None:
+    """Run git inside a fixture repo; fixtures never touch the real repository."""
+    completed = subprocess.run(["git", "-C", str(root), *args],
+                               capture_output=True, text=True)
+    if completed.returncode != 0:
+        raise AssertionError(f"git {' '.join(args)} failed: {completed.stderr.strip()}")
+
+
+def _init_repo(root: Path) -> None:
+    _git(root, "init", "-q")
+    _git(root, "config", "user.email", "fixture@example.invalid")
+    _git(root, "config", "user.name", "fixture")
+
+
+def test_every_rule_is_scoped_to_tracked_content(checker):
+    """Uniform by construction: a future rule cannot opt out by omission."""
+    unscoped = [rule for rule, (_statement, fn) in checker.RULES.items()
+                if not getattr(fn, "scoped_to_tracked", False)]
+    assert not unscoped, f"rules not scoped to tracked content: {unscoped}"
+
+
+def test_an_untracked_violation_is_reported_but_not_enforced(checker, tmp_path):
+    _init_repo(tmp_path)
+    create_fixture(tmp_path, "scripts", "helper.py", text="def f():\n    return 1\n")
+    hits = [h for h in run(checker, "R-017", tmp_path) if h.path.endswith("helper.py")]
+    assert hits, "the rule stopped firing on the sample"
+    assert all(h.tolerated for h in hits), "an untracked file failed the local gate"
+    assert "untracked" in hits[0].detail
+    assert checker.main(["--root", str(tmp_path), "--rule", "R-017", "--quiet"]) == 0
+
+
+def test_staging_the_same_violation_makes_it_blocking(checker, tmp_path):
+    """Staging is the moment of truth: the file is in the commit, so the gate fails."""
+    _init_repo(tmp_path)
+    create_fixture(tmp_path, "scripts", "helper.py", text="def f():\n    return 1\n")
+    _git(tmp_path, "add", "scripts/helper.py")
+    hits = [h for h in run(checker, "R-017", tmp_path) if h.path.endswith("helper.py")]
+    assert hits, "the rule stopped firing on the staged sample"
+    assert not any(h.tolerated for h in hits), "a staged violation passed the gate"
+    assert checker.main(["--root", str(tmp_path), "--rule", "R-017", "--quiet"]) == 1
+
+
+def test_without_git_metadata_nothing_is_tolerated(checker, tmp_path):
+    """Unknown tracking is not a licence to pass: the strict verdict stands."""
+    create_fixture(tmp_path, "scripts", "helper.py", text="def f():\n    return 1\n")
+    hits = run(checker, "R-017", tmp_path)
+    assert hits and not any(h.tolerated for h in hits)
+    assert checker.main(["--root", str(tmp_path), "--rule", "R-017", "--quiet"]) == 1
+
+
+def test_a_tracked_file_is_never_tolerated(checker, tmp_path):
+    """The scoping must not reach tracked content, or it would be a real weakening."""
+    _init_repo(tmp_path)
+    create_fixture(tmp_path, "scripts", "helper.py", text="def f():\n    return 1\n")
+    create_fixture(tmp_path, "scripts", "fine.py", text=FUTURE + "def f():\n    return 1\n")
+    _git(tmp_path, "add", "scripts/helper.py", "scripts/fine.py")
+    hits = run(checker, "R-017", tmp_path)
+    assert hits and not any(h.tolerated for h in hits), "a tracked violation was tolerated"
+
+
+def test_paths_filter_judges_only_what_is_about_to_be_committed(checker, tmp_path):
+    """The pre-commit guard's half of the contract: judge these paths, not the tree."""
+    _init_repo(tmp_path)
+    create_fixture(tmp_path, "scripts", "bad.py", text="def f():\n    return 1\n")
+    create_fixture(tmp_path, "scripts", "fine.py", text=FUTURE + "def f():\n    return 1\n")
+    _git(tmp_path, "add", "scripts/bad.py", "scripts/fine.py")
+    assert checker.main(["--root", str(tmp_path), "--rule", "R-017", "--quiet",
+                         "--paths", "scripts/fine.py"]) == 0
+    assert checker.main(["--root", str(tmp_path), "--rule", "R-017", "--quiet",
+                         "--paths", "scripts/bad.py"]) == 1
+    assert checker.main(["--root", str(tmp_path), "--rule", "R-017", "--quiet",
+                         "--paths", "   "]) == 2
+
+
+def test_named_paths_are_judged_as_commit_content(checker, tmp_path):
+    """A named path is judged as if committed, stage set or not.
+
+    This is what lets the pre-commit guard catch `git add X && git commit X`: at the
+    moment the guard runs, X is not in the index yet, and the local index says
+    nothing about what CI will see in the commit.
+    """
+    _init_repo(tmp_path)
+    create_fixture(tmp_path, "scripts", "helper.py", text="def f():\n    return 1\n")
+    assert checker.main(["--root", str(tmp_path), "--rule", "R-017", "--quiet"]) == 0
+    assert checker.main(["--root", str(tmp_path), "--rule", "R-017", "--quiet",
+                         "--paths", "scripts/helper.py"]) == 1

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -316,6 +317,74 @@ def test_test_authoring_is_not_blocked(paths_guard, label, payload):
     assert paths_guard.evaluate(payload) is None, f"{label}: must not be blocked"
 
 
+# ------------------------------------- untracked scratch vs committed test content
+#
+# Decision 0017: the guard protects what a commit can contain. Removing untracked
+# scratch that is not named like a test is housekeeping and must be possible, or a
+# session cannot clean up after itself; a staged file is in the index and stays
+# protected. The tests below run the real decision and fake exactly one thing: the
+# index lookup (and, for the patched cases, which checkout is being asked about).
+
+UNTRACKED_SCRATCH_CASES = [
+    ("rm an untracked helper", "rm tests/fixtures/scratch.py",
+     ("tests", "fixtures", "scratch.py")),
+    ("rm -rf an untracked scratch dir", "rm -rf tests/fixtures/scratch",
+     ("tests", "fixtures", "scratch")),
+    ("git rm an untracked helper", "git rm tests/fixtures/scratch.py",
+     ("tests", "fixtures", "scratch.py")),
+]
+
+
+def _scratch_repo(tmp_path: Path, *segments: str) -> Path:
+    """A throwaway checkout holding one untracked file at the named path."""
+    target = tmp_path.joinpath(*segments)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("scratch\n", encoding="utf-8")
+    return target
+
+
+@pytest.mark.parametrize("label,command,segments", UNTRACKED_SCRATCH_CASES,
+                         ids=[c[0].replace(" ", "-") for c in UNTRACKED_SCRATCH_CASES])
+def test_removing_untracked_scratch_is_allowed(paths_guard, monkeypatch, tmp_path,
+                                               label, command, segments):
+    _scratch_repo(tmp_path, *segments)
+    monkeypatch.setattr(paths_guard, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(paths_guard, "tracked_under", lambda rel, **kwargs: False)
+    assert paths_guard.evaluate(bash(command)) is None, f"{label}: must be allowed"
+
+
+def test_a_staged_file_is_protected_by_the_index(paths_guard, monkeypatch, tmp_path):
+    """Same command, same path, one difference: git says it is in the index."""
+    _scratch_repo(tmp_path, "tests", "fixtures", "scratch.py")
+    monkeypatch.setattr(paths_guard, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(paths_guard, "tracked_under", lambda rel, **kwargs: True)
+    verdict = paths_guard.evaluate(bash("rm tests/fixtures/scratch.py"))
+    assert verdict is not None, "removing staged content must stay denied"
+    assert "removal of test files" in paths_guard._reason(*verdict)
+
+
+def test_a_test_name_is_protected_even_when_untracked(paths_guard, monkeypatch, tmp_path):
+    """A half-written test is work in progress, not scratch: deleting it is the
+    forbidden move, and the name decides that without consulting the index."""
+    _scratch_repo(tmp_path, "tests", "test_half_written.py")
+    monkeypatch.setattr(paths_guard, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(paths_guard, "tracked_under", lambda rel, **kwargs: False)
+    verdict = paths_guard.evaluate(bash("rm tests/test_half_written.py"))
+    assert verdict is not None, "an untracked test file must still be denied"
+
+
+@pytest.mark.parametrize("label,command", [
+    ("a tracked fixture in this checkout", "rm tests/fixtures/r7_arco_t2m.json"),
+    ("a directory holding tracked tests", "rm -rf tests/fixtures"),
+    ("a path that does not exist", "rm tests/fixtures/never_created.py"),
+])
+def test_removal_of_protected_test_content_stays_denied(paths_guard, label, command):
+    """Real repository, no patching: the conservative branch decides these."""
+    verdict = paths_guard.evaluate(bash(command))
+    assert verdict is not None, f"{label}: removal must be denied"
+    assert "removal of test files" in paths_guard._reason(*verdict)
+
+
 # ---------------------------------------------------- project workflows allowed
 #
 # The guard must not break the repository's own documented commands. These write
@@ -432,3 +501,114 @@ def test_digest_notice_is_silent_when_not_applicable(digest_notice, monkeypatch,
     out = capsys.readouterr().out.strip()
     assert code == 0
     assert out == "", "an out-of-scope edit must emit nothing at all"
+
+
+# --------------------------------------------- pre-commit convention gate (0017)
+#
+# The gate must refuse a commit whose content would fail CI, and must not refuse
+# anything else. These tests run against a throwaway git checkout in tmp_path; the
+# checker is imported in-process by the guard, so the verdict here is the real one.
+
+VIOLATING_MODULE = "def f():\n    return 1\n"          # no postponed annotations
+CONFORMING_MODULE = "from __future__ import annotations\n\n\ndef f():\n    return 1\n"
+
+
+def _commit_repo(tmp_path: Path, text: str, *segments: str) -> Path:
+    """A throwaway checkout with one staged file at the named path."""
+    subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True,
+                   capture_output=True)
+    target = tmp_path.joinpath(*segments)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+    subprocess.run(["git", "add", "/".join(segments)], cwd=str(tmp_path), check=True,
+                   capture_output=True)
+    return target
+
+
+@pytest.fixture(scope="module")
+def commit_guard():
+    return _load("guard_conventions_before_commit")
+
+
+def test_a_staged_violation_refuses_the_commit(commit_guard, monkeypatch, tmp_path):
+    _commit_repo(tmp_path, VIOLATING_MODULE, "scripts", "probe.py")
+    monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
+    verdict = commit_guard.evaluate(bash("git commit -m 'probe'"))
+    assert verdict is not None, "a commit whose content fails CI must be refused"
+    root, output, paths = verdict
+    assert paths == ["scripts/probe.py"], paths
+    assert "R-017" in output, output
+    assert "CI" in commit_guard._reason(root, output, paths)
+
+
+def test_a_clean_staged_tree_commits(commit_guard, monkeypatch, tmp_path):
+    _commit_repo(tmp_path, CONFORMING_MODULE, "scripts", "probe.py")
+    monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
+    assert commit_guard.evaluate(bash("git commit -m 'probe'")) is None
+
+
+def test_the_same_command_line_may_do_the_staging(commit_guard, monkeypatch, tmp_path):
+    """`git add X && git commit` is how this project commits: the add must count."""
+    subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True,
+                   capture_output=True)
+    target = tmp_path / "scripts" / "probe.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(VIOLATING_MODULE, encoding="utf-8")
+    monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
+    verdict = commit_guard.evaluate(
+        bash("git add scripts/probe.py && git commit -m 'probe'"))
+    assert verdict is not None, "the staged-by-this-command file was not judged"
+    assert verdict[2] == ["scripts/probe.py"], verdict[2]
+
+
+@pytest.mark.parametrize("command", [
+    "git status --short",
+    "git log --oneline -3",
+    "git diff --cached",
+    "git push origin r7/weather-reasoning",
+])
+def test_commands_that_do_not_commit_are_ignored(commit_guard, command):
+    assert commit_guard.evaluate(bash(command)) is None, command
+
+
+def test_a_whole_tree_operand_falls_back_to_the_whole_tree(commit_guard, tmp_path):
+    """`git add -A` cannot be enumerated per path, so the superset is judged."""
+    assert commit_guard.paths_under_judgement(tmp_path, ["-A"], ["-m"]) is None
+    assert commit_guard.paths_under_judgement(tmp_path, ["."], ["-m"]) is None
+
+
+@pytest.mark.parametrize("operand", [
+    "--rule",                     # a leading dash would be read as a flag
+    "scripts/a b.py",             # whitespace
+    "scripts/$(whoami).py",       # a shell substitution
+    "scripts/a;rm -rf x.py",      # a statement separator
+])
+def test_an_operand_that_is_not_a_plain_path_is_never_carried(commit_guard, tmp_path,
+                                                              operand):
+    """Nothing from a command line reaches the checker unless it is a plain path."""
+    assert commit_guard._safe_path_operand(operand) is None, operand
+    assert commit_guard.paths_under_judgement(tmp_path, [operand], ["-m"]) is None
+
+
+def test_the_gate_fails_open_when_it_cannot_run(commit_guard, monkeypatch, tmp_path,
+                                                capsys):
+    """A broken gate must not wedge a session: allow, and say why."""
+    _commit_repo(tmp_path, VIOLATING_MODULE, "scripts", "probe.py")
+    monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
+
+    def explode(root, paths):
+        raise RuntimeError("checker unavailable")
+
+    monkeypatch.setattr(commit_guard, "run_checker", explode)
+    assert commit_guard.evaluate(bash("git commit -m 'probe'")) is None
+    assert "checker unavailable" in capsys.readouterr().err
+
+
+def test_the_gate_names_the_failing_rule_and_the_paths(commit_guard):
+    """The refusal has to be actionable: which rule, which files, and why it matters."""
+    reason = commit_guard._reason(Path("/tmp/checkout"),
+                                  "R-017   FAIL    hits=   1  postponed annotations",
+                                  ["scripts/probe.py", "docs/x.md"])
+    assert "R-017" in reason
+    assert "scripts/probe.py" in reason
+    assert "CI" in reason

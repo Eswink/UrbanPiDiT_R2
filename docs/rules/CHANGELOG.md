@@ -2,6 +2,44 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-28 — 本地闸门判定范围（按已跟踪集合）+ 提交前闸门 + 删除保护精确化（决策 0017）
+
+**范围**：`tools/check_conventions.py`、`tools/agent_hooks/guard_protected_paths.py`、
+新 `tools/agent_hooks/guard_conventions_before_commit.py`、`.zcode/config.json`（新增一条 PreToolUse）。
+**没有改任何规则的判据、阈值或分组**，也没有动 `docs/rules/*.md` 的正文。
+
+**起因（实测）**：用户看到「`2 failed` + `blocking rules=34 failing=1`，提交却成功」。查证：
+`.git/hooks/` **0 个活动 hook**；唯一跑惯例的 Stop hook 在**回合结束**时执行且 fail-open；
+那条唯一命中打在一个**未跟踪**文件（`tests/fixtures/r7_equivalence_recipe.py`）上，而把 HEAD 取成
+干净工作树实测 **`blocking rules=34 failing=0`、`test_check_conventions.py 83 passed`** ——
+**假红是结构性的**（本地扫工作目录、CI 扫提交树），而常态红灯会被无视。
+
+**三处改动**
+
+| # | 改动 | 效果 |
+| --- | --- | --- |
+| 1 | 阻断判定按**已跟踪集合**计：命中对象"自身及其下都无已跟踪内容"时标 `tolerated`，**照常打印**、不计失败；**每条规则统一包装**；git 回答不出来时**不宽容**；`git add` 之后立刻恢复阻断 | 本地阻断失败 ⟺ 提交树上有违规 |
+| 2 | 新增 `--paths`：只判给定路径**并且把它们当作提交内容**（同一命令行 `git add X && git commit` 时 X 还没进 index） | 提交闸门能判"即将提交的东西" |
+| 3 | `tests/` 删除保护精确化：仅当目标是**已跟踪内容**或**名字像测试**（`test_*.py`/`conftest.py`）时拒绝；未跟踪且非测试名放行；判定用 `git ls-files -- <path>`，**回答不出来即拒绝** | 会话能清理自己的未跟踪草稿，"删测试"的保护不变 |
+
+**新增守卫**：`guard_conventions_before_commit.py`（PreToolUse / Bash）。判 `git diff --cached` ∪
+同一命令行 `git add/rm/mv` 的操作数 ∪（`-a` 时）已修改的已跟踪文件；目录/整树/非普通路径操作数
+退回判整棵树；拒绝时列出失败规则、被判路径与"这就是 CI 会红的那条"。检查器**在同进程内被导入调用**
+（不把命令行的路径交给任何子进程或 shell），失败一律 fail-open。
+**注意**：hook 配置在**会话启动时读取**（决策 0002 附录），这一条要**重启会话**才生效。
+
+**测试强度**：R-009 基线 742/1846 → **761/1885**（+19 函数 / +39 断言，两个文件；无损）。
+关键反证：tmp git 仓库里同一违规文件**未跟踪→不阻断、`git add` 后→阻断**；无 git 元数据时
+（tmp 树）**保持严格**；提交闸门对"暂存违规"与"同一命令行 add 违规"都拒绝、合规放行、
+非 commit 命令不受影响、内部错误 fail-open。**两条原先红的仓库级自测现在通过**。
+
+**遗留文件处置**：`tests/fixtures/r7_equivalence_recipe.py`（round one 遗留、未跟踪、其内容早已
+并入 `tests/test_r7_switched_path_equivalence.py`）**已在本机删除**；R-044 命中归零。
+round one/two 文档里"需用户在 ZCode 之外删除"的记述自此成为历史记录，处置理由见决策 0017。
+
+**另一条调查**（不属规则变更）：goal 完成校验器把会话打断的成因与规避见
+`docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md`。
+
 ## 2026-09-28 — #71 第三轮：测试基线更新与 `model_code_sha256` 变化（未改任何规则判据）
 
 **范围**：只为新增测试抬 R-009 基线（734/1814 → **742/1846**，+8 个测试函数 / +32 条断言，
