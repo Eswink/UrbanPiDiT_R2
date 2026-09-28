@@ -380,6 +380,9 @@ curl -s "https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs?head_sha
 | SHA | 内容 | `ci.yml` run（R7 CPU CI / pytest） |
 | --- | --- | --- |
 | `d8aff68` | 第二轮实现（model 两个文件 + 1 个测试文件 + 实验脚本 + 运行脚本 + 本文件 + 决策 0014 + R-009 基线 + digest 记录） | `36380552307` **completed / success**（job `pytest` / `completed / success`） |
+| `58c2446` | 本 §14 的补记（CI run、干净树复验、扫描缺口） | `36380831982` **completed / success** |
+| `ed707bb` | 默认关的直接断言 + R-009 基线抬到实测值 722/1795 | `36381668908` **completed / success** |
+| 本行之后的文档提交 | §14 表格补记 | 同一次 push 只在分支尖端触发一次，其覆盖由同一棵树上的 `ed707bb` 的 run 提供 |
 
 逐 run 核对（匿名只读 API）：该 SHA 上共 18 个 run —— `R7 CPU CI` success，
 其余 17 条实验 workflow 全部 `completed / skipped`（job 级亦为 `skipped`，如
