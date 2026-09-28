@@ -3,7 +3,7 @@
 本文件是 goal 模式（`/goal <objective>`）的**长文目标源**。§0 是可粘贴的单段 objective，
 §2 是逐条核对的交付物，§5 是预算与停止条件。
 
-## 0. objective（可直接粘贴，单段）
+## 0. objective（可直接粘贴，单段 1620 字符，实测 ≤4000）
 
 > 本轮目标：在 r7/weather-reasoning 上做主模型 V2 第二轮——用四臂 × 三种子把上一轮的两个混淆拆开，回答「位置依赖本身是否超出容量带来改善」（起点 SHA 开工时用 git rev-parse HEAD 记录）。细节与判据见 docs/goals/v2-round-two-attribution.md，不需要用户再授权。 四臂（同一 M2 store、同一 400-update 协议族、同一个新的 protocol_sha256、全部从零训练）：A process_pooled（两开关全关）、B process_spacetime_only（只开 spacetime_inputs）、C process_spacetime_rwa（两个都开）、D process_rwa_capacity_control（开 spacetime_inputs 与 positional_process_readout，但读取的 query 按位置池化因而位置无关；与 C 同一模块、同一参数、算力实测后如实报告）。种子 41/42/43，共 12 个 run。 交付物（逐条核对，未做就写未做）： D1 新增「池化 query」构造开关（默认关、bool 校验与既有开关同风格），默认路径不得产生任何新参数。 D2 逐位等价测试必须实跑并通过（tests/test_r7_switched_path_equivalence.py，23 digest 覆盖三族 forward/rollout/自适应/streamed BPTT 的全参数梯度）。 D3 四臂臂配对实测：跨四臂共享张量逐位相同、锚臂 state_dict 应用到其余三臂、applied/ignored 计数写进产物——是实测不是假定。 D4 池化被钉住：池化时各输出位置逐位相同、非池化时有位置差异；训练后位置探针 D 的 spread 约 0、C 显著非 0。 D5 一轮有界实验：写入新输出目录（不得写进 round one 的 outputs/r7_71_72_m1_rwa/），协议在每个 seed 第一步前冻结、12 个 run 的 protocol_sha256 相同、只读 val、test 封存。 D6 配对比较用 #60 比较器、depth 键 0，至少给出 B−A、C−B、C−D、D−B 四对，逐 seed 同号才算 improved/worsened，其余 unresolved，负面照写。 D7 证据文档（新建，不覆盖 round one 那份）+ 实测 GPU-h + 四臂参数/FLOPs 实测值 + 重跑稳定性观察；C−D 若未获支持就明说。 D8 提交（治理层进版本控制）并核对 CI；skipped 的实验 workflow 是 commit-message 标签门控，不算失败。 纪律：不用 test 做方法选择（test 已被读过）；不新增阈值、不放宽已冻结判据；C−D unresolved 或反向就写「位置依赖本身未获支持」，不得换变量或网格去凑赢面；不做第五臂、不做 RW-B/M3/M4/M5；不新增数据下载；不合并 main、不 force push、不租 GPU、不写 issue。 预算与停止：本轮 ≤1.0 GPU-h（第二批授权 ≤24 GPU-h，已用 1.389），单次实验 ≤30 min；超出即停并如实记录。逐位等价或池化钉住失败、12 个 run 的 protocol_sha256 不一致、check_conventions 阻断违规时停止并报告。 结束时报告：启动 SHA、改动面逐文件、实跑过的验证与结果、protocol_sha256 与实测 GPU-h、每对配对的 improved/worsened/unresolved、未做的事、下一项的第一个具体动作。不要自行宣布目标完成。
 
@@ -139,3 +139,21 @@
 > 本轮目标：在 r7/weather-reasoning 上做主模型 V2 第二轮——用四臂 × 三种子把上一轮的两个混淆拆开，回答「位置依赖本身是否超出容量带来改善」（起点 SHA 开工时用 git rev-parse HEAD 记录）。细节与判据见 docs/goals/v2-round-two-attribution.md，不需要用户再授权。 四臂（同一 M2 store、同一 400-update 协议族、同一个新的 protocol_sha256、全部从零训练）：A process_pooled（两开关全关）、B process_spacetime_only（只开 spacetime_inputs）、C process_spacetime_rwa（两个都开）、D process_rwa_capacity_control（开 spacetime_inputs 与 positional_process_readout，但读取的 query 按位置池化因而位置无关；与 C 同一模块、同一参数、算力实测后如实报告）。种子 41/42/43，共 12 个 run。 交付物（逐条核对，未做就写未做）： D1 新增「池化 query」构造开关（默认关、bool 校验与既有开关同风格），默认路径不得产生任何新参数。 D2 逐位等价测试必须实跑并通过（tests/test_r7_switched_path_equivalence.py，23 digest 覆盖三族 forward/rollout/自适应/streamed BPTT 的全参数梯度）。 D3 四臂臂配对实测：跨四臂共享张量逐位相同、锚臂 state_dict 应用到其余三臂、applied/ignored 计数写进产物——是实测不是假定。 D4 池化被钉住：池化时各输出位置逐位相同、非池化时有位置差异；训练后位置探针 D 的 spread 约 0、C 显著非 0。 D5 一轮有界实验：写入新输出目录（不得写进 round one 的 outputs/r7_71_72_m1_rwa/），协议在每个 seed 第一步前冻结、12 个 run 的 protocol_sha256 相同、只读 val、test 封存。 D6 配对比较用 #60 比较器、depth 键 0，至少给出 B−A、C−B、C−D、D−B 四对，逐 seed 同号才算 improved/worsened，其余 unresolved，负面照写。 D7 证据文档（新建，不覆盖 round one 那份）+ 实测 GPU-h + 四臂参数/FLOPs 实测值 + 重跑稳定性观察；C−D 若未获支持就明说。 D8 提交（治理层进版本控制）并核对 CI；skipped 的实验 workflow 是 commit-message 标签门控，不算失败。 纪律：不用 test 做方法选择（test 已被读过）；不新增阈值、不放宽已冻结判据；C−D unresolved 或反向就写「位置依赖本身未获支持」，不得换变量或网格去凑赢面；不做第五臂、不做 RW-B/M3/M4/M5；不新增数据下载；不合并 main、不 force push、不租 GPU、不写 issue。 预算与停止：本轮 ≤1.0 GPU-h（第二批授权 ≤24 GPU-h，已用 1.389），单次实验 ≤30 min；超出即停并如实记录。逐位等价或池化钉住失败、12 个 run 的 protocol_sha256 不一致、check_conventions 阻断违规时停止并报告。 结束时报告：启动 SHA、改动面逐文件、实跑过的验证与结果、protocol_sha256 与实测 GPU-h、每对配对的 improved/worsened/unresolved、未做的事、下一项的第一个具体动作。不要自行宣布目标完成。
 >
 > 实测 1620 字符（上限 4000）。
+
+## 9. 进度（每轮更新；不由执行者宣布完成）
+
+- **状态**：paused —— 交付物 D1–D8 已逐条核对完成，**是否结项由用户或运行时判定器决定**
+- **已完成**（证据见 `docs/R7_71_72_ROUND_TWO_ATTRIBUTION.md`，产物在 `outputs/r7_71_72_round_two/`）：
+  池化开关默认关且开启不增参数（C = D = 2,968,259 参数、前向 FLOPs 同为 13.9046e9）；
+  23 digest 逐位等价实跑通过；四臂配对实测（6 个臂对逐位相同、锚臂转移 115 applied / 0 ignored）；
+  12 个 run 同一 `protocol_sha256`（`5367fc59…462a7`）、实测 **0.5253 GPU-h**、只读 val、test 封存；
+  #60 比较器 depth 0 出六对：B−A 36/3/46、C−B 8/16/61、**C−D 8/13/64**、D−B 7/17/61；
+  **判定：位置依赖本身未获支持**（C−D 反向占优且同号格量级仅 0.005%–0.23%）；
+  5 个提交已推送到 `origin/r7/weather-reasoning`，各自 `ci.yml` success。
+- **未做**：test 未读（全程封存）；未做第五臂 / RW-B / M3–M5；未新增数据下载、未合并 main、未写 issue。
+  本机仍有**一条既有 R-044 阻断命中**（未跟踪、本会话删不掉的 `tests/fixtures/r7_equivalence_recipe.py`，
+  需用户在 ZCode 之外删除；CI 不受影响）。
+- **安全扫描**：本轮的 commit / push hook 均报 `scanner_enobufs` —— **没有**完整扫描结论，
+  本文档与证据文档都不宣称任何安全结论。
+- **下一动作**：`docs/goals/v2-round-three-m1-attribution.md` 的 recon —— 给时空输入（M1）
+  补容量控制臂 E（零字段）与 P（批内错配），把 round two 的 B−A 大效应拆成「信息」与「容量/偏置」。
