@@ -25,6 +25,9 @@
 - 实验产物**必须**带 `scientific_claim: false`（或等价显式标志），并如实记录 `limitations`。
 - 结论**必须**可追溯到运行记录与产物 digest；无法证明逐位一致时，**必须**写明可复现等级。
 - 报告**必须**区分「已确认」与「推测」；未做的事写未做，禁止用「应该没问题」代替。
+- 外部信息**必须**经 `web-researcher` 子智能体取得（主链路的 `WebSearch`/`WebFetch` 被
+  PreToolUse 闸门拒绝，R-049）；它不可用时降级为主链路 `curl` 并写明原因；引用必须带
+  URL 与访问日期，**禁止**把检索摘要当证据（R-050）。
 
 ## 入口点
 
@@ -84,6 +87,7 @@
 | 记一个决定（架构 / 约定 / 长期行为） | `.agents/skills/decision-record/SKILL.md` |
 | 多步方案设计 / 迭代计划 / 大改动前风险评估 | `.agents/skills/planner-delegation/SKILL.md` |
 | 写/推进一个 goal 目标（或 goal 模式不可用、不想用它） | `.agents/skills/goal-loop/SKILL.md` |
+| 需要本仓以外的公开事实（库用法 / 版本 / 论文 / 报错） | `.agents/skills/web-research/SKILL.md` |
 | 成品该放哪（计划 / 决策 / 目标 / 工具态） | `docs/rules/artifact-storage.md` |
 | 新文件/模块/函数该叫什么 | `docs/rules/naming.md` |
 | 全部能力清单与触发条件 | `docs/skills/README.md` |
@@ -106,7 +110,7 @@
 
 ## 自动拦截（hooks）
 
-`.zcode/config.json` 注册了 5 个 hook，脚本在 `tools/agent_hooks/`（纯标准库，全部 **fail-open**：
+`.zcode/config.json` 注册了 7 个 hook，脚本在 `tools/agent_hooks/`（纯标准库，全部 **fail-open**：
 脚本自身出错时放行并打印原因，不会卡死会话）。自测在 `tests/test_agent_hooks.py`（含反证）。
 
 | 时机 | 脚本 | 行为 |
@@ -114,7 +118,9 @@
 | PreToolUse | `guard_protected_paths.py` | **拒绝**对 `data/raw|interim|processed`、归档快照的写/删/移动（R-002/R-004/R-031），以及 **`tests/` 下已跟踪内容或名字像测试的文件的删除**（决策 0017）。读操作与正常命令一律放行 |
 | PreToolUse | `guard_destructive_git.py` | **拒绝** force-push（含裸 `+ref`）、`reset --hard`、`clean -f`、`branch -D`、合并 main（`git merge` / `gh pr merge`）、删除默认分支、`--mirror`（决策 0003）。非 force 推送（含到 main 的 ff）放行；只读 git 一律放行 |
 | PreToolUse | `guard_conventions_before_commit.py` | **拒绝**会让 CI 变红的 `git commit`：判 `git diff --cached` ∪ 同一命令行 `git add/rm/mv` 的操作数 ∪（`-a` 时）已修改的已跟踪文件（决策 0017）。合规提交与只读 git 一律放行 |
+| PreToolUse | `guard_web_research_route.py` | **拒绝**主链路的 `WebSearch`/`WebFetch`（R-049，决策 0018）：拒绝文案给出替代路径（委派 `web-researcher`；不可用时 `curl` 降级）。`sess_subagent_` 前缀放行（防自锁）；Bash 不受影响 |
 | PostToolUse | `check_model_digest_impact.py` | **提示**（不阻断）：改了 `model/**.py` 会改变 `model_code_sha256`，需标记 `[model-digest-change]` |
+| PostToolUse | `note_external_fetch.py` | **提示**（不阻断）：`curl`/`wget` 出现外部 URL 时提醒按 R-050 记录 URL / 访问日期 / 失败原因 |
 | Stop | `tools/check_conventions.py --quiet` | 收尾时跑 34 条阻断规则，有违规则要求先处理 |
 
 边界与开关：
@@ -130,10 +136,13 @@
 - **阻断判定按已跟踪集合计**：命中对象"自身及其下都无已跟踪内容"时**照常打印但不计失败**，
   于是「本地阻断失败」⟺「提交树上有违规」（`git add` 之后立刻恢复阻断）；git 回答不出来时不宽容。
 - 保护清单从 `tools/check_conventions.py` 的 `ARCHIVAL_PREFIXES` **推导**，不另造平行清单；
-  `tests/test_agent_hooks.py`（164 个用例，含"审计发现的绕过"反证）断言两者不会漂移。
+  `tests/test_agent_hooks.py`（191 个用例，含"审计发现的绕过"反证）断言两者不会漂移。
 - Stop hook 会**重复** CI 已有的检查。这是刻意的（本地收尾前就知道结果），不是替代 CI。
 - **提交闸门是新增的"会拒绝"项**：它拦的是"这条提交会让 CI 变红"，被判路径与失败规则都会打印。
   配置在**会话启动时读取**，新增条目要**重启会话**才生效（脚本级修改即时生效）。
+- **外部检索闸门只管主链路**：工具事件的 hook 载荷没有子智能体身份字段（E-186），且当前构建下
+  子会话很可能不跑 hook（E-187，**推测**）。`sess_subagent_` 前缀放行是**防自锁**；
+  `curl`/`wget` 永远只提示、不阻断——降级路径必须畅通（决策 0018）。
 - 这些 hook 只在本仓库、经由 ZCode 生效；直接命令行操作不受影响。
 
 ## 成品存放

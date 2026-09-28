@@ -270,10 +270,29 @@
 | E-180 | 命名规则初版把 `docs/rules/` 子目录一律判为 kebab-case，**被自己的门禁报出 4 例**（`CHANGELOG.md`/`EVIDENCE.md`/`MIGRATION.md`/`OPEN_QUESTIONS.md`）；核对后确认是**规则写错**——该目录台账类文件刻意沿用 UPPER_SNAKE。规则已改为分层判定 | 门禁自报 + 逐文件核对 | 全体 | 已确认 |
 | E-181 | R-048 初版判据（"名字含 3 个以上连续辅音即报告"）实测命中 **113 处**，含 `mlp_ratio`、`model_cfg`、`training_std` 等完全清晰的名字。判定为噪音过高后**撤回该判据**，收窄为"单个无信息 token"，实测 0 命中 | 门禁实测（113 → 0） | 全体 | 已确认 |
 
+## 第五遍（2026-09-28）：外部检索路由与引用
+
+为 R-049/R-050 取证。前六条是仓库与客户端侧的测量；最后一条是对外可达性的**实测**
+（8 个 HEAD 请求，`--max-time 5`，只记状态码与耗时，未落任何数据文件）。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-182 | `WebSearch`/`WebFetch` 门禁缺口：`tools/`、`tests/`、`.github/`、`scripts/`、`training/`、`model/` 的 py/yml/yaml/json/sh 内 **0 命中**；全仓命中只在 5 份 docs 与两个 agent 定义（`.zcode/agents/*.md`） | `grep -rn` 全活跃树 | 全体 | 已确认 |
+| E-183 | agent 定义清单：`.zcode/agents/` 两个文件——`planner.md`（**已跟踪**）工具集 `Read/Grep/Glob/WebFetch/WebSearch`（`:7-12`）；`web-researcher.md`（**未跟踪**，`??`）工具集 `WebSearch/WebFetch`（`:7-9`）⇒ 引入前「唯一出口」不成立 | 文件 + `git ls-files` / `git status` | 全体 | 已确认 |
+| E-184 | 「摘要≠证据」有真实先例：`cn.bing.com` 的 WebFetch 搜索摘要对 HRCLDAS/SMBFD 返回**完全无关**结果（浏览器游戏页面），文档明言「a search summary must not be treated as evidence」，且每条「可达」都以实测端点为准；另有可用性纪律「搜索得到的每个数字都必须回到一手来源核对」 | `docs/R7_URBAN_EXTENSION_BLOCKED.md:37,39-41`、`docs/goals/open-issue-resolution.md:97-103` | 抽样 2 处 | 已确认 |
+| E-185 | `docs/*.md` 共 **26 行**含 URL：**14 行外部引用无访问日期**（arco-era5 3、arXiv 3、pytorch docs 2、ECMWF 1、xarray 1、UCI 1、GitHub 上游镜像 1、上游代码仓库 1、AWS 开放数据注册表 1）、6 行为本仓 CI run 链接、2 行为 curl 命令模板 | `grep -rn "https\?://" docs/*.md` + 逐行分类 | 全体 | 已确认 |
+| E-186 | 工具事件的 hook 载荷**没有**子智能体身份：载荷构造 `{...e, agent_type:e.agentName, hook_event_name:…, permission_mode:…, session_id:…}`，而 `PreToolUse`/`PostToolUse`/`PermissionRequest`/`PostToolUseFailure` 的调用点（`foo`/`hoo`/`moo`/`goo`）只传 `cwd/hookEventName/mode/sessionId/…`，**不传 `agentName`**（该键只在 `SessionStart`/`UserPromptSubmit`/`Stop` 传入）⇒ 闸门无法按身份区分，只能按 `session_id` | 客户端运行时源码 `~/.zcode/server/agents/glm/zcode.cjs`（载荷构造与四个调用点窗口） | 单点 | 已确认 |
+| E-187 | 子会话很可能**不运行**本仓 hook：运行器仅在 hooks 配置开启或存在 workspace hook 快照时创建，子会话的依赖里两者皆缺。**未实测**——安全探针需要一次会被拒绝的写操作，无法在不触碰受保护路径的前提下构造 | 同上游源码 `hookRunner` 构造与守卫窗口（代码推断） | 单点 | 推测 |
+| E-188 | 本机可达性实测（2026-09-28，8 个 HEAD，`--max-time 5`）：`api.github.com` 200(2.4s)、`docs.python.org` 200(1.3s)、`pytorch.org` 200(1.5s)、`arxiv.org` 200(0.8s)、`cn.bing.com` 200(0.2s)；**`raw.githubusercontent.com` 超时（000，5.0s）**、`www.google.com` 000(0.1s)、`duckduckgo.com` 超时（000，5.0s）⇒ 抓 GitHub 原始文件要走 `api.github.com` 的 contents 接口，不能假设 raw 域名可用 | `curl -sS -I -L -m 5 -o /dev/null -w '%{http_code} %{time_total}'`，8 个 URL | 单点 | 已确认 |
+
+**E-187 的处置**：该推测不阻塞决策——`guard_web_research_route.py` 已按 `sess_subagent_`
+前缀放行，无论子会话是否运行 hook 都不会自锁；待验证事项登记为 `OPEN_QUESTIONS.md` Q-013。
+
 ## 统计
 
-- 台账条目：**181** 条（E-001 – E-181；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13）。
-- 按覆盖度：全体扫描 134 条，抽样 16 条，单点 31 条。
-- 按置信度：已确认 181 条，推测 0 条，未知 0 条。
-  （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案。）
+- 台账条目：**188** 条（E-001 – E-188；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7）。
+- 按覆盖度：全体扫描 137 条，抽样 17 条，单点 34 条。
+- 按置信度：已确认 187 条，推测 1 条，未知 0 条。
+  （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
+  E-187 已登记为 Q-013。）
 - 未列入凭据类条目：5 类凭据模式全部 0 命中，故无"疑似凭据点位"可报告。

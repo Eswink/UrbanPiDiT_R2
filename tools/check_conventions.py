@@ -128,8 +128,17 @@ PARAM_MAX = 8
 # message naming the rule), and four for the refined tests/-removal rule (untracked
 # scratch allowed, staged denied, test-named denied, real-repo denials). Nothing
 # was removed.
-TEST_FUNCTION_BASELINE = 761
-ASSERT_BASELINE = 1885
+# 2026-09-28 (external-research route, R-049/R-050, decision 0018): 761/1885 ->
+# 772/1911. Eleven test functions in tests/test_agent_hooks.py: the main link being
+# denied for both web tools (with the deny naming the subagent, the curl fallback
+# and the skill), a payload without a session treated as the main link, subagent
+# sessions never locked out, the guard covering only the web tools, the guard not
+# drifting from the agent definitions (sole exit) and being wired to both tools in
+# .zcode/config.json, plus five for the fetch notice (flagging a shell fetch,
+# capping the URLs listed, staying silent for non-fetches and non-Bash tools, and
+# emitting exactly one systemMessage). Nothing was removed.
+TEST_FUNCTION_BASELINE = 772
+ASSERT_BASELINE = 1911
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")
@@ -171,7 +180,7 @@ REPORT_RULES = (
 )
 
 RULES_NOT_MECHANISED = (
-    "R-003", "R-011", "R-026",
+    "R-003", "R-011", "R-026", "R-034", "R-049", "R-050",
 )
 
 

@@ -8,8 +8,6 @@ tools:
   - Read
   - Grep
   - Glob
-  - WebFetch
-  - WebSearch
 injectAgentsMd: true
 ---
 
@@ -22,6 +20,7 @@ injectAgentsMd: true
 - 回复的唯一内容是 JSON 对象本身：第一个字符是 {，最后一个字符是 }，不要 markdown 围栏，不要任何解释、寒暄或结尾语。
 - 不做科学判定：阈值、非劣容差、判据与 DONE 定义一律**引用**既有文件，绝不自行设定。
 - 你读不到 `outputs/` 下的产物（无 Bash、不读会话历史）。现状由委派方在提示词里给出；缺了就必须写进 `open_questions`，不要编造。
+- 你也没有外部检索工具（R-049：全仓只有 `web-researcher` 子智能体可出网）。需要外部事实时写进 `open_questions`，由委派方先跑 `web-researcher` 再把结论喂给你。
 
 ## 输出契约
 本仓的机械真相是 `tools/check_planner_plan.py`（见 `docs/decisions/0012-planner-delegation-scope.md` 与 `.agents/skills/planner-delegation/SKILL.md`）。计划必须能过该校验器（`"verified": true`、退出码 0）。

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -83,6 +84,15 @@ def edit_tool(path: str) -> dict:
     return {"tool_name": "Edit",
             "tool_input": {"file_path": path, "old_string": "a", "new_string": "b"},
             "hook_event_name": "PreToolUse"}
+
+
+def web_tool(tool: str, session_id: str | None = "sess_main") -> dict:
+    """A WebSearch/WebFetch call. `session_id=None` means the key is absent."""
+    payload = {"tool_name": tool, "tool_input": {"url": "https://example.invalid"},
+               "hook_event_name": "PreToolUse"}
+    if session_id is not None:
+        payload["session_id"] = session_id
+    return payload
 
 
 # ------------------------------------------------------- guard_protected_paths
@@ -449,6 +459,9 @@ CLI_CASES = [
     ("guard_destructive_git", bash("git push --force"), 2),
     ("guard_destructive_git", bash("git log --oneline"), 0),
     ("check_model_digest_impact", write_tool("model/coarse_encoder.py"), 0),
+    ("guard_web_research_route", web_tool("WebFetch"), 2),
+    ("guard_web_research_route", web_tool("WebFetch", "sess_subagent_agent_9f1c"), 0),
+    ("note_external_fetch", bash("curl -sS https://example.invalid/x"), 0),
 ]
 
 
@@ -463,7 +476,8 @@ def test_cli_exit_codes(module_name, payload, expected, monkeypatch, capsys):
 
 
 @pytest.mark.parametrize("module_name", ["guard_protected_paths", "guard_destructive_git",
-                                         "check_model_digest_impact"])
+                                         "check_model_digest_impact",
+                                         "guard_web_research_route", "note_external_fetch"])
 def test_every_hook_fails_open_on_garbage_input(module_name, monkeypatch, capsys):
     """A broken guard must not wedge the session."""
     module = _load(module_name)
@@ -474,7 +488,8 @@ def test_every_hook_fails_open_on_garbage_input(module_name, monkeypatch, capsys
 
 
 @pytest.mark.parametrize("module_name", ["guard_protected_paths", "guard_destructive_git",
-                                         "check_model_digest_impact"])
+                                         "check_model_digest_impact",
+                                         "guard_web_research_route", "note_external_fetch"])
 def test_every_hook_tolerates_empty_stdin(module_name, monkeypatch, capsys):
     """An empty payload (no tool info) must be a no-op, not a crash."""
     module = _load(module_name)
@@ -612,3 +627,140 @@ def test_the_gate_names_the_failing_rule_and_the_paths(commit_guard):
     assert "R-017" in reason
     assert "scripts/probe.py" in reason
     assert "CI" in reason
+
+
+# ------------------------------------------ external-research route (0018, R-049)
+#
+# R-049: external lookups go through the `web-researcher` subagent; the main link
+# must not fetch. The sanctioned `curl` fallback lives in Bash and must stay
+# untouched — these tests pin both halves, plus the wiring that makes the route
+# real (config matcher + agent definitions).
+
+
+@pytest.fixture(scope="module")
+def web_route():
+    return _load("guard_web_research_route")
+
+
+@pytest.fixture(scope="module")
+def fetch_notice():
+    return _load("note_external_fetch")
+
+
+def _agent_definition_tools(name: str) -> set[str]:
+    """The `tools:` list of a project subagent definition (frontmatter only)."""
+    path = ROOT / ".zcode" / "agents" / f"{name}.md"
+    assert path.is_file(), f"agent definition missing on a clean clone: {path}"
+    header = path.read_text(encoding="utf-8").split("---", 2)[1]
+    tools: set[str] = set()
+    in_tools = False
+    for line in header.splitlines():
+        if line.startswith("tools:"):
+            in_tools = True
+            continue
+        if in_tools:
+            if line.startswith("  - "):
+                tools.add(line.strip()[2:].strip().strip('"'))
+            elif line.strip():
+                break
+    assert tools, f"{path} declares no tools"
+    return tools
+
+
+@pytest.mark.parametrize("tool", ["WebSearch", "WebFetch"])
+def test_the_main_link_cannot_reach_the_open_web(web_route, tool):
+    reason = web_route.evaluate(web_tool(tool))
+    assert reason is not None, f"{tool} from the main link must be denied"
+    assert "R-049" in reason, reason
+    assert "web-researcher" in reason, "the deny must name where the work goes"
+    assert "curl" in reason, "the sanctioned fallback must be named"
+    assert ".agents/skills/web-research/SKILL.md" in reason, "point at the skill"
+
+
+def test_a_payload_without_a_session_is_treated_as_the_main_link(web_route):
+    assert web_route.evaluate(web_tool("WebFetch", session_id=None)) is not None
+
+
+@pytest.mark.parametrize("tool", ["WebSearch", "WebFetch"])
+def test_a_subagent_session_is_never_locked_out(web_route, tool):
+    """Anti-self-lock: web-researcher's own tools must pass if hooks ever run there."""
+    assert web_route.evaluate(web_tool(tool, "sess_subagent_agent_9f1c")) is None
+
+
+@pytest.mark.parametrize("payload", [
+    bash("curl -sS https://example.invalid/x"),   # the fallback must stay open
+    bash("git status"),
+    write_tool("docs/x.md"),
+    {"tool_name": "Read", "tool_input": {"file_path": "x"}},
+    {},
+])
+def test_the_route_guard_only_covers_the_web_tools(web_route, payload):
+    assert web_route.evaluate(payload) is None
+
+
+def test_the_guard_and_the_agent_definitions_cannot_drift(web_route):
+    """Single exit is structural: one agent, one tool pair, and no second carrier."""
+    assert web_route.WEB_TOOLS == _agent_definition_tools("web-researcher")
+    assert _agent_definition_tools("planner") & web_route.WEB_TOOLS == set(), \
+        "planner must not keep web tools (decision 0018: single exit)"
+
+
+def test_the_route_guard_is_wired_to_both_web_tools(web_route):
+    """A guard that is not registered is decoration — pin the registration."""
+    config = json.loads((ROOT / ".zcode" / "config.json").read_text(encoding="utf-8"))
+    entries = config["hooks"]["events"]["PreToolUse"]
+    wired = [entry for entry in entries
+             if any(arg.endswith("guard_web_research_route.py")
+                    for hook in entry["hooks"] for arg in hook["args"])]
+    assert wired, "the route guard is not registered in .zcode/config.json"
+    matcher = wired[0]["matcher"]
+    for tool in sorted(web_route.WEB_TOOLS):
+        assert re.search(matcher, tool), f"{tool} is not covered by matcher {matcher!r}"
+
+
+# ------------------------------------------- external-fetch notice (0018, R-050)
+
+
+def test_a_shell_fetch_is_flagged_for_recording(fetch_notice):
+    message = fetch_notice.evaluate(
+        bash("curl -sS -m 5 -o /tmp/x https://api.github.com/repos/a/b"))
+    assert message is not None
+    assert "R-050" in message, message
+    assert "https://api.github.com/repos/a/b" in message, message
+    assert ".agents/skills/web-research/SKILL.md" in message, message
+
+
+def test_the_notice_caps_the_urls_it_lists(fetch_notice):
+    urls = " ".join(f"https://example.invalid/{index}" for index in range(6))
+    message = fetch_notice.evaluate(bash(f"wget {urls}"))
+    assert message is not None
+    assert "(+3 more)" in message, message
+    assert message.count("example.invalid/") == 3, message
+
+
+@pytest.mark.parametrize("command", [
+    "ls -la",
+    "git status --short",
+    "python -c 'print(curly)'",   # the word, not the tool
+    "curl --version",             # the fetcher, but no URL
+])
+def test_the_notice_stays_silent_otherwise(fetch_notice, command):
+    assert fetch_notice.evaluate(bash(command)) is None, command
+
+
+def test_the_notice_is_bash_only(fetch_notice):
+    payload = write_tool("docs/x.md")
+    payload["tool_input"]["content"] = "curl https://example.invalid"
+    assert fetch_notice.evaluate(payload) is None
+
+
+def test_the_notice_emits_only_a_system_message(fetch_notice, monkeypatch, capsys):
+    """PostToolUse output must be valid JSON with no extra keys (strict schema)."""
+    monkeypatch.setattr(sys, "stdin",
+                        _Stdin(json.dumps(bash("curl https://example.invalid/a"))))
+    code = fetch_notice.main()
+    out = capsys.readouterr().out.strip()
+    assert code == 0
+    assert out, "a shell fetch must produce a message"
+    parsed = json.loads(out)
+    assert set(parsed) == {"systemMessage"}, f"unexpected keys: {set(parsed)}"

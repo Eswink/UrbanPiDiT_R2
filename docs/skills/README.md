@@ -21,6 +21,7 @@ ZCode 的 skill 发现路径，模型会按 `description` 里的触发条件自�
 | [`decision-record`](../../.agents/skills/decision-record/SKILL.md) | 要做或记录一个影响架构/约定/长期行为的决定 | ADR 模板 + 状态生命周期 + 编号规则 + 与 OPEN_QUESTIONS 的分工 | R-033/R-036 的机械检查 + `docs/decisions/` 12 份记录 |
 | [`planner-delegation`](../../.agents/skills/planner-delegation/SKILL.md) | 多步方案设计、迭代计划/TODO 撰写、架构选型、大改动前风险评估 | 委派只读 planner → JSON 过契约校验 → 由 agent 转成目标产物；含降级路径 | `tools/check_planner_plan.py` 36 个测试（含自洽与防漂移）；决策 0012 |
 | [`goal-loop`](../../.agents/skills/goal-loop/SKILL.md) | 要写/推进一个 goal 目标；harness 的 goal 模式不可用或用户不要它而要按会话手工推进 | 长文骨架 + objective 压缩（≤4000、单段、自带交付物清单）→ 过校检器 → 选驱动（harness / 手工循环）→ 独立复核替代 | 两份目标长文同一形状（`docs/goals/m1-and-rw-a-iteration.md` §6、`v2-round-two-attribution.md` §6）；会话驱动纪律 `R7_MANUAL_ITERATION.md:8-30`；决策 0015 |
+| [`web-research`](../../.agents/skills/web-research/SKILL.md) | 需要本仓以外的公开事实（库用法、版本变更、API 参考、论文、报错信息） | 委派 web-researcher → 回收并回一手来源核对 → 留痕（URL + 访问日期）→ 不可用时降级 curl | 可用性纪律与「摘要≠证据」先例（E-184）；可达性实测（E-188）；R-049/R-050（决策 0018） |
 
 ## 未立为 SOP 的候选（仅观察）
 
@@ -40,5 +41,6 @@ ZCode 的 skill 发现路径，模型会按 `description` 里的触发条件自�
 - `tools/check_goal_brief.py` — goal 长文的结构校检器（只读、**非阻断**：未接入 Stop hook
   与 CI；规则号 `G-01`…`G-08` 与建议项 `A-01`/`A-02` 属于它自己的命名空间，不是
   `docs/rules/` 的 `R-0xx`），见 `goal-loop`。
-- `tools/agent_hooks/` — 三个 PreToolUse/PostToolUse hook（保护路径、破坏性 git、
-  model digest 提醒），配置在 `.zcode/config.json`，见 `AGENTS.md`。
+- `tools/agent_hooks/` — 六个 PreToolUse/PostToolUse hook（保护路径、破坏性 git、提交前惯例、
+  外部检索路由、model digest 提醒、外部抓取留痕），另有 Stop 收尾检查，
+  配置在 `.zcode/config.json`，见 `AGENTS.md`。

@@ -2,6 +2,55 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-28 — 外部检索路由与引用纪律（R-049/R-050）+ 两道 hook（决策 0018）
+
+**范围**：新增规则文件 `docs/rules/external-sources.md`（R-049、R-050）；新能力
+`.agents/skills/web-research/SKILL.md`；新 hook `tools/agent_hooks/guard_web_research_route.py`
+与 `tools/agent_hooks/note_external_fetch.py`；`.zcode/config.json`（PreToolUse + PostToolUse
+各一条）；新决策 `docs/decisions/0018-web-research-route.md`；`.zcode/agents/planner.md`
+（移除 `WebSearch`/`WebFetch`）；`.zcode/agents/web-researcher.md`（纳入版本控制）；
+`docs/rules/EVIDENCE.md`（第五遍 7 条）、`MIGRATION.md`、`OPEN_QUESTIONS.md`（Q-013）、
+`docs/rules/README.md`（分类与计数）。**没有改任何既有规则的判据、阈值或分组**；
+`tools/check_conventions.py` 只动 R-009 基线常量与注释（772/1911）。
+
+**起因（实测）**：用户为本仓新增了 `web-researcher` 子智能体，要求「需要网页搜索时必须经它；
+它破产了就回主链路，主链路优先 `curl`（本机在国内）」。取证发现：① 引入前全仓对这两个工具
+**没有任何门禁**（E-182：`tools/`、`tests/`、`.github/`、`scripts/`、`training/`、`model/`
+内 0 命中）；② 该定义**未进版本控制**，而 `planner.md` 也带这两个工具 ⇒「唯一出口」当时
+并不成立（E-183）；③ 工具事件的 hook 载荷**没有子智能体身份字段**（E-186，源码核对），
+当前构建下子会话很可能不跑 hook（E-187，**推测**，未实测 → Q-013）⇒ 闸门只能、也只需管住
+主链路。另有两条真实先例支撑引用纪律：`cn.bing.com` 的搜索摘要曾返回**完全无关**结果，仓库
+当时的处置是「摘要不得作为证据、每条可达性以实测端点为准」（E-184）；`docs/*.md` 现有 26 行
+URL，其中 14 行外部引用无访问日期（E-185）。
+
+**改动**
+
+| # | 改动 | 效果 |
+| --- | --- | --- |
+| 1 | 新规则 R-049（路由）/ R-050（引用可核查），归入新分类文件 `external-sources.md` | 与 R-016（代码出网位置）、R-028（实验禁网）分工明确，互不重叠 |
+| 2 | PreToolUse 闸门 `guard_web_research_route.py`（matcher `WebSearch\|WebFetch`） | 主链路直连 → 退出码 2 并给出替代路径；`sess_subagent_` 前缀放行以防自锁 |
+| 3 | PostToolUse 提示 `note_external_fetch.py`（matcher `Bash`） | `curl`/`wget` 带外部 URL 时提示按 R-050 留痕；**只提示，不阻断**（降级路径必须畅通） |
+| 4 | 新能力 `web-research`（委派模板 → 回收与一手核对 → 留痕 → 破产降级） | 含本机可达性实测表；`curl` 降级流程写死在步骤 5 |
+| 5 | `planner.md` 移除两个网络工具；`web-researcher.md` 纳入版本控制 | 全仓只有一个带外部检索工具的 agent，且干净克隆上按名可委派 |
+
+**可达性实测（E-188，2026-09-28，8 个 HEAD，`--max-time 5`，未落数据文件）**：
+`api.github.com` / `docs.python.org` / `pytorch.org` / `arxiv.org` / `cn.bing.com` 均 200；
+**`raw.githubusercontent.com` 超时**、`www.google.com` 与 `duckduckgo.com` 不可达 ⇒
+抓 GitHub 原始文件要走 `api.github.com` 的 contents 接口。
+
+**现状与欠账**：R-049/R-050 均为 A 类（引入后由 hook / 能力强制）；**引入前的历史检索行为
+未留痕，属「未测量」**；14 行无访问日期的历史外部引用**不回填**（回填等于用今天的日期冒充
+当时的访问记录）。两条规则都**不在** `check_conventions.py` 内，MIGRATION 已如实登记。
+
+**测试强度**：R-009 基线 761/1885 → **772/1911**（+11 函数 / +26 断言，全部在
+`tests/test_agent_hooks.py`：主链路两种工具被拒且文案点明子智能体、`curl` 与技能；缺 session
+字段按主链路处理；子会话前缀放行；闸门只覆盖这两个工具；闸门与 agent 定义**不得漂移**
+（唯一出口）且注册 matcher 覆盖两个工具；抓取提示的 5 项——命中留痕提示、URL 截断、
+非抓取命令静默、非 Bash 工具静默、严格单键输出）。Nothing was removed。
+
+**明确不做**：不给 Bash `curl`/`wget` 加阻断（会杀死降级路径）；不做关键词猜测式的委派意图
+检测；不新增引用台账、不回填历史文档日期；`.zcodeignore` 的未跟踪状态不动（与本目标无关）。
+
 ## 2026-09-28 — 本地闸门判定范围（按已跟踪集合）+ 提交前闸门 + 删除保护精确化（决策 0017）
 
 **范围**：`tools/check_conventions.py`、`tools/agent_hooks/guard_protected_paths.py`、
