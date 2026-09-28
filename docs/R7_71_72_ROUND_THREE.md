@@ -486,7 +486,17 @@ CI 不受影响（该文件未进版本控制）。本轮**未新增**任何阻�
   是 commit-message 标签门控，**skipped 是设计行为，不是失败**。判定见 §14 的 run id
   （由提交后的核对补记）。
 
-**提交与 CI 的实际结果**（提交后补记）：
+**提交与 CI 的实际结果**（提交后补记，三个提交都在 `r7/weather-reasoning` 上、未合并 main）：
 
-- 工作分支提交：`<见提交记录>`；推送 `origin/r7/weather-reasoning`。
-- `ci.yml` run：`<见提交后核对>`。
+| 提交 | 内容 | `ci.yml`（"R7 CPU CI"） |
+| --- | --- | --- |
+| `35c11c4` | 本轮全部代码、测试、harness、文档 | **failure**（run 36413939126，pytest 步骤；原因与修正见 §11.1——钉住仪器用了机器本地 digest 常量） |
+| `b5597aa` | 修正钉住仪器（同进程双实现比对）+ 文档记录该修正 | **success**（run 36415293968，全部步骤绿） |
+
+两次推送的 17 条实验 workflow 全部 `completed / skipped` —— 这是 commit-message 标签门控的
+设计行为（本轮没有带 `[cpu-study]` 一类的标签），**不算失败**，也没有任何一条被当成通过。
+失败的那一次是**真失败**：它指出的是实现缺陷，不是被忽略的红灯；修正后同一条 `ci.yml` 在同一
+分支上转绿。
+
+**工作分支的最终状态**：`origin/r7/weather-reasoning` 的 tip 是文档补记提交；`main` 未动
+（本轮不合并、不 force push）。
