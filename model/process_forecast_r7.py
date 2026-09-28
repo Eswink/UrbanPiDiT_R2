@@ -68,16 +68,23 @@ class ProcessForecastCoReasoner(nn.Module):
         spatial_solver_feedback:bool=False,
         spacetime_inputs:bool=False,
         positional_process_readout:bool=False,
+        pooled_readout_query:bool=False,
     ):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
                            (spacetime_inputs,'spacetime_inputs'),
-                           (positional_process_readout,'positional_process_readout')):
+                           (positional_process_readout,'positional_process_readout'),
+                           (pooled_readout_query,'pooled_readout_query')):
             if type(value) is not bool:
                 raise ValueError(f"{name} must be boolean")
+        if pooled_readout_query and not positional_process_readout:
+            raise ValueError("pooled_readout_query only exists inside the positional "
+                             "process readout; turning it on without "
+                             "positional_process_readout would be a silently ignored switch")
         self.spatial_solver_feedback=spatial_solver_feedback
         self.spacetime_inputs=spacetime_inputs
         self.positional_process_readout=positional_process_readout
+        self.pooled_readout_query=pooled_readout_query
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -139,9 +146,13 @@ class ProcessForecastCoReasoner(nn.Module):
         )
         # Same rule as the space-time term: the pathway is constructed last and
         # under a rewound stream, so switching it on cannot move any other weight.
+        # ``pooled_readout_query`` picks the query construction inside that
+        # pathway and changes no parameter, which is what makes the round-two
+        # positional and pooled arms a capacity-matched pair.
         if self.positional_process_readout:
             with isolated_stream():
-                self.process_reader=PositionalProcessReadout(dim,heads,dropout)
+                self.process_reader=PositionalProcessReadout(
+                    dim,heads,dropout,pooled_readout_query=self.pooled_readout_query)
 
     def process_conditioning(
         self,

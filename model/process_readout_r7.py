@@ -21,6 +21,15 @@ query weights, plus a fixed (parameter-free) multi-scale sinusoidal encoding of
 the token's (row, column) location. A learned query table would have to declare
 a maximum token grid - a resolution limit the rest of this model does not have -
 and a pooled query would re-introduce the very averaging RW-A removes.
+
+``pooled_readout_query`` (round two) constructs exactly that re-introduced
+averaging as a *capacity control*, not as a candidate mechanism: the module, its
+parameters and its N x M attention are unchanged, and only the query becomes the
+mean over positions (taken before the position encoding is added, so no part of
+the encoding survives the average). A run can therefore hold the readout's
+parameters and compute fixed and vary whether the read is position-dependent,
+which is what separates "the position dependence helps" from "the extra capacity
+helps". It is off by default, and off is the pre-change implementation.
 """
 from __future__ import annotations
 
@@ -35,13 +44,17 @@ from .layers.sdpa import SDPAttention
 class PositionalProcessReadout(nn.Module):
     """One query per output position reads every process token (N x M)."""
 
-    def __init__(self, dim: int, heads: int = 4, dropout: float = 0.0):
+    def __init__(self, dim: int, heads: int = 4, dropout: float = 0.0,
+                 pooled_readout_query: bool = False):
         super().__init__()
+        if type(pooled_readout_query) is not bool:
+            raise ValueError("pooled_readout_query must be boolean")
         dim = int(dim)
         if dim % 4:
             raise ValueError("positional readout needs dim divisible by 4 (two axes x sin/cos)")
         self.dim = dim
         self.heads = int(heads)
+        self.pooled_readout_query = pooled_readout_query
         self.query_norm = nn.LayerNorm(dim)
         self.process_norm = nn.LayerNorm(dim)
         self.attention = SDPAttention(dim, self.heads, dropout, cross=True)
@@ -79,6 +92,15 @@ class PositionalProcessReadout(nn.Module):
         if process.shape[1] < 1 or context.shape[1] != positions:
             raise ValueError(f"context has {context.shape[1]} positions but token_hw "
                              f"{tuple(token_hw)} implies {positions}")
-        query = self.query_norm(context) + self.position_encoding(
-            token_hw, device=context.device, dtype=context.dtype)
+        query = self.query_norm(context)
+        if self.pooled_readout_query:
+            # Pooled *before* the position encoding is added: averaging the
+            # encoded queries would mix the encoding's own mean into the control
+            # arm, which is not the same statement as "the read carries no
+            # position". Every position then reads the identical query, so the
+            # attention returns the identical vector at every position.
+            query = query.mean(dim=1, keepdim=True).expand(-1, positions, -1)
+        else:
+            query = query + self.position_encoding(
+                token_hw, device=context.device, dtype=context.dtype)
         return self.attention(query, self.process_norm(process))

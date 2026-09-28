@@ -2,6 +2,41 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-28 — #71/#72 第二轮：R-009 测试强度基线更新（未改任何规则判据）
+
+**范围**：只更新 `tools/check_conventions.py` 的 R-009 基线（715/1778 → **722/1793**）
+与其说明；**未改任何规则正文、判据、阈值或执行分组**。`docs/rules/*.md` 本轮未修改。
+
+**来源**：`docs/goals/v2-round-two-attribution.md`（四臂 × 三种子归因）落地后新增一个测试文件。
+
+**新增（7 个测试实例，1 个文件）**
+
+| 文件 | 覆盖 |
+| --- | --- |
+| `tests/test_r7_process_readout_pooled_query.py` | 池化 query 时各输出位置**逐位相同**（含单 token 扰动响应逐位相同）与非池化时位置间有差异；池化在**位置编码之前**（同一 12 token 换网格形状 3×4→2×6 输出逐位不变，非池化时改变）；开关只接受 `bool`；`pooled_readout_query` 缺 `positional_process_readout` 即报错（不得被静默忽略）；开启**不新增任何参数**（张量名/形状/数值逐一相同）；经模型自身 `process_conditioning` 的同一断言 |
+
+**代价（如实记录）**：基线抬到当前实测值（722/1793 = 715/1778 + 本轮 7 个函数 / 15 条断言），
+因此今后任何测试数量的下降都会触发 R-009 报告（该规则本就是报告型、不阻断）。
+
+**未改**：`docs/rules/testing.md` 正文、R-044 判据、任何阈值。本机 `check_conventions`
+仍有**一条**既有 R-044 阻断命中，来自第一轮遗留、未跟踪、未提交的
+`tests/fixtures/r7_equivalence_recipe.py`（本轮未触碰，详见
+`docs/R7_71_72_ROUND_TWO_ATTRIBUTION.md` §8）。
+
+### model_code_sha256 变化（第二轮）
+
+`model/process_readout_r7.py` 与 `model/process_forecast_r7.py` 的字节变化使
+`model_code_digest()` 从
+`746fa1660a30bdfa8a567e14e463b8945192af97e4f2d8d2129602d1c82dbbe6`（第一轮）
+变为
+`8d9262d1abb537f11fc0b74b98ec30e450eadf4e7bd7300ad32a957de5e38e44`。
+
+**这是预期后果，不是缺陷**（新增的 `pooled_readout_query` 开关默认关，默认路径仍与
+改动前逐位相同——由 `tests/test_r7_switched_path_equivalence.py` 的 23 个 digest 实跑证明）。
+受影响的重放路径仍是那 3 条 workflow（`r7-restored-diagnostic.yml`、`r7-correction-audit.yml`、
+`r7-extended-control.yml`）：旧产物只能用其归档的 `code.zip` 重放。
+**未修改任何校验逻辑、未放宽 digest 比较**，见 `docs/rules/OPEN_QUESTIONS.md` Q-009。
+
 ## 2026-09-28 — #71/#72 第一轮：测试强度基线更新（未改任何规则判据）
 
 **范围**：只更新 `tools/check_conventions.py` 的 R-009 基线与其说明；**未改任何规则正文、

@@ -91,8 +91,14 @@ PARAM_MAX = 8
 # space-time field causality, the seven-path input-set pin, positional-readout
 # probes); two existing input-set pins were re-expressed against
 # DECLARED_MODEL_INPUTS rather than a literal list. Nothing was removed.
-TEST_FUNCTION_BASELINE = 715
-ASSERT_BASELINE = 1778
+# 2026-09-28 (#71/#72 round two): 715/1778 -> 722/1793. Seven test instances were
+# added in one file (the pooled-query capacity control: the bitwise-flat read at every
+# position and its uneven counterpart, pooling taken before the position encoding,
+# bool-only construction, refusal of a pooled query without the positional readout,
+# no added parameter, and the same flatness statement through the model's own read).
+# Nothing was removed.
+TEST_FUNCTION_BASELINE = 722
+ASSERT_BASELINE = 1793
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")
