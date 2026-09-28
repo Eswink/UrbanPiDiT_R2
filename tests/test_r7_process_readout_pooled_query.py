@@ -124,6 +124,9 @@ def test_the_pooled_switch_adds_no_parameter():
     seed_everything(11)
     pooled = make_model("process", dict(BASE, pooled_readout_query=True))
     assert isinstance(pooled, ProcessForecastCoReasoner)
+    # Default off: the switch exists but neither the model nor its reader turns it on.
+    assert positional.pooled_readout_query is False
+    assert positional.process_reader.pooled_readout_query is False
     assert pooled.pooled_readout_query is True
     assert pooled.process_reader.pooled_readout_query is True
     before, after = positional.state_dict(), pooled.state_dict()

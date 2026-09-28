@@ -24,7 +24,7 @@
 
 | # | 要求 | 状态 | 证据 |
 | --- | --- | --- | --- |
-| D1 | 新增「池化 query」构造开关（默认关、bool 校验与既有开关同风格），默认路径不产生任何新参数 | **完成** | `model/process_readout_r7.py`、`model/process_forecast_r7.py`；参数张量集合与总量在开启前后**逐一相同**（2,968,259） |
+| D1 | 新增「池化 query」构造开关（默认关、bool 校验与既有开关同风格），默认路径不产生任何新参数 | **完成** | `model/process_readout_r7.py`、`model/process_forecast_r7.py`；默认关由测试**直接断言**（模型与 reader 两侧都是 `False`），非布尔值报错；参数张量集合与总量在开启前后**逐一相同**（2,968,259） |
 | D2 | `tests/test_r7_switched_path_equivalence.py` 实跑逐位相同（23 digest） | **完成** | `pytest -q` 4 passed；脚本模式 `bitwise_identical: true`、`digest_count: 23` |
 | D3 | 四臂臂配对**实测**：跨四臂共享张量逐位相同、锚臂 `state_dict` 应用到其余三臂、`applied/ignored` 写进产物 | **完成** | 每个 seed 的 6 个臂对全部 `shared_tensors_identical: true`；锚臂转移 115 applied / 0 ignored 且加载后逐张量相等；训练报告计数与实测一致（不一致即失败） |
 | D4 | 池化被钉住：池化时各输出位置逐位相同、非池化时有位置差异；**训练后**探针 D 的 spread ≈ 0、C 显著非 0 | **完成** | 测试 7 项（含 CUDA 实形状 1088/1088 行逐位相同）；训练后探针：C `spread/max` = 0.68 / 0.84 / 0.75，D **恰好 0.0**（三个 seed） |
