@@ -382,7 +382,13 @@ curl -s "https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs?head_sha
 | `d8aff68` | 第二轮实现（model 两个文件 + 1 个测试文件 + 实验脚本 + 运行脚本 + 本文件 + 决策 0014 + R-009 基线 + digest 记录） | `36380552307` **completed / success**（job `pytest` / `completed / success`） |
 | `58c2446` | 本 §14 的补记（CI run、干净树复验、扫描缺口） | `36380831982` **completed / success** |
 | `ed707bb` | 默认关的直接断言 + R-009 基线抬到实测值 722/1795 | `36381668908` **completed / success** |
-| 本行之后的文档提交 | §14 表格补记 | 同一次 push 只在分支尖端触发一次，其覆盖由同一棵树上的 `ed707bb` 的 run 提供 |
+| `98aa7da` | 本表补记 | `36381969598` **completed / success** |
+
+**此后如有纯文档提交**（如再修本表），`push` 到本分支会在分支尖端触发一次同名 run，
+其覆盖由该提交自身的 run 提供；本节不再逐条追加（第一轮 §11 采用的是同一条规则）。
+
+本节的作用是核对，不是声明：三个功能/文档提交**各自**跑过一次 `ci.yml` 并且都是 success，
+每条 run 的 17 个实验 workflow 都是 `completed / skipped`。
 
 逐 run 核对（匿名只读 API）：该 SHA 上共 18 个 run —— `R7 CPU CI` success，
 其余 17 条实验 workflow 全部 `completed / skipped`（job 级亦为 `skipped`，如
