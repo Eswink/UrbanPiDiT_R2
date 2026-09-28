@@ -13,23 +13,28 @@ round-two ``B - A`` effect can be split into information and capacity/bias:
 
 Two things this file is responsible for:
 
-1. **D4, the regression pin.** ``FIELDS_PATH_DIGESTS`` holds forward and backward
-   digests of the ``fields`` mode captured on the tree *before* the modes existed
-   (the capture revision is recorded in ``FIELDS_PATH_CAPTURE``). Every entry is a
-   raw little-endian float byte digest of a tensor, plus one digest over every
-   parameter and its gradient, so a change anywhere in the conditioning path or
-   the training path moves at least one entry. The pin is checked against the
-   frozen constants, not against a second copy of the tree, so the recipe itself
-   has to be shown to be sensitive: ``test_the_frozen_pin_detects_a_changed_path``
-   runs the same recipe with the conditioning perturbed and requires the digests
-   to move.
+1. **D4, the regression pin.** The ``fields`` path is pinned by running one fixed
+   recipe twice *in the same process*: against the pre-change revision read out of
+   the git object store (``git archive ac6a3ef``, round three's start SHA) and
+   against the live working tree. Same process, same interpreter, same threading
+   configuration: the comparison is of raw little-endian float bytes and no
+   tolerance is applied. The digests that recipe produced on the development
+   machine *before* the modes existed are recorded in ``FIELDS_PATH_CAPTURE`` as
+   provenance for the evidence document - but they are **not** asserted as
+   constants, because they are not portable: measured on the capturing machine,
+   turning oneDNN off moves 8 of the 11 and running one thread moves
+   ``fields.gradients``. A digest frozen on one machine cannot be asserted on
+   another (CI is another machine), so the pin is the two-tree comparison and the
+   record is the record. ``test_the_frozen_pin_detects_a_changed_path`` perturbs
+   the frozen copy and requires the digests to move, so a recipe that hashed
+   nothing cannot look like a pass.
 
 2. **D1, the modes.** Behaviour, determinism, the single-sample-batch property of
    ``shuffled`` (declared, not silent), invalid-mode rejection, and the two
    invariants D6 rests on: all three modes carry the *same* parameter tensors, and
    ``constant`` and ``fields`` cost the *same* forward FLOPs.
 
-Run as a script to print the digests (that is how the frozen values below were
+Run as a script to print the digests (that is how the recorded values below were
 captured): ``python tests/test_r7_spacetime_input_modes.py``.
 """
 from __future__ import annotations
@@ -50,7 +55,9 @@ for path in (str(ROOT), str(TESTS)):
 from model.spacetime_conditioning_r7 import SPACETIME_INPUT_FIELDS
 from training.r7_experiment import make_model, seed_everything
 from training.r7_streaming import backward_streamed_truncated
-from test_r7_switched_path_equivalence import digest_parameters, tensor_digest
+from test_r7_switched_path_equivalence import (SNAPSHOT_FILES, archived_sources,
+    assert_import_rewrite_is_the_only_edit, digest_parameters, import_frozen,
+    live_package, rewrite_model_imports, tensor_digest)
 
 FIELDS_PATH_CONFIG = {"in_channels": 3, "out_channels": 3, "history_steps": 2,
                       "architecture": "window", "dim": 16, "depth": 2, "heads": 2,
@@ -62,11 +69,25 @@ FIELDS_PATH_STEPS = 2
 BATCH_SIZE = 2
 HW = (4, 6)
 CHANNELS = 3
-# Where the frozen digests below came from: `git rev-parse HEAD` at capture time,
-# with the working tree clean apart from this file. Anything else in the tree that
-# could move these numbers would move them for the capture too.
-FIELDS_PATH_CAPTURE = "ac6a3ef486d56d43e11261b62e7294872d1e5eae"
-FIELDS_PATH_DIGESTS: dict[str, str] = {
+# The revision the pin is taken against: round three's start SHA, i.e. the tree as it
+# stood before the field modes existed. Reachable in CI because ci.yml checks out with
+# fetch-depth: 0, and the test fails rather than skipping if it is not.
+FIELDS_PATH_PRE_CHANGE_SHA = "ac6a3ef486d56d43e11261b62e7294872d1e5eae"
+# The frozen copy needs two modules the round-one/round-two snapshot list predates:
+# the conditioning module itself, and the positional process readout that the
+# archived process arm imports. Listing them keeps the snapshot to the modules the
+# recipe actually executes.
+FIELDS_PATH_FILES = tuple(sorted(set(SNAPSHOT_FILES)
+                                 | {"model/spacetime_conditioning_r7.py",
+                                    "model/process_readout_r7.py"}))
+# What the recipe produced on the development machine *before* the modes existed
+# (`git rev-parse HEAD` = FIELDS_PATH_PRE_CHANGE_SHA at capture time, with the working
+# tree clean apart from this file). Recorded for the evidence document; deliberately
+# NOT asserted, because these numbers are machine-local: with oneDNN disabled 8 of the
+# 11 move, and under a single thread `fields.gradients` moves. The assertion that runs
+# in CI is the in-process comparison against the frozen revision below.
+FIELDS_PATH_CAPTURE = FIELDS_PATH_PRE_CHANGE_SHA
+FIELDS_PATH_CAPTURE_DIGESTS: dict[str, str] = {
     "fields.context_tokens":
         "836c8a45b4177ea4a16902dae46ca231d0262f3560adae2e56a4c116a5c9c550",
     "fields.draft_forecasts":
@@ -109,19 +130,22 @@ def fixed_fields_batch(batch_size: int = BATCH_SIZE, hw: tuple[int, int] = HW,
     }
 
 
-def fields_path_digests(*, config: dict | None = None,
+def fields_path_digests(package, *, config: dict | None = None,
                         batch: dict | None = None) -> dict[str, str]:
     """The frozen recipe: forward digests and one truncated-BPTT step's digests.
 
-    ``config``/``batch`` exist so a counterproof can run the *same* recipe against
-    a changed path; the pin itself always runs them at their defaults.
+    ``package`` supplies the implementation under test (``make_model``,
+    ``seed_everything``, ``backward_streamed_truncated``), so the same text runs
+    against the live tree and against the archived pre-change revision in one
+    process. ``config``/``batch`` exist so a counterproof can run the recipe
+    against a changed path; the pin always runs them at their defaults.
     """
     resolved = dict(FIELDS_PATH_CONFIG if config is None else config)
     batch = fixed_fields_batch() if batch is None else batch
     out: dict[str, str] = {}
 
-    seed_everything(101)
-    model = make_model("process", resolved).eval()
+    package.seed_everything(101)
+    model = package.make_model("process", resolved).eval()
     with torch.no_grad():
         result = model(batch, reasoning_steps=FIELDS_PATH_STEPS)
     out["fields.forecast"] = tensor_digest(result.forecast)
@@ -131,16 +155,59 @@ def fields_path_digests(*, config: dict | None = None,
     out["fields.process_state"] = tensor_digest(result.process_state)
     out["fields.context_tokens"] = tensor_digest(result.context_tokens)
 
-    seed_everything(104)
-    trained = make_model("process", resolved).train()
-    streamed = backward_streamed_truncated(trained, batch, reasoning_steps=FIELDS_PATH_STEPS,
-                                           process_weight=0.5, loss_scale=1.0)
+    package.seed_everything(104)
+    trained = package.make_model("process", resolved).train()
+    streamed = package.backward_streamed_truncated(
+        trained, batch, reasoning_steps=FIELDS_PATH_STEPS, process_weight=0.5, loss_scale=1.0)
     out["fields.streamed.total"] = tensor_digest(streamed.total)
     out["fields.streamed.forecast"] = tensor_digest(streamed.forecast)
     out["fields.streamed.process"] = tensor_digest(streamed.process)
     out["fields.streamed.final_forecast"] = tensor_digest(streamed.final_forecast)
     out["fields.gradients"] = digest_parameters(trained)
     return out
+
+
+def materialize_frozen(files: dict[str, bytes], root: Path, *, model_package: str,
+                       training_package: str,
+                       edits: dict[str, tuple[str, str]] | None = None):
+    """Write an archived tree under new package names and import it.
+
+    The same construction as the equivalence test's ``materialize``, with one
+    difference: the file list is a parameter, because this pin archives a later
+    revision that also contains ``model/spacetime_conditioning_r7.py``.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+    names = {"model": model_package, "training": training_package}
+    missing = [name for name in FIELDS_PATH_FILES if name not in files]
+    if missing:
+        raise AssertionError(f"the archived revision does not contain {missing}")
+    for archived_name in FIELDS_PATH_FILES:
+        top, _, relative = archived_name.partition("/")
+        original = files[archived_name].decode("utf-8")
+        rewritten = (rewrite_model_imports(original, model_package) if top == "training"
+                     else original)
+        for target, (before, after) in (edits or {}).items():
+            if target == archived_name:
+                if before not in rewritten:
+                    raise AssertionError(f"perturbation target {before!r} absent from "
+                                         f"{archived_name}")
+                rewritten = rewritten.replace(before, after, 1)
+        destination = root / names[top] / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(rewritten, encoding="utf-8")
+        if top == "training":
+            assert_import_rewrite_is_the_only_edit(original, rewritten, model_package)
+    for package in names.values():
+        (root / package / "__init__.py").write_text("", encoding="utf-8")
+    return import_frozen(root, model_package=model_package, training_package=training_package)
+
+
+def frozen_fields_package(tmp_path: Path, *, name: str = "pre_change_fields",
+                          edits: dict[str, tuple[str, str]] | None = None):
+    root = tmp_path / name
+    return materialize_frozen(archived_sources(FIELDS_PATH_PRE_CHANGE_SHA), root,
+                              model_package=f"{name}_model",
+                              training_package=f"{name}_training", edits=edits)
 
 
 def conditioning_term(mode: str, batch: dict, *, seed: int = 7) -> torch.Tensor:
@@ -202,10 +269,11 @@ def varied_across_samples(term: torch.Tensor) -> bool:
 # A *numerical* tolerance, not a scientific one: a float32 matmul does not promise
 # the same rounding for every row of a large M, so an input that is bitwise constant
 # across positions comes out of the two Linear layers with row-to-row differences of
-# about one ULP (measured: 1.2e-07 absolute against term norms of order 1). Anything
-# at or below this relative level is float32 rounding; the information contrast the
-# constant arm is for lives orders of magnitude above it.
-FLOAT32_CONSTANCY_TOLERANCE = 1e-6
+# about one ULP (measured: 1.2e-07 absolute against term norms of order 1, and 0.0 on
+# the CUDA path used for the run). Two orders of margin are left for another BLAS,
+# which still leaves this three orders below the varying arms: the fields mode's own
+# deviation is ~9e-2 relative on this recipe.
+FLOAT32_CONSTANCY_TOLERANCE = 1e-5
 
 
 def constancy_deviation(term: torch.Tensor) -> tuple[float, float]:
@@ -253,7 +321,7 @@ def test_the_constant_mode_collapses_the_conditioning_to_one_vector():
     # And the real path varies far above that level, so the tolerance is not hiding
     # a dead arm.
     real_absolute, real_relative = constancy_deviation(real)
-    assert real_relative > 1e3 * max(relative, 1e-12), (real_relative, relative)
+    assert real_relative > 100 * max(relative, 1e-9), (real_relative, relative)
     assert not torch.equal(real, constant)
 
 
@@ -338,47 +406,68 @@ def test_the_declared_inputs_do_not_depend_on_the_mode():
                                           *SPACETIME_INPUT_FIELDS}
 
 
-def test_the_fields_path_is_bitwise_identical_to_the_frozen_digests():
-    """D4: the mode work must not move the pre-existing `fields` path at all."""
-    assert len(FIELDS_PATH_DIGESTS) == 11, "the pin has no captured values"
-    live = fields_path_digests()
-    assert live == FIELDS_PATH_DIGESTS, (
-        "the `fields` path moved; differing entries: "
-        f"{sorted(key for key, value in FIELDS_PATH_DIGESTS.items() if live.get(key) != value)}")
+def test_the_fields_path_is_bitwise_identical_to_the_frozen_revision(tmp_path):
+    """D4: the mode work must not move the pre-existing `fields` path at all.
+
+    The comparison is between two implementations in one process - the archived
+    pre-change revision and the live tree - so it measures the change and not the
+    machine: no digest is frozen across environments, and no tolerance is applied.
+    """
+    frozen = frozen_fields_package(tmp_path)
+    before = fields_path_digests(frozen)
+    if not str(Path(frozen.model_file)).startswith(str((tmp_path / "pre_change_fields").resolve())):
+        raise AssertionError("the frozen run did not import the archived tree; the "
+                             "comparison would be against the live tree itself")
+    live = fields_path_digests(live_package())
+    assert len(before) == 11, before
+    assert before == live, (
+        "the `fields` path moved relative to the pre-change revision; differing "
+        f"entries: {sorted(k for k, v in before.items() if live.get(k) != v)}")
 
 
-def test_the_frozen_pin_detects_a_changed_path():
+def test_the_frozen_pin_detects_a_changed_path(tmp_path):
     """Counterproof: the pin cannot pass by hashing nothing.
 
-    The pin compares a live run against frozen constants, so the recipe has to be
-    shown to move when the path it measures moves - both when the conditioning is
-    changed and when the input itself is.
+    Two independent ways for the pins to move, both real: a perturbed copy of the
+    frozen implementation must produce different digests from the live one, and the
+    live tree's own control modes must produce different digests from its `fields`
+    mode.
     """
+    perturbed = frozen_fields_package(
+        tmp_path, name="perturbed_fields",
+        edits={"model/coarse_forecast.py": ("hidden=hidden or max(32,dim//2)",
+                                           "hidden=hidden or max(64,dim//2)")})
+    changed = fields_path_digests(perturbed)
+    live = fields_path_digests(live_package())
+    differing = sorted(key for key, value in changed.items() if live.get(key) != value)
+    assert "fields.forecast" in differing, differing
+    assert "fields.gradients" in differing, differing
+
+    package = live_package()
     for mode in ("constant", "shuffled"):
-        changed = fields_path_digests(config=dict(FIELDS_PATH_CONFIG,
-                                                  spacetime_field_mode=mode))
-        differing = sorted(key for key, value in FIELDS_PATH_DIGESTS.items()
-                           if changed.get(key) != value)
-        assert "fields.forecast" in differing, differing
-        assert "fields.gradients" in differing, differing
+        mode_changed = fields_path_digests(
+            package, config=dict(FIELDS_PATH_CONFIG, spacetime_field_mode=mode))
+        moved = sorted(key for key, value in mode_changed.items() if live.get(key) != value)
+        assert "fields.forecast" in moved, moved
+        assert "fields.gradients" in moved, moved
     other_batch = dict(fixed_fields_batch(),
                        lead_time_hours=torch.full((BATCH_SIZE,), 48.0))
-    moved = fields_path_digests(batch=other_batch)
-    assert "fields.forecast" in sorted(key for key, value in FIELDS_PATH_DIGESTS.items()
+    moved = fields_path_digests(package, batch=other_batch)
+    assert "fields.forecast" in sorted(key for key, value in live.items()
                                        if moved.get(key) != value)
 
 
 def main() -> int:
-    """Print the recipe's digests; also the frozen-vs-live comparison."""
-    live = fields_path_digests()
-    payload = {"capture_revision": FIELDS_PATH_CAPTURE, "digest_count": len(live),
-               "digests": live, "frozen_digests": FIELDS_PATH_DIGESTS}
-    if FIELDS_PATH_DIGESTS:
-        payload["bitwise_identical"] = live == FIELDS_PATH_DIGESTS
-        payload["differing"] = sorted(key for key, value in FIELDS_PATH_DIGESTS.items()
-                                      if live.get(key) != value)
+    """Print the recipe's digests, the recorded capture and the live comparison."""
+    live = fields_path_digests(live_package())
+    payload = {"capture_revision": FIELDS_PATH_PRE_CHANGE_SHA, "digest_count": len(live),
+               "digests": live, "captured_digests": FIELDS_PATH_CAPTURE_DIGESTS,
+               "capture_matches_this_machine": live == FIELDS_PATH_CAPTURE_DIGESTS,
+               "capture_differing": sorted(
+                   key for key, value in FIELDS_PATH_CAPTURE_DIGESTS.items()
+                   if live.get(key) != value)}
     print(json.dumps(payload, indent=2, sort_keys=True))
-    return 0 if (not FIELDS_PATH_DIGESTS or live == FIELDS_PATH_DIGESTS) else 1
+    return 0
 
 
 if __name__ == "__main__":

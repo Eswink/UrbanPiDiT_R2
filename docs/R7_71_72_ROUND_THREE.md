@@ -28,7 +28,7 @@
 | D1 | 新增 `constant` 与 `shuffled` 两个模式，默认 `fields` | **完成** | `model/spacetime_conditioning_r7.py`（`FIELD_MODES`、`require_field_mode`、`apply_field_mode`）；`SpacetimeConditioning(field_mode=…)` 默认 `fields`，三个模型类默认 `fields`、非法模式报错、`spacetime_inputs=False` 时给非 `fields` 模式报错（不静默忽略）；测试 8 项 |
 | D2 | 替换发生在模型内部：dataset/rollout 仍带真实字段，`DECLARED_MODEL_INPUTS` 与输入路径一致性测试**不得改变** | **完成** | 替换点在 `require_spacetime_fields` 之后；`tests/test_r7_input_path_consistency.py` 6 项**原样实跑通过**（未改一字）；新模式测试断言三种模式下缺字段仍 `KeyError`、越界仍 `ValueError` |
 | D3 | 默认路径逐位不变：23 digest 等价测试实跑通过（含反证） | **完成** | `pytest tests/test_r7_switched_path_equivalence.py tests/test_r7_input_path_consistency.py -q` → **10 passed**；脚本模式 `bitwise_identical: true`、`digest_count: 23`（比对冻结修订 `93d89aa`）；反证测试 `test_the_comparison_detects_a_changed_implementation` 通过 |
-| D4 | 改动**前**冻结 `spacetime_inputs=True` 路径的 forward/反向 digest，改动后断言相同 | **完成** | 冻结值取自 `ac6a3ef`（改动前的工作树；当时的 `git status` 只有本测试文件，以及两处既有未跟踪项 `.zcodeignore` 与 `tests/fixtures/r7_equivalence_recipe.py`，二者都不在配方读取范围内），11 个 digest 见 §11；`test_the_fields_path_is_bitwise_identical_to_the_frozen_digests` 通过，`bitwise_identical: true` |
+| D4 | 改动**前**冻结 `spacetime_inputs=True` 路径的 forward/反向 digest，改动后断言相同 | **完成（钉住方式已修正一次，见下）** | 冻结值取自 `ac6a3ef`（改动前的工作树；当时的 `git status` 只有本测试文件，以及两处既有未跟踪项 `.zcodeignore` 与 `tests/fixtures/r7_equivalence_recipe.py`，二者都不在配方读取范围内），11 个 digest 见 §11；**CI 里断言的是同进程双实现比对**（`git archive ac6a3ef` 的冻结修订 vs 工作树），因为机器本地的 digest 常量不可跨机复用（详见 §11.1） |
 | D5 | 预登记 primary：第一次 `optimizer.step()` 之前写进 `protocol.json` 并冻结 digest | **完成** | `protocol.json` 的 `primary_registration`（变量 t2m、5 个时效、四对、判定文字），在每 seed 第一次 step 前落盘并**回读校验**（变量/时效/四对/非空文字逐项断言）；跑后未修改（digest 12/12 相同） |
 | D6 | 12 个 run：`protocol_sha256` 全同、只读 val、test 封存、实测 GPU-h、四臂参数/FLOPs（E 与 B 逐张量相同、算力相同） | **完成** | 12/12 同 digest；`split` 全 `val`、`test_read: false`；0.5489 GPU-h；参数 A 2,799,779 / B=E=P 2,819,267，前向 FLOPs A 12,843,777,408 / B=E=P 12,927,412,608（E 与 B 逐张量相同，见 §5） |
 | D7 | 比较器出各对计数，逐 seed 同号才算 improved/worsened，全 17 变量 × 5 时效照报 | **完成** | `paired_comparison.json` 六对（B−A、B−E、E−A、P−A、E−P、P−B），85 格全报；逐变量计数见 §7；`A−A` 自检**未做**（目标里标为可选，比较器对同臂自比不保证接受） |
@@ -334,7 +334,7 @@ z500 72h −252 m² s⁻²，u250 五时效全同号。
 跑固定配方，冻结 `spacetime_inputs=True` 路径的
 forward 与反向 digest（11 个）；改动后同一配方**逐位相同**：
 
-| digest | 值（截断显示，完整值在测试文件里） |
+| digest | 值（截断显示，完整值在测试文件的 `FIELDS_PATH_CAPTURE_DIGESTS` 里） |
 | --- | --- |
 | `fields.forecast` | `e3117a9e74cd8da1…` |
 | `fields.initial_forecast` | `9cdcd55964428689…` |
@@ -350,7 +350,31 @@ forward 与反向 digest（11 个）；改动后同一配方**逐位相同**：
 
 敏感度反证（`test_the_frozen_pin_detects_a_changed_path`）：把条件模式换成 `constant` /
 `shuffled` 时 `fields.forecast` 与 `fields.gradients` 必须变化，换输入（lead 48h）时
-`fields.forecast` 也必须变化——否则「配方什么都没量」也会看起来像通过。
+`fields.forecast` 也必须变化，并且**被扰动的冻结修订**（改 `coarse_forecast` 的隐藏宽度）
+必须与工作树的 digest 不同——否则「配方什么都没量」也会看起来像通过。
+
+### 11.1 钉住方式的修正：机器本地常量不能跨机断言（如实记录）
+
+第一版的钉住测试把上面 11 个 digest 写成**常量**并断言工作树与之逐位相同。它在本机通过，
+但**这个提交的 CI 失败了**（`ci.yml` 的 pytest 步骤，run 36413939126，step "Run unit,
+integration and installed-wheel tests"）：同一份代码在另一台机器上算出不同的浮点字节。
+本机复现证实了机制，而不是猜的：
+
+| 设置 | 与冻结常量的比对 |
+| --- | --- |
+| 默认线程 + oneDNN | 11/11 相同（本机捕获时的设置） |
+| `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1` | `fields.gradients` **不同** |
+| `torch.backends.mkldnn.enabled = False` | **8/11 不同** |
+
+即：float32 线性层的结果依赖 BLAS/线程/指令路径，**在 CI 上不成立的不是代码，是我的仪器**。
+修正为仓库既有的、与机器无关的方式：**同一进程内**把 `git archive ac6a3ef` 取出的改动前实现
+与工作树各跑一次同一配方，按原始 float 字节比对（无容差）；原先那 11 个值保留为
+**记录**（`FIELDS_PATH_CAPTURE_DIGESTS`，注明是捕获机的读数、不作断言），
+证据文档仍照抄为「改动前的冻结值」。修正后：`OMP_NUM_THREADS=1` 与默认线程下**都是 8 passed**，
+即比对比机器无关；反证仍然有效（扰动冻结修订 / 换模式 / 换输入都会让 digest 动）。
+同一轮里把 `constant` 模式的两层断言也明确化：网络输入**逐位相同**（精确、与机器无关），
+贡献在**数值容差**内为一个向量（相对 1e-5，实测本机 1.2e-7、GPU 0.0；该臂的真实偏离是 9.2e-2，
+相差三个数量级，容差不会掩盖死臂）。
 
 **D3（默认路径等价）**：`tests/test_r7_switched_path_equivalence.py` 把当前树与冻结修订
 `93d89aa`（改动前的最后一次提交，`git archive` 取出）在同一进程里对跑：
@@ -414,9 +438,11 @@ batch=1 时与 `fields` 逐位相同、limitations 写明 P 的训练前向错�
 - val 气候态是 store 的 8 桶（月、时）train-only 均值，不是强季节气候态；
 - 第二轮的数字化是不同协议 digest、不同模型 code digest，只作稳定性观察，**从不合并**。
 
-**另外两条本轮特有的**：控制臂新增的 `constant` 语义在 CPU 上只能到 1 ULP（§12）；
+**另外三条本轮特有的**：控制臂新增的 `constant` 语义在 CPU 上只能到 1 ULP（§12）；
 primary 读者修正发生在看到数字之后（§12.2）——判据文字与数字未变，但这是本轮
-**最需要外部复核**的一步。
+**最需要外部复核**的一步；D4 的钉住仪器第一版把**机器本地**的 digest 当常量断言，
+**在 CI 上失败**（run 36413939126），已按仓库既有方式改为同进程双实现比对（§11.1）——
+这同样是一次实现缺陷修正，判据与数字未变。
 
 **本机 conventions 状态（不得宣称干净）**：`python tools/check_conventions.py` 仍报
 **一条**既有 R-044 阻断命中：未跟踪、本会话删不掉的 `tests/fixtures/r7_equivalence_recipe.py`

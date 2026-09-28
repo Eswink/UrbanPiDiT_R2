@@ -117,7 +117,7 @@ PARAM_MAX = 8
 # frozen digests of the `fields` path captured before the change, and a
 # counterproof that the pin moves when the path moves. Nothing was removed.
 TEST_FUNCTION_BASELINE = 742
-ASSERT_BASELINE = 1844
+ASSERT_BASELINE = 1846
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")
