@@ -83,6 +83,7 @@
 | 开始/推进/关闭 issue | `.agents/skills/issue-lifecycle/SKILL.md` |
 | 记一个决定（架构 / 约定 / 长期行为） | `.agents/skills/decision-record/SKILL.md` |
 | 多步方案设计 / 迭代计划 / 大改动前风险评估 | `.agents/skills/planner-delegation/SKILL.md` |
+| 写/推进一个 goal 目标（或 goal 模式不可用、不想用它） | `.agents/skills/goal-loop/SKILL.md` |
 | 成品该放哪（计划 / 决策 / 目标 / 工具态） | `docs/rules/artifact-storage.md` |
 | 新文件/模块/函数该叫什么 | `docs/rules/naming.md` |
 | 全部能力清单与触发条件 | `docs/skills/README.md` |

@@ -2,6 +2,30 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-28 — goal-loop 能力 + `check_goal_brief.py`：R-009 基线更新（未改任何规则判据）
+
+**范围**：新增 `.agents/skills/goal-loop/SKILL.md`（目标撰写 + harness goal 不可用或不用它时的
+会话手工循环）与只读、**非阻断**的 `tools/check_goal_brief.py`；R-034 的「执行方式」补一句，
+说明其**结构子集**已可机械检查（**级别、判据、例外均不变**）；同步 `docs/skills/README.md` 索引、
+`AGENTS.md` 路由表、`docs/goals/README.md`；R-009 基线 722/1795 → **734/1814**。
+未改任何阈值、执行分组与阻断规则集。
+
+**来源**：同一套目标撰写流水线重复两次（`docs/goals/m1-and-rw-a-iteration.md` §6、
+`docs/goals/v2-round-two-attribution.md` §6）；会话驱动纪律 `docs/R7_MANUAL_ITERATION.md:8-30`；
+决策 0015。
+
+| 新增 | 覆盖 |
+| --- | --- |
+| `tests/test_check_goal_brief.py`（12 个测试函数 / 19 条断言） | 合格长文被接受；每条机械规则都有反证（缺判据节、判据无 `docs/**.md` 指针、objective 多段、objective 超 4000 code point、objective 不指向自身、缺交付物节、缺预算/停止节）；文件名非 kebab-case 与命中 R-043 词表被拒；`README.md` 豁免命名规则；缺进度块是**建议**而非失败；**技能内嵌示例必须被校检器接受**（防技能与契约漂移）；校检器强制的每个规则号都写在技能里；校检器不修改它读的文件 |
+
+**代价（如实记录）**：多一份非阻断工具与两条治理行需要维护；校检器只判结构、**不判内容真伪**，
+因此它不能替代 R-034 的人工自觉，也不能替代 goal 模式的独立 verifier；基线抬到实测值后，
+今后任何测试数量的下降都会触发 R-009 报告（该规则本就是报告型、不阻断）。
+
+**未改**：`docs/rules/` 的规则级别/判据/阈值、R-044 判据、阻断规则集、`.zcode/config.json`
+的 hooks。本机 `check_conventions` 仍有**一条**既有 R-044 阻断命中，来自第一轮遗留、未跟踪、
+未提交的 `tests/fixtures/r7_equivalence_recipe.py`（本轮未触碰，需用户在 ZCode 之外删除）。
+
 ## 2026-09-28 — #71/#72 第二轮：R-009 测试强度基线更新（未改任何规则判据）
 
 **范围**：只更新 `tools/check_conventions.py` 的 R-009 基线（715/1778 → **722/1795**）

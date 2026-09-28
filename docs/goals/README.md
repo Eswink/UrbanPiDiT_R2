@@ -22,6 +22,17 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 - 目标状态机是 `active / paused / budget_limited / complete`，**不要自己宣布完成**。
 - 被取消 / 排队 / skipped 的运行**不算通过**，判据里要写明去查哪类 run。
 
+## 怎么写、怎么跑
+
+- 做法见 `.agents/skills/goal-loop/SKILL.md`：长文骨架（§0 objective … §8 进度块）、
+  objective 压缩（单段、≤4000、**自带交付物清单**）、以及 harness goal 不可用或不用它时的
+  会话手工循环（四态状态机、每轮固定动作、独立复核替代、不得自宣完成）。
+- 结构子集可机械检查（只读、**非阻断**）：
+  `.venv/bin/python tools/check_goal_brief.py --brief docs/goals/<slug>.md`。
+- **早于该约定的长文不回溯改写**（它们是证据）：`gpu-bringup-3090` /
+  `open-issue-resolution` / `iteration-campaign` / `full-auto-campaign` /
+  `d1-acquisition-and-b0` 会被校检器报 `G-02/G-06/G-07/G-08`，那是报告而非待办。
+
 ## 现有条目
 
 | 文件 | 主题 | 备注 |

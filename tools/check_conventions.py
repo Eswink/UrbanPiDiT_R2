@@ -98,8 +98,16 @@ PARAM_MAX = 8
 # no added parameter, and the same flatness statement through the model's own read;
 # the default-off assertion is pinned directly in the parameter test). Nothing was
 # removed.
-TEST_FUNCTION_BASELINE = 722
-ASSERT_BASELINE = 1795
+# 2026-09-28 (goal-loop skill): 722/1795 -> 734/1814. Twelve test functions in one
+# new file cover the goal-brief checker introduced with the goal-loop skill: a
+# conforming brief is accepted, every mechanical rule has a brief that violates it
+# and is rejected (including the >4000-code-point objective, a multi-paragraph
+# objective, and an objective that does not name its own brief), the README is
+# exempt from the naming rule, missing progress is advisory rather than fatal, the
+# skill's embedded example is accepted, every rule id is documented in the skill,
+# and the checker never writes to the brief it reads. Nothing was removed.
+TEST_FUNCTION_BASELINE = 734
+ASSERT_BASELINE = 1814
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")

@@ -61,8 +61,12 @@ Q 解决时**写一份决策记录**，并在 Q 标题加指针。只改 Q 不�
 - **依据**：objective 有 4000 字符硬上限，且完成判定由**不能调用工具**的独立 verifier 做
   （见 `docs/R7_GPU_BRINGUP_BRIEF.md` 的记载）—— 读不到文件的判据等于不存在
 - **现状**：B 类 —— 目录新建；`docs/R7_GPU_BRINGUP_BRIEF.md` 早于本约定，保留原位
-- **执行方式**：人工自觉（objective 内容无法机械判定）
-- **例外**：`docs/R7_GPU_BRINGUP_BRIEF.md`（早于约定，不迁移）
+- **执行方式**：人工自觉（objective 内容无法机械判定）；其**结构子集**由
+  `tools/check_goal_brief.py` 检查（只读、**非阻断**，未接入 Stop hook 与 CI；
+  规则号 `G-01`…`G-08` 属于该工具自己的命名空间，不是本目录的 `R-0xx`），
+  用法与长文骨架见 `.agents/skills/goal-loop/SKILL.md`
+- **例外**：`docs/R7_GPU_BRINGUP_BRIEF.md`（早于约定，不迁移）；早于本约定的
+  `docs/goals/*.md` 长文不回溯改写（它们是证据），校检器对它们的失败只报告不阻断
 - **引入日期**：2026-09-24
 - **复核触发**：当客户端取消或提高 objective 长度上限时
 
