@@ -31,5 +31,6 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 | [`iteration-campaign.md`](iteration-campaign.md) | 迭代战役 #59–#68：先修验收链再验证过程递归 | S0–S5 依赖顺序、各 issue 验收、预算冻结、诚实纪律 |
 | [`full-auto-campaign.md`](full-auto-campaign.md) | 全自动战役：#65 归因→方法验证→#67 封存（含 #64 余项/#66/#68/#59） | **显式授权自主拍板**（预算≤24 GPU-h 第二批、数据≤16 GiB 内扩展、关闭 DONE issue）；预诊断四项；各 issue 完成判据 |
 | [`d1-acquisition-and-b0.md`](d1-acquisition-and-b0.md) | D1 获取（Earthmover spatial，决策 0004）+ #64 B0 可学习性 | 源已冻结、实测速率、两段范围与非目标、预算/停止条件 |
-| [`m1-and-rw-a-iteration.md`](m1-and-rw-a-iteration.md) | 主模型 V2 第一轮：#71 已知时空输入贯通 + #72 RW-A 位置化 process 读写 | 交付物 D1–D8、planner 委派草稿的 6 处更正、本轮 ≤1.5 GPU-h、停止条件 |
+| [`m1-and-rw-a-iteration.md`](m1-and-rw-a-iteration.md) | 主模型 V2 第一轮：#71 已知时空输入贯通 + #72 RW-A 位置化 process 读写 | 交付物 D1–D8、planner 委派草稿的 6 处更正、本轮 ≤1.5 GPU-h、停止条件；**已完成**（`2586477`/`17d7722`/`14c7a24`，CI 三次 success） |
+| [`v2-round-two-attribution.md`](v2-round-two-attribution.md) | V2 第二轮：四臂 × 三种子拆开「时空输入」与「位置化读写」，并加容量控制臂 | 消除 round one 的三条局限（开关不可分、容量不对齐、两种子）；≤1.0 GPU-h；C−D 未获支持即如实写 |
 | `docs/R7_GPU_BRINGUP_BRIEF.md` | （已迁移） | R-034 登记为早于约定的例外；现仅为指向本目录的指针，不再维护第二份定义 |
