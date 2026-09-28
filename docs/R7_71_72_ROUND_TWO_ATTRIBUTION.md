@@ -377,6 +377,32 @@ curl -s "https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs?head_sha
 **17 条实验 workflow 在普通 push 上显示 skipped 是设计行为**（commit-message 标签门控），
 **不算失败**；本轮的实验证据来自本机单张 RTX 3090，不走 workflow。
 
-| SHA | 内容 | `ci.yml` run |
+| SHA | 内容 | `ci.yml` run（R7 CPU CI / pytest） |
 | --- | --- | --- |
-| _（提交后补记）_ | | |
+| `d8aff68` | 第二轮实现（model 两个文件 + 1 个测试文件 + 实验脚本 + 运行脚本 + 本文件 + 决策 0014 + R-009 基线 + digest 记录） | `36380552307` **completed / success**（job `pytest` / `completed / success`） |
+
+逐 run 核对（匿名只读 API）：该 SHA 上共 18 个 run —— `R7 CPU CI` success，
+其余 17 条实验 workflow 全部 `completed / skipped`（job 级亦为 `skipped`，如
+`r7-cpu-study` 的 run `36380552410`）。**skipped 是标签门控的设计行为，不是失败、不是排队**：
+本轮提交的 message 只带 `[model-digest-change]`，不带任何实验标签。
+
+**提交前在干净树上复验**（`git worktree add --detach /tmp/... d8aff68`，即 CI 会 checkout 的那棵树）：
+
+```
+python tools/check_conventions.py                 -> blocking rules=34 failing=0
+python -m pytest tests/test_check_conventions.py  -> 83 passed
+python -m pytest tests/test_r7_switched_path_equivalence.py \
+    tests/test_r7_process_readout_pooled_query.py \
+    tests/test_r7_process_readout_positional.py   -> 21 passed
+```
+
+**本机 `pytest -q` 的差异（如实）**：本工作区跑全量套件是
+**1264 passed / 3 skipped / 2 failed**，两条失败都是
+`tests/test_check_conventions.py` 里「真实仓库必须通过阻断规则」的自测，
+唯一命中来自 §12 那个**未跟踪**的第一轮遗留文件（R-044）；在提交树上这两条通过
+（上面 83 passed 就是在提交树上跑的）。CI 跑的是提交树，**不受影响**。
+
+**安全扫描状态（如实）**：本次 `git commit` 与 `git push` 的 hook 报告
+`scanner_enobufs`——**本提交没有取得完整扫描结论**。本文件**不宣称**任何安全结论；
+需要完整审计时另行运行（上一轮的分诊记录见 `docs/R7_SECURITY_SCAN_TRIAGE.md`，
+那是**另一个 revision** 的结论，不能覆盖本提交）。
