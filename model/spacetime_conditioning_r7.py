@@ -27,6 +27,22 @@ falling back to the wall clock or to a placeholder.
 ``SPACETIME_INPUT_FIELDS`` is the one declaration of which fields that is; the
 whitelist in ``model/r7_halting.py`` and the rollout in ``model/r7_rollout.py``
 both import it, so a path cannot quietly carry a different set.
+
+``field_mode`` adds the two control arms a capacity attribution needs, *inside*
+this module and after the fields have been validated - the dataset, the rollout
+and every whitelisted path keep carrying the real fields, and only what the
+conditioning MLP is shown changes:
+
+- ``fields`` (default) the real fields, i.e. the implementation that existed
+  before the switch;
+- ``constant`` the same-shape zeros: the module is present, trained and costs the
+  same compute, but its input carries no information, so its contribution is one
+  constant additive vector;
+- ``shuffled`` the per-sample fields rolled by one along the sample axis: real
+  values, wrong pairing.
+
+Neither control arm reads a clock, a target or a future observation, and neither
+is a fallback: a missing field still raises before any of this runs.
 """
 from __future__ import annotations
 
@@ -41,10 +57,23 @@ from .coarse_forecast import resolve_lead_hours
 from .layers.patch_grid import pad_patch_grid
 
 SPACETIME_INPUT_FIELDS = ("latitude", "longitude", "init_utc_hour", "init_day_of_year")
+FIELD_MODES = ("fields", "constant", "shuffled")
 PHASE_FEATURES = 4
 POSITION_FEATURES = 4
 DAYS_PER_YEAR = 365.25
 HOURS_PER_DAY = 24.0
+
+
+def require_field_mode(mode: str) -> str:
+    """The declared field modes, and nothing else.
+
+    A typo in a study arm is a silent experiment change unless it raises, so this
+    is the single place the accepted set is written down and every construction
+    path goes through it.
+    """
+    if not isinstance(mode, str) or mode not in FIELD_MODES:
+        raise ValueError(f"field mode must be one of {FIELD_MODES}, got {mode!r}")
+    return mode
 
 
 @contextlib.contextmanager
@@ -63,6 +92,47 @@ def isolated_stream():
         yield
     finally:
         torch.random.set_rng_state(state)
+
+
+def apply_field_mode(
+    mode: str,
+    latitude: torch.Tensor,
+    longitude: torch.Tensor,
+    hour: torch.Tensor,
+    day: torch.Tensor,
+    *,
+    batch_size: int,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Replace *validated* fields for a control arm; never invent a value.
+
+    ``constant`` returns same-shape zeros, so the conditioning term collapses to
+    one vector for every token and every sample - module capacity and compute,
+    with no information in the input.
+
+    ``shuffled`` rolls the per-sample fields by one along the sample axis,
+    deterministically, so each sample is conditioned on another sample's
+    initialization time while the marginal distribution of the values is
+    untouched. A batch of one has no other sample to borrow from, so the roll is
+    the identity there. That is a property of any within-batch permutation, and it
+    is relied on rather than hidden: the validation and published-evaluation paths
+    score one window per forward pass, and an arm that raised on them could not be
+    scored at all; the arms that use this mode declare the property in their
+    protocol. The grid coordinates are batch-invariant by construction -
+    ``require_spacetime_fields`` rejects a batch whose samples disagree about the
+    grid - so a within-batch roll has nothing to move there, and rotating a
+    coordinate axis instead would be a different manipulation than the one this
+    mode declares.
+    """
+    mode = require_field_mode(mode)
+    if mode == "fields":
+        return latitude, longitude, hour, day
+    if mode == "constant":
+        return (torch.zeros_like(latitude), torch.zeros_like(longitude),
+                torch.zeros_like(hour), torch.zeros_like(day))
+    if batch_size < 2:
+        return latitude, longitude, hour, day
+    return (latitude, longitude,
+            torch.roll(hour, 1, dims=0), torch.roll(day, 1, dims=0))
 
 
 def require_spacetime_fields(
@@ -198,12 +268,14 @@ class SpacetimeConditioning(nn.Module):
     """Additive per-token space-time term for the forecast token grid (#71 M1)."""
 
     def __init__(self, dim: int, patch_size: int, periodic_width: bool = False,
-                 default_lead_hours: float = 6.0, hidden: int | None = None):
+                 default_lead_hours: float = 6.0, hidden: int | None = None,
+                 field_mode: str = "fields"):
         super().__init__()
         self.dim = int(dim)
         self.patch_size = int(patch_size)
         self.periodic_width = bool(periodic_width)
         self.default_lead_hours = float(default_lead_hours)
+        self.field_mode = require_field_mode(field_mode)
         width = int(hidden) if hidden is not None else max(8, self.dim // 2)
         if width < 1:
             raise ValueError("hidden width must be positive")
@@ -216,6 +288,9 @@ class SpacetimeConditioning(nn.Module):
         rows, columns = history.shape[-2:]
         latitude, longitude, hour, day = require_spacetime_fields(
             batch, history_shape=(rows, columns), batch_size=history.shape[0])
+        latitude, longitude, hour, day = apply_field_mode(
+            self.field_mode, latitude, longitude, hour, day,
+            batch_size=history.shape[0])
         hours = resolve_lead_hours(batch.get("lead_time_hours"), batch=history.shape[0],
                                    device=history.device, dtype=torch.float32,
                                    default_hours=self.default_lead_hours)

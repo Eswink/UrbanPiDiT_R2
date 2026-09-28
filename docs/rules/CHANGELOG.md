@@ -2,6 +2,39 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-28 — #71 第三轮：测试基线更新与 `model_code_sha256` 变化（未改任何规则判据）
+
+**范围**：只为新增测试抬 R-009 基线（734/1814 → **742/1844**，+8 个测试函数 / +30 条断言，
+全部来自新的 `tests/test_r7_spacetime_input_modes.py`）；**未改任何规则正文、判据、阈值或
+执行分组**，`docs/rules/*.md` 本轮未修改。基线是**下界**，抬到实测值只让今后的测试减少更容易
+被看见；R-009 仍是报告型、不阻断。
+
+**为什么新增这些测试**：第三轮给时空输入（M1）补容量控制臂（`constant` / `shuffled` 两种
+字段模式，默认 `fields`）。新测试覆盖：默认模式与非法模式（含「路径关闭时给控制模式」这种
+会被静默忽略的组合）、`constant` 把条件项压成一个向量（网络输入**逐位**相同；输出在一个
+**数值**容差 1e-6 内，理由写在测试注释里）、`shuffled` 的确定性样本轴 roll 与 batch=1 恒等、
+三种模式**同一组参数张量与同一前向 FLOPs**、声明输入集合与模式无关、`fields` 路径的
+**11 个改动前冻结 digest**，以及「路径一变 pin 必须动」的反证。
+
+**另**：`model/**.py` 字节变化使 `model_code_digest()` 变化（见下条）。判据与阈值未变。
+
+### model_code_sha256 变化（第三轮）
+
+`model/spacetime_conditioning_r7.py`、`model/weather_forecaster_r7.py`、
+`model/process_forecast_r7.py`、`model/recursive_weather_r7.py` 的字节变化使
+`model_code_digest()` 从
+`8d9262d1abb537f11fc0b74b98ec30e450eadf4e7bd7300ad32a957de5e38e44`（第二轮）
+变为
+`f349adceb5ba03e10fbb45b514bfbc25352c6b81848b255d615127fb36b047e1`。
+
+**这是预期后果，不是缺陷**（新增的 `spacetime_field_mode` 默认 `fields`，默认路径仍与改动前
+逐位相同——由 `tests/test_r7_switched_path_equivalence.py` 的 23 个 digest 实跑证明，
+另有 `tests/test_r7_spacetime_input_modes.py` 的 11 个 `fields` 路径 digest 钉住
+`spacetime_inputs=True` 的分支）。受影响的重放路径仍是那 3 条 workflow
+（`r7-restored-diagnostic.yml`、`r7-correction-audit.yml`、`r7-extended-control.yml`）：
+旧产物只能用其归档的 `code.zip` 重放。**未修改任何校验逻辑、未放宽 digest 比较**，
+见 `docs/rules/OPEN_QUESTIONS.md` Q-009。
+
 ## 2026-09-28 — goal-loop 能力 + `check_goal_brief.py`：R-009 基线更新（未改任何规则判据）
 
 **范围**：新增 `.agents/skills/goal-loop/SKILL.md`（目标撰写 + harness goal 不可用或不用它时的

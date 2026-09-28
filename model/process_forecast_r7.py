@@ -9,7 +9,7 @@ from torch.utils.checkpoint import checkpoint
 from .coarse_forecast import CoarseForecastHead
 from .process_readout_r7 import PositionalProcessReadout
 from .recursive_weather_r7 import DraftTokenEncoder, GenericRecursiveCell, solver_conditioning
-from .spacetime_conditioning_r7 import isolated_stream
+from .spacetime_conditioning_r7 import isolated_stream, require_field_mode
 from .weather_forecaster_r7 import NativeAtmosForecaster
 
 
@@ -67,6 +67,7 @@ class ProcessForecastCoReasoner(nn.Module):
         use_forecast_feedback:bool=True,
         spatial_solver_feedback:bool=False,
         spacetime_inputs:bool=False,
+        spacetime_field_mode:str='fields',
         positional_process_readout:bool=False,
         pooled_readout_query:bool=False,
     ):
@@ -83,6 +84,14 @@ class ProcessForecastCoReasoner(nn.Module):
                              "positional_process_readout would be a silently ignored switch")
         self.spatial_solver_feedback=spatial_solver_feedback
         self.spacetime_inputs=spacetime_inputs
+        # The capacity-control arms of the round-three study keep the space-time
+        # module and change only what it is shown; a control mode with the pathway
+        # off would add nothing and say nothing, so it is rejected.
+        self.spacetime_field_mode=require_field_mode(spacetime_field_mode)
+        if not self.spacetime_inputs and self.spacetime_field_mode!='fields':
+            raise ValueError(
+                f"spacetime_field_mode={self.spacetime_field_mode!r} needs "
+                "spacetime_inputs=True; with the pathway off it would be silently ignored")
         self.positional_process_readout=positional_process_readout
         self.pooled_readout_query=pooled_readout_query
         self.out_channels=int(out_channels or in_channels)
@@ -119,6 +128,7 @@ class ProcessForecastCoReasoner(nn.Module):
             periodic_width=periodic_width,
             default_lead_hours=default_lead_hours,
             spacetime_inputs=spacetime_inputs,
+            spacetime_field_mode=self.spacetime_field_mode,
         )
 
         self.process_queries=nn.Parameter(

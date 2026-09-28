@@ -8,6 +8,7 @@ from .weather_forecaster_r7 import NativeAtmosForecaster
 from .coarse_forecast import CoarseForecastHead
 from .layers.sdpa import SDPAttention,CrossBlock,FeedForward
 from .layers.patch_grid import pad_patch_grid
+from .spacetime_conditioning_r7 import require_field_mode
 
 
 def solver_conditioning(context, summary, draft_tokens=None, *, spatial_feedback=False):
@@ -92,7 +93,7 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
                  default_lead_hours:float=6.,latent_tokens:int=16,default_reasoning_steps:int=4,
                  detach_between_steps:bool=False,spatial_solver_feedback:bool=False,
-                 spacetime_inputs:bool=False):
+                 spacetime_inputs:bool=False,spacetime_field_mode:str='fields'):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
                            (spacetime_inputs,'spacetime_inputs')):
@@ -102,6 +103,11 @@ class GenericRecursiveWeatherForecaster(nn.Module):
         # Exposed, not just forwarded: the rollout asks the model which lead
         # convention it was configured for.
         self.spacetime_inputs=spacetime_inputs
+        self.spacetime_field_mode=require_field_mode(spacetime_field_mode)
+        if not self.spacetime_inputs and self.spacetime_field_mode!='fields':
+            raise ValueError(
+                f"spacetime_field_mode={self.spacetime_field_mode!r} needs "
+                "spacetime_inputs=True; with the pathway off it would be silently ignored")
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -110,7 +116,7 @@ class GenericRecursiveWeatherForecaster(nn.Module):
         self.activation_checkpointing=bool(activation_checkpointing)
         self.backbone=NativeAtmosForecaster(in_channels,history_steps,self.out_channels,dim,patch_size,
             depth,heads,window_size,dropout,activation_checkpointing,periodic_width,default_lead_hours,
-            spacetime_inputs=spacetime_inputs)
+            spacetime_inputs=spacetime_inputs,spacetime_field_mode=self.spacetime_field_mode)
         self.latent=nn.Parameter(torch.randn(1,int(latent_tokens),dim)*.02)
         self.draft_encoder=DraftTokenEncoder(self.out_channels,dim,patch_size)
         self.cell=GenericRecursiveCell(dim,heads,mlp_ratio=3.,dropout=dropout)

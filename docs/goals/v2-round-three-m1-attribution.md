@@ -132,10 +132,45 @@
 
 ## 9. 进度（每轮更新；不由执行者宣布完成）
 
-- **状态**：active
-- **已完成**：无（本轮尚未开工）
-- **未做**：D1–D9 全部
-- **下一动作**：recon —— 记录 `git rev-parse HEAD`、确认 round one / round two 的产物与文档未被改动、
-  实跑 23 digest 等价与输入路径一致性测试、从证据文档重算第二批 GPU-h 余量
-- **已知前置**：`tests/fixtures/r7_equivalence_recipe.py`（未跟踪、本会话删不掉）在本机造成一条 R-044 阻断命中，
-  需用户在 ZCode 之外删除；未删除时不得宣称 conventions 干净
+- **状态**：active（D1–D9 均已有证据；`complete` 只能由用户或独立复核裁定）
+- **起点 SHA**：`ac6a3ef486d56d43e11261b62e7294872d1e5eae`（开工时 `git rev-parse HEAD`）
+- **已完成**：
+  - D1 两种字段模式（`constant` / `shuffled`，默认 `fields`）：`model/spacetime_conditioning_r7.py`
+    的 `FIELD_MODES`/`require_field_mode`/`apply_field_mode`，在 `require_spacetime_fields`
+    之后替换；三个模型类接线并拒绝「路径关闭 + 控制模式」的静默组合；测试 8 项实跑通过。
+  - D2 替换在模型内部：dataset/rollout/`DECLARED_MODEL_INPUTS` 与
+    `tests/test_r7_input_path_consistency.py` **未改一字**，6 项实跑通过；新模式测试断言
+    缺字段仍 `KeyError`、越界仍 `ValueError`。
+  - D3 默认路径逐位不变：`tests/test_r7_switched_path_equivalence.py` 实跑 **10 passed**
+    （与 `tests/test_r7_input_path_consistency.py` 同跑），脚本模式 `bitwise_identical: true`、
+    `digest_count: 23`，反证通过。
+  - D4 `fields` 回归钉住：改动前在 `ac6a3ef` 冻结 11 个 forward/反向 digest，改动后逐位相同
+    （`tests/test_r7_spacetime_input_modes.py`），含「路径一变 pin 必须动」的反证。
+  - D5 预登记 primary：`protocol.json` 的 `primary_registration`（t2m × 5 时效 × 四对 + 判定文字），
+    每 seed 第一次 `optimizer.step()` 之前落盘并回读校验。
+  - D6 12 个 run：`protocol_sha256` 12/12 = `d62db6db…`；只读 val（60 次评估）；test 封存；
+    实测 **0.5489 GPU-h**；参数 A 2,799,779 / B=E=P 2,819,267，FLOPs E 与 B 完全相同，
+    且 E/B 的 `state_dict` 逐张量逐位相同（运行内断言）。
+  - D7 比较器六对（B−A、B−E、E−A、P−A、E−P、P−B）全 17 变量 × 5 时效照报；
+    `A−A` 自检未做（可选）。
+  - D8 证据文档 `docs/R7_71_72_ROUND_THREE.md`（primary 判定、全变量汇总、重跑稳定性、
+    `scientific_claim: false`、limitations、未做的事、下一项）。
+  - D9 提交与 CI（见该文档 §14；提交后补记 run id）。
+- **primary 判定（按跑前冻结的文字）**：可判读的三个时效上，容量/偏置复现 B−A 的比例为
+  **−3.7% / 5.5% / 12.6%**（12h / 24h / 48h）；6h 与 72h 因逐 seed 不同号而 unresolved；
+  **没有任何可判读时效支持「该收益主要是容量/偏置能力」**（B−E，即信息，承担 87%–104%）。
+- **偏差（如实记）**：①`shuffled` 在 batch < 2 时是**恒等**而非报错——验证/评估路径都是
+  单窗口一次前向，报错会让 P 臂无法得分；该性质写在冻结协议、测试与 limitations 里。
+  ②primary 读者第一版额外要求 P−A 同号（冻结文字只把 P−A 列为并列报告项），修正为逐字实现
+  冻结文字；判据文字与所有数字未改，修正前后两份输出都保存在产物目录。
+  ③`constant` 在 CPU 上只能到 1 ULP（GPU 实测 0.0），因此「常数」按两层断言（输入逐位、
+  输出数值容差 1e-6）。
+- **未做**：C/D 臂、交互项第五臂、RW-B、M3–M5；test 未读；`A−A` 自检；未合并 main、
+  未 force push、未租 GPU、未写 issue；未新增数据下载。
+- **已知前置**：`tests/fixtures/r7_equivalence_recipe.py`（未跟踪、本会话删不掉）在本机造成
+  **一条** R-044 阻断命中；本轮未新增任何阻断违规，且**不得**宣称 conventions 干净。
+  需用户在 ZCode 之外删除。
+- **下一动作**：把本轮 `E − A` 的 t2m 48h/72h 效应（−0.247 / −0.291 K，三 seed 同号）与
+  第二轮 `C − B` / `D − B` 的同格逐 seed delta 并排核对（三个都是「模块在场、无位置读取」的
+  近似对照），判断这 0.25–0.29 K 是否在两次独立运行中稳定复现——细节见
+  `docs/R7_71_72_ROUND_THREE.md` §13 末段。

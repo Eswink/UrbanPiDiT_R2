@@ -5,7 +5,8 @@ import torch
 from torch import nn
 from .coarse_encoder import CoarseEncoder
 from .coarse_forecast import CoarseForecastHead,LeadTimeEmbedding
-from .spacetime_conditioning_r7 import SpacetimeConditioning, isolated_stream
+from .spacetime_conditioning_r7 import (SpacetimeConditioning, isolated_stream,
+    require_field_mode)
 
 
 @dataclass
@@ -21,11 +22,21 @@ class NativeAtmosForecaster(nn.Module):
     def __init__(self,in_channels:int,history_steps:int=2,out_channels:Optional[int]=None,
                  dim:int=128,patch_size:int=2,depth:int=4,heads:int=4,window_size:int=8,
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
-                 default_lead_hours:float=6.,spacetime_inputs:bool=False):
+                 default_lead_hours:float=6.,spacetime_inputs:bool=False,
+                 spacetime_field_mode:str='fields'):
         super().__init__()
         if type(spacetime_inputs) is not bool:
             raise ValueError('spacetime_inputs 必须是布尔开关')
         self.spacetime_inputs=spacetime_inputs
+        # What the conditioning module is shown, not whether it exists: the
+        # control arms of the capacity study keep the module and change only this.
+        # A control mode on a switch that is off would be silently ignored, so it
+        # is rejected here instead.
+        self.spacetime_field_mode=require_field_mode(spacetime_field_mode)
+        if not self.spacetime_inputs and self.spacetime_field_mode!='fields':
+            raise ValueError(
+                f"spacetime_field_mode={self.spacetime_field_mode!r} needs "
+                "spacetime_inputs=True; with the pathway off it would be silently ignored")
         self.in_channels=int(in_channels)
         self.history_steps=int(history_steps)
         self.out_channels=int(out_channels or in_channels)
@@ -45,7 +56,8 @@ class NativeAtmosForecaster(nn.Module):
             with isolated_stream():
                 self.spacetime=SpacetimeConditioning(
                     dim,patch_size,periodic_width=periodic_width,
-                    default_lead_hours=self.default_lead_hours)
+                    default_lead_hours=self.default_lead_hours,
+                    field_mode=self.spacetime_field_mode)
 
     def forward(self,batch:Mapping[str,torch.Tensor])->R7ForecastOutput:
         history=batch['coarse_history']

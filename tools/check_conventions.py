@@ -106,8 +106,18 @@ PARAM_MAX = 8
 # exempt from the naming rule, missing progress is advisory rather than fatal, the
 # skill's embedded example is accepted, every rule id is documented in the skill,
 # and the checker never writes to the brief it reads. Nothing was removed.
-TEST_FUNCTION_BASELINE = 734
-ASSERT_BASELINE = 1814
+# 2026-09-28 (round three, #71 M1): 734/1814 -> 742/1844. Eight test functions in one
+# new file pin the two control field modes and the pre-change `fields` path: the
+# default mode and rejection of an invalid one (also when the pathway is off), the
+# constant mode collapsing the conditioning to one vector (asserted exactly on the
+# conditioning network's input and within a float32 tolerance on its output), the
+# shuffled mode's deterministic sample-axis roll and its identity at a
+# single-sample batch, the three modes carrying the same parameter tensors and the
+# same forward FLOPs, the declared input set being mode-independent, the eleven
+# frozen digests of the `fields` path captured before the change, and a
+# counterproof that the pin moves when the path moves. Nothing was removed.
+TEST_FUNCTION_BASELINE = 742
+ASSERT_BASELINE = 1844
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")
