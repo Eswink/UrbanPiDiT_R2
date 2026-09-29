@@ -309,11 +309,13 @@
 | E-192 | 命名范围缺口实测：**(a)** `NAMING_PY_SCOPES` 不含仓库根级 8 个模块（`train.py`、`calibrate_r7_local.py`、`diagnose_r7_gain.py`、`evaluate_r7_local.py`、`prepare_r7_local.py`、`profile_r7_inference.py`、`train_r7_local.py`、`tune_r7_halting.py`），纳入后 295/295 仍 0 违规；**(b)** 目录名此前只被 R-043 的杂物桶词表扫到，实测 16 个代码目录 + 11 个 skill 目录全部合规（R-053 零改名落地）；**(c)** R-043 文档把范围写到 `configs/`、`docs/`、workflow 与根目录文件，实现只扫活跃 `.py`——扩到非 `.py` 会命中 3 个**版本名**（`configs/r2_v6_v100.yaml`、`docs/UPGRADE_FROM_V531.md`、根级 `CHANGELOG_V6.md`），故选择把文档收窄到实现；**(d)** R-047 的顶层 `README.md` 豁免"文档有、实现无"（该文件今天不存在，属预防性修复）；**(e)** R-048 文档写 0 命中，实测 1（`tests/test_r7_multiseed_comparison.py:29` 的 `ckpt`） | AST 复算 + `git ls-files` + 逐目录核对 + 词表试跑 | 全体扫描 | 已确认 |
 | E-193 | 规模文档漂移：`size-thresholds.md` 曾写 R-021 命中 **0**（实测 21，范围补齐后 24）、R-020 写 **6**（实测 36→39）、R-022 写 10（实测 13→18）、R-023 写 11（实测 15）、R-019b 写 157（实测 169）。**两个根因**：一半是"这些数字此后没人核对"，一半是尺寸族范围不含 `tools/` 与根级模块——全仓最大的文件（1,741 行）对 R-021 不可见，"0 违规"里有一半是范围造成的。处置：范围补齐为 `SIZE_SCOPES`、全部数字重算、页内加 `<!-- measured: ... -->` 机器核对标记（`test_size_report_counts_match_the_checker` 重算比对） | 文档原文 vs `--report` 实测逐条对照 | 全体扫描 | 已确认 |
 
+| E-194 | 本轮变更的 CI 验证与一处被冒烟测出的错拒：推送 `ca2f202` 后主门禁 `R7 CPU CI` run `36555351319` **八步全绿**（含 `Check repository conventions`＝新的 37 条阻断规则、`Check evidence index and candidate brief`、`Compile active modules and check whitespace`、全量 pytest），18 条 workflow 中 17 条实验 workflow 按设计 **skipped**（commit message 无标签）。另：用真实仓库对提交闸门做冒烟测时发现 **R-037 会拒绝"引入新治理资产"的那次提交**——`git add X && git commit` 的 hook 在 `git add` 之前运行，于是 X 尚未入索引，而 CI 检出提交树时它已被跟踪（本地红、CI 不红的假阳性）。已修为"被声明为提交内容的路径计为已跟踪"并加反证 | `/repos/Eswink/UrbanPiDiT_R2/actions/runs/36555351319/jobs`，访问日期 2026-09-29；闸门冒烟测：`guard_conventions_before_commit.py` 读 stdin 载荷（修复前 exit=2，修复后 exit=0） | 单点 | 已确认 |
+
 ## 统计
 
-- 台账条目：**193** 条（E-001 – E-193；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 3）。
-- 按覆盖度：全体扫描 140 条，抽样 17 条，单点 36 条。
-- 按置信度：已确认 192 条，推测 1 条，未知 0 条。
+- 台账条目：**194** 条（E-001 – E-194；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4）。
+- 按覆盖度：全体扫描 140 条，抽样 17 条，单点 37 条。
+- 按置信度：已确认 193 条，推测 1 条，未知 0 条。
   （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
   E-187 已登记为 Q-013。）
 - 未列入凭据类条目：5 类凭据模式全部 0 命中，故无"疑似凭据点位"可报告。
