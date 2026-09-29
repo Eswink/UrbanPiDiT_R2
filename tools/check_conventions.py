@@ -50,8 +50,15 @@ ARCHIVAL_PREFIXES = (
 # any of these spellings, and new archives must be added in exactly one place.
 ARCHIVE_PATH_TOKENS = ("legacy_v531", "legacy_v6")
 
-# R-013/R-014/R-015/R-018/R-019/R-020/R-021/R-022/R-023 scope.
+# R-013/R-014/R-015/R-018 scope.
 CODE_SCOPES = ("data/", "model/", "training/", "scripts/", "tests/")
+# R-019/R-019b/R-020/R-021/R-022/R-023 scope: the size family measures the whole
+# active code surface, which includes `tools/` and the root-level entry modules.
+# Keeping it separate from CODE_SCOPES is deliberate - widening the other code
+# rules would change findings no rule was calibrated for - but a size rule that
+# cannot see tools/check_conventions.py would report a distribution that omits
+# the largest maintained file. See docs/rules/size-thresholds.md.
+SIZE_SCOPES = CODE_SCOPES + ("tools/",)
 EXEMPT_FROM_ANNOTATIONS = {
     "data/__init__.py", "data/download/__init__.py", "model/__init__.py",
     "model/layers/__init__.py", "training/__init__.py", "train.py",
@@ -94,6 +101,13 @@ FUNC_BODY_MAX = 100
 FILE_LOC_MAX = 400
 NESTING_MAX = 5
 PARAM_MAX = 8
+# R-051/R-052 are the blocking ceiling; FUNC_BODY_MAX/FILE_LOC_MAX above are the
+# C-class target. Both caps come from the measured distribution (file p95 = 580
+# lines, longest function = 245 lines) and the tree passes on the day they land:
+# what sits above them is listed as an exact path and may only shrink. See
+# docs/rules/size-thresholds.md and docs/decisions/0022.
+FILE_LOC_HARD_MAX = 600
+FUNC_BODY_HARD_MAX = 200
 
 # R-009: recorded strength of the test suite. Update deliberately when tests are
 # intentionally added or restructured, and note it in docs/rules/CHANGELOG.md.
@@ -147,8 +161,20 @@ PARAM_MAX = 8
 # strict source-binding and nested-layout receipt counterproofs, brief sync CLI/repository
 # checks, workflow tag/category/timeout/artifact-pin counterproofs, and the R-029
 # multi-job timeout counterproof. Nothing was removed.
-TEST_FUNCTION_BASELINE = 811
-ASSERT_BASELINE = 2009
+# 2026-09-29 (size/naming hard caps, pre-commit whitespace half): 811/2009 -> 827/2046.
+# Sixteen test functions and thirty-seven assertions were added across two files: the
+# R-051/R-052 counterproofs, cap boundaries (600/200 pass, +1 fails), exception-list
+# liveness and frozen snapshots, the documentation and measured-count guards for
+# size-thresholds.md, the R-053 directory cases (bad code directory, bad skill name,
+# missing SKILL.md, plus conforming ones), the root-module scope cases for R-038, and
+# the four whitespace cases of the pre-commit gate (added trailing space, blank line at
+# EOF, pre-existing whitespace not re-flagged, untracked file staged by the same command
+# line) with its fail-open counterproof, and the R-037 counterproof that a path declared
+# as commit content counts as tracked (the smoke test of the guard against the real repo
+# caught it refusing the very commit that introduces this round's decision record).
+# Nothing was removed.
+TEST_FUNCTION_BASELINE = 827
+ASSERT_BASELINE = 2046
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")
@@ -175,6 +201,35 @@ DEADLINE_EXCEPTIONS = {
     "training/r7_baseline_study.py",
     "training/r7_cpu_study.py",
 }
+# R-051: files that were already over the 600-line hard cap when it landed. The
+# plan is to split them; until then they are named here, one path at a time.
+# Adding an entry is a governance act, not a convenience: the list may only
+# shrink, and a test asserts every entry still exceeds the cap.
+FILE_LOC_EXCEPTIONS = {
+    "scripts/bench_r7_ddp_smoke.py",
+    "scripts/study_r7_64_curriculum.py",
+    "scripts/study_r7_65_ablation.py",
+    "scripts/study_r7_71_72_round_three.py",
+    "scripts/study_r7_71_72_round_two.py",
+    "scripts/study_r7_71_72_spacetime_rwa.py",
+    "scripts/study_r7_b2_multiseed.py",
+    "scripts/study_r7_b3_scale.py",
+    "tests/test_agent_hooks.py",
+    "tests/test_check_conventions.py",
+    "tests/test_r7_coreasoning_compare.py",
+    "tools/check_conventions.py",
+    "training/r7_coreasoning_compare.py",
+}
+# R-052: functions over the 200-line hard cap, as (path, function name). All five
+# are experiment orchestration entry points; the cap forces the next growth to
+# become a helper instead.
+FUNC_BODY_EXCEPTIONS = {
+    ("scripts/study_r7_64_curriculum.py", "run_curriculum"),
+    ("scripts/study_r7_65_ablation.py", "run_phase"),
+    ("scripts/study_r7_b1_baselines.py", "run_study"),
+    ("scripts/study_r7_b2_multiseed.py", "run_phase"),
+    ("training/r7_scheduled_runner.py", "run_scheduled_updates"),
+}
 
 BLOCKING_RULES = (
     "R-001", "R-002", "R-004", "R-005", "R-006", "R-007", "R-008", "R-010",
@@ -183,6 +238,7 @@ BLOCKING_RULES = (
     "R-032", "R-033", "R-036", "R-037",
     "R-038", "R-039", "R-040", "R-041", "R-042", "R-043", "R-044",
     "R-045", "R-046", "R-047",
+    "R-051", "R-052", "R-053",
 )
 REPORT_RULES = (
     "R-009", "R-019", "R-019b", "R-020", "R-021", "R-022", "R-023",
@@ -325,6 +381,11 @@ def parse(text: str):
 
 def scoped(rel: str, prefixes=CODE_SCOPES) -> bool:
     return rel.startswith(prefixes)
+
+
+def in_size_scope(rel: str) -> bool:
+    """Active code for the size family: SIZE_SCOPES plus root-level modules."""
+    return rel.startswith(SIZE_SCOPES) or "/" not in rel
 
 
 def is_training_call(func) -> bool:
@@ -646,7 +707,7 @@ def r_019_line_length(root: Path, allowed):
     """Line-length hard cap (C class: report only)."""
     out = []
     for rel, path in iter_py(root):
-        if is_archival(rel) or not scoped(rel):
+        if is_archival(rel) or not in_size_scope(rel):
             continue
         text = read(path)
         if not text:
@@ -661,7 +722,7 @@ def r_019b_line_length_target(root: Path, allowed):
     """Line-length target cap (C class: report only)."""
     out = []
     for rel, path in iter_py(root):
-        if is_archival(rel) or not scoped(rel):
+        if is_archival(rel) or not in_size_scope(rel):
             continue
         text = read(path)
         if not text:
@@ -676,7 +737,7 @@ def r_020_function_length(root: Path, allowed):
     """Function body length (C class: report only)."""
     out = []
     for rel, path in iter_py(root):
-        if is_archival(rel) or not scoped(rel):
+        if is_archival(rel) or not in_size_scope(rel):
             continue
         text = read(path)
         tree = parse(text) if text else None
@@ -695,11 +756,53 @@ def r_021_file_length(root: Path, allowed):
     """File length (C class: report only)."""
     out = []
     for rel, path in iter_py(root):
-        if is_archival(rel) or not scoped(rel):
+        if is_archival(rel) or not in_size_scope(rel):
             continue
         text = read(path)
         if text and len(text.splitlines()) > FILE_LOC_MAX:
             out.append(Finding("R-021", rel, 0, f"{len(text.splitlines())} LOC (max {FILE_LOC_MAX})"))
+    return out
+
+
+def r_051_file_length_hard_cap(root: Path, allowed):
+    """No active file may exceed the 600-line hard cap (R-021's 400 is the target).
+
+    Exception paths are skipped by design: they are the files whose split was
+    deferred, and the list may only shrink.
+    """
+    out = []
+    for rel, path in iter_py(root):
+        if is_archival(rel) or not in_size_scope(rel) or rel in FILE_LOC_EXCEPTIONS:
+            continue
+        text = read(path)
+        if text and len(text.splitlines()) > FILE_LOC_HARD_MAX:
+            out.append(Finding("R-051", rel, 0,
+                               f"{len(text.splitlines())} LOC (hard cap {FILE_LOC_HARD_MAX})"))
+    return out
+
+
+def r_052_function_length_hard_cap(root: Path, allowed):
+    """No function body may exceed the 200-line hard cap (R-020's 100 is the target).
+
+    An exception names a (path, function) pair rather than a line number, so a
+    split that moves the function does not silently re-arm the finding.
+    """
+    out = []
+    for rel, path in iter_py(root):
+        if is_archival(rel) or not in_size_scope(rel):
+            continue
+        text = read(path)
+        tree = parse(text) if text else None
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            length = getattr(node, "end_lineno", node.lineno) - node.lineno + 1
+            if length <= FUNC_BODY_HARD_MAX or (rel, node.name) in FUNC_BODY_EXCEPTIONS:
+                continue
+            out.append(Finding("R-052", rel, node.lineno,
+                               f"{node.name}: {length} lines (hard cap {FUNC_BODY_HARD_MAX})"))
     return out
 
 
@@ -718,7 +821,7 @@ def r_022_nesting_depth(root: Path, allowed):
         return best
 
     for rel, path in iter_py(root):
-        if is_archival(rel) or not scoped(rel):
+        if is_archival(rel) or not in_size_scope(rel):
             continue
         text = read(path)
         tree = parse(text) if text else None
@@ -737,7 +840,7 @@ def r_023_parameter_count(root: Path, allowed):
     """Function parameter count (C class: report only); constructors excluded."""
     out = []
     for rel, path in iter_py(root):
-        if is_archival(rel) or not scoped(rel):
+        if is_archival(rel) or not in_size_scope(rel):
             continue
         text = read(path)
         tree = parse(text) if text else None
@@ -1085,6 +1188,11 @@ GOVERNANCE_ASSETS = (
     "docs/decisions/0019-verification-receipt-pilot.md",
     "docs/decisions/0020-verification-contract-and-governance-drift.md",
     "docs/decisions/0021-experiment-authorization-channel.md",
+    "docs/decisions/0022-size-and-naming-hard-caps.md",
+    # Read by the test suite, so they are executed assets too: the caps and the
+    # measured counts are asserted against these two pages.
+    "docs/rules/size-thresholds.md",
+    "docs/rules/naming.md",
     "tests/test_check_conventions.py",
     "tests/test_agent_hooks.py",
     "tests/test_verify_experiment_receipt.py",
@@ -1239,6 +1347,11 @@ def r_037_governance_tracked(root: Path, allowed):
     if proc.returncode != 0:
         return [Finding("R-037", ".", 0, "UNKNOWN: git ls-files failed")]
     tracked = set(proc.stdout.splitlines())
+    # A path the caller declared to be commit content counts as tracked: the
+    # pre-commit guard judges `git add X && git commit` before X reaches the
+    # index, while CI checks out the commit, where X is tracked. Without this the
+    # gate would refuse the commit that introduces a new governance asset.
+    tracked |= _COMMITTED_PATHS
     out = []
     for asset in GOVERNANCE_ASSETS:
         if (root / asset).exists() and asset not in tracked:
@@ -1259,7 +1372,10 @@ def r_037_governance_tracked(root: Path, allowed):
 # archival dirs are excluded because they are read-only method records.
 
 # tools/ is active code and must obey naming too, even though CODE_SCOPES
-# (used by the size rules) does not list it.
+# (used by the size rules) does not list it. Root-level modules (`train.py`,
+# `*_r7_local.py`, the three diagnostic entry points) are covered as well: tests
+# invoke them by bare filename and the console scripts point at them, so their
+# names are part of the interface, not a local choice.
 NAMING_PY_SCOPES = ("data/", "model/", "training/", "scripts/", "tests/", "tools/")
 # audit/ holds frozen evidence filenames (final_scorecard.md, final_*.log);
 # renaming them would break references, so the banned-token rule exempts it.
@@ -1277,6 +1393,15 @@ _BANNED_TOKEN_RE = re.compile(
     r"(?:^|[_\-.])(?:" + "|".join(BANNED_NAME_TOKENS) + r")(?:[_\-.]|$)", re.I)
 _VERSION_SUFFIX_RE = re.compile(r"_v\d+$", re.I)
 
+# R-053: directory names. Code directories are snake_case; a directory under
+# `.agents/skills/` is kebab-case and must carry the SKILL.md that makes it
+# loadable (the discovery path is `.agents/skills/<name>/SKILL.md`). Measured at
+# zero rename: every directory in scope already complies.
+DIR_NAME_SCOPES = ("data/", "model/", "training/", "scripts/", "tests/", "tools/")
+SKILL_DIR_PREFIX = ".agents/skills/"
+_SNAKE_DIR_RE = re.compile(r"[a-z][a-z0-9_]*")
+_KEBAB_DIR_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+
 # R-042 default allow-list of idiomatically short parameter names. Measured in
 # E-179: every flagged name is a 2-char domain abbreviation (xarray Dataset,
 # learning rate, tensor dims, meteorological variables), not an unclear name.
@@ -1293,7 +1418,7 @@ def _naming_py(root: Path):
     for rel, path in iter_py(root):
         if is_archival(rel) or rel.startswith(NAMING_EXEMPT_PREFIXES):
             continue
-        if not rel.startswith(NAMING_PY_SCOPES):
+        if not (rel.startswith(NAMING_PY_SCOPES) or "/" not in rel):
             continue
         yield rel, path
 
@@ -1529,6 +1654,8 @@ def r_047_doc_names(root: Path, allowed):
         return []
     out = []
     for path in sorted(docs.glob("*.md")):
+        if path.name == "README.md":
+            continue
         if not re.fullmatch(r"[A-Z0-9_]+\.md", path.name):
             out.append(Finding("R-047", path.relative_to(root).as_posix(), 0,
                                "top-level doc must be UPPER_SNAKE.md"))
@@ -1605,6 +1732,42 @@ def r_048_parameter_abbreviations(root: Path, allowed):
     return out
 
 
+def r_053_directory_names(root: Path, allowed):
+    """Directory names: code directories snake_case, skill directories kebab-case.
+
+    A skill directory must also hold `SKILL.md`; a kebab-named directory without
+    it is invisible to the loader, which is the failure this catches. Nested
+    directories inside a skill are not skills and are left alone.
+    """
+    out = []
+    for dirpath, dirnames, _ in os.walk(root, followlinks=False):
+        dirnames[:] = [d for d in dirnames if d not in PRUNE_DIRS]
+        for name in list(dirnames):
+            directory = Path(dirpath) / name
+            try:
+                rel = directory.relative_to(root).as_posix() + "/"
+            except ValueError:
+                continue
+            if rel.startswith(NAMING_EXEMPT_PREFIXES):
+                continue
+            if rel.startswith(SKILL_DIR_PREFIX):
+                tail = rel[len(SKILL_DIR_PREFIX):].rstrip("/")
+                if not tail or "/" in tail:
+                    continue  # the prefix itself, or a nested helper directory
+                if not _KEBAB_DIR_RE.fullmatch(name):
+                    out.append(Finding("R-053", rel, 0,
+                                       f"skill directory {name!r} is not kebab-case"))
+                if not (directory / "SKILL.md").is_file():
+                    out.append(Finding("R-053", rel, 0, "skill directory has no SKILL.md"))
+                continue
+            if not rel.startswith(DIR_NAME_SCOPES):
+                continue
+            if not _SNAKE_DIR_RE.fullmatch(name):
+                out.append(Finding("R-053", rel, 0,
+                                   f"directory name {name!r} is not snake_case"))
+    return out
+
+
 RULES = {
     "R-001": ("新数据输出必须排他创建，禁止截断写入", r_001_exclusive_outputs),
     "R-002": ("归档快照只读", r_002_archival_readonly),
@@ -1651,6 +1814,9 @@ RULES = {
     "R-046": ("配置 snake_case.yaml / workflow kebab-case.yml", r_046_config_and_workflow_names),
     "R-047": ("文档顶层 UPPER_SNAKE、子目录 kebab-case", r_047_doc_names),
     "R-048": ("参数名缩写（C 类目标态，报告）", r_048_parameter_abbreviations),
+    "R-051": (f"单文件行数硬上限 {FILE_LOC_HARD_MAX}（阻断）", r_051_file_length_hard_cap),
+    "R-052": (f"函数体长度硬上限 {FUNC_BODY_HARD_MAX}（阻断）", r_052_function_length_hard_cap),
+    "R-053": ("目录命名：代码目录 snake_case、skill 目录 kebab-case 且含 SKILL.md", r_053_directory_names),
 }
 
 # Every rule is scoped to tracked content, uniformly: no hand-maintained subset

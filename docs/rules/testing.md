@@ -2,9 +2,9 @@
 
 范围：`tests/**`、`pytest.ini`。
 
-现状基线（实测，2026-09-29 回执 profile、简报同步与 workflow 漂移试点）：107 个测试文件、**811 个测试函数、2009 个断言**、
+现状基线（实测，2026-09-29 规模与命名硬上限、提交闸门空白检查）：108 个测试文件、**827 个测试函数、2046 个断言**、
 117 处 `parametrize`、2 处 `skipif`、0 处 `xfail`、0 处被注释掉的断言、0 处 TODO/FIXME。
-其中 811/2009 是 R-009 使用的稳定基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
+其中 827/2046 是 R-009 使用的稳定基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
 的 `TEST_FUNCTION_BASELINE` / `ASSERT_BASELINE`** 并在 CHANGELOG 说明原因。测试文件数与参数化计数是当前观测值，
 不单独构成门禁。
 

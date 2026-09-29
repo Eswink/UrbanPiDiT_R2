@@ -27,6 +27,9 @@
 - 批量实验**必须**在训练开始前把协议写入 `protocol.json`，并在结果中记录其 digest。
 - 实验产物**必须**带 `scientific_claim: false`（或等价显式标志），并如实记录 `limitations`。
 - 结论**必须**可追溯到运行记录与产物 digest；无法证明逐位一致时，**必须**写明可复现等级。
+- 新增代码受**规模与命名硬上限**约束（决策 0022）：单文件 ≤600 行（R-051）、函数体 ≤200 行（R-052）、
+  代码目录 snake_case 且 skill 目录必须含 `SKILL.md`（R-053）。超限的既有文件以精确路径**冻结**在
+  清单里、**只许缩小**（拆到上限以下时测试会强制移出该条）；放宽阈值或新增例外必须另立决策记录。
 - 报告**必须**区分「已确认」与「推测」；未做的事写未做，禁止用「应该没问题」代替。
 - 外部信息**必须**经 `web-researcher` 子智能体取得（主链路的 `WebSearch`/`WebFetch` 被
   PreToolUse 闸门拒绝，R-049）；它不可用时降级为主链路 `curl` 并写明原因；引用必须带
@@ -105,7 +108,7 @@
 
 - 规则正文见 `docs/rules/`，每条含级别、范围、依据（E-xxx）、现状分类、执行方式、例外。
 - 机械可判定的规则由 `python tools/check_conventions.py` 检查（只读，标准库，纯 AST 判定）。
-  - 默认只跑**阻断规则**（A/B 类，当前 34 条）：失败即代表违反契约。
+  - 默认只跑**阻断规则**（A/B 类，当前 37 条）：失败即代表违反契约。
   - `--report` 追加**C 类目标态与趋势**规则的报告，仅供参考，不阻断。
   - 自测（含"故意违规必须报错"的反证与结构性防回归）在 `tests/test_check_conventions.py`。
 - 接入状态：已在 CI 中生效——`.github/workflows/ci.yml` 的 **Check repository conventions** 步骤。
@@ -124,7 +127,7 @@
 | PreToolUse | `guard_web_research_route.py` | **拒绝**主链路的 `WebSearch`/`WebFetch`（R-049，决策 0018）：拒绝文案给出替代路径（委派 `web-researcher`；不可用时 `curl` 降级）。`sess_subagent_` 前缀放行（防自锁）；Bash 不受影响 |
 | PostToolUse | `check_model_digest_impact.py` | **提示**（不阻断）：改了 `model/**.py` 会改变 `model_code_sha256`，需标记 `[model-digest-change]` |
 | PostToolUse | `note_external_fetch.py` | **提示**（不阻断）：`curl`/`wget` 出现外部 URL 时提醒按 R-050 记录 URL / 访问日期 / 失败原因 |
-| Stop | `tools/check_conventions.py --quiet` | 收尾时跑 34 条阻断规则，有违规则要求先处理 |
+| Stop | `tools/check_conventions.py --quiet` | 收尾时跑 37 条阻断规则，有违规则要求先处理 |
 
 边界与开关：
 
@@ -139,7 +142,7 @@
 - **阻断判定按已跟踪集合计**：命中对象"自身及其下都无已跟踪内容"时**照常打印但不计失败**，
   于是「本地阻断失败」⟺「提交树上有违规」（`git add` 之后立刻恢复阻断）；git 回答不出来时不宽容。
 - 保护清单从 `tools/check_conventions.py` 的 `ARCHIVAL_PREFIXES` **推导**，不另造平行清单；
-  `tests/test_agent_hooks.py`（191 个用例，含"审计发现的绕过"反证）断言两者不会漂移。
+  `tests/test_agent_hooks.py`（196 个用例，含"审计发现的绕过"反证）断言两者不会漂移。
 - Stop hook 会**重复** CI 已有的检查。这是刻意的（本地收尾前就知道结果），不是替代 CI。
 - **提交闸门是新增的"会拒绝"项**：它拦的是"这条提交会让 CI 变红"，被判路径与失败规则都会打印。
   配置在**会话启动时读取**，新增条目要**重启会话**才生效（脚本级修改即时生效）。

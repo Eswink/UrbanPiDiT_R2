@@ -298,11 +298,22 @@
 | E-189 | 首次真实 v1.1 回执在 CI 上生成并**通过严格校验**：`R7 real offline multiseed CPU study` run `36549248954`（commit `b967fc1`）第 8 步 "Build and validate verification receipt" 成功——builder 写盘前自校验与 `--require-success` 校验器同时通过（source bytes、protocol 源摘要、source receipt digest/字节数、data/code identity 全部一致）。产物含 `verification_receipt.json`，留存 30 天；未下载核对（匿名 API 无 artifact 下载权限） | `/repos/Eswink/UrbanPiDiT_R2/actions/runs/36549248954/jobs`，访问日期 2026-09-29 | 单点 | 已确认 |
 | E-190 | 同一提交的主门禁 `R7 CPU CI` run `36549248794` 在第 7 步失败：`git show --check` 报 `docs/R7_CANDIDATE_BRIEF.md:120: new blank line at EOF`（生成器规范文本已以换行结尾，导出又追加一个）；修复提交 `bf96ea8` 的 run `36549905342` 八步全绿。**教训**：`git diff --check` 看不到未跟踪文件，且本地提交前 guard 不检查空白——新文件提交前应跑 `git diff --cached --check` | `/repos/Eswink/UrbanPiDiT_R2/actions/runs/36549248794/jobs` 与 `…/36549905342/jobs`，访问日期 2026-09-29 | 单点 | 已确认 |
 
+## 第七遍（2026-09-29）：规模与命名的全面测量、范围缺口与文档漂移
+
+为决策 0022 取证：在给文件行数、函数长度与命名加硬上限之前，先量分布、再查范围、再核对文档。
+三条都是只读测量（`tools/check_conventions.py --report` 与 AST 复算）。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-191 | 规模分布实测（尺寸族范围 `SIZE_SCOPES` = `data/ model/ training/ scripts/ tests/ tools/` 加仓库根级模块；295 个 `.py`、49,148 行）：**文件** p50=101 / p90=343 / p95=580 / p99=946 / 最大 1,834，>400: 24、>600: 13、>800: 5、>1000: 3；**函数**（2,127 个）p50=10 / p95=58 / p99=128 / 最大 245，>100: 39、>150: 14、>200: 5；**行长**（49,148 行）p50=46 / p95=89 / p99=106 / 最大 198，>120: 169、>200: 0；**嵌套** p99=5 / 最大 9，>5: 18；**参数**（2,052 个非构造器函数）p99=8 / 最大 24，>8: 15。R-051 取 600（p95 与 p99 之间）、R-052 取 200（p99 与最大值之间） | AST 全量复算 + `--report`，口径见 `docs/rules/size-thresholds.md` | 全体扫描 | 已确认 |
+| E-192 | 命名范围缺口实测：**(a)** `NAMING_PY_SCOPES` 不含仓库根级 8 个模块（`train.py`、`calibrate_r7_local.py`、`diagnose_r7_gain.py`、`evaluate_r7_local.py`、`prepare_r7_local.py`、`profile_r7_inference.py`、`train_r7_local.py`、`tune_r7_halting.py`），纳入后 295/295 仍 0 违规；**(b)** 目录名此前只被 R-043 的杂物桶词表扫到，实测 16 个代码目录 + 11 个 skill 目录全部合规（R-053 零改名落地）；**(c)** R-043 文档把范围写到 `configs/`、`docs/`、workflow 与根目录文件，实现只扫活跃 `.py`——扩到非 `.py` 会命中 3 个**版本名**（`configs/r2_v6_v100.yaml`、`docs/UPGRADE_FROM_V531.md`、根级 `CHANGELOG_V6.md`），故选择把文档收窄到实现；**(d)** R-047 的顶层 `README.md` 豁免"文档有、实现无"（该文件今天不存在，属预防性修复）；**(e)** R-048 文档写 0 命中，实测 1（`tests/test_r7_multiseed_comparison.py:29` 的 `ckpt`） | AST 复算 + `git ls-files` + 逐目录核对 + 词表试跑 | 全体扫描 | 已确认 |
+| E-193 | 规模文档漂移：`size-thresholds.md` 曾写 R-021 命中 **0**（实测 21，范围补齐后 24）、R-020 写 **6**（实测 36→39）、R-022 写 10（实测 13→18）、R-023 写 11（实测 15）、R-019b 写 157（实测 169）。**两个根因**：一半是"这些数字此后没人核对"，一半是尺寸族范围不含 `tools/` 与根级模块——全仓最大的文件（1,741 行）对 R-021 不可见，"0 违规"里有一半是范围造成的。处置：范围补齐为 `SIZE_SCOPES`、全部数字重算、页内加 `<!-- measured: ... -->` 机器核对标记（`test_size_report_counts_match_the_checker` 重算比对） | 文档原文 vs `--report` 实测逐条对照 | 全体扫描 | 已确认 |
+
 ## 统计
 
-- 台账条目：**190** 条（E-001 – E-190；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2）。
-- 按覆盖度：全体扫描 137 条，抽样 17 条，单点 36 条。
-- 按置信度：已确认 189 条，推测 1 条，未知 0 条。
+- 台账条目：**193** 条（E-001 – E-193；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 3）。
+- 按覆盖度：全体扫描 140 条，抽样 17 条，单点 36 条。
+- 按置信度：已确认 192 条，推测 1 条，未知 0 条。
   （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
   E-187 已登记为 Q-013。）
 - 未列入凭据类条目：5 类凭据模式全部 0 命中，故无"疑似凭据点位"可报告。

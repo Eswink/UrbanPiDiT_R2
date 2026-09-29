@@ -80,7 +80,7 @@
 ### 本文件的强制机制（第二遍新增）
 
 `tools/check_conventions.py` 已接入 CI：`.github/workflows/ci.yml` 的
-`Check repository conventions` 步骤运行 **34 条阻断规则**（不含 R-009、R-027、R-030 等报告型，另有 6 条规则未机械化）。
+`Check repository conventions` 步骤运行 **37 条阻断规则**（不含 R-009、R-027、R-030 等报告型，另有 6 条规则未机械化）。
 
 `ci.yml:35-40` 原有步骤（第二遍已修正范围）：
 

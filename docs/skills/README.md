@@ -35,7 +35,7 @@ ZCode 的 skill 发现路径，模型会按 `description` 里的触发条件自�
 
 ## 相关的执行面
 
-- `tools/check_conventions.py` — 34 条阻断规则，已接入 CI 与 Stop hook。
+- `tools/check_conventions.py` — 37 条阻断规则，已接入 CI 与 Stop hook。
 - `tools/check_planner_plan.py` — planner 委派计划的 JSON 契约校验器（只读；保护前缀
   与 `check_conventions.ARCHIVAL_PREFIXES` 同源，有防漂移测试），见 `planner-delegation`。
 - `tools/check_goal_brief.py` — goal 长文的结构校检器（只读、**非阻断**：未接入 Stop hook

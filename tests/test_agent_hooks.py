@@ -526,18 +526,31 @@ def test_digest_notice_is_silent_when_not_applicable(digest_notice, monkeypatch,
 
 VIOLATING_MODULE = "def f():\n    return 1\n"          # no postponed annotations
 CONFORMING_MODULE = "from __future__ import annotations\n\n\ndef f():\n    return 1\n"
+TRAILING_SPACE_MODULE = "from __future__ import annotations\nX = 1   \n"
+
+
+def _git(cwd: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True)
 
 
 def _commit_repo(tmp_path: Path, text: str, *segments: str) -> Path:
     """A throwaway checkout with one staged file at the named path."""
-    subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True,
-                   capture_output=True)
+    _git(tmp_path, "init", "-q")
     target = tmp_path.joinpath(*segments)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, encoding="utf-8")
-    subprocess.run(["git", "add", "/".join(segments)], cwd=str(tmp_path), check=True,
-                   capture_output=True)
+    _git(tmp_path, "add", "/".join(segments))
     return target
+
+
+def _repo_with_history(tmp_path: Path) -> None:
+    """A checkout with one commit, so `git diff --check HEAD` has a parent."""
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "config", "user.email", "guard@example.invalid")
+    _git(tmp_path, "config", "user.name", "guard")
+    (tmp_path / "README.md").write_text("# scratch\n", encoding="utf-8")
+    _git(tmp_path, "add", "README.md")
+    _git(tmp_path, "commit", "-qm", "init")
 
 
 @pytest.fixture(scope="module")
@@ -550,10 +563,10 @@ def test_a_staged_violation_refuses_the_commit(commit_guard, monkeypatch, tmp_pa
     monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
     verdict = commit_guard.evaluate(bash("git commit -m 'probe'"))
     assert verdict is not None, "a commit whose content fails CI must be refused"
-    root, output, paths = verdict
+    root, output, paths, whitespace = verdict
     assert paths == ["scripts/probe.py"], paths
     assert "R-017" in output, output
-    assert "CI" in commit_guard._reason(root, output, paths)
+    assert "CI" in commit_guard._reason(root, output, paths, whitespace)
 
 
 def test_a_clean_staged_tree_commits(commit_guard, monkeypatch, tmp_path):
@@ -623,10 +636,88 @@ def test_the_gate_names_the_failing_rule_and_the_paths(commit_guard):
     """The refusal has to be actionable: which rule, which files, and why it matters."""
     reason = commit_guard._reason(Path("/tmp/checkout"),
                                   "R-017   FAIL    hits=   1  postponed annotations",
-                                  ["scripts/probe.py", "docs/x.md"])
+                                  ["scripts/probe.py", "docs/x.md"], [])
     assert "R-017" in reason
     assert "scripts/probe.py" in reason
     assert "CI" in reason
+
+
+# ---------------------------------------------------------------- whitespace half
+#
+# CI runs `git show --check --format= HEAD`, and a commit that added one blank line
+# at the end of a document turned the build red (E-190). The gate asks the same
+# question before the commit exists: added lines against HEAD, plus whole-file
+# checks for paths git does not track yet.
+
+def test_added_trailing_whitespace_refuses_the_commit(commit_guard, monkeypatch, tmp_path):
+    _repo_with_history(tmp_path)
+    target = tmp_path / "scripts" / "probe.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(TRAILING_SPACE_MODULE, encoding="utf-8")
+    _git(tmp_path, "add", "scripts/probe.py")
+    monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
+    verdict = commit_guard.evaluate(bash("git commit -m 'probe'"))
+    assert verdict is not None, "an added trailing space would fail CI"
+    root, output, paths, whitespace = verdict
+    assert any("scripts/probe.py:2" in item and "whitespace" in item for item in whitespace), whitespace
+    assert "whitespace" in commit_guard._reason(root, output, paths, whitespace)
+
+
+def test_a_blank_line_at_eof_refuses_the_commit(commit_guard, monkeypatch, tmp_path):
+    """The exact shape of E-190: a document that grew one blank line at the end."""
+    _repo_with_history(tmp_path)
+    target = tmp_path / "docs" / "NOTE.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("# note\n\nbody\n\n", encoding="utf-8")
+    _git(tmp_path, "add", "docs/NOTE.md")
+    monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
+    verdict = commit_guard.evaluate(bash("git commit -m 'note'"))
+    assert verdict is not None, "a new blank line at EOF would fail CI"
+    assert any("blank line at EOF" in item for item in verdict[3]), verdict[3]
+
+
+def test_pre_existing_whitespace_outside_the_change_does_not_block(commit_guard, monkeypatch,
+                                                                   tmp_path):
+    """Parity, not extra strictness: CI checks added lines, so only those are judged."""
+    _repo_with_history(tmp_path)
+    target = tmp_path / "scripts" / "keep.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(TRAILING_SPACE_MODULE, encoding="utf-8")
+    _git(tmp_path, "add", "scripts/keep.py")
+    _git(tmp_path, "commit", "-qm", "keep")
+    target.write_text(TRAILING_SPACE_MODULE + "Y = 2\n", encoding="utf-8")
+    _git(tmp_path, "add", "scripts/keep.py")
+    monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
+    assert commit_guard.evaluate(bash("git commit -m 'grow'")) is None, (
+        "the whitespace on line 2 is already committed; only added lines are judged")
+
+
+def test_whitespace_in_an_untracked_file_staged_by_this_command(commit_guard, monkeypatch,
+                                                                tmp_path):
+    """`git add X && git commit` reaches the hook before X is staged, let alone tracked."""
+    _repo_with_history(tmp_path)
+    target = tmp_path / "scripts" / "fresh.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(TRAILING_SPACE_MODULE, encoding="utf-8")
+    monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
+    verdict = commit_guard.evaluate(
+        bash("git add scripts/fresh.py && git commit -m 'fresh'"))
+    assert verdict is not None, "a new file with trailing whitespace must be refused"
+    assert any("fresh.py" in item for item in verdict[3]), verdict[3]
+
+
+def test_the_whitespace_half_fails_open_on_its_own(commit_guard, monkeypatch, tmp_path,
+                                                   capsys):
+    """A broken whitespace check must not block an otherwise conforming commit."""
+    _commit_repo(tmp_path, CONFORMING_MODULE, "scripts", "probe.py")
+    monkeypatch.setattr(commit_guard, "repo_root", lambda declared=None: tmp_path)
+
+    def explode(root, paths):
+        raise RuntimeError("git unavailable")
+
+    monkeypatch.setattr(commit_guard, "whitespace_findings", explode)
+    assert commit_guard.evaluate(bash("git commit -m 'probe'")) is None
+    assert "git unavailable" in capsys.readouterr().err
 
 
 # ------------------------------------------ external-research route (0018, R-049)

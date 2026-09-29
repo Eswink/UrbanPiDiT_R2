@@ -1,5 +1,12 @@
 """PreToolUse guard: a commit that would turn CI red is refused at the commit.
 
+Two CI failures are caught here, both from the same `ci.yml` job:
+
+  * the blocking convention rules (`Check repository conventions`);
+  * the whitespace check (`git show --check --format= HEAD`), which failed once
+    on a commit that added a trailing blank line to a document (E-190). A local
+    gate that cannot see this is why the lesson had to be learned in CI.
+
 Why this exists. The convention gate ran only in two places before this hook: CI
 (after the push) and the Stop hook (at the end of a turn, advisory and fail-open).
 Neither one sits between `git add` and `git commit`, so a blocking violation could
@@ -20,6 +27,12 @@ An operand that names a directory, or a whole-tree form (``git add -A``, ``git a
 stage set cannot be enumerated. An operand that cannot be represented safely as a
 path (a shell metacharacter, or a leading ``-`` that would read as a flag) also falls
 back to the whole tree.
+
+Whitespace is judged with git's own check, against HEAD rather than against the
+index, for the same reason the operand list exists: the hook runs *before* the
+``git add`` in the same command line, so the index does not hold the new content
+yet. A path git does not track has no HEAD side to diff against and is checked as
+a whole file (every line of it is an added line).
 
 How it runs: the gate is *imported* and called in-process, so no path from a command
 line is ever handed to a shell or to another program. The only subprocess calls are
@@ -223,8 +236,70 @@ def run_checker(root: Path, paths: "list[str] | None") -> "tuple[int, str]":
     return int(code), captured.getvalue()
 
 
-def evaluate(input_data: dict) -> "tuple[Path, str, list[str]] | None":
-    """Return (root, checker output, paths) when the commit must be refused."""
+# git's own whitespace report: "<path>:<line>: <message>". Used instead of a
+# hand-written scan so the verdict cannot drift from `git show --check`.
+_CHECK_LINE = re.compile(r"^(?P<path>.+?):(?P<line>\d+): (?P<message>\S.*)$")
+
+
+def _git_output(root: Path, *args: str) -> "tuple[int, str, str]":
+    completed = subprocess.run(["git", *args], cwd=str(root),
+                               capture_output=True, text=True, timeout=60)
+    return completed.returncode, completed.stdout, completed.stderr
+
+
+def _parse_check(stdout: str, scope: "list[str] | None") -> list[str]:
+    """Whitespace findings, normalised to the repository-relative path.
+
+    ``git diff --no-index /dev/null X`` reports ``X`` itself while the index diff
+    reports the plain path; both end with the path this guard asked about, so the
+    scope is what the report is matched against.
+    """
+    out = []
+    for line in stdout.splitlines():
+        match = _CHECK_LINE.match(line.strip())
+        if not match:
+            continue
+        reported = match.group("path").lstrip("./")
+        if scope is not None:
+            match_in_scope = next((rel for rel in scope
+                                   if reported == rel or reported.endswith("/" + rel)), None)
+            if match_in_scope is None:
+                continue
+            reported = match_in_scope
+        out.append(f"{reported}:{match.group('line')}: {match.group('message')}")
+    return out
+
+
+def whitespace_findings(root: Path, paths: "list[str] | None") -> list[str]:
+    """What `git show --check` would say about this commit, before it exists.
+
+    Against HEAD, not the index: the hook runs before the ``git add`` on the same
+    command line. A path git does not track yet is diffed whole against /dev/null,
+    because every line of it will be an added line.
+    """
+    scope = list(paths) if paths is not None else None
+    args = ["diff", "--check", "HEAD"]
+    if scope:
+        args += ["--", *scope]
+    code, stdout, stderr = _git_output(root, *args)
+    if code >= 128:
+        raise RuntimeError(f"git {' '.join(args[:3])} failed: {stderr.strip()}")
+    out = _parse_check(stdout, scope)
+    if scope:
+        others = sorted(name for name in git(root, "ls-files", "--others",
+                                             "--exclude-standard", "-z", "--", *scope)
+                        if name)
+        for rel in others:
+            if not (root / rel).is_file():
+                continue
+            _, stdout, _ = _git_output(root, "diff", "--no-index", "--check",
+                                       os.devnull, rel)
+            out.extend(_parse_check(stdout, [rel]))
+    return out
+
+
+def evaluate(input_data: dict) -> "tuple[Path, str, list[str], list[str]] | None":
+    """Return (root, checker output, paths, whitespace findings) to refuse a commit."""
     if (input_data.get("tool_name") or "") != "Bash":
         return None
     tool_input = input_data.get("tool_input") or {}
@@ -244,24 +319,40 @@ def evaluate(input_data: dict) -> "tuple[Path, str, list[str]] | None":
         print(f"guard_conventions_before_commit: could not run the gate ({exc}); "
               f"allowing the commit", file=sys.stderr)
         return None
-    if code == 0:
+    try:
+        whitespace = whitespace_findings(root, paths)
+    except Exception as exc:  # fail open on this half only
+        print(f"guard_conventions_before_commit: could not check whitespace ({exc}); "
+              f"judging the convention rules only", file=sys.stderr)
+        whitespace = []
+    if code == 0 and not whitespace:
         return None
-    return root, output, paths if paths is not None else ["<whole tree>"]
+    return root, output, paths if paths is not None else ["<whole tree>"], whitespace
 
 
-def _reason(root: Path, output: str, paths: list[str]) -> str:
+def _reason(root: Path, output: str, paths: list[str], whitespace: list[str]) -> str:
     failing = [line.strip() for line in output.splitlines() if "FAIL" in line]
     detail = "\n".join(f"  {line}" for line in failing[:10])
+    sections = []
+    if detail:
+        sections.append("the blocking convention rules fail for the content this "
+                        "commit would contain:\n" + detail)
+    if whitespace:
+        shown = "\n".join(f"  {item}" for item in whitespace[:10])
+        sections.append("git's whitespace check fails on these added lines\n"
+                        "(ci.yml runs `git show --check --format= HEAD`; see E-190):\n"
+                        + shown)
+    body = "\n\n".join(sections) or "  see the checker output below"
     return (
-        "BLOCKED (pre-commit gate, decision 0017): the blocking convention rules fail\n"
-        f"for the content this commit would contain ({root}):\n"
-        f"{detail or '  see the checker output below'}\n"
+        "BLOCKED (pre-commit gate, decision 0017): this commit would turn CI red\n"
+        f"({root}):\n{body}\n"
         f"\nJudged paths: {', '.join(paths[:12])}"
         f"{' …' if len(paths) > 12 else ''}\n"
-        "\nThe same rules run in CI (ci.yml -> 'Check repository conventions'), so this\n"
-        "commit would have turned CI red. Fix the named files, or commit without them.\n"
-        "If the rule itself is wrong, that is a decision to record and make deliberately\n"
-        "(docs/rules/CHANGELOG.md + docs/decisions/), not something to commit past."
+        "\nThe same checks run in CI (ci.yml -> 'Check repository conventions', plus\n"
+        "the compileall/whitespace step), so this commit would have turned CI red.\n"
+        "Fix the named files, or commit without them. If the rule itself is wrong, that\n"
+        "is a decision to record and make deliberately (docs/rules/CHANGELOG.md +\n"
+        "docs/decisions/), not something to commit past."
     )
 
 
@@ -284,9 +375,10 @@ def main() -> int:
     if verdict is None:
         return 0
 
-    root, output, paths = verdict
-    print(_reason(root, output, paths), file=sys.stderr)
-    print(output[-4000:], file=sys.stderr)
+    root, output, paths, whitespace = verdict
+    print(_reason(root, output, paths, whitespace), file=sys.stderr)
+    if output.strip():
+        print(output[-4000:], file=sys.stderr)
     return 2
 
 

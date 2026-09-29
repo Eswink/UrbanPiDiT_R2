@@ -218,6 +218,147 @@ def test_synthetic_fallback_check_ignores_import_shim(checker, tmp_path):
     assert not run(checker, "R-008", tmp_path), "R-008 must not fire on an ImportError shim"
 
 
+# ------------------------------------------------------- R-051/R-052 size caps
+
+# Frozen snapshots of the two hard-cap exception lists. A change to either set
+# must be a deliberate edit of this file, so that "we added an exception" is
+# visible in review instead of slipping in with a rule tweak. The lists may only
+# shrink: the liveness assertions below fail when an entry stops exceeding the
+# cap, which forces the entry out.
+FROZEN_FILE_LOC_EXCEPTIONS = {
+    "scripts/bench_r7_ddp_smoke.py",
+    "scripts/study_r7_64_curriculum.py",
+    "scripts/study_r7_65_ablation.py",
+    "scripts/study_r7_71_72_round_three.py",
+    "scripts/study_r7_71_72_round_two.py",
+    "scripts/study_r7_71_72_spacetime_rwa.py",
+    "scripts/study_r7_b2_multiseed.py",
+    "scripts/study_r7_b3_scale.py",
+    "tests/test_agent_hooks.py",
+    "tests/test_check_conventions.py",
+    "tests/test_r7_coreasoning_compare.py",
+    "tools/check_conventions.py",
+    "training/r7_coreasoning_compare.py",
+}
+FROZEN_FUNC_BODY_EXCEPTIONS = {
+    ("scripts/study_r7_64_curriculum.py", "run_curriculum"),
+    ("scripts/study_r7_65_ablation.py", "run_phase"),
+    ("scripts/study_r7_b1_baselines.py", "run_study"),
+    ("scripts/study_r7_b2_multiseed.py", "run_phase"),
+    ("training/r7_scheduled_runner.py", "run_scheduled_updates"),
+}
+
+
+def _capped_file(root, lines: int, *segments: str):
+    """A fixture file whose line count is exactly ``lines``."""
+    body = FUTURE + "X = 1\n" * (lines - 1)
+    assert len(body.splitlines()) == lines, (lines, len(body.splitlines()))
+    return create_fixture(root, *segments, text=body)
+
+
+def test_r051_fires_above_the_hard_cap(checker, tmp_path):
+    _capped_file(tmp_path, checker.FILE_LOC_HARD_MAX + 1, "model", "big.py")
+    hits = run(checker, "R-051", tmp_path)
+    assert hits, "R-051 must fire on a file above the hard cap"
+    assert "hard cap" in hits[0].detail
+
+
+def test_r051_allows_a_file_exactly_at_the_cap(checker, tmp_path):
+    _capped_file(tmp_path, checker.FILE_LOC_HARD_MAX, "model", "edge.py")
+    assert not run(checker, "R-051", tmp_path), "the cap is inclusive: 600 lines is allowed"
+
+
+def test_r051_skips_a_listed_exception(checker, tmp_path, monkeypatch):
+    monkeypatch.setattr(checker, "FILE_LOC_EXCEPTIONS",
+                        checker.FILE_LOC_EXCEPTIONS | {"model/big.py"})
+    _capped_file(tmp_path, checker.FILE_LOC_HARD_MAX + 1, "model", "big.py")
+    assert not run(checker, "R-051", tmp_path), "a listed path must not be reported"
+
+
+def _capped_function(root, lines: int, name: str = "run_study"):
+    """A fixture module holding one function whose body is exactly ``lines``."""
+    body = (FUTURE + "\n\ndef " + name + "():\n" + "    pass\n" * (lines - 2)
+            + "    return 1\n")
+    span = None
+    for node in ast.walk(ast.parse(body)):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            span = node.end_lineno - node.lineno + 1
+    assert span == lines, f"fixture function spans {span} lines, expected {lines}"
+    create_fixture(root, "training", "r7_demo_study.py", text=body)
+
+
+def test_r052_fires_above_the_hard_cap(checker, tmp_path):
+    _capped_function(tmp_path, checker.FUNC_BODY_HARD_MAX + 1)
+    hits = run(checker, "R-052", tmp_path)
+    assert hits, "R-052 must fire on a function above the hard cap"
+    assert "run_study" in hits[0].detail
+
+
+def test_r052_allows_a_function_exactly_at_the_cap(checker, tmp_path):
+    _capped_function(tmp_path, checker.FUNC_BODY_HARD_MAX)
+    assert not run(checker, "R-052", tmp_path), "the cap is inclusive: 200 lines is allowed"
+
+
+def test_r052_skips_a_listed_exception(checker, tmp_path, monkeypatch):
+    monkeypatch.setattr(checker, "FUNC_BODY_EXCEPTIONS",
+                        checker.FUNC_BODY_EXCEPTIONS | {("training/r7_demo_study.py", "run_study")})
+    _capped_function(tmp_path, checker.FUNC_BODY_HARD_MAX + 1)
+    assert not run(checker, "R-052", tmp_path), "a listed (path, function) pair must not be reported"
+
+
+def test_size_exception_lists_are_frozen_exact_and_alive(checker):
+    """The frozen lists may only shrink, and every entry must still be real.
+
+    Liveness is the ratchet: an entry that no longer exceeds the cap is dead
+    weight that would silently grandfather a future regression, so the test
+    fails and the entry has to go.
+    """
+    assert checker.FILE_LOC_EXCEPTIONS == FROZEN_FILE_LOC_EXCEPTIONS
+    assert checker.FUNC_BODY_EXCEPTIONS == FROZEN_FUNC_BODY_EXCEPTIONS
+    for rel in sorted(checker.FILE_LOC_EXCEPTIONS):
+        assert "*" not in rel and not rel.endswith("/"), rel
+        path = ROOT / rel
+        assert path.is_file(), f"exception is not a file: {rel}"
+        lines = len(path.read_text(encoding="utf-8").splitlines())
+        assert lines > checker.FILE_LOC_HARD_MAX, (
+            f"{rel} is {lines} lines: below the cap, so the exception must be removed")
+    for rel, name in sorted(checker.FUNC_BODY_EXCEPTIONS):
+        tree = ast.parse((ROOT / rel).read_text(encoding="utf-8"))
+        matches = [node for node in ast.walk(tree)
+                   if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                   and node.name == name]
+        assert len(matches) == 1, f"{rel}::{name} matches {len(matches)} functions"
+        node = matches[0]
+        length = node.end_lineno - node.lineno + 1
+        assert length > checker.FUNC_BODY_HARD_MAX, (
+            f"{rel}::{name} is {length} lines: below the cap, so the exception must be removed")
+
+
+def test_size_hard_caps_match_their_documentation(checker):
+    """The documented caps are the implemented ones, not a number typed twice."""
+    doc = (ROOT / "docs" / "rules" / "size-thresholds.md").read_text(encoding="utf-8")
+    assert f"硬上限 **{checker.FILE_LOC_HARD_MAX}** 行" in doc, "R-051 cap not documented"
+    assert f"硬上限 **{checker.FUNC_BODY_HARD_MAX}** 行" in doc, "R-052 cap not documented"
+
+
+def test_size_report_counts_match_the_checker(checker):
+    """The measured column in size-thresholds.md is the checker's own output.
+
+    This is the anti-drift guard for the defect that motivated R-051: the page
+    claimed R-021 had 0 hits while the checker was reporting 21, and nothing
+    compared the two.
+    """
+    doc = (ROOT / "docs" / "rules" / "size-thresholds.md").read_text(encoding="utf-8")
+    marker = re.search(r"<!-- measured: ([^>]*?)-->", doc)
+    assert marker, "size-thresholds.md must carry a '<!-- measured: ... -->' marker"
+    recorded = dict(item.split("=") for item in marker.group(1).split())
+    assert recorded, "the measured marker is empty"
+    for rule, value in recorded.items():
+        hits = [hit for hit in run(checker, rule, ROOT) if not hit.tolerated]
+        assert int(value) == len(hits), (
+            f"{rule}: size-thresholds.md says {value}, the checker reports {len(hits)}")
+
+
 # --------------------------------------------------------------------------- negative control
 
 def test_clean_tree_passes_blocking_rules(checker, tmp_path):
@@ -282,19 +423,19 @@ def test_blocking_and_report_groups_are_disjoint(checker):
 
 def test_rule_execution_counts_match_docs(checker):
     """The executable rule groups and their documented counts must stay aligned."""
-    assert len(checker.BLOCKING_RULES) == 34
+    assert len(checker.BLOCKING_RULES) == 37
     assert len(checker.REPORT_RULES) == 11
     assert len(checker.RULES_NOT_MECHANISED) == 6
-    assert len(checker.RULES) + len(checker.RULES_NOT_MECHANISED) == 51
+    assert len(checker.RULES) + len(checker.RULES_NOT_MECHANISED) == 54
     assert not (set(checker.BLOCKING_RULES) & set(checker.REPORT_RULES))
     assert not (set(checker.BLOCKING_RULES) & set(checker.RULES_NOT_MECHANISED))
     assert not (set(checker.REPORT_RULES) & set(checker.RULES_NOT_MECHANISED))
     migration = (ROOT / "docs" / "rules" / "MIGRATION.md").read_text(encoding="utf-8")
     ci_rules = (ROOT / "docs" / "rules" / "ci-and-verification.md").read_text(encoding="utf-8")
-    assert "（**34 条**，实测" in migration
-    assert "34 条阻断规则" in ci_rules
+    assert "（**37 条**，实测" in migration
+    assert "37 条阻断规则" in ci_rules
     assert "20 条阻断" not in ci_rules
-    assert "811/2009" in migration
+    assert "827/2046" in migration
 
 
 def test_pytest_marker_contract_matches_documentation():
@@ -532,6 +673,20 @@ def test_r037_reports_unknown_without_git(checker, tmp_path):
     assert hits and "UNKNOWN" in hits[0].detail
 
 
+def test_r037_treats_declared_commit_content_as_tracked(checker, tmp_path):
+    """`git add X && git commit` reaches the guard before X is in the index.
+
+    CI checks out the commit, where the asset *is* tracked, so refusing here would
+    be a local-only red light - the one thing decision 0017 exists to prevent.
+    """
+    _init_repo(tmp_path)
+    create_fixture(tmp_path, ".zcode", "config.json", text="{}\n")
+    with checker.judge_as_committed([".zcode/config.json"]):
+        hits = run(checker, "R-037", tmp_path)
+    assert not [h for h in hits if h.path == ".zcode/config.json"], (
+        "a path declared as commit content must be judged as tracked")
+
+
 def test_r037_passes_on_the_real_repository(checker):
     """Tracked governance assets must pass; untracked worktree assets stay visible but tolerated."""
     hits = [h for h in run(checker, "R-037", ROOT)
@@ -579,6 +734,14 @@ NAMING_DENY_CASES = [
      "R-047 must fire on a docs/rules name that is neither UPPER_SNAKE nor kebab-case"),
     ("R-047", ("docs", "plans", "1-not-padded.md"), "# doc\n",
      "R-047 must fire when docs/plans numbering is not 4 digits"),
+    ("R-053", ("model", "BadDir", "thing.py"), FUTURE + "X = 1\n",
+     "R-053 must fire on a non-snake code directory"),
+    ("R-053", (".agents", "skills", "Bad_Skill", "SKILL.md"), "# skill\n",
+     "R-053 must fire on a non-kebab skill directory"),
+    ("R-053", (".agents", "skills", "some-skill", "notes.md"), "# notes\n",
+     "R-053 must fire on a skill directory without SKILL.md"),
+    ("R-038", ("CamelRoot.py",), FUTURE + "X = 1\n",
+     "R-038 must fire on a non-snake root-level module"),
 ]
 
 
@@ -614,6 +777,16 @@ NAMING_ALLOW_CASES = [
      "docs/plans uses NNNN-kebab-case"),
     ("R-047", ("docs", "decisions", "README.md"), "# index\n",
      "README.md is exempt everywhere"),
+    ("R-047", ("docs", "README.md"), "# index\n",
+     "the top-level README.md is exempt too, exactly as documented"),
+    ("R-053", ("model", "layers", "thing.py"), FUTURE + "X = 1\n",
+     "nested snake_case code directories are allowed"),
+    ("R-053", (".agents", "skills", "some-skill", "SKILL.md"), "# skill\n",
+     "a kebab-case skill directory carrying SKILL.md is the conforming shape"),
+    ("R-053", ("data", "download", "grab.py"), FUTURE + "X = 1\n",
+     "the rule judges directories, so a file's own name must not trigger it"),
+    ("R-038", ("train.py",), FUTURE + "X = 1\n",
+     "root-level entry modules are judged by the same snake_case rule"),
 ]
 
 
@@ -647,13 +820,24 @@ def test_r048_stays_quiet_on_clear_names(checker, tmp_path):
         "domain abbreviations and multi-word names must not be reported")
 
 
+def test_r053_is_documented_and_blocking(checker):
+    """A new blocking rule must be documented, and the page must name its scope."""
+    doc = (ROOT / "docs" / "rules" / "naming.md").read_text(encoding="utf-8")
+    assert "R-053" in checker.BLOCKING_RULES
+    assert "## R-053" in doc, "R-053 must have its own section in docs/rules/naming.md"
+    assert "SKILL.md" in doc, "the skill-directory requirement must be documented"
+    for prefix in checker.DIR_NAME_SCOPES:
+        assert f"`{prefix}`" in doc, f"documented scope is missing {prefix}"
+
+
 def test_naming_rules_pass_on_the_real_repository(checker):
     """Every naming rule must hold for the measured repository state."""
     failures = {}
     for rule in checker.BLOCKING_RULES:
         if not rule.startswith("R-03") and rule not in ("R-038", "R-039", "R-040",
                                                         "R-041", "R-042", "R-043",
-                                                        "R-044", "R-045", "R-046", "R-047"):
+                                                        "R-044", "R-045", "R-046", "R-047",
+                                                        "R-053"):
             continue
         hits = [h for h in run(checker, rule, ROOT) if not h.tolerated and "UNKNOWN" not in h.detail]
         if hits:
