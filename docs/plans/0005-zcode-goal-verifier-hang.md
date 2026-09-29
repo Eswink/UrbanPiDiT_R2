@@ -77,7 +77,8 @@ goal 会话 `sess_95da7dd5-…`（目标 `target_mumqbvg1_…`，长文 `docs/go
 
 CI：`R7 CPU CI` run **`36601602896`**（commit `26c23b2`）= **success**（八步含 37 条阻断规则、证据索引与
 候选 brief、离线编译与空白检查、全量 pytest；17 条实验 workflow 按 commit-message 标签门控 **skipped**，
-是设计行为、不算失败也不算通过）。
+是设计行为、不算失败也不算通过）。后续两个提交同样走这条门禁：`97bdab5` → run **`36602389932`** = success，
+`225046b`（本次重启与语义验证的记录）→ run **`36604969458`** = success。
 
 ### 遗留
 
