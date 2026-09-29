@@ -9,7 +9,9 @@ import torch
 from torch.nn import functional as F
 
 from model.process_forecast_r7 import ProcessForecastCoReasoner
-from model.recursive_weather_r7 import GenericRecursiveWeatherForecaster, solver_conditioning
+from model.process_step_r7 import ProcessStepOutput, process_reasoning_step
+from model.recursive_weather_r7 import (GenericRecursiveWeatherForecaster,
+    declared_source_roles, recurrent_key, solver_conditioning)
 from model.r7_halting import forecast_inputs
 from .r7_halting import per_sample_latitude_mse
 
@@ -55,29 +57,30 @@ def _validate(model, batch, steps, amp_dtype):
     return history.device.type
 
 
-def _recursive_step(model, state, context, draft, token_hw):
-    process_model = isinstance(model, ProcessForecastCoReasoner)
-    feedback = not process_model or model.use_forecast_feedback
-    recurrent_context = context
-    tokens = None
-    if feedback:
-        tokens, hw = model.draft_encoder(draft)
-        if tuple(hw) != tuple(token_hw):
-            raise ValueError("draft/context token grids differ")
-        recurrent_context = torch.cat([context, tokens], 1)
-    if process_model:
-        state = model._reason(state, recurrent_context)
-        prediction = model._process_prediction(state)
-        summary = model.process_conditioning(state, context, token_hw)
-    else:
-        state = model._cell(state, recurrent_context)
-        prediction = None
-        summary = model.latent_to_context(state.mean(1))
+def _recursive_step(model, state, context, draft, token_hw, *,
+                    solver_state=None, step_index: int = 0, anchor=None):
+    """One recurrent step, through the models' own single implementations.
+
+    The process branch calls ``process_reasoning_step``; the generic branch keeps
+    its own recurrence but assembles the cell key through the same helper, so the
+    concatenation (and any declared source roles) can only be written once.
+    """
+    if isinstance(model, ProcessForecastCoReasoner):
+        return process_reasoning_step(
+            model, state, context, draft, token_hw,
+            solver_state=solver_state, step_index=step_index, anchor=anchor)
+    tokens, hw = model.draft_encoder(draft)
+    if tuple(hw) != tuple(token_hw):
+        raise ValueError("draft/context token grids differ")
+    role_context, role_draft = declared_source_roles(model)
+    state = model._cell(state, recurrent_key(
+        context, tokens, role_context=role_context, role_draft=role_draft))
+    summary = model.latent_to_context(state.mean(1))
     conditioned = solver_conditioning(context, summary, tokens,
-        spatial_feedback=model.spatial_solver_feedback and feedback)
-    draft, _ = model.correction_head(
+        spatial_feedback=model.spatial_solver_feedback)
+    draft, correction = model.correction_head(
         conditioned, token_hw, draft.shape[-2:], draft)
-    return state, draft, prediction
+    return ProcessStepOutput(state, draft, correction, None, None)
 
 
 def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
@@ -126,13 +129,18 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
     draft = initial
     query = model.process_queries if isinstance(model, ProcessForecastCoReasoner) else model.latent
     state = query.expand(target.shape[0], -1, -1)
+    solver_state = None
     errors = []
     forecast_log, process_log = target.new_zeros(()), target.new_zeros(())
     for step in range(reasoning_steps + 1):
         prediction = None
         if step:
             with autocast():
-                state, draft, prediction = _recursive_step(model, state, context, draft, base.token_hw)
+                result = _recursive_step(model, state, context, draft, base.token_hw,
+                                         solver_state=solver_state, step_index=step - 1,
+                                         anchor=base.base_state)
+            state, draft, prediction = result.process, result.draft, result.prediction
+            solver_state = result.solver_state
         mse = per_sample_latitude_mse(draft, target, latitude).mean()
         ploss = target.new_zeros(())
         if step and process_target is not None:
@@ -147,6 +155,8 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
         process_log += ploss.detach()
         if step:  # preserve Y0 -> round 1 exactly as the existing truncated path
             state, draft = state.detach(), draft.detach()
+            if solver_state is not None:
+                solver_state = solver_state.detach()
         del term, mse, ploss, prediction
 
     roots, adjoints = [], []

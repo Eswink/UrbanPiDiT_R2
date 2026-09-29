@@ -15,6 +15,12 @@ class R7ForecastOutput:
     tendency:torch.Tensor
     context_tokens:torch.Tensor
     token_hw:tuple[int,int]
+    # The known state at the current physical time that ``forecast`` was decoded
+    # relative to. RW-B's proposal is anchored to this same tensor; re-deriving it
+    # at a call site ("the last history step, unless a baseline was supplied")
+    # would be a second definition of X_t, and a second definition of one quantity
+    # is how the step implementations drifted apart before.
+    base_state:torch.Tensor|None=None
 
 
 class NativeAtmosForecaster(nn.Module):
@@ -75,4 +81,4 @@ class NativeAtmosForecaster(nn.Module):
         if base is None:
             base=history[:,-1,:self.out_channels]
         forecast,tendency=self.head(context,token_hw,(H,W),base)
-        return R7ForecastOutput(forecast,tendency,context,token_hw)
+        return R7ForecastOutput(forecast,tendency,context,token_hw,base)

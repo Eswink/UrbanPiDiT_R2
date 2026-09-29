@@ -7,8 +7,11 @@ from torch import nn
 from torch.utils.checkpoint import checkpoint
 
 from .coarse_forecast import CoarseForecastHead
+from .local_solver_state_r7 import (SOLVER_INITIAL_SCALE, LocalSolverState, PositionGate)
 from .process_readout_r7 import PositionalProcessReadout
-from .recursive_weather_r7 import DraftTokenEncoder, GenericRecursiveCell, solver_conditioning
+from .process_step_r7 import ProcessStepOutput, process_reasoning_step
+from .recursive_weather_r7 import (ROLE_INITIAL_SCALE, DraftTokenEncoder,
+    GenericRecursiveCell, solver_conditioning)
 from .spacetime_conditioning_r7 import isolated_stream, require_field_mode
 from .weather_forecaster_r7 import NativeAtmosForecaster
 
@@ -24,6 +27,10 @@ class ProcessForecastReasoningOutput:
     context_tokens: torch.Tensor
     token_hw: tuple[int,int]
     reasoning_steps: int
+    # The RW-B per-position solver state after the last step, or None when the
+    # switch is off. It is returned rather than kept on the module so that a
+    # caller can thread it across physical transitions deliberately.
+    solver_state: Optional[torch.Tensor]=None
 
 
 class ProcessForecastCoReasoner(nn.Module):
@@ -70,18 +77,35 @@ class ProcessForecastCoReasoner(nn.Module):
         spacetime_field_mode:str='fields',
         positional_process_readout:bool=False,
         pooled_readout_query:bool=False,
+        source_role_markers:bool=False,
+        local_solver_state:bool=False,
     ):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
                            (spacetime_inputs,'spacetime_inputs'),
                            (positional_process_readout,'positional_process_readout'),
-                           (pooled_readout_query,'pooled_readout_query')):
+                           (pooled_readout_query,'pooled_readout_query'),
+                           (source_role_markers,'source_role_markers'),
+                           (local_solver_state,'local_solver_state')):
             if type(value) is not bool:
                 raise ValueError(f"{name} must be boolean")
         if pooled_readout_query and not positional_process_readout:
             raise ValueError("pooled_readout_query only exists inside the positional "
                              "process readout; turning it on without "
                              "positional_process_readout would be a silently ignored switch")
+        # RW-B's working state is updated from the per-position process read R_k
+        # and from the encoded draft; without either of those two inputs the
+        # recurrence would not be the one the design contract froze, so the
+        # combination is rejected instead of quietly substituting a pooled read
+        # or dropping a term.
+        if local_solver_state and not positional_process_readout:
+            raise ValueError("local_solver_state updates Z from the per-position read "
+                             "R_k; turning it on without positional_process_readout "
+                             "would silently substitute the pooled summary")
+        if local_solver_state and not use_forecast_feedback:
+            raise ValueError("local_solver_state updates Z from the encoded draft "
+                             "E(Y_k); turning it on with use_forecast_feedback=False "
+                             "would silently drop that term")
         self.spatial_solver_feedback=spatial_solver_feedback
         self.spacetime_inputs=spacetime_inputs
         # The capacity-control arms of the round-three study keep the space-time
@@ -94,6 +118,8 @@ class ProcessForecastCoReasoner(nn.Module):
                 "spacetime_inputs=True; with the pathway off it would be silently ignored")
         self.positional_process_readout=positional_process_readout
         self.pooled_readout_query=pooled_readout_query
+        self.source_role_markers=source_role_markers
+        self.local_solver_state=local_solver_state
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -163,6 +189,20 @@ class ProcessForecastCoReasoner(nn.Module):
             with isolated_stream():
                 self.process_reader=PositionalProcessReadout(
                     dim,heads,dropout,pooled_readout_query=self.pooled_readout_query)
+        # Both RW-B pathways are built last and under a rewound stream as well, so
+        # "off" is the previous implementation and not merely something close to it.
+        if self.source_role_markers:
+            with isolated_stream():
+                self.role_context=nn.Parameter(torch.randn(1,1,dim)*ROLE_INITIAL_SCALE)
+                self.role_draft=nn.Parameter(torch.randn(1,1,dim)*ROLE_INITIAL_SCALE)
+        if self.local_solver_state:
+            with isolated_stream():
+                self.solver_init=nn.Parameter(
+                    torch.randn(1,1,dim)*SOLVER_INITIAL_SCALE)
+                self.solver_cell=LocalSolverState(dim)
+                self.solver_gate=PositionGate(dim)
+                self.proposal_head=CoarseForecastHead(
+                    dim=dim,out_channels=self.out_channels,patch_size=patch_size)
 
     def process_conditioning(
         self,
@@ -242,44 +282,35 @@ class ProcessForecastCoReasoner(nn.Module):
         )
 
         process=self.process_queries.expand(B,-1,-1)
+        solver_state=None
         drafts=[draft]
         process_predictions=[]
         final_correction=torch.zeros_like(draft)
 
         for step in range(steps):
-            draft_tokens=None
-            if feedback_flag:
-                draft_tokens,draft_hw=self.draft_encoder(draft)
-                if tuple(draft_hw)!=tuple(token_hw):
-                    raise ValueError(
-                        f"draft token grid {draft_hw} != "
-                        f"context grid {token_hw}"
-                    )
-                recurrent_context=torch.cat(
-                    [context,draft_tokens],dim=1
-                )
-            else:
-                recurrent_context=context
-
-            process=self._reason(process,recurrent_context)
-            process_predictions.append(
-                self._process_prediction(process)
-            )
-
-            summary=self.process_conditioning(process,context,token_hw)
-            solver_context=solver_conditioning(context,summary,draft_tokens,
-                spatial_feedback=self.spatial_solver_feedback and feedback_flag)
-            draft,final_correction=self.correction_head(
-                solver_context,
-                token_hw,
-                output_hw,
+            result=process_reasoning_step(
+                self,
+                process,
+                context,
                 draft,
+                token_hw,
+                solver_state=solver_state,
+                step_index=step,
+                anchor=base.base_state,
+                use_forecast_feedback=feedback_flag,
             )
+            process=result.process
+            solver_state=result.solver_state
+            draft=result.draft
+            final_correction=result.correction
+            process_predictions.append(result.prediction)
             drafts.append(draft)
 
             if detach_flag and step < steps-1:
                 process=process.detach()
                 draft=draft.detach()
+                if solver_state is not None:
+                    solver_state=solver_state.detach()
 
         if process_predictions:
             process_trace=torch.stack(process_predictions,dim=1)
@@ -298,4 +329,5 @@ class ProcessForecastCoReasoner(nn.Module):
             context_tokens=context,
             token_hw=token_hw,
             reasoning_steps=steps,
+            solver_state=solver_state,
         )

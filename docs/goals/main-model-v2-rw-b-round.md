@@ -119,10 +119,15 @@ issue 评论落仓为草稿（API 写 401）。
 
 ## §8 进度块
 
-- **状态**：`not_started`（goal 模式尚未启动；本文件是提示词模板，2026-09-29 归档）
-- **已完成**：无（仅计划/设计/台账/决策归档，见 `docs/plans/0004-r7-main-model-v2.md`）
-- **未做**：D1–D7 全部；E0–E5 全部；RW-B、M3、M4、M5 实现全部未开始
-- **下一动作**：由用户人工审阅本文件与计划后，手动复制 §0 的 `/goal` 行启动 goal 模式；
-  启动后的第一个动作是 §4 第 1 步（fresh-read）与第 2 步（D1/E0 诊断）
+- **状态**：`active`（goal 已启动；执行者不自行宣布完成）
+- **已完成**：E0 两个预注册诊断（D1）——`docs/R7_E0_DIAGNOSTICS.md`、`docs/rules/EVIDENCE.md` 的
+  E-196/E-197、驱动 `scripts/study_r7_e0_{correction_replay,paired_stability}.py`、产物
+  `outputs/r7_e0_diagnostic/`（0 GPU-h，115 s CPU）。读数：读取**放大**修正幅度但不使其与误差反相关；
+  三轮 §13 的「t2m 72h 三 seed 同号」被推翻（seed42 反号），48h 那一段跨两轮复现。
+- **未做**：D2–D7 全部；RW-B、M3、M4、M5 实现全部未开始；D5 的真实 train/val 对照需按决策 0021
+  在执行那一刻取用户授权。
+- **下一动作**：D2/D3——新增 `model/local_solver_state_r7.py`（Z 局部门控更新 + 锚定 X_t 的提案 +
+  逐位置门控），把 `forward` / streamed / adaptive 三处收敛到一个共享 step，`local_solver_state`
+  默认关闭且与前实现逐位等价。
 
 每推进一步就更新本块（一行「已完成/未做/下一动作」），不要留给下一轮补写。

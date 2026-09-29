@@ -120,24 +120,20 @@ class AdaptiveProcessForecaster(nn.Module):
         process = self.forecaster.process_queries.expand(base.forecast.shape[0], -1, -1)
         return base, process
 
-    def reasoning_step(self, process, context, draft, token_hw):
-        """Exactly the fixed R7.3 recurrence; equivalence is regression-tested."""
-        model = self.forecaster
-        recurrent_context = context
-        draft_tokens = None
-        if model.use_forecast_feedback:
-            draft_tokens, draft_hw = model.draft_encoder(draft)
-            if tuple(draft_hw) != tuple(token_hw):
-                raise ValueError("draft/context token grids differ")
-            recurrent_context = torch.cat([context, draft_tokens], dim=1)
-        process = model._reason(process, recurrent_context)
-        prediction = model._process_prediction(process)
-        summary = model.process_conditioning(process, context, token_hw)
-        conditioned = solver_conditioning(context, summary, draft_tokens,
-            spatial_feedback=model.spatial_solver_feedback and model.use_forecast_feedback)
-        draft, correction = model.correction_head(
-            conditioned, token_hw, draft.shape[-2:], draft)
-        return process, draft, correction, prediction
+    def reasoning_step(self, process, context, draft, token_hw, *,
+                       solver_state=None, step_index: int = 0, anchor=None):
+        """One step of the fixed R7.3 recurrence, through its single implementation.
+
+        ``ProcessForecastCoReasoner``'s step used to be copied here; it is now
+        imported, so the adaptive path cannot drift from the fixed path (#72).
+        ``solver_state`` and ``anchor`` carry the RW-B working state ``Z`` and the
+        anchor ``X_t``; both are threaded by :meth:`forward` so an adaptive run
+        restarts neither.
+        """
+        from .process_step_r7 import process_reasoning_step
+        return process_reasoning_step(
+            self.forecaster, process, context, draft, token_hw,
+            solver_state=solver_state, step_index=step_index, anchor=anchor)
 
     @torch.no_grad()
     def forward(self, batch: Mapping[str, torch.Tensor], *, max_steps: int = 4,
@@ -157,6 +153,10 @@ class AdaptiveProcessForecaster(nn.Module):
         context, draft = base.context_tokens, base.forecast
         process = process.clone()
         batch_size = draft.shape[0]
+        solver_state = None
+        if self.forecaster.local_solver_state:
+            solver_state = self.forecaster.solver_init.expand(
+                batch_size, context.shape[1], -1).to(context.dtype).clone()
         active = torch.ones(batch_size, dtype=torch.bool, device=draft.device)
         steps = torch.zeros(batch_size, dtype=torch.long, device=draft.device)
         pp = draft.new_zeros(batch_size, self.forecaster.anchored_processes)
@@ -165,11 +165,17 @@ class AdaptiveProcessForecaster(nn.Module):
         for step in range(1, max_steps + 1):
             selected = active.nonzero(as_tuple=False).flatten()
             active_trace.append(active.clone())
-            p, y, delta, prediction = self.reasoning_step(
-                process[selected], context[selected], draft[selected], base.token_hw)
+            result = self.reasoning_step(
+                process[selected], context[selected], draft[selected], base.token_hw,
+                solver_state=None if solver_state is None else solver_state[selected],
+                step_index=step - 1, anchor=base.base_state)
+            p, y, delta, prediction = (result.process, result.draft,
+                                       result.correction, result.prediction)
             process[selected] = p.to(process.dtype)
             draft[selected] = y.to(draft.dtype)
             pp[selected] = prediction.to(pp.dtype)
+            if result.solver_state is not None:
+                solver_state[selected] = result.solver_state.to(solver_state.dtype)
             steps[selected] += 1
             decisions = torch.zeros_like(active)
             gains = torch.zeros(batch_size, dtype=torch.float32, device=draft.device)

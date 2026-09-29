@@ -8,7 +8,41 @@ from .weather_forecaster_r7 import NativeAtmosForecaster
 from .coarse_forecast import CoarseForecastHead
 from .layers.sdpa import SDPAttention,CrossBlock,FeedForward
 from .layers.patch_grid import pad_patch_grid
-from .spacetime_conditioning_r7 import require_field_mode
+from .local_solver_state_r7 import ROLE_INITIAL_SCALE
+from .spacetime_conditioning_r7 import isolated_stream, require_field_mode
+
+
+def recurrent_key(context, draft_tokens=None, *, role_context=None, role_draft=None):
+    """The one place the recurrent cell's key/value is assembled.
+
+    Before this helper the concatenation ``torch.cat([context, draft_tokens], dim=1)``
+    was written out at every call site, and none of them marked which half was the
+    context and which was the draft - the gap ``docs/R7_MAIN_MODEL_V2_DESIGN.md``
+    section 3.2 records. With ``source_role_markers`` on, each half is shifted by
+    its own learned vector first, so the cell *can* tell them apart. With it off
+    the original expression is returned, and an unmarked key is bit for bit what
+    it always was rather than a numerically similar recomputation.
+    """
+    if draft_tokens is None:
+        if role_draft is not None:
+            raise ValueError("a draft role needs draft tokens to mark")
+        return context if role_context is None else context + role_context
+    if (role_context is None) != (role_draft is None):
+        raise ValueError("source roles are declared for both halves or for neither")
+    if role_context is None:
+        return torch.cat([context, draft_tokens], dim=1)
+    if role_context.shape[1] != 1 or role_draft.shape[1] != 1:
+        raise ValueError("a source role is one vector per half, shaped [1,1,D]")
+    if role_context.shape[-1] != context.shape[-1] or role_draft.shape[-1] != context.shape[-1]:
+        raise ValueError("source roles must have the context's feature dimension")
+    return torch.cat([context + role_context, draft_tokens + role_draft], dim=1)
+
+
+def declared_source_roles(model):
+    """``(role_context, role_draft)`` for a model, or ``(None, None)``."""
+    if not model.source_role_markers:
+        return None, None
+    return model.role_context, model.role_draft
 
 
 def solver_conditioning(context, summary, draft_tokens=None, *, spatial_feedback=False):
@@ -93,13 +127,16 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
                  default_lead_hours:float=6.,latent_tokens:int=16,default_reasoning_steps:int=4,
                  detach_between_steps:bool=False,spatial_solver_feedback:bool=False,
-                 spacetime_inputs:bool=False,spacetime_field_mode:str='fields'):
+                 spacetime_inputs:bool=False,spacetime_field_mode:str='fields',
+                 source_role_markers:bool=False):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
-                           (spacetime_inputs,'spacetime_inputs')):
+                           (spacetime_inputs,'spacetime_inputs'),
+                           (source_role_markers,'source_role_markers')):
             if type(value) is not bool:
                 raise ValueError(f"{name} must be boolean")
         self.spatial_solver_feedback=spatial_solver_feedback
+        self.source_role_markers=source_role_markers
         # Exposed, not just forwarded: the rollout asks the model which lead
         # convention it was configured for.
         self.spacetime_inputs=spacetime_inputs
@@ -122,6 +159,14 @@ class GenericRecursiveWeatherForecaster(nn.Module):
         self.cell=GenericRecursiveCell(dim,heads,mlp_ratio=3.,dropout=dropout)
         self.latent_to_context=nn.Sequential(nn.LayerNorm(dim),nn.Linear(dim,dim))
         self.correction_head=CoarseForecastHead(dim,self.out_channels,patch_size)
+        # Built last and under a rewound stream, for the same reason the space-time
+        # pathway is: declaring source roles must not move a single weight the
+        # model would have had without them, so the two arms differ by the roles
+        # and not by a shifted initialization.
+        if self.source_role_markers:
+            with isolated_stream():
+                self.role_context=nn.Parameter(torch.randn(1,1,dim)*ROLE_INITIAL_SCALE)
+                self.role_draft=nn.Parameter(torch.randn(1,1,dim)*ROLE_INITIAL_SCALE)
 
     def _cell(self,z,context):
         if self.activation_checkpointing and self.training and z.requires_grad:
@@ -139,13 +184,15 @@ class GenericRecursiveWeatherForecaster(nn.Module):
             raise ValueError('reasoning_steps 必须 >= 0')
         detach_flag=self.detach_between_steps if detach_between_steps is None else bool(detach_between_steps)
         z=self.latent.expand(B,-1,-1)
+        role_context,role_draft=declared_source_roles(self)
         drafts=[draft]
         final_correction=torch.zeros_like(draft)
         for step in range(steps):
             draft_tokens,draft_hw=self.draft_encoder(draft)
             if tuple(draft_hw)!=tuple(token_hw):
                 raise ValueError('draft/context token grid mismatch')
-            z=self._cell(z,torch.cat([context,draft_tokens],dim=1))
+            z=self._cell(z,recurrent_key(context,draft_tokens,
+                role_context=role_context,role_draft=role_draft))
             summary=self.latent_to_context(z.mean(dim=1))
             conditioned=solver_conditioning(context,summary,draft_tokens,
                 spatial_feedback=self.spatial_solver_feedback)

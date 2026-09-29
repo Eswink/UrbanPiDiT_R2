@@ -58,9 +58,12 @@ def collect_process_errors(model,batch,*,max_steps=4):
     adapter=AdaptiveProcessForecaster(model).eval()
     base,process=adapter.initial_state(batch)
     draft=base.forecast
+    solver_state=None
     errors=[]
-    for _ in range(max_steps):
-        process,draft,_,_=adapter.reasoning_step(process,base.context_tokens,draft,base.token_hw)
+    for step in range(max_steps):
+        result=adapter.reasoning_step(process,base.context_tokens,draft,base.token_hw,
+            solver_state=solver_state,step_index=step,anchor=base.base_state)
+        process,draft,solver_state=result.process,result.draft,result.solver_state
         errors.append(per_sample_latitude_mse(draft,batch['atmos_target'],batch.get('latitude')).cpu())
     return torch.stack(errors,1)
 

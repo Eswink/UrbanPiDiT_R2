@@ -320,10 +320,20 @@
 | --- | --- | --- | --- | --- |
 | E-195 | 主模型递给递推 cell 的键**没有来源角色标记**：`torch.cat([context, draft_tokens], dim=1)` 把 C 与 E(Y_k) 拼成 `[B,2N,D]` 后直接作 key/value，cell 无法区分哪一半是上下文、哪一半是草稿，拼接处也没有 mask。该写法在**三处镜像实现**里一致存在（`model/process_forecast_r7.py` 的 forward、`model/r7_halting.py` 的 `reasoning_step`、`training/r7_streaming.py` 的 `_recursive_step`）。#70 的 CPU 结构探针（只反转 draft token 顺序 → 默认 Process 反馈预测 allclose，max 差 1.19e-7）与该缺口相容，但**该探针本轮未重跑**：本条目只确认代码事实，不确认「这就是探针结果的原因」这一因果解释 | HEAD `e1d5a7d` 的三个实现文件原文（`model/process_forecast_r7.py` 中 `recurrent_context=torch.cat([context,draft_tokens],dim=1)`，无 role/mask） | 单点 | 已确认 |
 
+## 第九遍（2026-09-29）：E0 两个预注册诊断的执行
+
+执行二轮 §11 与三轮 §13 各自留下的「下一项第一个具体动作」。只读 val、只用已归档 checkpoint、
+0 GPU-h；完整记录见 `docs/R7_E0_DIAGNOSTICS.md`。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-196 | 加一条 process 读取通路会**一致放大** solver 的修正幅度，但**不会**让修正与误差更反相关。四臂 × 三 seed × 22 val 窗口的第 3 轮修正：C−B 的 `update_energy`（全变量）逐 seed 差 +0.000178/+0.000046/+0.000307（三 seed 同号为正，池化比值 C/B = 1.31），D−B 同形；而误差—修正余弦 `cos(e,d)` 的差是 +0.0092/+0.0097/+0.0355，方向与「读取把 context 拉偏」的预测**相反**（反相关应当使余弦下降）。C 与 D 的数字几乎逐 seed 相同（`update_energy` 相对差 <0.1%），而 D 的 query 按位置池化、读取与位置无关 ⇒ 放大来自「这条通路存在」，不是「读是位置化的」。T2m 单变量上幅度差不一致同号（seed42 为负），故幅度结论只在跨变量索引上成立 | `outputs/r7_e0_diagnostic/e0_correction_replay.json`（12 个 checkpoint 的 sha256、逐 seed 数字、`model_code_digest`＝`8d9262d1…`）；回放代码为 `d8aff68` 的 `git archive`；驱动 `scripts/study_r7_e0_correction_replay.py`；判读的预注册原文见 `docs/R7_71_72_ROUND_TWO_ATTRIBUTION.md:329-340` | 抽样（12 checkpoint × 22 窗口 × 1 段） | 已确认 |
+| E-197 | 三轮 §13 的「E−A 在 t2m 72h 三 seed 同号」**为假**：逐 seed 是 −0.1629 / **+0.2378** / −0.9492，seed42 反号，其均值 −0.2915 是反号三值的算术平均；比较器自己已把该格标为 `unresolved`。三轮文档**自己的** §7 表也把 72h 标成「四对全部否」。而 48h 那一格三 seed 同号且跨两轮复现：C−B −0.2254、D−B −0.2235、E−A −0.2468 K（三次独立配对、各三 seed 同号，彼此相差 11% 以内）。因此三轮 §13 的「若不稳定」分支被触发（72h 的 seed42 异号在两轮都出现） | `outputs/r7_e0_diagnostic/e0_paired_stability.json`（两个输入 JSON 的 sha256 + 逐格 `mean_reproduced`/`sign_claim_reproduced`）；被推翻的原句 `docs/R7_71_72_ROUND_THREE.md:463-472`；自身矛盾处 `docs/R7_71_72_ROUND_THREE.md:228` | 抽样（2 轮 × 3 对 × 2 时效） | 已确认 |
+
 ## 统计
 
-- 台账条目：**195** 条（E-001 – E-195；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1）。
-- 按覆盖度：全体扫描 140 条，抽样 17 条，单点 38 条。
+- 台账条目：**197** 条（E-001 – E-197；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1 + 第九遍 2）。
+- 按覆盖度：全体扫描 140 条，抽样 19 条，单点 38 条。
 - 按置信度：已确认 194 条，推测 1 条，未知 0 条。
   （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
   E-187 已登记为 Q-013。）

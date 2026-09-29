@@ -79,9 +79,14 @@ def controller_calibration_loss(adapter: AdaptiveProcessForecaster,
         with torch.no_grad():
             base, process = adapter.initial_state(batch)
             draft = base.forecast
+            solver_state = None
             for step in range(1, max_steps + 1):
-                process, draft, delta, prediction = adapter.reasoning_step(
-                    process, base.context_tokens, draft, base.token_hw)
+                result = adapter.reasoning_step(
+                    process, base.context_tokens, draft, base.token_hw,
+                    solver_state=solver_state, step_index=step - 1, anchor=base.base_state)
+                process, draft = result.process, result.draft
+                solver_state = result.solver_state
+                delta, prediction = result.correction, result.prediction
                 errors.append(per_sample_latitude_mse(draft, target, batch.get("latitude")))
                 if step < max_steps:
                     features.append(adapter.controller.features(prediction, draft, delta, step))

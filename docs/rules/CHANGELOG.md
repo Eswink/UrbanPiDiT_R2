@@ -2,6 +2,36 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-29 — #72 M2-B（RW-B）：R-009 基线更新 + `model_code_sha256` 变化（未改任何规则判据）
+
+**范围**：新增 `model/local_solver_state_r7.py`、`model/process_step_r7.py`，
+接线 `model/process_forecast_r7.py`、`model/recursive_weather_r7.py`、`model/weather_forecaster_r7.py`、
+`model/r7_halting.py`、`training/r7_streaming.py`、`training/r7_halting.py`、
+`training/r7_gain_oracle.py`；新增两个**默认关闭**的开关（`source_role_markers`、
+`local_solver_state`）与两个测试文件（37 项）。**未改任何规则正文、判据、阈值或执行分组**，
+`docs/rules/*.md` 本轮只改本文件与 `EVIDENCE.md`（新增 E-196/E-197）。
+
+R-009 基线 827/2046 → **859/2114**（实测值；基线是**下界**，抬到实测值只让今后的
+测试减少更容易被看见；R-009 仍是报告型、不阻断）。
+
+### model_code_sha256 变化（RW-B）
+
+`model/` 下 7 个文件的字节变化（2 个新增 + 5 个接线）使 `model_code_digest()` 从
+`f349adceb5ba03e10fbb45b514bfbc25352c6b81848b255d615127fb36b047e1`（第三轮）
+变为
+`b599ce61da8295246f53221d945a67490dded9cfdc4240c84bbf5fda2c1ee953`。
+
+**这是预期后果，不是缺陷**：两个新开关默认关闭，关闭时与改动前**逐位相同**——由
+`tests/test_r7_switched_path_equivalence.py` 的 23 个 digest（对照组仍是 `git archive 93d89aa`
+的冻结实现，**该文件本轮未改动**）实跑证明，另有本轮新增测试对"显式写 `False`"与"完全不写"
+两种构造做 `state_dict` 逐张量相等与前向 `torch.equal`。第三条独立佐证：`scripts/measure_r7_rw_b_cost.py`
+在审计配置上测得的 RW-A 前向 FLOPs `13,904,603,520` 与二轮 `arm_table.csv` 归档值**逐位相同**，
+说明共享 step 重构没有改变既有路径的计算量（开销记录见 `docs/R7_72_RW_B.md` §4）。
+
+受影响的重放路径仍是那 3 条 workflow（`r7-restored-diagnostic.yml`、`r7-correction-audit.yml`、
+`r7-extended-control.yml`）：旧产物只能用其归档的 `code.zip` 重放。
+**未修改任何校验逻辑、未放宽 digest 比较**，见 `docs/rules/OPEN_QUESTIONS.md` Q-009。
+
 ## 2026-09-29 — 规模与命名硬上限 + 提交闸门空白检查（决策 0022）
 
 **范围**：新增三条**阻断**规则——R-051（单文件 ≤ **600** 行）、R-052（函数体 ≤ **200** 行）、

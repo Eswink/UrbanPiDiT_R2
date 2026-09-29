@@ -173,8 +173,8 @@ FUNC_BODY_HARD_MAX = 200
 # as commit content counts as tracked (the smoke test of the guard against the real repo
 # caught it refusing the very commit that introduces this round's decision record).
 # Nothing was removed.
-TEST_FUNCTION_BASELINE = 827
-ASSERT_BASELINE = 2046
+TEST_FUNCTION_BASELINE = 859
+ASSERT_BASELINE = 2114
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")
