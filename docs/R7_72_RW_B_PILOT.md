@@ -269,7 +269,14 @@ R-009 报告基线随本轮从 859/2114 抬到 **885/2180**，同步更新了 `d
 | --- | --- | --- | --- |
 | `d8c828d` | 本轮的代码、模块、测试、证据文档与规则文档 | `36587955914` | **失败**，第 6 步 `Check evidence index and candidate brief` |
 | `36292c8` | 把索引记录指到 RW-B 文档的新 digest，并登记本轮的负向记录 + 重生成 brief | `36588423695` | **失败**，第 8 步 `Run unit, integration and installed-wheel tests` |
-| `b4407c4` | 同步 `size-thresholds.md` 的机器核对标记（R-020 39→41、R-021 24→26、R-023 15→17） | 见 §12 | — |
+| `b4407c4` | 同步 `size-thresholds.md` 的机器核对标记（R-020 39→41、R-021 24→26、R-023 15→17） | **无独立 run** | 与 `de1e87d` 在同一次 `git push` 里被推送，GitHub 只对推送的 head SHA 触发 workflow，因此该 SHA 没有自己的 run——这一格是「没有证据」而不是「通过」 |
+| `de1e87d` | 两处 pytest 口径 + 两次失败的原因 + 用 `git clone` 复现干净检出 | **`36591213197`** | **success**，八步全绿 |
+
+`36591213197` 是**覆盖本轮代码、索引与文档的绿 run**：第 5 步 `Check repository conventions`、
+第 6 步 `Check evidence index and candidate brief`、第 7 步 `Compile active modules and check
+whitespace`、第 8 步全量 pytest 全部 success；同 SHA 下 18 条 workflow 中 17 条实验 workflow
+按 commit-message 标签门控 **skipped**（设计行为，**不算失败，也不当通过**），本轮提交信息
+**未**带任何实验标签，因此没有任何实验 workflow 被触发。
 
 两次失败**都是真实原因、都能在本地复现**，不是 flake：
 
@@ -281,10 +288,11 @@ R-009 报告基线随本轮从 859/2114 抬到 **885/2180**，同步更新了 `d
 18 条 workflow 中 17 条实验 workflow 按 commit-message 标签门控 **skipped**（设计行为，
 **不算失败，也不当通过**）；本轮提交信息**未**带任何实验标签，因此没有任何实验 workflow 被触发。
 
-## 12. 未完的收尾（明确写下，不靠「应该没问题」）
+## 12. 仍未做的事（明确写下，不靠「应该没问题」）
 
-- **CI 的最终 run id 尚未回填**：`b4407c4`（以及随后回填本节的提交）的 `R7 CPU CI` 结果
-  在写这一版时还在跑；本节与目标进度块的回填是**下一个提交**的第一件事。
-- 本轮**没有**重跑 `mimosa` 深度安全扫描：会话内的 commit/push hook 报
+- **本轮没有重跑 `mimosa` 深度安全扫描**：会话内的 commit/push hook 报
   `scanner_enobufs`（扫描未取得完整结论），因此**不得**把本轮说成「已通过完整安全审计」。
   这是一条交付欠账，不是「应该没问题」。
+- 本文件 §11 之外还有一个只改目标进度块的收尾提交；它的 `R7 CPU CI` run 号记在
+  `docs/goals/main-model-v2-rw-b-round.md` 的进度块里，**不在本文件**——本文件是已登记的证据页，
+  再改一次就要同步索引 digest，因此收尾提交刻意不再改这一页。

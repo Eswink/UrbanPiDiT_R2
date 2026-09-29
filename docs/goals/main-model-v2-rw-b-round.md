@@ -119,7 +119,7 @@ issue 评论落仓为草稿（API 写 401）。
 
 ## §8 进度块
 
-- **状态**：`active`（E0 与 RW-B 实现+测试已完成；D5 的实验对照**未执行**，执行者不自行宣布完成）
+- **状态**：`active`（D1–D4 与 **D5 已完成**；执行者不自行宣布 goal 完成，判给 verifier）
 - **已完成**：
   - **D1/E0**：两个预注册诊断实跑（0 GPU-h，CPU 111.1 s，只读 val）。记录
     `docs/R7_E0_DIAGNOSTICS.md`、`docs/rules/EVIDENCE.md` 的 E-196/E-197、驱动
@@ -134,26 +134,53 @@ issue 评论落仓为草稿（API 写 401）。
     实测代价：**+314,898 参数（+10.61%，目标 ≤25% 达成）**、前向 FLOPs ×1.2097。
   - **D4**：`tests/test_r7_local_solver_state.py`（27 项）+ `tests/test_r7_shared_step_paths.py`（10 项），
     含边界反证、poison、odd grid、K=0/1/2/4、resume、BF16、三路一致、结构性防漂移。
-    `pytest -q` **1456 passed, 3 skipped**；`check_conventions.py` 37 条阻断 0 违规。
-- **未做**：**D5 的有界真实 train/val 对照**。按决策 0021 在执行那一刻用 `AskUserQuestion` 提了
-  授权请求（范围 / 预算 / 产物与证据 / 失败与 skip 处理四项齐全，见本节末尾的快照），
-  **未获答复**；无答复不等于授权，因此**没有启动任何训练**、没有 `protocol.json`、
-  没有 GPU 秒数，`docs/R7_EVIDENCE_INDEX.jsonl` 里的两条记录都写明这一点。
-  **下一步要做的第一件事就是重新取这次授权。**
-  其余未做：matched Generic 的完整 RW-B；M3/M4/M5；E1–E5 的其余部分。未训练、未租 GPU、未读 test。
-- **CI**：`54d8358` 的 `R7 CPU CI` run **`36572082730` = success**，最终提交 `1a3a4e3` 的
-  run **`36573187451` = success**（八步全绿）；18 条 workflow 中
-  17 条实验 workflow 按 commit-message 标签门控 **skipped**（设计行为，不算失败，也不当通过）。
-  此前 `f4a571b` 的那次 run **失败**，原因真实：R-009 基线抬到 859/2114 后
-  `docs/rules/MIGRATION.md` 仍写着旧值，而钉住字面量的测试只在 CI 上暴露——已改为直接对
-  checker 常量断言，并在 `54d8358` 转绿。
-- **D5 授权请求快照**（决策 0021 的通道，本轮未获答复，故未执行）：本地单卡顺序；
-  臂 = 旧 mean-Ours / RW-A / RW-B；seed 41/42（或按用户选择 41/42/43）；400 updates/臂；
-  预算 ≤1.0 GPU-h（第二批授权余 21.537 GPU-h，按二轮实测推算 6 runs ≈0.27、9 runs ≈0.40 GPU-h），
-  单次 ≤30 min；协议在第一次 `optimizer.step()` 前以 `'x'` 排他冻结；只读 val、test 封存；
-  产物 `outputs/r7_72_rw_b_pilot/` + 逐变量 ×6/12/24/48/72h 全表 + 三态计数 + 四表 + 实测 GPU-h；
-  失败/超时/skip/cancelled 即停并如实记录，不重试凑数、不放宽判据、不开新臂。
-- **下一动作**：重新取 D5 授权后跑上表；**先读** `docs/R7_E0_DIAGNOSTICS.md` §5——t2m 72h 不可作机制证据，
-  48h 才是可复核的那一格。
+  - **D5（本轮新完成）**：授权于 2026-09-29 在执行那一刻经决策 0021 通道取得（用户在
+    `AskUserQuestion` 里选择「按上述范围跑」）。一轮有界真实对照：**2 seed × 4 臂 × 400 updates**，
+    同 M2 store、同一协议族、全部从零训练；臂 = 池化参照读 / RW-A 加性位置读 / RW-B /
+    RW-B+role 标记。协议在第一次 `optimizer.step()` 前以 `'x'` 冻结并回读重算 digest
+    （`6f488742…`，8 个 run 全同）；只读 val；test 封存。
+    **判决：登记主端点未获支持。** t2m 逐 seed 同号：12h **−0.079**、24h **−0.075** K（supported），
+    6h **+0.118**、48h **+1.065**、72h **+1.580** K（worsened）；模态读数 worsened，
+    改善比恶化小一个数量级。两条登记证伪条件**均未触发**（6h 恶化但 12h 支持；五个时效全部
+    sign-consistent），所以严格读法是「模态不支持且长时效受损」，**不是**「被证伪」。
+    role 对照（RW-B+roles − RW-B）五个时效两 seed 全同号为改善，但只有 0.006–0.028 K，
+    且 48h 的聚合计数反向（2 改善/10 恶化）——**不是**「role 标记有用」的证据。
+    实测 **0.8356 GPU-h**（自设上限 1.0，未超；含一次**失败尝试**的 0.4203，见下）；
+    参数量 RW-B 相对 RW-A **+314,898（+10.61%）**、前向 FLOPs **×1.2097**、
+    训练峰值 allocated **+27.9 MiB**、墙钟 ×1.068。产物 `outputs/r7_72_rw_b_pilot/`
+    （protocol、逐 seed、merged、paired、arm/training/memory/rmse/case/depth_probe 六张表）；
+    证据文档 `docs/R7_72_RW_B_PILOT.md`；台账 E-198/E-199/E-200；
+    证据索引 `rw-b-bounded-round-negative`（outcome_class `negative`，priority 78）。
+  - **D6/D7**：`docs/R7_72_RW_B.md` 加了带日期的更新块（D5 已执行、指向新文档，不改写原文）；
+    `docs/R7_72_RW_B_PILOT.md` 写明 limitations、未做的事与下一动作；R-009 基线
+    859/2114 → **885/2180**、`size-thresholds.md` 标记同步（两处引用文档同步更新）。
+- **未做**：
+  - **机制归因**：四臂不等容量（RW-A/RW-B 各自加参数与算力），因此**不能**把负结果归因到
+    「门控+锚定提案 / Z / role 标记」中的任何一项；决策 0023 的「匹配 Generic」前置**仍未满足**。
+    拆解对照（三个部件各自单独开关）**未做**——这是下一项的第一个具体动作。
+  - 未跑第三 seed；确认轮（≤2.5 GPU-h）**未动用**；E2/E3/E4 未做；M3/M4/M5 未做。
+  - 未读 test（全程封存）、未下载数据、未租 GPU、未合并 main、未关 #70–#75。
+  - **未重跑 mimosa 深度安全扫描**：commit/push hook 报 `scanner_enobufs`（扫描未完成），
+    因此**不得**声称本轮通过了完整安全审计。
+- **CI**：本轮涉及四个提交。`d8c828d` 的 run **`36587955914` 失败**（第 6 步证据索引：
+  改了已登记的证据页而未同步 digest）；`36292c8` 的 run **`36588423695` 失败**（第 8 步 pytest：
+  `size-thresholds.md` 的机器核对标记只在干净检出上对不上——本机那四个文件还是未跟踪、命中被容忍）；
+  `b4407c4` **没有独立 run**（与 `de1e87d` 同一次推送，只对 head SHA 触发）；
+  `de1e87d` 的 run **`36591213197` = success**（八步全绿）。18 条 workflow 中 17 条实验 workflow
+  按 commit-message 标签门控 **skipped**（设计行为，不算失败也不当通过）。
+  两次失败**都是真实原因**且都在本地复现后才修，随后用 `git clone`（不是 `git archive`，
+  多个等价性测试要靠 git 重放冻结修订）复现干净检出验证。
+- **D5 授权快照**（决策 0021 的通道，**本轮已获授权并已执行**）：本地单卡顺序；
+  臂 = 旧 mean-Ours / RW-A / RW-B / RW-B+roles；seed 41/42；400 updates/臂；
+  预算 ≤1.0 GPU-h；协议在第一次 `optimizer.step()` 前以 `'x'` 排他冻结；只读 val、test 封存；
+  失败/超时/skip 即停并如实记录。
+- **下一动作**：**给 RW-B 做减法而不是加法**——在同一 400-update 协议族下，把
+  `local_solver_state` 拆成三个各自单独可开关的部件（(a) 门控+锚定提案、(b) Z 的递推、
+  (c) role 标记），用**预声明的单一对比**回答「负结果来自哪一件」；修正几何（幅度 ×1.8、
+  余弦在第 2–3 步转正、第 3 步 60% 恶化）指向 (a) 或 (b)，但本轮数据**不能区分**。
+  在做出这个拆解之前：**不得**再给 solver 加新部件，**不得**把这轮 12/24h 的改善当作继续加码的理由，
+  也**不得**把角色标记的小幅一致改善写成机制声明。执行前按决策 0021 重新取授权并重读账本
+  （本轮结余 **20.701 GPU-h**：24 − 2.463 − 0.8356）。若拆解对照仍为负，按 §5 停止条件 3
+  停止发明新模块，转去重新检查 forecast state / training objective / data regime。
 
 每推进一步就更新本块（一行「已完成/未做/下一动作」），不要留给下一轮补写。
