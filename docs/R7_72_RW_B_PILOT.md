@@ -243,9 +243,48 @@ reader 的回归钉住测试；**保留** attempt 1 的整个产物目录（未�
 若拆解对照仍为负，按目标 §5 的停止条件 3，停止发明新模块，转去重新检查
 forecast state / training objective / data regime。
 
-## 10. 本机 conventions 状态
+## 10. 本机 conventions 状态与测试计数
 
-`python tools/check_conventions.py`：37 条阻断 **0 违规**；`pytest -q` **1484 passed, 3 skipped**
-（本轮新增 `tests/test_r7_72_rw_b_study.py` 28 项，全套从 1456 增至 1484）；`git show --check` 干净。
+`python tools/check_conventions.py`：37 条阻断 **0 违规**；`git show --check` 干净。
 R-009 报告基线随本轮从 859/2114 抬到 **885/2180**，同步更新了 `docs/rules/MIGRATION.md` 与
-`docs/rules/testing.md`（两处的数字由 `tests/test_check_conventions.py` 直接对 checker 常量断言）。
+`docs/rules/testing.md`（两处的数字由 `tests/test_check_conventions.py` 直接对 checker 常量断言）；
+规模报告标记同步为 R-020=41 / R-021=26 / R-023=17（三个新模块分别 393/145/599 行，
+**全部在 R-051 的 600 行硬上限内**，未新增任何 R-051/R-052 例外）。
+
+`pytest -q` 两处口径**都要报**（本地多出来的那些是本地才有的产物）：
+
+| 口径 | 结果 | skip 原因 |
+| --- | --- | --- |
+| 本机（有 `outputs/` 产物） | **1484 passed, 3 skipped** | 三个 `test_real_data_pipeline` 用例：可选真实数据 fixture 不在版本控制内，且**不允许**用合成数据兜底 |
+| 干净检出（`git clone` 后 checkout 本提交） | **1479 passed, 8 skipped** | 上述 3 个，加上 5 个因本地产物缺失而跳过的用例：本轮两个探针测试（M2 段不存在）、`test_arco_regional_bounded`（可选 ARCO 子集）、`test_r7_budget_audit`（已发布区域 store 不在）、`test_r7_time_range_readers`（D1 store 不在） |
+
+**干净检出这一步不是形式**：本轮第一次推送时 CI 在 pytest 步失败，而本机是全绿的——原因是
+`docs/rules/size-thresholds.md` 的机器核对标记只统计**未被容忍**的命中，而新增的四个文件在本地
+还是未跟踪状态、命中被容忍，标记因此**只在干净检出上才对不上**。这条与 E-193/E-194 是同一类
+缺陷（只在 CI 暴露的钉住值），已按 E-200 记录，并在推送前用 `git clone` 复现干净检出才发现。
+
+## 11. 提交与 CI
+
+| 提交 | 内容 | `R7 CPU CI` run | 结果 |
+| --- | --- | --- | --- |
+| `d8c828d` | 本轮的代码、模块、测试、证据文档与规则文档 | `36587955914` | **失败**，第 6 步 `Check evidence index and candidate brief` |
+| `36292c8` | 把索引记录指到 RW-B 文档的新 digest，并登记本轮的负向记录 + 重生成 brief | `36588423695` | **失败**，第 8 步 `Run unit, integration and installed-wheel tests` |
+| `b4407c4` | 同步 `size-thresholds.md` 的机器核对标记（R-020 39→41、R-021 24→26、R-023 15→17） | 见 §12 | — |
+
+两次失败**都是真实原因、都能在本地复现**，不是 flake：
+
+1. 第 6 步失败：本次提交给一个**已经登记在索引里**的证据文档
+   （`docs/R7_72_RW_B.md`）加了一段带日期的更新块，而索引仍钉着旧 digest。闸门要求的正是
+   「改了已登记的证据就要同步索引」——修法是重指 digest 并如实写明原因，不是放宽闸门。
+2. 第 8 步失败：见 §10 最后一段，是只在干净检出上暴露的钉住值。
+
+18 条 workflow 中 17 条实验 workflow 按 commit-message 标签门控 **skipped**（设计行为，
+**不算失败，也不当通过**）；本轮提交信息**未**带任何实验标签，因此没有任何实验 workflow 被触发。
+
+## 12. 未完的收尾（明确写下，不靠「应该没问题」）
+
+- **CI 的最终 run id 尚未回填**：`b4407c4`（以及随后回填本节的提交）的 `R7 CPU CI` 结果
+  在写这一版时还在跑；本节与目标进度块的回填是**下一个提交**的第一件事。
+- 本轮**没有**重跑 `mimosa` 深度安全扫描：会话内的 commit/push hook 报
+  `scanner_enobufs`（扫描未取得完整结论），因此**不得**把本轮说成「已通过完整安全审计」。
+  这是一条交付欠账，不是「应该没问题」。
