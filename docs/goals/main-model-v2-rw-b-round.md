@@ -137,6 +137,11 @@ issue 评论落仓为草稿（API 写 401）。
     `pytest -q` **1456 passed, 3 skipped**；`check_conventions.py` 37 条阻断 0 违规。
 - **未做**：**D5 的有界真实 train/val 对照**（按决策 0021 需在执行那一刻取得用户授权，本轮未取得）；
   matched Generic 的完整 RW-B；M3/M4/M5；E1–E5 的其余部分。未训练、未租 GPU、未读 test。
+- **CI**：`54d8358` 的 `R7 CPU CI` run **`36572082730` = success**（八步全绿）；18 条 workflow 中
+  17 条实验 workflow 按 commit-message 标签门控 **skipped**（设计行为，不算失败，也不当通过）。
+  此前 `f4a571b` 的那次 run **失败**，原因真实：R-009 基线抬到 859/2114 后
+  `docs/rules/MIGRATION.md` 仍写着旧值，而钉住字面量的测试只在 CI 上暴露——已改为直接对
+  checker 常量断言，并在 `54d8358` 转绿。
 - **下一动作**：按决策 0021 取得授权后跑三臂（旧 mean-Ours / RW-A / RW-B）× 2 seed × 400 updates，
   协议在第一次优化器更新前排他冻结；**先读** `docs/R7_E0_DIAGNOSTICS.md` §5——t2m 72h 不可作机制证据，
   48h 才是可复核的那一格。

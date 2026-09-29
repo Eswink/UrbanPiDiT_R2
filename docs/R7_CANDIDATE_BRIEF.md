@@ -53,6 +53,7 @@ Records: 9; human-review candidates: 1
   - No VRAM or wall-clock measurement is made; the persisted solver state increases per-step working memory.
   - The role markers are shown to be reachable, not shown to be useful.
   - The matched-Generic prerequisite for any process-structure claim remains unmet, so decision 0023 is not yet satisfied.
+- CI run: `36572082730`
 - Excluded from runnable candidates: Engineering completion only: the bounded train/val comparison needs the decision-0021 authorization at execution time and was not run.
 - Recorded metrics (not recomputed): forward_flops_ratio=1.2097, gpu_hours=0.0, new_tests=37, parameter_ratio_added=0.1061, parameters_added=314898, test_read=false, tests_passed=1456
 
@@ -85,6 +86,7 @@ Records: 9; human-review candidates: 1
   - The correction geometry is re-measured by re-running the forward pass, not replayed from a published number.
   - The 0.25-0.29 K band reproduces at t2m 48h; the t2m 72h limb is not sign-stable in round three and must not be read as mechanism evidence.
   - No threshold, significance level or confidence interval is introduced.
+- CI run: `36572082730`
 - Excluded from runnable candidates: Read-only diagnostic, not a runnable experiment: it trains nothing and produces no forecast skill, so it cannot be indexed as a candidate model result.
 - Recorded metrics (not recomputed): checkpoints_replayed=12, cpu_seconds=111.1, gpu_hours=0.0, test_read=false, thresholds_added=0, validation_windows=22
 
