@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 7; human-review candidates: 1
+Records: 9; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -39,6 +39,23 @@ Records: 7; human-review candidates: 1
 - Excluded from runnable candidates: Do not launch directly from this index; any follow-up needs a new frozen protocol and authorization.
 - Recorded metrics (not recomputed): gpu_hours=0.41, ranking_flips=0, test_read=false, train_windows=94, val_windows=10
 
+## rw-b-local-solver-state
+
+- Outcome class: `engineering-positive`; candidate state: `needs-review`
+- Human triage priority: `75` (not a scientific score)
+- Evidence: `docs/R7_72_RW_B.md` (SHA256 `2e07694d7c791f8662e5fcb168c63be3e3f1699ea2631879c3456e94cc23a110`)
+- Evidence commit: `f4a571b370691162126f207b7d984761ec7ec57f`; experiment commit: `f4a571b370691162126f207b7d984761ec7ec57f`
+- Protocol SHA256: `not recorded`; data identity: `not recorded`
+- Reason: RW-B is implemented as real model code behind two default-off switches, its boundaries are asserted with counterproofs, and the step now has a single implementation across the fixed, streamed and adaptive paths.
+- Limitations:
+  - No training was run, so this record carries no RMSE, no skill and no accuracy-compute frontier.
+  - The gate is a stabilization candidate, not a guarantee of monotone improvement or physical correctness.
+  - No VRAM or wall-clock measurement is made; the persisted solver state increases per-step working memory.
+  - The role markers are shown to be reachable, not shown to be useful.
+  - The matched-Generic prerequisite for any process-structure claim remains unmet, so decision 0023 is not yet satisfied.
+- Excluded from runnable candidates: Engineering completion only: the bounded train/val comparison needs the decision-0021 authorization at execution time and was not run.
+- Recorded metrics (not recomputed): forward_flops_ratio=1.2097, gpu_hours=0.0, new_tests=37, parameter_ratio_added=0.1061, parameters_added=314898, test_read=false, tests_passed=1456
+
 ## b1-baseline-audit
 
 - Outcome class: `audit`; candidate state: `needs-review`
@@ -53,6 +70,23 @@ Records: 7; human-review candidates: 1
   - A protocol digest and data identity are not recorded for this audit-only segment.
 - Excluded from runnable candidates: Not a runnable experiment record; missing protocol and data identity.
 - Recorded metrics (not recomputed): candidate_parameter_band=1-5M, formal_training_started=false, gpu_hours=0.0
+
+## e0-pre-registered-diagnostics
+
+- Outcome class: `audit`; candidate state: `needs-review`
+- Human triage priority: `70` (not a scientific score)
+- Evidence: `docs/R7_E0_DIAGNOSTICS.md` (SHA256 `59ba87a56f3a2aaed05c6ee633ffee249ff176e7f287a22db66f3a88b50a5ce7`)
+- Evidence commit: `f4a571b370691162126f207b7d984761ec7ec57f`; experiment commit: `d8aff68e06357ddf8036d8e2971b92dd26adb96a`
+- Protocol SHA256: `not recorded`; data identity: `not recorded`
+- Reason: The two diagnostics rounds two and three pre-registered and never ran were executed on validation only, at 0 GPU-h, with the checkpoints replayed by the model revision that trained them; one archived claim is contradicted.
+- Limitations:
+  - Validation-only, one 2016 winter segment, three seeds per arm: a stability observation, never a pooled estimate.
+  - Round two and round three have different protocol digests and different model_code_sha256, so their deltas are compared but never merged.
+  - The correction geometry is re-measured by re-running the forward pass, not replayed from a published number.
+  - The 0.25-0.29 K band reproduces at t2m 48h; the t2m 72h limb is not sign-stable in round three and must not be read as mechanism evidence.
+  - No threshold, significance level or confidence interval is introduced.
+- Excluded from runnable candidates: Read-only diagnostic, not a runnable experiment: it trains nothing and produces no forecast skill, so it cannot be indexed as a candidate model result.
+- Recorded metrics (not recomputed): checkpoints_replayed=12, cpu_seconds=115.2, gpu_hours=0.0, test_read=false, thresholds_added=0, validation_windows=22
 
 ## c1-process-supervision-mixed
 
