@@ -117,4 +117,3 @@ Records: 7; human-review candidates: 1
   - No external seasonal or yearly claim is supported.
 - Excluded from runnable candidates: Negative result with no surviving default-changing hypothesis in the tested scope.
 - Recorded metrics (not recomputed): defaults_changed=false, gpu_hours=1.09, phase=c2, seeds=3, test_read=false, worsened_cells=28
-

@@ -105,9 +105,9 @@ def test_brief_sync_accepts_canonical_render_and_rejects_stale_text(tmp_path):
     index = tmp_path / "index.jsonl"
     brief = tmp_path / "brief.md"
     write_index(index, [record])
-    brief.write_text(render_brief([record]) + "\n", encoding="utf-8")
+    brief.write_text(render_brief([record]), encoding="utf-8")
     assert check_brief_sync(index, brief, tmp_path) == []
-    brief.write_text(render_brief([record]) + "\n\n", encoding="utf-8")
+    brief.write_text(render_brief([record]) + "\n", encoding="utf-8")
     assert any("does not match" in error for error in check_brief_sync(index, brief, tmp_path))
 
 
@@ -128,7 +128,7 @@ def test_brief_sync_cli_exit_codes(tmp_path):
     index = tmp_path / "index.jsonl"
     brief = tmp_path / "brief.md"
     write_index(index, [record])
-    brief.write_text(render_brief([record]) + "\n", encoding="utf-8")
+    brief.write_text(render_brief([record]), encoding="utf-8")
     assert main(["--index", str(index), "--root", str(tmp_path), "--check-brief", str(brief)]) == 0
     brief.write_text("stale\n", encoding="utf-8")
     assert main(["--index", str(index), "--root", str(tmp_path), "--check-brief", str(brief)]) == 1

@@ -216,7 +216,9 @@ def check_brief_sync(index_path: Path, brief_path: Path, root: Path) -> list[str
         actual = brief_path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         return [f"cannot read brief {brief_path}: {exc}"]
-    expected = render_brief(records) + "\n"
+    # The renderer already ends with exactly one newline; the committed brief must
+    # match it byte-for-byte (an extra blank line is a `git show --check` failure).
+    expected = render_brief(records)
     if actual != expected:
         return [f"brief does not match canonical render: {brief_path}"]
     return []
