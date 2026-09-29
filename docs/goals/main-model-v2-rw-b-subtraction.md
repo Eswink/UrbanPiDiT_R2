@@ -182,12 +182,20 @@
     **1494 passed / 8 skipped / 0 failed**；本机全量（有产物）**1499 passed / 3 skipped**。
     两处钉住值缺陷在推送前本地全量暴露并修复（`5bf0b73`、`926d2fe`、`13bbcd6`），
     **本轮没有一次红是推上去才发现的**。证据页 §9/§10 已按此定稿。
-  - **收尾提交序列（只动文档 / 索引，无模型与实验改动）**：下一个提交 **A** = 证据页 §9/§10 定稿 +
-    本进度块；随后以 `--commit A` 重跑 `tools/append_rw_b_subtraction_evidence.py` 重钉索引
-    （digest 取工作树、`evidence_commit` 指向 A——A 就是持有该页版本的提交），提交 **B** = 索引 + brief；
-    A 与 B 同一次 push，按 GitHub 只对 head 触发的契约，**只有 B 有独立 run**，A 记为「无独立 run」
-    （不是通过）。之后提交 **C** = 本块记录 A/B 的 run 状态。**最后一个收尾提交自身的 run 号
-    无法自引用**：头部提交的固有边界，照写而不是回避。
+  - **收尾提交序列（只动文档 / 索引，无模型与实验改动）**：提交 **A** = 证据页 §9/§10 定稿 +
+    本进度块 = `5dc479e`；随后以 `--commit 5dc479e` 重跑 `tools/append_rw_b_subtraction_evidence.py`
+    重钉索引（digest 取工作树、`evidence_commit` 指向 A——A 就是持有该页版本的提交），
+    提交 **B** = 索引 + brief = `590d1f1`，与 A **同一次 push**（`13bbcd6..590d1f1`）。
+    按 GitHub 只对推送 head 触发的契约：**B 的 run `36623978223` = success**（八步全绿，逐项已核），
+    **A 没有独立 run**（「无证据」，不是通过）。最后一个收尾提交自身的 run 号无法自引用——
+    头部提交的固有边界，照写而不是回避；本块的运行记录以 `590d1f1` 的绿为准。
+  - **轮末 Mimosa 深度扫描（2026-09-30 04:04，commit/push hook 报 `scanner_enobufs` 后补跑）**：
+    跑完，`Run status: inconclusive`、`verdictEffect: none`、封条
+    `sha256:3581fc680777f8d0ff9f057ca2a362351b1627d7a45ac0147181e73a91cbdb8d`；
+    27 条发现（22 high / 4 medium / 1 low），**逐条核对全部位于只读归档快照 `legacy_v531_full/` 内，
+    本轮 focus 文件命中 0 条**，活跃代码里没有一条。**没有对任何一条做分类或修复**，
+    因此正确说法是「扫描跑了、发现集中在归档快照、结论是 inconclusive」，
+    **不得**声称项目通过了完整安全审计。
 - **未做**（详见证据文档 §7）：
   - **未做归因**（负控制触发即停，不为补救加臂或放宽判据）；确认轮（≤2.5 GPU-h）**未动用**；未跑第三 seed。
   - 未读 test、未下载数据、未租 GPU、未改 main、未 force push、未关 #70–#75。
