@@ -8,6 +8,7 @@ CI run. Nothing is recomputed about the measurements themselves.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import subprocess
@@ -30,10 +31,21 @@ def record(**fields) -> dict:
 
 
 def main() -> int:
-    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT), capture_output=True,
-                          text=True).stdout.strip()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--commit", default=None,
+                        help=("commit to bind the records to; defaults to HEAD. Pass the "
+                              "commit that CONTAINS the evidence page - chasing HEAD here "
+                              "would never settle, because the index update is itself a "
+                              "commit and would move the target again"))
+    args = parser.parse_args()
+    if args.commit:
+        head = subprocess.run(["git", "rev-parse", f"{args.commit}^{{commit}}"],
+                              cwd=str(ROOT), capture_output=True, text=True).stdout.strip()
+    else:
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT),
+                              capture_output=True, text=True).stdout.strip()
     if len(head) != 40:
-        raise SystemExit(f"cannot resolve HEAD: {head!r}")
+        raise SystemExit(f"cannot resolve the commit to bind: {head!r}")
 
     data_identity = json.loads(
         (ROOT / "outputs" / "r7_72_rw_b_subtraction" / "merged_result.json")
