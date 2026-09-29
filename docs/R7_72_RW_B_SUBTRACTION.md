@@ -316,11 +316,32 @@ transfer 规则载入其余三臂，`applied=131 / ignored=0`，载入后逐张�
 
 | 提交 | 内容 | `R7 CPU CI` |
 | --- | --- | --- |
-| `0b93ca4` | 两个子开关、等价与定向测试、D1 探针、规则文档与基线同步（`[model-digest-change]`） | 见 §10 |
-| `fed56f4` | 修 `EARLY_STOPPING_PATIENCE` 漏导入（两 seed 在写协议前即失败，**未耗 GPU**） | 见 §10 |
+| `0b93ca4` | 两个子开关、等价与定向测试、D1 探针、规则文档与基线同步（`[model-digest-change]`） | 与后续提交同一次推送，无独立 run |
+| `fed56f4` | 修 `EARLY_STOPPING_PATIENCE` 漏导入（两 seed 在写协议前即失败，**未耗 GPU**） | 与后续提交同一次推送，无独立 run |
+| `85d3e70` | D4/D5/D6 证据文档、台账 E-202–E-206、索引两条记录、brief 重生成 | 与后续提交同一次推送，无独立 run |
+| `5bf0b73` | 修两处**推送前全量 pytest 里暴露的钉住值**：R-020 标记 44→45（按最后一个新文件落盘**之前**的树测得）、索引 digest 随证据页编辑变旧 | 与后续提交同一次推送，无独立 run |
+| `926d2fe` | 如实记录第一次启动的失败（未耗 GPU、未产生产物）；按新页版本重钉证据 digest | 与后续提交同一次推送，无独立 run |
+| `13bbcd6` | 把索引记录绑到**真正持有该页版本的提交**（`926d2fe`）——工具默认绑 HEAD，而提交无法引用自身 | **`36621458964` = success**（八步全绿） |
 
-本轮提交信息**未**带任何实验标签，因此 17 条实验 workflow 按 commit-message 标签门控
-**skipped**（设计行为，**不算失败，也不当通过**）。
+**唯一有独立 run 的是推送的 head SHA `13bbcd6`**：`git reflog show origin/r7/weather-reasoning` 可证
+**本轮只有一次 push**（`e6085bc → 13bbcd6`）——GitHub 只对推送的 head 触发 workflow，
+被同一次 push 带上来的五个中间 SHA 没有自己的 run，那几格是**「没有证据」而不是「通过」**。
+起点 SHA `e6085bc` 自身带开工前的绿 run（`36606529478` = success，非本轮推送）。
+`36621458964` 的八步逐项结果：`Check repository conventions`、`Check evidence index and candidate brief`、
+`Compile active modules and check whitespace`、`Run unit, integration and installed-wheel tests`
+全部 success。该提交**未带任何实验标签**，因此 18 条 workflow 中 17 条实验 workflow
+按 commit-message 标签门控 **skipped**（设计行为，**不算失败，也不当通过**）。
+
+**本轮没有一次红是推上去才发现的**——推送发生在全部修复之后。两处钉住值缺陷在推送前的本地全量
+pytest 里暴露：03:36 的一次运行里 `test_size_report_counts_match_the_checker`（R-020 标记按最后一个
+新文件落盘之前测得的 44）与 `test_checked_in_brief_matches_index`（索引 digest 随证据页编辑变旧）
+**同时红**，修复于 `5bf0b73`；此后证据页再次编辑使 digest 二次变旧（03:42 本地红），修复于 `926d2fe`，
+`13bbcd6` 再把绑定提交修正。修复后按上一轮 E-200 的教训用 `git clone`（不是 `git archive`，
+等价性测试要靠 git 重放冻结修订）在干净检出上复跑全量：**1494 passed / 8 skipped / 0 failed**（§10）。
+
+本页的收尾版本（含本表）定稿后**不再改动**：此后的收尾提交只动索引与
+`docs/goals/main-model-v2-rw-b-subtraction.md`，其 run 号记在 **goal 进度块**，不在本文件——
+本文件是已登记的证据页，每改一次都要同步索引 digest。
 
 ## 10. 本机 conventions 与测试计数
 
@@ -328,12 +349,12 @@ transfer 规则载入其余三臂，`applied=131 / ignored=0`，载入后逐张�
 R-009 基线随本轮从 885/2180 抬到 **900/2210**，同步更新了 `docs/rules/MIGRATION.md` 与
 `docs/rules/testing.md`（两处数字由 `tests/test_check_conventions.py` 直接对 checker 常量断言）；
 规模报告标记同步为 R-020=45 / R-021=28 / R-023=17（`size-thresholds.md` 的机器核对标记同行更新；
-初版误写 R-020=44——那是在最后一个新文件落盘**之前**测的，干净检出把它读成 45 而红，
-已按重测值修正）。
+初版误写 R-020=44——那是在最后一个新文件落盘**之前**测的；全树落盘后 checker 读成 45
+（本地全量与干净检出同判），已按重测值修正（`5bf0b73`））。
 第一次写的 624 行驱动**越过 R-051 的 600 行硬上限**，按规则拆出
 `training/r7_rw_b_subtraction_protocol.py` 后回到上限内，**未新增任何例外**。
 
 | 口径 | 结果 | skip 原因 |
 | --- | --- | --- |
-| 本机（有 `outputs/` 产物） | **1499 passed, 3 skipped** | 三条 `test_real_data_pipeline`：可选真实数据 fixture 不在版本控制内，且**不允许**用合成数据兜底 |
-| 干净检出（`git clone` 后 checkout 本提交） | 见 §11 | 同上，另加因本地产物缺失而跳过的用例 |
+| 本机（有 `outputs/` 产物） | **1499 passed, 3 skipped**（收尾树复测） | 三条 `test_real_data_pipeline`：可选真实数据 fixture 不在版本控制内，且**不允许**用合成数据兜底 |
+| 干净检出（`git clone` 检出推送头 `13bbcd6`） | **1494 passed, 8 skipped, 0 failed**（152.6 s，收尾复测；此前一次同检出为 157.6 s，计数一致） | 上述 3 条，加 2 条 `test_r7_72_rw_b_study`（M2 段不在检出里）、`test_arco_regional_bounded`、`test_r7_budget_audit`、`test_r7_time_range_readers`（各自的本地 / 已发布产物不在检出里），共 8 条 |

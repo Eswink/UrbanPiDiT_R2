@@ -174,6 +174,20 @@
   - **D6**：证据文档 `docs/R7_72_RW_B_SUBTRACTION.md`（negative 原样保留、limitations 与未做事明写）；
     台账 **E-202 – E-206**；证据索引新增两条记录（`rw-b-subtraction-probe`、`rw-b-subtraction-round-cannot-attribute`）
     并重生成 `R7_CANDIDATE_BRIEF.md`；`model_code_sha256` 变化记入 `docs/rules/CHANGELOG.md`（带 `[model-digest-change]`）。
+  - **D6 收尾（CI 与干净检出绑定，2026-09-30）**：`git reflog show origin/r7/weather-reasoning` 证明
+    本轮只有一次 push（`e6085bc → 13bbcd6`），唯一 run **`36621458964` = success**（八步全绿；
+    18 条 workflow 中 17 条实验 workflow 按标签门控 skipped=设计行为，不算失败也不当通过）；
+    被同一次 push 带上来的五个中间 SHA 记为「无独立 run」（不是通过）。起点 `e6085bc` 的
+    开工前 run `36606529478` = success。干净检出实测：`git clone` 检出 `13bbcd6` →
+    **1494 passed / 8 skipped / 0 failed**；本机全量（有产物）**1499 passed / 3 skipped**。
+    两处钉住值缺陷在推送前本地全量暴露并修复（`5bf0b73`、`926d2fe`、`13bbcd6`），
+    **本轮没有一次红是推上去才发现的**。证据页 §9/§10 已按此定稿。
+  - **收尾提交序列（只动文档 / 索引，无模型与实验改动）**：下一个提交 **A** = 证据页 §9/§10 定稿 +
+    本进度块；随后以 `--commit A` 重跑 `tools/append_rw_b_subtraction_evidence.py` 重钉索引
+    （digest 取工作树、`evidence_commit` 指向 A——A 就是持有该页版本的提交），提交 **B** = 索引 + brief；
+    A 与 B 同一次 push，按 GitHub 只对 head 触发的契约，**只有 B 有独立 run**，A 记为「无独立 run」
+    （不是通过）。之后提交 **C** = 本块记录 A/B 的 run 状态。**最后一个收尾提交自身的 run 号
+    无法自引用**：头部提交的固有边界，照写而不是回避。
 - **未做**（详见证据文档 §7）：
   - **未做归因**（负控制触发即停，不为补救加臂或放宽判据）；确认轮（≤2.5 GPU-h）**未动用**；未跑第三 seed。
   - 未读 test、未下载数据、未租 GPU、未改 main、未 force push、未关 #70–#75。
