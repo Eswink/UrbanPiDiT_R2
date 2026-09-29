@@ -250,14 +250,15 @@ def test_the_proposal_moves_with_the_anchor_it_is_decoded_against():
 
 
 def test_the_anchored_proposal_is_required_when_the_state_is_on():
-    from model.process_step_r7 import process_reasoning_step
+    from model.process_step_r7 import ProcessStepInput, process_reasoning_step
     model = model_with(**RW_B).eval()
     with torch.no_grad():
         base = model.backbone(forecast_inputs(batch()))
         process = model.process_queries.expand(2, -1, -1)
         with pytest.raises(ValueError, match="anchor"):
-            process_reasoning_step(model, process, base.context_tokens,
-                                   base.forecast, base.token_hw)
+            process_reasoning_step(
+                model, ProcessStepInput(process, base.context_tokens, base.forecast),
+                base.token_hw)
 
 
 @pytest.mark.parametrize("hw", [(5, 7), (7, 5), (1, 3), (3, 1)])

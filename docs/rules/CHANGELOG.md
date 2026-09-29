@@ -19,7 +19,12 @@ R-009 基线 827/2046 → **859/2114**（实测值；基线是**下界**，抬�
 `model/` 下 7 个文件的字节变化（2 个新增 + 5 个接线）使 `model_code_digest()` 从
 `f349adceb5ba03e10fbb45b514bfbc25352c6b81848b255d615127fb36b047e1`（第三轮）
 变为
-`b599ce61da8295246f53221d945a67490dded9cfdc4240c84bbf5fda2c1ee953`。
+`9ddd2660820dc95e89ca19d78b36765d22805c6462c30e23b58ae62aa1f5a21e`。
+
+（中间还出现过 `b599ce61…`：那是把 `process_reasoning_step` 的 9 个参数收进
+`ProcessStepInput` 之前、为满足 R-023 的函数参数目标态所做的签名整理，
+**未进入任何产物**；整理前后参数与 FLOPs 实测逐项相同，见
+`outputs/r7_e0_diagnostic/rw_b_cost_batch2.json`。）
 
 **这是预期后果，不是缺陷**：两个新开关默认关闭，关闭时与改动前**逐位相同**——由
 `tests/test_r7_switched_path_equivalence.py` 的 23 个 digest（对照组仍是 `git archive 93d89aa`

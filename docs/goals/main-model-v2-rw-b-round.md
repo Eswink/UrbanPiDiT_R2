@@ -119,15 +119,26 @@ issue 评论落仓为草稿（API 写 401）。
 
 ## §8 进度块
 
-- **状态**：`active`（goal 已启动；执行者不自行宣布完成）
-- **已完成**：E0 两个预注册诊断（D1）——`docs/R7_E0_DIAGNOSTICS.md`、`docs/rules/EVIDENCE.md` 的
-  E-196/E-197、驱动 `scripts/study_r7_e0_{correction_replay,paired_stability}.py`、产物
-  `outputs/r7_e0_diagnostic/`（0 GPU-h，115 s CPU）。读数：读取**放大**修正幅度但不使其与误差反相关；
-  三轮 §13 的「t2m 72h 三 seed 同号」被推翻（seed42 反号），48h 那一段跨两轮复现。
-- **未做**：D2–D7 全部；RW-B、M3、M4、M5 实现全部未开始；D5 的真实 train/val 对照需按决策 0021
-  在执行那一刻取用户授权。
-- **下一动作**：D2/D3——新增 `model/local_solver_state_r7.py`（Z 局部门控更新 + 锚定 X_t 的提案 +
-  逐位置门控），把 `forward` / streamed / adaptive 三处收敛到一个共享 step，`local_solver_state`
-  默认关闭且与前实现逐位等价。
+- **状态**：`active`（E0 与 RW-B 实现+测试已完成；D5 的实验对照**未执行**，执行者不自行宣布完成）
+- **已完成**：
+  - **D1/E0**：两个预注册诊断实跑（0 GPU-h，CPU 111.1 s，只读 val）。记录
+    `docs/R7_E0_DIAGNOSTICS.md`、`docs/rules/EVIDENCE.md` 的 E-196/E-197、驱动
+    `scripts/study_r7_e0_{correction_replay,paired_stability}.py`、产物 `outputs/r7_e0_diagnostic/`。
+    读数：读取**放大**修正幅度（C/B 能量比 1.31，三 seed 同号）但**不**使其与误差反相关；
+    三轮 §13 的「t2m 72h 三 seed 同号」被推翻（seed42 反号，比较器自己已标 unresolved），
+    48h 那一段跨两轮复现（−0.2235…−0.2468 K）。
+  - **D2/D3**：`model/local_solver_state_r7.py`（Z 的 ConvGRU 式局部更新、逐位置门控、
+    锚定 X_t 的提案、门控 token→native 展开）与 `model/process_step_r7.py`（**唯一一份 step**，
+    由 fixed forward / streamed backward / adaptive 三处调用）。两个新开关默认关闭且与前实现逐位等价
+    （既有 23 digest 测试未改动即通过，另有显式 `False` 与不写参数的逐张量相等 + 前向 `torch.equal`）。
+    实测代价：**+314,898 参数（+10.61%，目标 ≤25% 达成）**、前向 FLOPs ×1.2097。
+  - **D4**：`tests/test_r7_local_solver_state.py`（27 项）+ `tests/test_r7_shared_step_paths.py`（10 项），
+    含边界反证、poison、odd grid、K=0/1/2/4、resume、BF16、三路一致、结构性防漂移。
+    `pytest -q` **1456 passed, 3 skipped**；`check_conventions.py` 37 条阻断 0 违规。
+- **未做**：**D5 的有界真实 train/val 对照**（按决策 0021 需在执行那一刻取得用户授权，本轮未取得）；
+  matched Generic 的完整 RW-B；M3/M4/M5；E1–E5 的其余部分。未训练、未租 GPU、未读 test。
+- **下一动作**：按决策 0021 取得授权后跑三臂（旧 mean-Ours / RW-A / RW-B）× 2 seed × 400 updates，
+  协议在第一次优化器更新前排他冻结；**先读** `docs/R7_E0_DIAGNOSTICS.md` §5——t2m 72h 不可作机制证据，
+  48h 才是可复核的那一格。
 
 每推进一步就更新本块（一行「已完成/未做/下一动作」），不要留给下一轮补写。

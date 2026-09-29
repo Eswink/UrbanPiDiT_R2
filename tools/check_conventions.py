@@ -173,6 +173,15 @@ FUNC_BODY_HARD_MAX = 200
 # as commit content counts as tracked (the smoke test of the guard against the real repo
 # caught it refusing the very commit that introduces this round's decision record).
 # Nothing was removed.
+# 2026-09-29 (#72 M2-B, RW-B): 827/2046 -> 859/2114.
+# Thirty-two test functions and sixty-eight assertions were added across two files:
+# tests/test_r7_local_solver_state.py (the solver-state boundaries with their
+# counterproofs - a saturated gate must collapse the proposal gradient, the proposal
+# must move with its anchor, the retired spatial feedback must stay off, capacity at the
+# audited configuration) and tests/test_r7_shared_step_paths.py (the structural guard
+# that no call site carries a second copy of the step, three-path agreement, the role
+# marker criterion, poisoned future fields against both the forward and the halting
+# selection, checkpoint round trip, BF16). Nothing was removed.
 TEST_FUNCTION_BASELINE = 859
 ASSERT_BASELINE = 2114
 # R-027: how many recent commits to sample for message convention.

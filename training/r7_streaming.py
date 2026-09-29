@@ -9,7 +9,7 @@ import torch
 from torch.nn import functional as F
 
 from model.process_forecast_r7 import ProcessForecastCoReasoner
-from model.process_step_r7 import ProcessStepOutput, process_reasoning_step
+from model.process_step_r7 import ProcessStepInput, ProcessStepOutput, process_reasoning_step
 from model.recursive_weather_r7 import (GenericRecursiveWeatherForecaster,
     declared_source_roles, recurrent_key, solver_conditioning)
 from model.r7_halting import forecast_inputs
@@ -67,7 +67,7 @@ def _recursive_step(model, state, context, draft, token_hw, *,
     """
     if isinstance(model, ProcessForecastCoReasoner):
         return process_reasoning_step(
-            model, state, context, draft, token_hw,
+            model, ProcessStepInput(state, context, draft), token_hw,
             solver_state=solver_state, step_index=step_index, anchor=anchor)
     tokens, hw = model.draft_encoder(draft)
     if tuple(hw) != tuple(token_hw):

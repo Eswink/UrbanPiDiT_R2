@@ -10,10 +10,19 @@
 | 输入 checkpoint | `outputs/r7_71_72_round_two/seed{41,42,43}/training/*/update_0000400.pt`（12 个，逐文件 sha256 见产物） |
 | 回放代码 | commit `d8aff68`（`git archive` 到 `/tmp/r7_e0/code_r2`）；实测 `model_code_digest` = `8d9262d1abb537f11fc0b74b98ec30e450eadf4e7bd7300ad32a957de5e38e44`，与该批 checkpoint 的 `model_code_sha256` **相同** |
 | 数据 | M2 段 val `outputs/r7_m2_segment/store/manifests/val.jsonl`（22 窗口，sha256 `218512c8a1490dfc…`）；`test.jsonl` 全程未读 |
-| 产物 | `outputs/r7_e0_diagnostic/`（12 × correction + 12 × oracle + 合并 `e0_correction_replay.json` + `e0_paired_stability.json`） |
-| 驱动 | `scripts/study_r7_e0_correction_replay.py`（sha256 `14803a25f2263668…`）、`scripts/study_r7_e0_paired_stability.py` |
-| 实测墙钟 | E0-1 **115.2 s**（CPU，12 checkpoint × 22 窗口 × (K=3 修正 + K=4 oracle)）；E0-2 < 1 s（纯 JSON 读） |
+| 产物 | `outputs/r7_e0_diagnostic/`（12 × correction + 12 × oracle + 合并 `e0_correction_replay.json` + `e0_paired_stability.json` + `rw_b_cost_batch2.json`） |
+| 驱动 | `scripts/study_r7_e0_correction_replay.py`（sha256 `5fcd312aec528742…`）、`scripts/study_r7_e0_paired_stability.py`（sha256 `32fe5ec7ecb893aa…`）；两个 sha 都与产物里记录的 `driver_sha256` **逐位相符** |
+| 实测墙钟 | E0-1 **111.1 s**（CPU，12 checkpoint × 22 窗口 × (K=3 修正 + K=4 oracle)）；E0-2 < 1 s（纯 JSON 读） |
 | `scientific_claim` | `false`（两份合并产物内均带该字段） |
+
+**一处流程事实（如实记）**：E0-1 第一次跑完后，两个驱动的 `main()` 分别有 137 / 119 行，
+越过 R-020（函数体 ≤100 行的 C 类目标态）——而本机跑测试时它们还是未跟踪文件，
+`judge_as_committed` 不计入，**CI 上才暴露**。处置是把两个驱动**重组**（拆出
+`import_code_root` / `measure_arms` / `check_archived_claim` 等，不改任何数值语句），
+然后**用重组后的驱动把两个诊断各重跑一次**：E0-1 的 12 臂 × 2 诊断、E0-2 的全部数字
+与第一次**逐字段相同**（只排除 `elapsed_seconds` 与驱动自身 hash）。
+产物目录里现在是**重组后那次**的输出，因此记录的 `driver_sha256` 与仓库里的驱动一致、可直接复核；
+R-020 命中数回到文档记载的 39，未改任何阈值或标记。
 
 ---
 

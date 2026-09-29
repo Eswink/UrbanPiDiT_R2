@@ -42,6 +42,20 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class ProcessStepInput:
+    """The tensors one internal step reads.
+
+    Bundled rather than passed one by one: three same-shaped states in a row read
+    as an argument list, and the step's signature should be about the step. It also
+    keeps the parameter count inside the project's target instead of bending that
+    target to fit a long signature.
+    """
+    process: torch.Tensor
+    context: torch.Tensor
+    draft: torch.Tensor
+
+
+@dataclass
 class ProcessStepOutput:
     """One internal reasoning step of the process co-reasoner."""
     process: torch.Tensor
@@ -53,9 +67,7 @@ class ProcessStepOutput:
 
 def process_reasoning_step(
     model: "ProcessForecastCoReasoner",
-    process: torch.Tensor,
-    context: torch.Tensor,
-    draft: torch.Tensor,
+    tensors: ProcessStepInput,
     token_hw: tuple[int, int],
     *,
     solver_state: Optional[torch.Tensor] = None,
@@ -69,6 +81,7 @@ def process_reasoning_step(
     only; the fixed forward passes its per-call argument through here instead of
     branching around the step, which is how the three copies diverged before.
     """
+    process, context, draft = tensors.process, tensors.context, tensors.draft
     feedback = model.use_forecast_feedback if use_forecast_feedback is None else bool(
         use_forecast_feedback)
     draft_tokens = None

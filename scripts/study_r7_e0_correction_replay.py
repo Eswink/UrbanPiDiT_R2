@@ -177,6 +177,71 @@ def compare(summaries: dict, focus: str, baseline: str, variables: list[str]) ->
     }
 
 
+def import_code_root(code_root: Path, args) -> dict:
+    """Import the replay revision and prove it is the one that was asked for.
+
+    ``--code-root`` exists so a checkpoint is replayed by the revision that trained
+    it. A shadowing import elsewhere on ``sys.path`` would silently measure a
+    different revision, so the resolved module paths are checked rather than
+    assumed, and the caller gets back the names it needs.
+    """
+    if not (code_root / "training" / "r7_correction_diagnostic.py").is_file():
+        raise FileNotFoundError(f"no R7 code under --code-root {code_root}")
+    sys.path.insert(0, str(code_root))
+    import torch
+    from data.r7_zarr_dataset import ZarrAtmosWindowDataset
+    from training.r7_calibration_runner import file_sha256
+    from training.r7_correction_diagnostic import run_correction_diagnostic
+    from training.r7_experiment import load_checkpoint, model_code_digest
+
+    for name in ("data.r7_zarr_dataset", "training.r7_calibration_runner",
+                 "training.r7_correction_diagnostic", "training.r7_experiment",
+                 "model.process_forecast_r7"):
+        origin = Path(sys.modules[name].__file__).resolve()
+        if code_root not in origin.parents:
+            raise RuntimeError(
+                f"{name} resolved to {origin}, outside --code-root {code_root}; "
+                "a shadowing import would replay the checkpoint with the wrong revision")
+    torch.set_num_threads(int(args.threads))
+    return {"dataset": ZarrAtmosWindowDataset, "sha": file_sha256,
+            "correction": run_correction_diagnostic, "load": load_checkpoint,
+            "digest": model_code_digest}
+
+
+def measure_arms(arms, *, code, manifest, root: Path, variables, args):
+    """Run both diagnostics for every declared arm and keep their provenance."""
+    records, summaries = [], {}
+    for name, seed, checkpoint in arms:
+        digest_before = code["sha"](checkpoint)
+        saved = code["load"](checkpoint)
+        contract = saved["contract"]
+        if contract.get("kind") != "process":
+            raise ValueError(f"{name}/{seed} is not a process checkpoint")
+        correction = code["correction"](
+            manifest, checkpoint=checkpoint, output=root / f"correction_{name}_s{seed}.json",
+            max_steps=args.max_steps_correction, max_samples=args.max_samples)
+        summary = {"correction": summarise_correction(correction, variables), "oracle": None}
+        if not args.skip_oracle:
+            from training.r7_gain_oracle import run_oracle_diagnostic
+            oracle = run_oracle_diagnostic(
+                manifest, checkpoint=checkpoint, output=root / f"oracle_{name}_s{seed}.json",
+                max_steps=args.max_steps_oracle, max_samples=args.max_samples,
+                step_cost=0.0, device_name="cpu")
+            summary["oracle"] = summarise_oracle(oracle)
+        if code["sha"](checkpoint) != digest_before:
+            raise RuntimeError(f"checkpoint {checkpoint} changed during the run")
+        summaries[(name, seed)] = summary
+        records.append({
+            "arm": name, "seed": seed, "checkpoint": str(checkpoint),
+            "checkpoint_sha256": digest_before,
+            "training_model_code_sha256": saved.get("model_code_sha256"),
+            "model_config": contract.get("model"),
+            "data_identity": contract.get("data_identity"),
+            "selected_update": saved.get("updates"),
+        })
+    return records, summaries
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--manifest", required=True,
@@ -202,34 +267,11 @@ def main() -> None:
     args = parser.parse_args()
 
     code_root = Path(args.code_root).resolve() if args.code_root else Path(__file__).resolve().parents[1]
-    if not (code_root / "training" / "r7_correction_diagnostic.py").is_file():
-        raise FileNotFoundError(f"no R7 code under --code-root {code_root}")
-    sys.path.insert(0, str(code_root))
-
-    import torch
-    from data.r7_zarr_dataset import ZarrAtmosWindowDataset
-    from training.r7_calibration_runner import file_sha256
-    from training.r7_correction_diagnostic import run_correction_diagnostic
-    from training.r7_experiment import load_checkpoint, model_code_digest
-
-    # The whole point of --code-root is that a checkpoint is replayed by the
-    # revision that trained it. A shadowing import elsewhere on sys.path would
-    # silently measure a different revision, so the resolved module paths are
-    # checked rather than assumed.
-    for name in ("data.r7_zarr_dataset", "training.r7_calibration_runner",
-                 "training.r7_correction_diagnostic", "training.r7_experiment",
-                 "model.process_forecast_r7"):
-        origin = Path(sys.modules[name].__file__).resolve()
-        if code_root not in origin.parents:
-            raise RuntimeError(
-                f"{name} resolved to {origin}, outside --code-root {code_root}; "
-                "a shadowing import would replay the checkpoint with the wrong revision")
-
-    torch.set_num_threads(int(args.threads))
+    code = import_code_root(code_root, args)
     manifest = Path(args.manifest).resolve()
     if not manifest.is_file():
         raise FileNotFoundError(manifest)
-    dataset = ZarrAtmosWindowDataset(manifest)
+    dataset = code["dataset"](manifest)
     if {record["split"] for record in dataset.records} != {"val"}:
         raise ValueError("E0 scores the validation split only")
     variables = args.variable or list(dataset._store(dataset.records[0]).attrs["channels"])
@@ -243,36 +285,8 @@ def main() -> None:
     root.mkdir(parents=True)
 
     started = time.monotonic()
-    records, summaries = [], {}
-    for name, seed, checkpoint in arms:
-        digest_before = file_sha256(checkpoint)
-        saved = load_checkpoint(checkpoint)
-        contract = saved["contract"]
-        if contract.get("kind") != "process":
-            raise ValueError(f"{name}/{seed} is not a process checkpoint")
-        correction = run_correction_diagnostic(
-            manifest, checkpoint=checkpoint, output=root / f"correction_{name}_s{seed}.json",
-            max_steps=args.max_steps_correction, max_samples=args.max_samples)
-        summary = {"correction": summarise_correction(correction, variables), "oracle": None}
-        if not args.skip_oracle:
-            from training.r7_gain_oracle import run_oracle_diagnostic
-            oracle = run_oracle_diagnostic(
-                manifest, checkpoint=checkpoint, output=root / f"oracle_{name}_s{seed}.json",
-                max_steps=args.max_steps_oracle, max_samples=args.max_samples,
-                step_cost=0.0, device_name="cpu")
-            summary["oracle"] = summarise_oracle(oracle)
-        if file_sha256(checkpoint) != digest_before:
-            raise RuntimeError(f"checkpoint {checkpoint} changed during the run")
-        summaries[(name, seed)] = summary
-        records.append({
-            "arm": name, "seed": seed, "checkpoint": str(checkpoint),
-            "checkpoint_sha256": digest_before,
-            "training_model_code_sha256": saved.get("model_code_sha256"),
-            "model_config": contract.get("model"),
-            "data_identity": contract.get("data_identity"),
-            "selected_update": saved.get("updates"),
-        })
-
+    records, summaries = measure_arms(arms, code=code, manifest=manifest, root=root,
+                                      variables=variables, args=args)
     comparisons = [compare(summaries, focus, baseline, variables) for focus, baseline in pairs]
     result = {
         "format": args.label,
@@ -283,10 +297,10 @@ def main() -> None:
         "validation_only": True,
         "test_read": False,
         "code_root": str(code_root),
-        "code_root_model_code_digest": model_code_digest(),
+        "code_root_model_code_digest": code["digest"](),
         "driver_sha256": sha256_file(Path(__file__).resolve()),
         "manifest": str(manifest),
-        "manifest_sha256": file_sha256(manifest),
+        "manifest_sha256": code["sha"](manifest),
         "max_steps_correction": int(args.max_steps_correction),
         "max_steps_oracle": int(args.max_steps_oracle),
         "max_samples": int(args.max_samples),

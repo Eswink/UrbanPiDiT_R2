@@ -130,9 +130,9 @@ class AdaptiveProcessForecaster(nn.Module):
         anchor ``X_t``; both are threaded by :meth:`forward` so an adaptive run
         restarts neither.
         """
-        from .process_step_r7 import process_reasoning_step
+        from .process_step_r7 import ProcessStepInput, process_reasoning_step
         return process_reasoning_step(
-            self.forecaster, process, context, draft, token_hw,
+            self.forecaster, ProcessStepInput(process, context, draft), token_hw,
             solver_state=solver_state, step_index=step_index, anchor=anchor)
 
     @torch.no_grad()

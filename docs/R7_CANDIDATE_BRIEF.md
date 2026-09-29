@@ -75,7 +75,7 @@ Records: 9; human-review candidates: 1
 
 - Outcome class: `audit`; candidate state: `needs-review`
 - Human triage priority: `70` (not a scientific score)
-- Evidence: `docs/R7_E0_DIAGNOSTICS.md` (SHA256 `59ba87a56f3a2aaed05c6ee633ffee249ff176e7f287a22db66f3a88b50a5ce7`)
+- Evidence: `docs/R7_E0_DIAGNOSTICS.md` (SHA256 `72d13994c5c4c4df9c2a84b93a4d1bbf5b21a4aafe84dd1d06eb76a6bba04072`)
 - Evidence commit: `f4a571b370691162126f207b7d984761ec7ec57f`; experiment commit: `d8aff68e06357ddf8036d8e2971b92dd26adb96a`
 - Protocol SHA256: `not recorded`; data identity: `not recorded`
 - Reason: The two diagnostics rounds two and three pre-registered and never ran were executed on validation only, at 0 GPU-h, with the checkpoints replayed by the model revision that trained them; one archived claim is contradicted.
@@ -86,7 +86,7 @@ Records: 9; human-review candidates: 1
   - The 0.25-0.29 K band reproduces at t2m 48h; the t2m 72h limb is not sign-stable in round three and must not be read as mechanism evidence.
   - No threshold, significance level or confidence interval is introduced.
 - Excluded from runnable candidates: Read-only diagnostic, not a runnable experiment: it trains nothing and produces no forecast skill, so it cannot be indexed as a candidate model result.
-- Recorded metrics (not recomputed): checkpoints_replayed=12, cpu_seconds=115.2, gpu_hours=0.0, test_read=false, thresholds_added=0, validation_windows=22
+- Recorded metrics (not recomputed): checkpoints_replayed=12, cpu_seconds=111.1, gpu_hours=0.0, test_read=false, thresholds_added=0, validation_windows=22
 
 ## c1-process-supervision-mixed
 

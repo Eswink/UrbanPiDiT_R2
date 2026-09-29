@@ -90,6 +90,34 @@ def cell_of(report: dict, pair: dict, variable: str, lead: int) -> dict:
     }
 
 
+def check_archived_claim(round_three: dict) -> dict | None:
+    """Re-check the two numbers the round-three text quotes, one at a time.
+
+    The archived sentence states a mean *and* that the seeds share a sign. Those are
+    separate claims about the same cell and they come out differently, so each is
+    reported on its own rather than inheriting the other's verdict.
+    """
+    pair_key = ARCHIVED_CLAIM["pair"]
+    if pair_key not in round_three["pairs"]:
+        return None
+    pair = round_three["pairs"][pair_key]
+    check = {"pair": pair_key, "variable": ARCHIVED_CLAIM["variable"], "cells": {}}
+    for lead, quoted in ARCHIVED_CLAIM["leads"].items():
+        cell = cell_of(round_three, pair, ARCHIVED_CLAIM["variable"], lead)
+        check["cells"][f"{lead}h"] = {
+            "quoted_mean": quoted["quoted_mean"], "recomputed_mean": cell["mean_delta"],
+            "mean_reproduced": abs(cell["mean_delta"] - quoted["quoted_mean"]) < 5e-4,
+            "quoted_same_sign": quoted["quoted_same_sign"],
+            "recomputed_same_sign": cell["seeds_same_sign"],
+            "sign_claim_reproduced": cell["seeds_same_sign"] is quoted["quoted_same_sign"],
+            "seed_deltas": cell["seed_deltas"],
+            "comparator_outcome": cell["comparator_outcome"],
+            "doc_section": quoted["doc_section"],
+            "contradicted_by": quoted.get("contradicted_by"),
+        }
+    return check
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--round-two", required=True, type=Path)
@@ -145,26 +173,7 @@ def main() -> None:
         for lead in leads
     }
 
-    claim_check = None
-    pair_key = ARCHIVED_CLAIM["pair"]
-    if pair_key in rounds["round_three"]["report"]["pairs"]:
-        pair = rounds["round_three"]["report"]["pairs"][pair_key]
-        claim_check = {"pair": pair_key, "variable": ARCHIVED_CLAIM["variable"], "cells": {}}
-        for lead, quoted in ARCHIVED_CLAIM["leads"].items():
-            cell = cell_of(rounds["round_three"]["report"], pair, ARCHIVED_CLAIM["variable"], lead)
-            mean_matches = abs(cell["mean_delta"] - quoted["quoted_mean"]) < 5e-4
-            claim_check["cells"][f"{lead}h"] = {
-                "quoted_mean": quoted["quoted_mean"], "recomputed_mean": cell["mean_delta"],
-                "mean_reproduced": mean_matches,
-                "quoted_same_sign": quoted["quoted_same_sign"],
-                "recomputed_same_sign": cell["seeds_same_sign"],
-                "sign_claim_reproduced": cell["seeds_same_sign"] is quoted["quoted_same_sign"],
-                "seed_deltas": cell["seed_deltas"],
-                "comparator_outcome": cell["comparator_outcome"],
-                "doc_section": quoted["doc_section"],
-                "contradicted_by": quoted.get("contradicted_by"),
-            }
-
+    claim_check = check_archived_claim(rounds["round_three"]["report"])
     result = {
         "format": "r7-e0-paired-stability-v1",
         "scientific_claim": False,

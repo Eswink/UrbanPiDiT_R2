@@ -9,7 +9,7 @@ from torch.utils.checkpoint import checkpoint
 from .coarse_forecast import CoarseForecastHead
 from .local_solver_state_r7 import (SOLVER_INITIAL_SCALE, LocalSolverState, PositionGate)
 from .process_readout_r7 import PositionalProcessReadout
-from .process_step_r7 import ProcessStepOutput, process_reasoning_step
+from .process_step_r7 import ProcessStepInput, ProcessStepOutput, process_reasoning_step
 from .recursive_weather_r7 import (ROLE_INITIAL_SCALE, DraftTokenEncoder,
     GenericRecursiveCell, solver_conditioning)
 from .spacetime_conditioning_r7 import isolated_stream, require_field_mode
@@ -290,9 +290,7 @@ class ProcessForecastCoReasoner(nn.Module):
         for step in range(steps):
             result=process_reasoning_step(
                 self,
-                process,
-                context,
-                draft,
+                ProcessStepInput(process,context,draft),
                 token_hw,
                 solver_state=solver_state,
                 step_index=step,

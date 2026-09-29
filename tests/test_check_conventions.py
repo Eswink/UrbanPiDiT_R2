@@ -431,11 +431,18 @@ def test_rule_execution_counts_match_docs(checker):
     assert not (set(checker.BLOCKING_RULES) & set(checker.RULES_NOT_MECHANISED))
     assert not (set(checker.REPORT_RULES) & set(checker.RULES_NOT_MECHANISED))
     migration = (ROOT / "docs" / "rules" / "MIGRATION.md").read_text(encoding="utf-8")
+    testing = (ROOT / "docs" / "rules" / "testing.md").read_text(encoding="utf-8")
     ci_rules = (ROOT / "docs" / "rules" / "ci-and-verification.md").read_text(encoding="utf-8")
     assert "（**37 条**，实测" in migration
     assert "37 条阻断规则" in ci_rules
     assert "20 条阻断" not in ci_rules
-    assert "827/2046" in migration
+    # The documented R-009 baseline is compared against the checker's own constants
+    # rather than a literal. Pinning "827/2046" here is exactly what let MIGRATION.md
+    # and testing.md go stale the moment the baseline moved, and nothing noticed until
+    # CI ran; deriving the string keeps the guard and removes the drift.
+    baseline = f"{checker.TEST_FUNCTION_BASELINE}/{checker.ASSERT_BASELINE}"
+    assert baseline in migration, f"MIGRATION.md does not quote the R-009 baseline {baseline}"
+    assert baseline in testing, f"testing.md does not quote the R-009 baseline {baseline}"
 
 
 def test_pytest_marker_contract_matches_documentation():
