@@ -145,7 +145,40 @@
 
 ## §8 进度块
 
-- **状态**：`active`（**本文件写就时目标尚未启动**；启动后立即把本块替换为起点 SHA、账本余量与第一动作）
-- **已完成**：无
-- **未做**：D1–D6 全部
-- **下一动作**：D1 的 0 GPU-h 机制探针（只读 32 个 checkpoint 与 val）
+- **状态**：`active`（D1–D6 已执行完毕；**执行者不自行宣布目标完成**，等独立校验）
+- **起点 SHA**：`e6085bc8a8ab173f6208ed210bf8484f323a56a4`（开工 `git rev-parse HEAD` 复核过）
+- **账本**：开工时按上一轮 §5 重读为 **20.701**；本轮 D4 实测 **0.4128 GPU-h** ⇒ **20.288**（D1 为 0 GPU-h）
+- **已完成**：
+  - **D1（0 GPU-h）**：`scripts/study_r7_rw_b_subtraction_probe.py` + `outputs/r7_rw_b_subtraction_probe/probe.json`
+    （CPU 6.2 s，只读上一轮 32 个 checkpoint 与 val，hash 全部记录，`--code-root` 指向训练它们的修订并核对 digest）。
+    读数：移除门控+锚定提案后第 1 步幅度塌到 RW-A 的 **0.20/0.24 倍**（两 seed 同向）；
+    移除 Z 的递推后**余弦从第 1 步就转正**（+0.010/+0.021）而幅度在两 seed 间从 1.48 跳到 3.04。
+    ⇒ 幅度需要 (a) 通路存在，余弦转正出现在任何让 Z 停止跨步递推的配置里，**两者不是同一件带来的**。
+    同时测出焦点臂的 `correction_head` **训练时从未收到梯度**（所以「移除 (a)」那一行不能当训练期结论）。
+  - **D2/D3**：`model/process_forecast_r7.py` + `model/process_step_r7.py` 拆出两个**默认 True** 的子开关
+    `solver_state_recurrence`（Z 停在 `solver_init`，提案与门控仍施加、状态不再传递）与
+    `solver_gate_proposal`（走 pre-RW-B 的 correction 通路，Z 若仍递推则只是闲置计算）；
+    两开关只在 `local_solver_state=True` 时存在、新增**零参数**。两条逐位等价都有实跑证据
+    （全关 ≡ 起点修订；`local_solver_state=True` 全开 ≡ 起点修订的 RW-B），另有「扰动冻结树必须打破等价」的反证。
+    `tests/test_r7_rw_b_subtraction.py` 15 项；本机 `pytest -q` **1499 passed / 3 skipped**。
+  - **D4**：`scripts/study_r7_72_rw_b_subtraction.py` + `training/r7_rw_b_subtraction_protocol.py`；
+    产物 `outputs/r7_72_rw_b_subtraction/`。4 臂 × 2 seed × 400 updates，协议在第一次 `optimizer.step()`
+    前以 `'x'` 冻结并回读重算 digest（`58fc74b7…`，8 个 run 全同），只读 val、test 封存、四臂均未早停。
+    实测 **0.4128 GPU-h**（训练 0.376 + 评估 0.0368），未超 1.0 的自设上限。
+  - **D5**：按预声明规则读出 **`stop-confounded-control`** ⇒ **本轮不做归因**。但诊断出规则前提不成立：
+    负控制 `RW-B−(a)` **在构造上退化为 RW-A 本身**——同一份权重下前向/逐步 drafts/adaptive **逐位相同**、
+    训练损失**逐位相同**、131 个共享张量梯度**全部逐位相同**且 solver 侧 0 个非零梯度；
+    因此它那 3e-05…8e-05 K 的「worsened」是浮点噪声（作为量级参照：RW-B 对 RW-A 的权重相对差是 1.74，
+    负控制是 1.6e-4）。主问句 `RW-B−(b)` 自身读数是干净的（48h +0.785 / 72h +1.174，两 seed 同号 worsened），
+    **若**负控制可用则规则会指向 (a)，但本轮**不把它写成归因**。
+  - **D6**：证据文档 `docs/R7_72_RW_B_SUBTRACTION.md`（negative 原样保留、limitations 与未做事明写）；
+    台账 **E-202 – E-206**；证据索引新增两条记录（`rw-b-subtraction-probe`、`rw-b-subtraction-round-cannot-attribute`）
+    并重生成 `R7_CANDIDATE_BRIEF.md`；`model_code_sha256` 变化记入 `docs/rules/CHANGELOG.md`（带 `[model-digest-change]`）。
+- **未做**（详见证据文档 §7）：
+  - **未做归因**（负控制触发即停，不为补救加臂或放宽判据）；确认轮（≤2.5 GPU-h）**未动用**；未跑第三 seed。
+  - 未读 test、未下载数据、未租 GPU、未改 main、未 force push、未关 #70–#75。
+  - **未重跑或改写上一轮任何产物**（`outputs/r7_72_rw_b_pilot/` 只被只读打开）。
+  - (c) role 标记**未重测**，只引用上一轮已登记的对照，未写成机制声明。
+- **下一动作**（按停止条件 3）：停止发明新模块；记下**可反驳假设**——「换一个真正可区分的负控制
+  （例如把 Z 换成同形状冻结随机张量、其余不变），48/72h 的恶化应当仍然出现」；并转去重新检查
+  forecast state / training objective / data regime（证据文档 §8 给出了具体第一动作）。

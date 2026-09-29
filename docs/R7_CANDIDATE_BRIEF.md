@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 10; human-review candidates: 1
+Records: 12; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -21,6 +21,25 @@ Records: 10; human-review candidates: 1
 - CI run: `36276587108`
 - Excluded from runnable candidates: Candidate for human review only; follow-up still requires a new frozen protocol and explicit authorization.
 - Recorded metrics (not recomputed): gate_met=false, gpu_hours=1.157, lead_hours=[6, 12, 24, 48, 72], seeds=3, test_read=false
+
+## rw-b-subtraction-round-cannot-attribute
+
+- Outcome class: `unresolved`; candidate state: `needs-review`
+- Human triage priority: `79` (not a scientific score)
+- Evidence: `docs/R7_72_RW_B_SUBTRACTION.md` (SHA256 `fd16adb95eb58ff4e878d9f010037512fafdaf4a880aecdc44a06941f1580a35`)
+- Evidence commit: `fed56f4aa1fb1fd5352c81f5b5e625acb5118acb`; experiment commit: `fed56f4aa1fb1fd5352c81f5b5e625acb5118acb`
+- Protocol SHA256: `58fc74b7a7aaa513197d85f836684cd55851013b3c7f8519f184649837b357d4`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: The pre-declared subtraction round: the registered negative control RW-B-(a) is degenerate by construction - with identical weights it is bitwise identical to RW-A in the forward pass, the training loss and all 131 shared gradients, receiving zero gradient on the solver side - so its same-sign 'worsening' of 3e-05..8e-05 K is float noise on an identity comparison, not a confound. The frozen branch rule fired as written (stop-confounded-control) and no attribution is reported. The primary arm's own reading (48 h +0.785 K, 72 h +1.174 K, both seeds, worsened) would have pointed at the gate+anchored proposal had the control been admissible, and the previous round's registered deltas reproduced to ~2e-04 K under a changed model-code digest.
+- Limitations:
+  - The round's negative control is invalid by construction: this is a defect of the control arm's design, recorded rather than worked around.
+  - Two seeds: sign agreement is a consistency check, not significance; no threshold was introduced or relaxed.
+  - The arms are not capacity-matched, so no pair here is a compute-controlled contrast.
+  - The leave-one-out arms remove a piece at training time; the reference arm RW-A was retrained under this round's digests, so the two rounds' numbers are never pooled.
+  - The correction probe covers 8 validation windows per seed: proportions over those windows, not a distribution estimate.
+  - Validation split only; the test split stayed sealed and was never opened.
+  - One winter segment of one year in one region: no seasonal or cross-region claim.
+- Excluded from runnable candidates: Cannot attribute at this budget: the control arm cannot distinguish anything, so no mechanism conclusion may be drawn from this round. The next admissible step is the pre-declared falsifiable hypothesis in the evidence document, or the turn to forecast state / training objective / data regime that stop condition 3 requires.
+- Recorded metrics (not recomputed): arms=4, branch=stop-confounded-control, forward_flops_ratio_rw_b_vs_rw_a=1.2097, gpu_hours=0.4128, gpu_hours_evaluation=0.0368, gpu_hours_training=0.376, negative_control_shared_weights_relative_diff=0.00016, parameters_rw_b=3283157, previous_round_reproduced_max_abs_delta=0.00018, primary_no_recurrence_t2m_48h=0.7854, primary_no_recurrence_t2m_72h=1.1739, round_reference_t2m_48h=1.0651, round_reference_t2m_72h=1.5805, rw_b_shared_weights_relative_diff=1.74, seeds=2, test_read=false, thresholds_added=0, updates_per_arm=400
 
 ## rw-b-bounded-round-negative
 
@@ -40,6 +59,23 @@ Records: 10; human-review candidates: 1
   - The deep security scan run at the end of the round is inconclusive and none of its 27 findings (all inside the read-only legacy_v531_full snapshot) was triaged.
 - Excluded from runnable candidates: Negative result at one bounded budget: not a candidate for extension. The next admissible action is a predeclared subtraction of the gate/proposal, Z and the role markers, which needs its own authorization.
 - Recorded metrics (not recomputed): arms=4, forward_flops_ratio_vs_rw_a=1.2097, gpu_hours=0.8356, gpu_hours_single_clean_attempt=0.4154, parameters_added_vs_rw_a=314898, primary_leads_supported=2, primary_leads_worsened=3, seeds=2, t2m_delta_48h=1.065, t2m_delta_72h=1.5804, test_read=false, thresholds_added=0, updates_per_arm=400
+
+## rw-b-subtraction-probe
+
+- Outcome class: `audit`; candidate state: `needs-review`
+- Human triage priority: `76` (not a scientific score)
+- Evidence: `docs/R7_72_RW_B_SUBTRACTION.md` (SHA256 `fd16adb95eb58ff4e878d9f010037512fafdaf4a880aecdc44a06941f1580a35`)
+- Evidence commit: `fed56f4aa1fb1fd5352c81f5b5e625acb5118acb`; experiment commit: `fed56f4aa1fb1fd5352c81f5b5e625acb5118acb`
+- Protocol SHA256: `not recorded`; data identity: `not recorded`
+- Reason: The 0 GPU-h leave-one-observation probe over the archived RW-B checkpoints: removing the gate+anchored proposal collapses the step-1 correction to 0.20-0.24x the RW-A magnitude in both seeds, while removing the cross-step recurrence of Z turns the error/correction cosine positive from step 1 in both seeds without reproducing the 1.8x magnitude. The same probe measures that the focus arm's correction_head never received a gradient, which is why the decision-0021 round retrains the leave-one-out arms from scratch rather than reusing this row.
+- Limitations:
+  - Validation split only, 8 windows, one lead: a diagnostic, never a skill number.
+  - No threshold is introduced; the readings are the three the bounded round defined.
+  - Each row is an inference-time removal from a checkpoint trained with the piece on, so it is not the training-time contrast the bounded round measured.
+  - The gate+proposal-removed row routes the checkpoint through a correction head this arm never trained; the probe reports that measurement instead of leaving it implicit.
+  - The archived rows were measured on CUDA and this replay on CPU, so agreement is float32 reduction order (max |delta| 7e-06 on one seed and one flipped boolean on the other, reported).
+- Excluded from runnable candidates: Read-only diagnostic over archived checkpoints: it trains nothing and produces no forecast skill, so it cannot be indexed as a candidate model result.
+- Recorded metrics (not recomputed): checkpoints_hashed=32, checkpoints_replayed=4, cpu_seconds=6.2, focus_arm_correction_head_moved_by_training=false, gpu_hours=0.0, recurrence_removed_cosine_positive_both_seeds=true, seeds=2, step1_magnitude_ratio_gate_removed_mean=0.22, step1_magnitude_ratio_recurrence_removed_seed41=1.48, step1_magnitude_ratio_recurrence_removed_seed42=3.04, test_read=false, thresholds_added=0, validation_windows=8
 
 ## b1-d1-controlled-comparison
 

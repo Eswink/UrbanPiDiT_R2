@@ -350,12 +350,25 @@
 | --- | --- | --- | --- | --- |
 | E-201 | goal 完成校验调用在客户端**没有任何超时**（只有 `abortSignal`），provider 不返回时会永久停在 `goal.status="verifying"`：UI 显示「第 N 次迭代 · 目标校验中」，该会话新输入被排队。2026-09-30 的实例悬挂 **1773.0 s** 后由用户暂停中止（`model_usage`：`status='cancelled'`、`cancelled_by_user=1`、`input_tokens=0`）。全量 26 次校验调用按 provider 分布：`new-provider`（deepseek-v4.1-flash）**14/14 completed**（11.6–47.4 s，最大输入 532,730 token）、`account:zai-start-plan`（GLM-5.3-Flash）**6/6 completed**、`new-provider-4`（cline-pass 路由）**0/6**（`error`×4 各 17.1–46.9 s 且 `input_tokens=0`；`cancelled`×2 各 1436.6 s / 1773.0 s）⇒ 失败与请求体积无关、与路由相关。已排除：objective 长度（990 码点）、`check_goal_brief.py`（0 失败）、仓库产物与工作区、本仓 hooks（该会话项目 hooks 处于 pending workspace trust 且 blocked）。代码依据：非流式校验调用（`Jka`）不传 `timeout`，主流式回合的 10 分钟 idle 看门狗不覆盖它。**另发现台账自身的漂移**：本文件「统计」块的覆盖度/置信度数字与按行重数不符，本次一并改正 | `~/.zcode/cli/log/zcode-2026-09-30.jsonl`（span `e6c36daf-e5a8-4a` 的起始与失败三连）；`db.sqlite` 的 `session_entry 7d7ce89b` / `08141ff0`、`model_usage` 该 `query_source` 全 26 行、`session_target.status='paused'`；客户端 `~/.zcode/server/agents/glm/zcode.cjs` 偏移 ≈12862744（失败语义）/≈12863500（调用点）/≈4022247（executor）；整理见 `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §2 | 抽样（26 次校验调用 + 2 次会话事件） | 已确认 |
 
+## 第十二遍（2026-09-30）：RW-B 的减法归因（两个子开关、两条逐位等价与一个退化的负控制）
+
+证据文档 `docs/R7_72_RW_B_SUBTRACTION.md`；产物 `outputs/r7_rw_b_subtraction_probe/`（D1，0 GPU-h）
+与 `outputs/r7_72_rw_b_subtraction/`（D4，0.4128 GPU-h）。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-202 | **推理期留一消融把「×1.8 第 1 步修正幅度」定位到门控+锚定提案这条通路**：在归档的 RW-B checkpoint 上把门控+提案移除后，第 1 步修正幅度塌到 RW-A 的 **0.20/0.24 倍**（0.0070；两 seed 同向）；把 `solver_cell` 换成恒等（Z 停在 `solver_init`、提案与门控仍施加）后幅度是 RW-A 的 **1.48/3.04 倍**（两 seed 不稳）而**误差—修正余弦从第 1 步就转正**（+0.010/+0.021，RW-A 与 RW-B 第 1 步均为负）。⇒ 幅度需要 (a) 通路存在；余弦转正出现在任何让 Z 停止跨步递推的配置里，**两者不是同一件带来的**。同一探针测出：该臂训练时 `correction_head` **从未收到梯度**（137 个移动过的张量里 0 个 correction_head 张量），所以「移除 (a)」这一行是未被训练的修正头 + RW-B 其余权重，**不能**当成训练期结论 | `outputs/r7_rw_b_subtraction_probe/probe.json`（sha256 `d56cb8b4…`，含全部 32 个 checkpoint 的 sha256 与 `running_model_code_sha256` 核对）；驱动 `scripts/study_r7_rw_b_subtraction_probe.py` | 抽样（2 seed × 8 val 窗口 × 1 lead） | 已确认 |
+| E-203 | **拆出的两个子开关在两端都逐位等价，且新增零参数**：`local_solver_state=False` ≡ 起点修订 `e6085bc` 的实现；`local_solver_state=True` 且两子开关默认 ≡ 起点修订的 RW-B——两条都用冻结修订树 + 双包名导入、逐字节零容差比较，并有「扰动冻结树必须打破等价」的反证。组合矩阵按冻结语义保留**一处必须发生的坍缩**：`(递推开, 门控关)` 与 `(递推关, 门控关)` 输出**逐位相同**而前者仍返回状态 | `tests/test_r7_rw_b_subtraction.py`（15 项）；`model/process_step_r7.py`；`pytest -q` 本机 1499 passed / 3 skipped | 全体（该文件内两条端到端等价 + 反证） | 已确认 |
+| E-204 | **预注册的负控制 `RW-B−(a)` 在构造上退化为 RW-A 本身，因此它的「同号恶化」是浮点噪声**：同一份权重分别装进 RW-A 与 `solver_gate_proposal=False` 两个构造，前向、逐步 drafts 与 adaptive 三路**逐位相同**（最大绝对差 `0.0`，唯一区别是多返回一个状态）；同一份权重下一步 streamed backward 的总损失**逐位相同**、131 个共享张量梯度**全部逐位相同**（最大相对差 `0.000e+00`），solver 侧**0 个非零梯度**。训练后两臂的共享权重相对差 **1.6e-4**（同比较下 RW-B 对 RW-A 是 **1.74**，相差四个数量级），修正几何与 RW-A **逐位相同**。⇒ 该臂区间 −0.000011…+0.000078 K 的「delta」是 GPU 非确定性的轨迹差，不是混杂。**按冻结分支规则本轮仍不做归因**（规则照写触发：`stop-confounded-control`），并如实记为**本轮控制臂设计的缺陷** | `outputs/r7_72_rw_b_subtraction/paired_comparison.json` 的 `primary.branch` 与三对逐 seed delta；本机权重/梯度逐位比较（同一权重双构造）；`outputs/r7_72_rw_b_subtraction/arm_table.csv`、`memory_table.csv`、`training_table.csv` | 全体（逐位比较覆盖全部共享张量） | 已确认 |
+| E-205 | **上一轮登记的 `RW-B − RW-A` 在改过 `model_code_sha256` 与 `protocol_sha256` 之后几乎逐位复现**：t2m 五时效逐 seed delta 与 `docs/R7_72_RW_B_PILOT.md` 的登记值对照，最大偏差 ~1.8e-4 K（6h 0.198648 vs 0.198633；48h 1.061699 vs 1.061712；72h 1.817077 vs 1.816831）。⇒ 该负结果不是一次性噪声；且新增的两个子开关**没有移动默认路径**（与 E-203 的两条等价一致）。两轮 digest 不同，**不得相加或并列** | `docs/R7_72_RW_B_PILOT.md` §3；`outputs/r7_72_rw_b_subtraction/paired_comparison.json` 的 `round_reference` | 抽样（2 seed × 5 时效 × 1 变量） | 已确认 |
+| E-206 | **同一「去掉递推」干预在推理期与训练期差 35–60 倍**：D1 在冻结门控的归档 checkpoint 上移除递推，第 1 步幅度是 RW-A 的 1.48/3.04 倍；而从零训练的 `RW-B−(b)` 第 1 步幅度只有 **0.0015**（RW-A 的 0.04/0.05 倍，约 23 倍更小），余弦全程为正。⇒ **门控在「Z 不递推」的配置里学会几乎关闭**，这是门控作为稳定器起作用的直接证据，也说明推理期消融读数不能直接当成训练期结论 | `outputs/r7_rw_b_subtraction_probe/probe.json` 的 `recurrence_removed`；`outputs/r7_72_rw_b_subtraction/seed*/seed_result.json` 的 `probes.correction` | 抽样（2 seed × 8 窗口） | 已确认 |
+
 ## 统计
 
-- 台账条目：**201** 条（E-001 – E-201；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1 + 第九遍 2 + 第十遍 3 + 第十一遍 1）。
-- 按覆盖度（2026-09-30 按行重数）：全体/全体扫描 **142** 条、抽样 **15** 条、单点 **44** 条。
+- 台账条目：**206** 条（E-001 – E-206；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1 + 第九遍 2 + 第十遍 3 + 第十一遍 1 + 第十二遍 5）。
+- 按覆盖度（2026-09-30 按行重数）：全体/全体扫描 **144** 条、抽样 **18** 条、单点 **44** 条。
   此前写的「140 / 21 / 39」与行数对不上（漂移），本次按行改正。
-- 按置信度（2026-09-30 按行重数）：已确认 **200** 条、推测 1 条、未知 0 条；此前写「已确认 197」，同为漂移值。
+- 按置信度（2026-09-30 按行重数）：已确认 **205** 条、推测 1 条、未知 0 条；此前写「已确认 197」，同为漂移值。
   （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
   E-187 已登记为 Q-013。）
 - 未列入凭据类条目：5 类凭据模式全部 0 命中，故无"疑似凭据点位"可报告。
