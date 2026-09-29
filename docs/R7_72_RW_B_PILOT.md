@@ -290,9 +290,16 @@ whitespace`、第 8 步全量 pytest 全部 success；同 SHA 下 18 条 workflo
 
 ## 12. 仍未做的事（明确写下，不靠「应该没问题」）
 
-- **本轮没有重跑 `mimosa` 深度安全扫描**：会话内的 commit/push hook 报
-  `scanner_enobufs`（扫描未取得完整结论），因此**不得**把本轮说成「已通过完整安全审计」。
-  这是一条交付欠账，不是「应该没问题」。
-- 本文件 §11 之外还有一个只改目标进度块的收尾提交；它的 `R7 CPU CI` run 号记在
-  `docs/goals/main-model-v2-rw-b-round.md` 的进度块里，**不在本文件**——本文件是已登记的证据页，
-  再改一次就要同步索引 digest，因此收尾提交刻意不再改这一页。
+- **深度安全扫描已补跑，但本轮仍不声称「通过完整安全审计」**：commit/push hook 反复报
+  `scanner_enobufs`（未取到结论），因此在收尾时用 mimosa 的 `security_scan_start` 补跑了一次
+  **deep** 扫描。它**跑完了**，但结果是 `Run status: inconclusive`、`verdictEffect: none`、
+  27 条发现（22 high / 4 medium / 1 low），并自带一条覆盖缺口「调用图部分不完整：部分调用为
+  动态派发或超出分析规模，跨文件可达性可能不完整」。**27 条全部位于 `legacy_v531_full/`**——
+  即 `AGENTS.md` 明令「只读参考、不得 import、不得写入」的归档快照——**活跃代码
+  （`model/`、`training/`、`data/`、`scripts/`、`tools/`、`tests/`）里 0 条**。
+  seal `sha256:467ebb37073cc28b4385ec626b54118e26e578981cbf34ad4cc195ce61e948b1`。
+  **本轮没有对任何一条做分类或修复**，所以正确说法是「扫描跑了、发现集中在归档快照、
+  结论是 inconclusive」，**不是**「安全」。
+- 本轮之外还做过两次只改文档的收尾提交（`9103876`、`c035877`），它们的 `R7 CPU CI` run 号
+  记在 `docs/goals/main-model-v2-rw-b-round.md` 的进度块里，**不在本文件**——本文件是已登记的
+  证据页，每改一次都要同步索引 digest。

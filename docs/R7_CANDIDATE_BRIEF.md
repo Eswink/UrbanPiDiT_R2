@@ -26,7 +26,7 @@ Records: 10; human-review candidates: 1
 
 - Outcome class: `negative`; candidate state: `needs-review`
 - Human triage priority: `78` (not a scientific score)
-- Evidence: `docs/R7_72_RW_B_PILOT.md` (SHA256 `77d2c832b9d7de855f3abe38b617f8fe1a34f9d4c8d2f2a7a388d7bc4cfe2d28`)
+- Evidence: `docs/R7_72_RW_B_PILOT.md` (SHA256 `fb42eaac3135eaa9e2053c81217cc2f3f6facf36a2a641b4114c9392f5844948`)
 - Evidence commit: `d8c828d8d34a97096465b3c46308dd4ddc889b52`; experiment commit: `d8c828d8d34a97096465b3c46308dd4ddc889b52`
 - Protocol SHA256: `6f48874296352d660c2a5d07c3de7c3bceac16619e54adec4a505ce8ff5d9ed9`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
 - Reason: The first bounded real comparison of RW-B: the registered primary RW-B - RW-A on t2m is not supported (12/24 h improve by 0.08 K, 6/48/72 h worsen by 0.12/1.07/1.58 K, every lead sign-consistent across both seeds, modal reading 'worsened'), so the local gated solver state is a negative result at this budget and capacity and must not be extended before the mechanism is attributed.
@@ -37,6 +37,7 @@ Records: 10; human-review candidates: 1
   - One bounded 400-update run on one winter segment in one region: not a convergence or cross-season comparison.
   - The K=1/2/4 depth probe runs on a K=3 checkpoint, and the correction probe covers 8 windows: diagnostics, not deployable rules.
   - The round spent 0.8356 GPU-h instead of 0.42 because a first attempt died in a new probe after training and evaluation had completed; that attempt's numbers are retained but were not used.
+  - The deep security scan run at the end of the round is inconclusive and none of its 27 findings (all inside the read-only legacy_v531_full snapshot) was triaged.
 - Excluded from runnable candidates: Negative result at one bounded budget: not a candidate for extension. The next admissible action is a predeclared subtraction of the gate/proposal, Z and the role markers, which needs its own authorization.
 - Recorded metrics (not recomputed): arms=4, forward_flops_ratio_vs_rw_a=1.2097, gpu_hours=0.8356, gpu_hours_single_clean_attempt=0.4154, parameters_added_vs_rw_a=314898, primary_leads_supported=2, primary_leads_worsened=3, seeds=2, t2m_delta_48h=1.065, t2m_delta_72h=1.5804, test_read=false, thresholds_added=0, updates_per_arm=400
 
