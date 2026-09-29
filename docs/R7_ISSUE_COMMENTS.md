@@ -712,3 +712,157 @@ not treating "all sub-issues touched" as satisfaction of G1–G4.
 >
 > BLOCKED/待用户：D1 获取（2016–2018）及 D2 扩量、2021 访问审计需要显式
 > 下载授权；成本选项已冻结（9.77 或 35.49 GiB，均在 64 GiB 上限内）。
+
+## #70–#75 — 主模型 V2 计划归档（2026-09-29，API 写仍 401，证据落 docs）
+
+**状态：以下六条评论草稿均未张贴。** 本机无 GitHub 写通道（API 写 401、无 `gh`，决策 0011），
+因此与上文一样，**本文件是它们的权威在仓记录**；要真正出现在 GitHub 上，需要人工用
+`gh auth login` 或带 `issues:write` 的 PAT 粘贴。六条都在描述**规划**，不含任何实验结果；
+`#70–#75` **全部保持 open、状态 TODO/READY**，本轮没有把任何一条标成 IN_PROGRESS。
+
+---
+
+### #70 — [R7-MODEL][EPIC] 主模型优先
+
+Draft comment（粘贴时去掉本行）：
+
+> **主模型 V2 的第二阶段计划已归档，基线冻结落成决策记录。本轮只做规划，未实现、未训练。**
+>
+> - **计划**：`docs/plans/0004-r7-main-model-v2.md`（Status: PLANNED）
+> - **Base SHA**：`e1d5a7d73aefbc8f1402da484214f14c988e8146`（`r7/weather-reasoning`）
+> - **设计契约**：`docs/R7_MAIN_MODEL_V2_DESIGN.md`（P/Z/Y、k 与 h 两轴、信息白名单、诊断三时刻）
+> - **外部台账**：`docs/R7_MAIN_MODEL_V2_REFERENCES.md`
+> - **下一轮 goal 提示词**：`docs/goals/main-model-v2-rw-b-round.md`
+>   （**提示词模板，goal 模式尚未启动**；由用户人工审阅后手动启动）
+> - **决策**：`docs/decisions/0023-main-model-first-baseline-freeze.md`
+>
+> **阶段顺序（按机制依赖，不按编号）**：E0 预注册诊断 → M2-B/RW-B 局部门控求解状态（关键路径）
+> → M3 过程监督（尺度 + 时刻语义，其标签/尺度准备可与 RW-B 并行）→ M4 两步可微自回归
+> → M5 最小确认；**adaptive 只有固定 K 出现有用前沿时才启动**，而 #66/S4 已证当前不成立。
+>
+> **对原计划的更正（以仓库现状为准）**：本 issue 的子任务表把 M1(#71) 与 M2-A(#72 RW-A) 列为待做，
+> 但二者**已经实现并各跑完三轮**（`docs/R7_71_72_M1_AND_RWA.md`、`..._ROUND_TWO_ATTRIBUTION.md`、
+> `..._ROUND_THREE.md`）：RW-A 的位置依赖在容量对齐的 C−D 上**未获支持**（8 改善/13 恶化/64 未决），
+> 第三轮读数显示收益**信息主导**（占 B−A 的 87–104%）。因此关键路径改为 RW-B，而不是重做 M1/RW-A。
+>
+> **两轮各自留下的预注册动作已写进下一轮第一步（E0）**：二轮 §11 的 correction 幅度/符号诊断、
+> 三轮 §13 的 0.25–0.29 K 跨轮稳定性核对——不做完不开 E1。
+>
+> **未做**：本轮未改 `model/**`、未训练、未租 GPU、未下载数据、未读封存 test、未合并 main、
+> 未 force push、未创建定时任务、未关闭任何 issue。
+
+---
+
+### #71 — [R7-MODEL][P0][M1] 已知时空条件
+
+Draft comment：
+
+> **状态：TODO/READY——但需先更正：本项的接口已经实现并已实测三轮，剩余的是「是否值得作为论文点」。**
+>
+> - **对应计划章节**：`docs/plans/0004-r7-main-model-v2.md` 的 Current evidence / M1–M5 phases
+>   与 `docs/R7_MAIN_MODEL_V2_DESIGN.md` §5 信息白名单。
+> - **上游依赖**：无（数据用既有 M2 段，不新下载）。
+> - **下游依赖**：M2-B（RW-B）读取端复用同一 context；M5 的匹配 Generic 必须带同款已知输入。
+> - **实现状态**：`model/spacetime_conditioning_r7.py` 已存在，开关 `spacetime_inputs` /
+>   `spacetime_field_mode`（fields/constant/shuffled）已贯通 dataset→白名单→forward→streamed→
+>   rollout→adaptive，并有 6 项输入路径不变测试。三轮实测：第一轮 42 改善/11 恶化/32 未决
+>   （容量混杂），第三轮以**张量与 FLOPs 逐位相等**的 constant 臂隔离出「容量/偏置不重现收益、
+>   信息主导」（B−E 40/4/41；s_E = −0.037/0.055/0.126）。
+> - **仍未做的**：局部太阳时、**来源角色（role）标记**——拼接 key 目前无法区分 context 与 draft
+>   （`model/process_forecast_r7.py:258-260`），这正是 #70 CPU 探针「只反转 draft token 顺序输出
+>   allclose」的结构原因。该候选写进设计契约 §3.2，作为 RW-B 的一部分验证。
+> - **本轮未开始任何实现**；保持 TODO/READY。
+
+---
+
+### #72 — [R7-MODEL][P0][M2] 空间 Process Read–Write Solver
+
+Draft comment：
+
+> **状态：TODO —— 本项**一半已完成**：RW-A 已实现并跑完三轮；RW-B 是下一轮关键路径。**
+>
+> - **对应计划章节**：`docs/plans/0004-r7-main-model-v2.md` 的 V2 architecture / Tensor contracts /
+>   M1–M5 / E1；方程与边界冻结在 `docs/R7_MAIN_MODEL_V2_DESIGN.md` §3。
+> - **上游依赖**：#71 的时空接口（已就绪）；E0 的两个预注册诊断（0 GPU-h，先做）。
+> - **下游依赖**：M3 的过程监督必须固定在冻结的 V2 solver 上；M4 依赖一个可训练的主模型；
+>   M5 的归因对照需要「匹配 Generic」（同结构、同已知输入、无过程语义）。
+> - **RW-A 已实现**：`model/process_readout_r7.py::PositionalProcessReadout`，开关
+>   `positional_process_readout` / `pooled_readout_query`。实测判决：容量对齐的 C−D（位置依赖本身）
+>   = **8 改善/13 恶化/64 未决 → 未获支持**；C−B、D−B 在同预算下均为负向。
+> - **RW-B 未实现**（本轮未动一行代码）：Z `[B,N,D]` 每位置工作状态、局部门控更新（O(N)、3×3
+>   深度可分离 + pointwise，**不用** N² attention 与 RAFT 4D correlation volume）、
+>   `Y_proposal = X_t + Decoder(Z)` 锚定 X_t、`Y_(k+1) = Y_k + g_k*(Y_proposal − Y_k)` 逐位置门控。
+>   新开关默认关闭须**逐位等价**于前实现；三处 step 实现（forward / streamed / adaptive）收敛为
+>   一个共享函数 + 等价性测试。
+> - **不重新包装旧方案**：`spatial_solver_feedback=True`（0 参数的一次加法）已有 C2 负结果，
+>   重开它不算新方法。
+> - **未开始实现**；保持 TODO/READY。
+
+---
+
+### #73 — [R7-MODEL][P1][M3] 预报相关的过程监督
+
+Draft comment：
+
+> **状态：TODO/READY（其「标签/尺度准备」可与 RW-B 并行）。本轮未实现。**
+>
+> - **对应计划章节**：`docs/plans/0004-r7-main-model-v2.md` 的 E2；
+>   语义冻结在 `docs/R7_MAIN_MODEL_V2_DESIGN.md` §6（三种时刻、三套名字）。
+> - **上游依赖**：尺度修复需要 train split 的物理量纲统计（现成数据即可）；集成需要 RW-B 的
+>   solver 冻结。
+> - **下游依赖**：M5 的确认轮若包含过程监督臂，依赖本项的先验判决；不影响 M4。
+> - **要点**：`eps=1e-6` floor 在 8 个 proxy 上**恰好命中 2 个**
+>   （`moisture_advection_850_mean` 原始 std 9.1e-9、`moisture_convergence_850_mean` 1.7e-8，
+>   归一化后 std 0.0076 / 0.0118）——修复必须是「train 物理量纲缩放 + train-only 标准化 +
+>   显式 degenerate mask」，**禁止用 1/floor 放大噪声**；派生物作为版本化 sidecar，identity 纳入
+>   新训练 contract，**不原地改旧 store/checkpoint**。名字必须分离：`input_diagnostics`（初始时刻）/
+>   `future_diagnostic_targets`（仅训练的未来标签）/ `draft_diagnostics`（模型自己的草稿，
+>   推理时可得）。推理时**禁止**读取真实 future 诊断或真实 error。MetPy 只作离线 oracle。
+> - **不重复 C1**：不重做大规模 aux 权重扫参；最多三臂（aux off / 修尺度 input aux /
+>   修尺度 future+draft aux）。
+> - **本轮未开始实现**；保持 TODO/READY。
+
+---
+
+### #74 — [R7-MODEL][P1][M4] 真自回归草稿修正训练
+
+Draft comment：
+
+> **状态：TODO；实现依赖一个可训练的主模型（#72 RW-B），本轮未开始。**
+>
+> - **对应计划章节**：`docs/plans/0004-r7-main-model-v2.md` 的 E3；
+>   两轴语义冻结在 `docs/R7_MAIN_MODEL_V2_DESIGN.md` §4（k = `reasoning_steps`，内部推理，**不推进时间**；
+>   h = 物理转移，**每次仍是 +6h**）。
+> - **上游依赖**：一个已学 +6h 的父 checkpoint（RW-B 之后）；以及至少一轮 RW-B 的有界实验。
+> - **下游依赖**：M5 的确认轮；若 2 步无稳定验证收益，**不**自动扩到 4/8/12 步。
+> - **冻结条款**：从**同一个**父 checkpoint warm-start；对照 = 同额外预算的继续 +6h 训练；
+>   处理 = `L6 + λ·L12`，**λ 在执行前固定**（建议 0.5）；首轮只做 2 个物理步；
+>   **禁止用 `no_grad` 的评估 rollout 当训练**；多一次前反向的成本必须如实记为「算力不相等」；
+>   「内部 K 的 streamed 截断」与「物理步截断」是两个轴，报告分开。
+> - **不重跑 #64 的 curriculum**：旧实验是目标重分配（400 步 +6h / 200 步 +12h / 200 步 +24h），
+>   不是把模型自己的预测喂回去；旧负结果保留且不被本项覆盖。
+> - **本轮未开始实现**；保持 TODO/READY。
+
+---
+
+### #75 — [R7-MODEL][P1][M5] 最小实验闭环与有条件自适应
+
+Draft comment：
+
+> **状态：TODO/READY —— 评估契约可以在本轮冻结，实验要等 RW-B 出结果。**
+>
+> - **对应计划章节**：`docs/plans/0004-r7-main-model-v2.md` 的 Evaluation protocol /
+>   Scientific gates / E4 / E5；基线冻结的边界见 `docs/decisions/0023-main-model-first-baseline-freeze.md`。
+> - **上游依赖**：#72 RW-B（被评估的主模型）、#73（若含过程监督臂）、#74（若含自回归臂）。
+> - **下游依赖**：无（本项是本期终点）；发表期的完整强基线表与最终冻结 test 在其之后另行申请预算。
+> - **冻结的评估约束**：primary 端点运行前冻结（建议 t2m 6/12h 并写明允许的退化）；全部 17 变量 ×
+>   6/12/24/48/72h 一律公布，长时效失败不隐藏；用已修复单位的 RMSE / climatology MSE skill / ACC，
+>   不同物理单位不直接平均，正 ACC 不自动等于正 MSE skill；案例与 seed 按 #60 比较器显式配对；
+>   ≥3 预声明 seed 只给一致性、不引入显著性阈值；同 K=4 checkpoint 上取出的 K=1 探针必须标注
+>   「不是独立训练的 K=1」；成本四表（参数 / forward FLOPs / forward+backward FLOPs / 墙钟与 case 数）
+>   必备；`scientific_claim: false` 与 limitations 四处齐备。
+> - **基线冻结不等于放宽**：开发期不要求基线全胜，但任何「过程结构有用」的声明**必须**带
+>   **匹配 Generic**（同结构、同已知输入、无过程语义）对照；完整强基线表在发表阶段按冻结配方重跑一次。
+> - **adaptive 的默认预期是不启动**：#66/S4 已证前置 gate 不成立（最优 K 只在 6h seed-一致且那里最优 K
+>   恰是最贵 K=4、增益 0.00%）。只有固定 K 出现**有用的 accuracy–compute 前沿**才讨论。
+> - **本轮未开始实现**；保持 TODO/READY。

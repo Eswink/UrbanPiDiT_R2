@@ -311,11 +311,20 @@
 
 | E-194 | 本轮变更的 CI 验证与一处被冒烟测出的错拒：推送 `ca2f202` 后主门禁 `R7 CPU CI` run `36555351319` **八步全绿**（含 `Check repository conventions`＝新的 37 条阻断规则、`Check evidence index and candidate brief`、`Compile active modules and check whitespace`、全量 pytest），18 条 workflow 中 17 条实验 workflow 按设计 **skipped**（commit message 无标签）。另：用真实仓库对提交闸门做冒烟测时发现 **R-037 会拒绝"引入新治理资产"的那次提交**——`git add X && git commit` 的 hook 在 `git add` 之前运行，于是 X 尚未入索引，而 CI 检出提交树时它已被跟踪（本地红、CI 不红的假阳性）。已修为"被声明为提交内容的路径计为已跟踪"并加反证 | `/repos/Eswink/UrbanPiDiT_R2/actions/runs/36555351319/jobs`，访问日期 2026-09-29；闸门冒烟测：`guard_conventions_before_commit.py` 读 stdin 载荷（修复前 exit=2，修复后 exit=0） | 单点 | 已确认 |
 
+## 第八遍（2026-09-29）：主模型 V2 归档前的只读结构核对
+
+为 `docs/R7_MAIN_MODEL_V2_DESIGN.md` §3.2 取证：核对主模型递推步里「模型实际能看到什么」。
+只读代码，不训练、不改动任何文件。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-195 | 主模型递给递推 cell 的键**没有来源角色标记**：`torch.cat([context, draft_tokens], dim=1)` 把 C 与 E(Y_k) 拼成 `[B,2N,D]` 后直接作 key/value，cell 无法区分哪一半是上下文、哪一半是草稿，拼接处也没有 mask。该写法在**三处镜像实现**里一致存在（`model/process_forecast_r7.py` 的 forward、`model/r7_halting.py` 的 `reasoning_step`、`training/r7_streaming.py` 的 `_recursive_step`）。#70 的 CPU 结构探针（只反转 draft token 顺序 → 默认 Process 反馈预测 allclose，max 差 1.19e-7）与该缺口相容，但**该探针本轮未重跑**：本条目只确认代码事实，不确认「这就是探针结果的原因」这一因果解释 | HEAD `e1d5a7d` 的三个实现文件原文（`model/process_forecast_r7.py` 中 `recurrent_context=torch.cat([context,draft_tokens],dim=1)`，无 role/mask） | 单点 | 已确认 |
+
 ## 统计
 
-- 台账条目：**194** 条（E-001 – E-194；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4）。
-- 按覆盖度：全体扫描 140 条，抽样 17 条，单点 37 条。
-- 按置信度：已确认 193 条，推测 1 条，未知 0 条。
+- 台账条目：**195** 条（E-001 – E-195；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1）。
+- 按覆盖度：全体扫描 140 条，抽样 17 条，单点 38 条。
+- 按置信度：已确认 194 条，推测 1 条，未知 0 条。
   （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
   E-187 已登记为 Q-013。）
 - 未列入凭据类条目：5 类凭据模式全部 0 命中，故无"疑似凭据点位"可报告。

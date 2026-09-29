@@ -39,3 +39,4 @@
 | [0001](0001-artifact-storage-convention.md) | 成品存放约定（plan / decision / goal / workflow） | 已完成（4 处与计划的差异，见文内） | 2026-09-24 |
 | [0002](0002-agent-hooks-and-skills.md) | 项目专属 hooks 与 skills（含覆盖率审计） | 已完成（修 24 处绕过；1 项原理性上限如实声明） | 2026-09-24 |
 | [0003](0003-goal-loop-skill.md) | goal-loop 技能 + 只读 goal 长文校检器 | 已完成（4 处与计划的差异，含决策编号 0014→0015 冲突的处置） | 2026-09-28 |
+| [0004](0004-r7-main-model-v2.md) | R7 主模型 V2：RW-B 局部门控求解状态与 M3–M5 阶段 | **计划中（NOT EXECUTED YET）**：2026-09-29 Plan Mode 归档，E0–E5 未执行 | 2026-09-29 |
