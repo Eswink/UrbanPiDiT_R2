@@ -42,7 +42,8 @@ from training.r7_arm_harness import (comparator_blocks, measure_arms, merge_seed
                                    write_study_tables)
 from training.r7_rw_b_subtraction_protocol import (ARMS, ARM_NAMES, BATCH_SIZE, CLIP,
                                                  COMPARATOR_DEPTH, CORRECTION_PROBE_SAMPLES,
-                                                 DEADLINE_SECONDS, EVALUATION_LEADS,
+                                                 DEADLINE_SECONDS, EARLY_STOPPING_PATIENCE,
+                                                 EVALUATION_LEADS,
                                                  EVALUATION_MAX_SAMPLES, LR,
                                                  MINIMUM_IMPROVEMENT, MINIMUM_LR_RATIO,
                                                  NO_GATE_ARM, NO_RECURRENCE_ARM, PAIRS,
