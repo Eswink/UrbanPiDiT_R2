@@ -170,6 +170,7 @@ issue 评论落仓为草稿（API 写 401）。
   按 commit-message 标签门控 **skipped**（设计行为，不算失败也不当通过）。
   两次失败**都是真实原因**且都在本地复现后才修，随后用 `git clone`（不是 `git archive`，
   多个等价性测试要靠 git 重放冻结修订）复现干净检出验证。
+  收尾提交 `9103876`（本文件的进度块 + 索引 digest + brief）的 run **`36592121065` = success**。
 - **D5 授权快照**（决策 0021 的通道，**本轮已获授权并已执行**）：本地单卡顺序；
   臂 = 旧 mean-Ours / RW-A / RW-B / RW-B+roles；seed 41/42；400 updates/臂；
   预算 ≤1.0 GPU-h；协议在第一次 `optimizer.step()` 前以 `'x'` 排他冻结；只读 val、test 封存；
