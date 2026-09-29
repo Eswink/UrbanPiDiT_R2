@@ -303,3 +303,12 @@ whitespace`、第 8 步全量 pytest 全部 success；同 SHA 下 18 条 workflo
 - 本轮之外还做过两次只改文档的收尾提交（`9103876`、`c035877`），它们的 `R7 CPU CI` run 号
   记在 `docs/goals/main-model-v2-rw-b-round.md` 的进度块里，**不在本文件**——本文件是已登记的
   证据页，每改一次都要同步索引 digest。
+- **没有验证回执（D6 里那条「若适用」的条件不成立，这里明说而不是留白）**：
+  `tools/verification_profiles.py` 目前只有三个 profile（`cpu-study-flat-v1.1`、
+  `continuous-control-*`、`baseline-*`），它们描述的是**CI workflow 归档包**的固定平铺布局
+  （`study_result.json`、`seed_rmse.csv`、`seed_summary.csv`、`code.zip`、`source/era5_pressure_pilot.nc`
+  …）。本轮是本地 GPU 有界轮，布局是 `outputs/r7_72_rw_b_pilot/`（`protocol.json`、
+  `merged_result.json`、`paired_comparison.json`、六张表、逐 seed 目录），**没有任何 profile
+  描述它**；本轮提交也未带实验标签，因此没有任何走回执的 workflow 被触发。要造一份回执就得
+  另建一套改名后的平行产物，那既不是本轮授权范围，也会让「证据来自哪次运行」变得可疑。
+  决策 0020 自己也写着「当前没有实际归档的 `verification_receipt.json`」。
