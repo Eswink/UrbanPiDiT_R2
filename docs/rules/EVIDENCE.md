@@ -330,11 +330,22 @@
 | E-196 | 加一条 process 读取通路会**一致放大** solver 的修正幅度，但**不会**让修正与误差更反相关。四臂 × 三 seed × 22 val 窗口的第 3 轮修正：C−B 的 `update_energy`（全变量）逐 seed 差 +0.000178/+0.000046/+0.000307（三 seed 同号为正，池化比值 C/B = 1.31），D−B 同形；而误差—修正余弦 `cos(e,d)` 的差是 +0.0092/+0.0097/+0.0355，方向与「读取把 context 拉偏」的预测**相反**（反相关应当使余弦下降）。C 与 D 的数字几乎逐 seed 相同（`update_energy` 相对差 <0.1%），而 D 的 query 按位置池化、读取与位置无关 ⇒ 放大来自「这条通路存在」，不是「读是位置化的」。T2m 单变量上幅度差不一致同号（seed42 为负），故幅度结论只在跨变量索引上成立 | `outputs/r7_e0_diagnostic/e0_correction_replay.json`（12 个 checkpoint 的 sha256、逐 seed 数字、`model_code_digest`＝`8d9262d1…`）；回放代码为 `d8aff68` 的 `git archive`；驱动 `scripts/study_r7_e0_correction_replay.py`；判读的预注册原文见 `docs/R7_71_72_ROUND_TWO_ATTRIBUTION.md:329-340` | 抽样（12 checkpoint × 22 窗口 × 1 段） | 已确认 |
 | E-197 | 三轮 §13 的「E−A 在 t2m 72h 三 seed 同号」**为假**：逐 seed 是 −0.1629 / **+0.2378** / −0.9492，seed42 反号，其均值 −0.2915 是反号三值的算术平均；比较器自己已把该格标为 `unresolved`。三轮文档**自己的** §7 表也把 72h 标成「四对全部否」。而 48h 那一格三 seed 同号且跨两轮复现：C−B −0.2254、D−B −0.2235、E−A −0.2468 K（三次独立配对、各三 seed 同号，彼此相差 11% 以内）。因此三轮 §13 的「若不稳定」分支被触发（72h 的 seed42 异号在两轮都出现） | `outputs/r7_e0_diagnostic/e0_paired_stability.json`（两个输入 JSON 的 sha256 + 逐格 `mean_reproduced`/`sign_claim_reproduced`）；被推翻的原句 `docs/R7_71_72_ROUND_THREE.md:463-472`；自身矛盾处 `docs/R7_71_72_ROUND_THREE.md:228` | 抽样（2 轮 × 3 对 × 2 时效） | 已确认 |
 
+## 第十遍（2026-09-29）：RW-B 的一轮有界真实对照（E1/D5）
+
+首次执行 #72 M2-B 的有界实验（决策 0021 的会话内授权，2 seed × 4 臂 × 400 updates，只读 val）。
+记录见 `docs/R7_72_RW_B_PILOT.md`。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-198 | RW-B 相对 RW-A 在登记主端点上**未获支持**：t2m 逐 seed 同号的三态是 supported×2（12h −0.079、24h −0.075 K）/ worsened×3（6h +0.118、48h +1.065、72h +1.580 K），模态读数为 worsened，改善比恶化小一个数量级。登记文字里的两条证伪条件**均未触发**，故严格读法是「模态不支持且长时效受损」，不是「被证伪」 | `outputs/r7_72_rw_b_pilot/paired_comparison.json` 的 `primary`（`protocol_sha256` `6f488742…`、`model_code_sha256` `9ddd2660…`、8 个 run 同 digest） | 抽样（2 seed × 4 臂 × 85 格） | 已确认 |
+| E-199 | 独立于结果的两条实测：(a) RW-B 的第一步修正幅度约为 RW-A 的 **1.8 倍**（能量约 3.4 倍），且第 2–3 步误差—修正余弦**转正**（+0.070/+0.057）而 RW-A 全程为负，第 3 步恶化比例 0.61/0.57 超过一半；(b) K=1/2/4 探针上两个 seed 都不单调改善，6h 处 K=4 一致最差且 RW-B 在每个 K 上都差于 RW-A。这两条与 E-196、#66/S4 同向，但本轮**没有**能做归因的消融臂 | `outputs/r7_72_rw_b_pilot/seed*/seed_result.json` 的 `probes.correction` / `probes.depth`；`depth_probe_table.csv` | 抽样（2 seed × 8 窗口 / 2 seed × 2 臂 × 3 K） | 已确认 |
+| E-200 | 一轮**实现缺陷**与它的代价：首次尝试在训练与 40 次评估**全部完成后**，于新写的修正探针抛 `KeyError: 'atmos_target'`（`ZarrRolloutDataset` 的字段名是 `rollout_targets`）。该尝试的产物目录**保留未删**（`outputs/r7_72_rw_b_pilot_attempt1_probe_defect`），其 0.4203 GPU-h 照记，数字**未采用**；修字段映射+深度守卫、补 reader 回归钉住测试后重跑一个干净尝试（0.4154 GPU-h），本轮合计 **0.8356 GPU-h**（自设上限 1.0，未超）。另一条同轮发现的工具缺陷：`tools/check_conventions.py` 的 R-006 里 `tolerated` 是在路径循环内才赋值的变量，无 bounded-study 函数的 study 作用域模块会**继承上一个文件的 tolerated 值**从而被静默放行（本轮把 `training/r7_arm_study.py` 改名出 `training/r7_*study.py` glob 以回避，未改 checker） | 失败日志 `logs/r7_72_rw_b_seed41.log` 的 traceback；两个产物目录的 `elapsed_seconds` 求和；`tools/check_conventions.py:535-561` 与 `tests/test_check_conventions.py::test_repository_study_exceptions_are_exactly_three` | 单点 | 已确认 |
+
 ## 统计
 
-- 台账条目：**197** 条（E-001 – E-197；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1 + 第九遍 2）。
-- 按覆盖度：全体扫描 140 条，抽样 19 条，单点 38 条。
-- 按置信度：已确认 194 条，推测 1 条，未知 0 条。
+- 台账条目：**200** 条（E-001 – E-200；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1 + 第九遍 2 + 第十遍 3）。
+- 按覆盖度：全体扫描 140 条，抽样 21 条，单点 39 条。
+- 按置信度：已确认 197 条，推测 1 条，未知 0 条。
   （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
   E-187 已登记为 Q-013。）
 - 未列入凭据类条目：5 类凭据模式全部 0 命中，故无"疑似凭据点位"可报告。

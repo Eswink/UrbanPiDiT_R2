@@ -174,6 +174,12 @@ FUNC_BODY_HARD_MAX = 200
 # caught it refusing the very commit that introduces this round's decision record).
 # Nothing was removed.
 # 2026-09-29 (#72 M2-B, RW-B): 827/2046 -> 859/2114.
+# 2026-09-29 (#72 M2-B, bounded RW-B round): 859/2114 -> 885/2180.
+# Twenty-eight test functions and sixty-six assertions were added in one new file,
+# tests/test_r7_72_rw_b_study.py: protocol-freeze round-trip and mutation counterproofs,
+# measured arm pairing and the switch-adds-a-tensor guard, the sign-rule reading with a
+# flip counterproof, merge/table fail-closed cases, and the rollout-reader field pin that
+# the first run of the round died on. Nothing was removed.
 # Thirty-two test functions and sixty-eight assertions were added across two files:
 # tests/test_r7_local_solver_state.py (the solver-state boundaries with their
 # counterproofs - a saturated gate must collapse the proposal gradient, the proposal
@@ -182,8 +188,8 @@ FUNC_BODY_HARD_MAX = 200
 # that no call site carries a second copy of the step, three-path agreement, the role
 # marker criterion, poisoned future fields against both the forward and the halting
 # selection, checkpoint round trip, BF16). Nothing was removed.
-TEST_FUNCTION_BASELINE = 859
-ASSERT_BASELINE = 2114
+TEST_FUNCTION_BASELINE = 885
+ASSERT_BASELINE = 2180
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")

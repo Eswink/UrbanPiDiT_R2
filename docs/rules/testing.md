@@ -2,9 +2,10 @@
 
 范围：`tests/**`、`pytest.ini`。
 
-现状基线（实测，2026-09-29 #72 M2-B RW-B 的定向测试）：108 个测试文件、**859 个测试函数、2114 个断言**、
-117 处 `parametrize`、2 处 `skipif`、0 处 `xfail`、0 处被注释掉的断言、0 处 TODO/FIXME。
-其中 859/2114 是 R-009 使用的稳定基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
+现状基线（实测，2026-09-29 #72 M2-B 的一轮有界 RW-B 对照）：**885 个测试函数、2180 个断言**（checker 的
+R-009 口径：`tests/**` 下每个 `test_*` 函数与每条 `assert`）；同一次观测按 `tests/**/*.py` 全量复算得
+111 个文件、120 处 `parametrize`、6 处 `skipif`、0 处 `xfail`、0 处被注释掉的断言、0 处 TODO/FIXME。
+其中 885/2180 是 R-009 使用的稳定基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
 的 `TEST_FUNCTION_BASELINE` / `ASSERT_BASELINE`** 并在 CHANGELOG 说明原因。本页与
 `docs/rules/MIGRATION.md` 引用的数字现在由 `tests/test_check_conventions.py` **直接对 checker 的常量**
 断言（此前钉的是字面量 "827/2046"，改基线就会让测试变红而文档仍写着旧值）。测试文件数与参数化计数是当前观测值，
