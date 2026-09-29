@@ -2,6 +2,39 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-30 — #72 M2-B（RW-B 减法）：R-009 基线更新 + `model_code_sha256` 变化（未改任何规则判据）
+
+**范围**：改 `model/process_forecast_r7.py`、`model/process_step_r7.py`（新增两个**默认 True**、
+只在 `local_solver_state=True` 时生效的子开关 `solver_state_recurrence`、`solver_gate_proposal`）；
+新增 `training/r7_rw_b_subtraction_protocol.py`、`scripts/study_r7_72_rw_b_subtraction.py`、
+`scripts/study_r7_rw_b_subtraction_probe.py`、`tests/test_r7_rw_b_subtraction.py`（15 项）。
+**未改任何规则正文、判据、阈值或执行分组**，`docs/rules/*.md` 本轮只改本文件、`EVIDENCE.md`、
+`MIGRATION.md` 的 R-009 基线数字与 `testing.md`/`size-thresholds.md` 的实测基线。
+
+R-009 基线 885/2180 → **900/2210**（实测值；基线是**下界**，抬到实测值只让今后的
+测试减少更容易被看见；R-009 仍是报告型、不阻断）。
+`size-thresholds.md` 机器核对标记同步为 R-020 **41→44**、R-021 **26→28**、R-023 **17→17**
+（三个函数体 111/103/110 行、两个文件 446/513 行；第一次写的 624 行驱动越过 R-051 的 600 行
+硬上限，按规则拆出 `training/r7_rw_b_subtraction_protocol.py` 后回到上限内，**未新增例外**）。
+
+### model_code_sha256 变化（RW-B 减法）
+
+`model/` 下 2 个文件的字节变化（两个子开关的接线与 step 分支）使 `model_code_digest()` 从
+`9ddd2660820dc95e89ca19d78b36765d22805c6462c30e23b58ae62aa1f5a21e`（上一轮 RW-B 有界轮，
+也是本机归档的 32 个 checkpoint 所记录的值）变为
+`11090929930da4e1259698699cbbf12b3738cdfb2f609c3af516c24399144476`。
+
+**这条变化使上一轮的归档 checkpoint 不再能被当前修订的 `load_checkpoint` 打开**——
+这正是该守卫的设计意图（`training/r7_experiment.py` 的 `model_code_sha256` 比对）。
+D1 的 0 GPU-h 探针因此用 `--code-root` 指向训练那些 checkpoint 的修订（本轮的起点 SHA），
+并在探针里核对 `running_model_code_sha256 == archived_model_code_sha256` 才继续；
+守卫是被遵守的，不是被绕过的。
+
+两个子开关的默认值使 `local_solver_state=True` 的**配置与上一轮逐位不变**，
+并由 `tests/test_r7_rw_b_subtraction.py` 用冻结修订树的两条逐位等价测试钉住
+（全关 ≡ 起点修订；`local_solver_state=True` 全开 ≡ 起点修订的 RW-B）。
+本轮同时新增 `[model-digest-change]` 提交标签。
+
 ## 2026-09-30 — goal 完成校验挂起：决策 0024 + R-034 指针 + E-201（未改规则判据）
 
 **范围**：`docs/rules/` 下只改三处引文性内容——R-034 加一句「完成校验调用可能长时间不返回，

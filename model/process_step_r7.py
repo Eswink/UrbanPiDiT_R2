@@ -106,11 +106,38 @@ def process_reasoning_step(
             "anchor; without it the proposal is the accumulating tendency RW-B replaces")
     if summary.ndim != 3:
         raise ValueError("local_solver_state needs the per-position process read")
-    if solver_state is None:
+    # Two separate pieces of RW-B, each switchable on its own.
+    #
+    # ``solver_state_recurrence`` off: the cell is never applied, so ``Z`` is the
+    # expanded ``solver_init`` on every step. The proposal and the gate are still
+    # applied to it, and nothing is carried to the next step - a state that was
+    # threaded onward would quietly be the recurrence again.
+    #
+    # ``solver_gate_proposal`` off: the step takes the pre-RW-B correction path. The
+    # state still advances when the recurrence is on, because that is what "the
+    # recurrence is still there" means - but it is idle computation for this step's
+    # output, and it is returned as such rather than being silently swapped for
+    # something else the switch does not name.
+    if solver_state is None or not model.solver_state_recurrence:
         solver_state = model.solver_init.expand(
             context.shape[0], context.shape[1], -1).to(dtype=context.dtype)
+        if not model.solver_state_recurrence:
+            if not model.solver_gate_proposal:
+                draft, correction = model.correction_head(
+                    conditioned, token_hw, draft.shape[-2:], draft)
+                return ProcessStepOutput(process, draft, correction, prediction, None)
+            proposal, _ = anchored_proposal(model.proposal_head, solver_state, token_hw,
+                draft.shape[-2:], anchor)
+            gate = expand_token_gate(model.solver_gate(solver_state), token_hw,
+                draft.shape[-2:], model.patch_size)
+            updated = blend_forecast(draft, proposal, gate)
+            return ProcessStepOutput(process, updated, updated - draft, prediction, None)
     solver_state = model.solver_cell(solver_state, context=context,
         draft_tokens=draft_tokens, read=summary, step_index=step_index, token_hw=token_hw)
+    if not model.solver_gate_proposal:
+        draft, correction = model.correction_head(
+            conditioned, token_hw, draft.shape[-2:], draft)
+        return ProcessStepOutput(process, draft, correction, prediction, solver_state)
     proposal, _ = anchored_proposal(model.proposal_head, solver_state, token_hw,
         draft.shape[-2:], anchor)
     gate = expand_token_gate(model.solver_gate(solver_state), token_hw,

@@ -79,6 +79,8 @@ class ProcessForecastCoReasoner(nn.Module):
         pooled_readout_query:bool=False,
         source_role_markers:bool=False,
         local_solver_state:bool=False,
+        solver_state_recurrence:bool=True,
+        solver_gate_proposal:bool=True,
     ):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
@@ -86,7 +88,9 @@ class ProcessForecastCoReasoner(nn.Module):
                            (positional_process_readout,'positional_process_readout'),
                            (pooled_readout_query,'pooled_readout_query'),
                            (source_role_markers,'source_role_markers'),
-                           (local_solver_state,'local_solver_state')):
+                           (local_solver_state,'local_solver_state'),
+                           (solver_state_recurrence,'solver_state_recurrence'),
+                           (solver_gate_proposal,'solver_gate_proposal')):
             if type(value) is not bool:
                 raise ValueError(f"{name} must be boolean")
         if pooled_readout_query and not positional_process_readout:
@@ -106,6 +110,15 @@ class ProcessForecastCoReasoner(nn.Module):
             raise ValueError("local_solver_state updates Z from the encoded draft "
                              "E(Y_k); turning it on with use_forecast_feedback=False "
                              "would silently drop that term")
+        # The subtraction switches default to the full RW-B and only mean anything
+        # inside it. A caller that turns a piece off with the whole mechanism off is
+        # asking for something nothing reads, so that is an error and not a no-op.
+        for value,name in ((solver_state_recurrence,'solver_state_recurrence'),
+                           (solver_gate_proposal,'solver_gate_proposal')):
+            if value is not True and not local_solver_state:
+                raise ValueError(
+                    f"{name}=False only exists inside local_solver_state; turning it off "
+                    "with local_solver_state=False would be a silently ignored switch")
         self.spatial_solver_feedback=spatial_solver_feedback
         self.spacetime_inputs=spacetime_inputs
         # The capacity-control arms of the round-three study keep the space-time
@@ -120,6 +133,8 @@ class ProcessForecastCoReasoner(nn.Module):
         self.pooled_readout_query=pooled_readout_query
         self.source_role_markers=source_role_markers
         self.local_solver_state=local_solver_state
+        self.solver_state_recurrence=solver_state_recurrence
+        self.solver_gate_proposal=solver_gate_proposal
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
