@@ -135,15 +135,25 @@ issue 评论落仓为草稿（API 写 401）。
   - **D4**：`tests/test_r7_local_solver_state.py`（27 项）+ `tests/test_r7_shared_step_paths.py`（10 项），
     含边界反证、poison、odd grid、K=0/1/2/4、resume、BF16、三路一致、结构性防漂移。
     `pytest -q` **1456 passed, 3 skipped**；`check_conventions.py` 37 条阻断 0 违规。
-- **未做**：**D5 的有界真实 train/val 对照**（按决策 0021 需在执行那一刻取得用户授权，本轮未取得）；
-  matched Generic 的完整 RW-B；M3/M4/M5；E1–E5 的其余部分。未训练、未租 GPU、未读 test。
-- **CI**：`54d8358` 的 `R7 CPU CI` run **`36572082730` = success**（八步全绿）；18 条 workflow 中
+- **未做**：**D5 的有界真实 train/val 对照**。按决策 0021 在执行那一刻用 `AskUserQuestion` 提了
+  授权请求（范围 / 预算 / 产物与证据 / 失败与 skip 处理四项齐全，见本节末尾的快照），
+  **未获答复**；无答复不等于授权，因此**没有启动任何训练**、没有 `protocol.json`、
+  没有 GPU 秒数，`docs/R7_EVIDENCE_INDEX.jsonl` 里的两条记录都写明这一点。
+  **下一步要做的第一件事就是重新取这次授权。**
+  其余未做：matched Generic 的完整 RW-B；M3/M4/M5；E1–E5 的其余部分。未训练、未租 GPU、未读 test。
+- **CI**：`54d8358` 的 `R7 CPU CI` run **`36572082730` = success**，最终提交 `1a3a4e3` 的
+  run **`36573187451` = success**（八步全绿）；18 条 workflow 中
   17 条实验 workflow 按 commit-message 标签门控 **skipped**（设计行为，不算失败，也不当通过）。
   此前 `f4a571b` 的那次 run **失败**，原因真实：R-009 基线抬到 859/2114 后
   `docs/rules/MIGRATION.md` 仍写着旧值，而钉住字面量的测试只在 CI 上暴露——已改为直接对
   checker 常量断言，并在 `54d8358` 转绿。
-- **下一动作**：按决策 0021 取得授权后跑三臂（旧 mean-Ours / RW-A / RW-B）× 2 seed × 400 updates，
-  协议在第一次优化器更新前排他冻结；**先读** `docs/R7_E0_DIAGNOSTICS.md` §5——t2m 72h 不可作机制证据，
+- **D5 授权请求快照**（决策 0021 的通道，本轮未获答复，故未执行）：本地单卡顺序；
+  臂 = 旧 mean-Ours / RW-A / RW-B；seed 41/42（或按用户选择 41/42/43）；400 updates/臂；
+  预算 ≤1.0 GPU-h（第二批授权余 21.537 GPU-h，按二轮实测推算 6 runs ≈0.27、9 runs ≈0.40 GPU-h），
+  单次 ≤30 min；协议在第一次 `optimizer.step()` 前以 `'x'` 排他冻结；只读 val、test 封存；
+  产物 `outputs/r7_72_rw_b_pilot/` + 逐变量 ×6/12/24/48/72h 全表 + 三态计数 + 四表 + 实测 GPU-h；
+  失败/超时/skip/cancelled 即停并如实记录，不重试凑数、不放宽判据、不开新臂。
+- **下一动作**：重新取 D5 授权后跑上表；**先读** `docs/R7_E0_DIAGNOSTICS.md` §5——t2m 72h 不可作机制证据，
   48h 才是可复核的那一格。
 
 每推进一步就更新本块（一行「已完成/未做/下一动作」），不要留给下一轮补写。
