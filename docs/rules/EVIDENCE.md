@@ -288,11 +288,21 @@
 **E-187 的处置**：该推测不阻塞决策——`guard_web_research_route.py` 已按 `sess_subagent_`
 前缀放行，无论子会话是否运行 hook 都不会自锁；待验证事项登记为 `OPEN_QUESTIONS.md` Q-013。
 
+## 第六遍（2026-09-29）：机器可读回执的首次真实运行
+
+为决策 0019/0020 的严格 v1.1 回执取证：一次经用户授权的真实 CI 运行（决策 0021 通道）。
+两条只读取自 GitHub Actions runs/jobs API（匿名读，未下载日志或产物）。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-189 | 首次真实 v1.1 回执在 CI 上生成并**通过严格校验**：`R7 real offline multiseed CPU study` run `36549248954`（commit `b967fc1`）第 8 步 "Build and validate verification receipt" 成功——builder 写盘前自校验与 `--require-success` 校验器同时通过（source bytes、protocol 源摘要、source receipt digest/字节数、data/code identity 全部一致）。产物含 `verification_receipt.json`，留存 30 天；未下载核对（匿名 API 无 artifact 下载权限） | `/repos/Eswink/UrbanPiDiT_R2/actions/runs/36549248954/jobs`，访问日期 2026-09-29 | 单点 | 已确认 |
+| E-190 | 同一提交的主门禁 `R7 CPU CI` run `36549248794` 在第 7 步失败：`git show --check` 报 `docs/R7_CANDIDATE_BRIEF.md:120: new blank line at EOF`（生成器规范文本已以换行结尾，导出又追加一个）；修复提交 `bf96ea8` 的 run `36549905342` 八步全绿。**教训**：`git diff --check` 看不到未跟踪文件，且本地提交前 guard 不检查空白——新文件提交前应跑 `git diff --cached --check` | `/repos/Eswink/UrbanPiDiT_R2/actions/runs/36549248794/jobs` 与 `…/36549905342/jobs`，访问日期 2026-09-29 | 单点 | 已确认 |
+
 ## 统计
 
-- 台账条目：**188** 条（E-001 – E-188；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7）。
-- 按覆盖度：全体扫描 137 条，抽样 17 条，单点 34 条。
-- 按置信度：已确认 187 条，推测 1 条，未知 0 条。
+- 台账条目：**190** 条（E-001 – E-190；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2）。
+- 按覆盖度：全体扫描 137 条，抽样 17 条，单点 36 条。
+- 按置信度：已确认 189 条，推测 1 条，未知 0 条。
   （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
   E-187 已登记为 Q-013。）
 - 未列入凭据类条目：5 类凭据模式全部 0 命中，故无"疑似凭据点位"可报告。

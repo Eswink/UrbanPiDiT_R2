@@ -101,6 +101,10 @@
 才是工程上的成功；`partial`、`failed`、`cancelled`、`queued`、`skipped` 均不算通过，也不产生科学结论。
 该试点不改变 workflow 标签、预算、禁网边界或现有结果冻结/人工科学判定。
 
+**首次真实运行（2026-09-29）**：`R7 real offline multiseed CPU study` run `36549248954`（commit `b967fc1`）
+的回执步骤经 `--require-success` 严格校验通过；主门禁在修复简报末尾空行后（commit `bf96ea8`，
+run `36549905342`）全绿。两条证据见 `EVIDENCE.md` 第六遍（E-189、E-190）。
+
 CI 主门禁还会调用 `tools/verify_r7_evidence_index.py --check-brief`，确保提交的
 `docs/R7_CANDIDATE_BRIEF.md` 与 `docs/R7_EVIDENCE_INDEX.jsonl` 的规范渲染逐字一致；该步骤只读，
 不会自动生成或覆盖简报。
