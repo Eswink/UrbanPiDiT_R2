@@ -1,6 +1,13 @@
 # main-model-v2-rw-b-round：主模型 V2 的第二阶段（RW-B 局部门控求解状态）
 
-**THIS FILE IS A PROMPT TEMPLATE. GOAL MODE HAS NOT BEEN STARTED.**
+**THIS FILE IS A PROMPT TEMPLATE. GOAL MODE HAS NOT BEEN STARTED.** ← 已过期；原句保留以标明出身。
+
+事实上：本文件**已被作为目标启动**——`/goal` 于 2026-09-29 21:46（本地）起跑第 1 轮，主回合在
+2026-09-30 00:02 正常结束（该轮结论见 §8 与 `docs/R7_72_RW_B_PILOT.md`）。轮末的自动完成校验
+（迭代 1）在客户端侧**悬挂 1773 秒且没有任何超时**，00:31 由用户暂停中止，目标转 `paused`；
+成因、证据与恢复步骤见 `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §2，约定见决策 0024。
+因此下一段「不是已启动的 goal、也不是执行记录」只描述它**启动前**的身份，现在不成立：
+本文件是活的目标源，§8 是它的进度块。
 
 本文件是**下一轮 goal 模式**的长文目标源，供人工审阅后手动启动。它**不是**已启动的 goal，
 也不是一份已执行工作的记录；本轮（2026-09-29 Plan Mode）只归档计划、设计与本提示词。
@@ -119,7 +126,9 @@ issue 评论落仓为草稿（API 写 401）。
 
 ## §8 进度块
 
-- **状态**：`active`（D1–D4 与 **D5 已完成**；执行者不自行宣布 goal 完成，判给 verifier）
+- **状态**：`paused`（D1–D4 与 **D5 已完成**；2026-09-30 00:31 由用户暂停——轮末的自动完成校验
+  悬挂 1773 秒且客户端侧无超时，见 `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §2。执行者不自行宣布
+  goal 完成；恢复或续跑前先按决策 0024 换掉 `new-provider-4` 这条校验路由）
 - **已完成**：
   - **D1/E0**：两个预注册诊断实跑（0 GPU-h，CPU 111.1 s，只读 val）。记录
     `docs/R7_E0_DIAGNOSTICS.md`、`docs/rules/EVIDENCE.md` 的 E-196/E-197、驱动
@@ -175,6 +184,11 @@ issue 评论落仓为草稿（API 写 401）。
   臂 = 旧 mean-Ours / RW-A / RW-B / RW-B+roles；seed 41/42；400 updates/臂；
   预算 ≤1.0 GPU-h；协议在第一次 `optimizer.step()` 前以 `'x'` 排他冻结；只读 val、test 封存；
   失败/超时/skip 即停并如实记录。
+- **轮末自动校验（2026-09-30 00:02–00:31，本地）**：迭代 1 的完成校验调用在客户端侧**悬挂 1773 秒**
+  （`model_usage` 行：`status='cancelled'`、`cancelled_by_user=1`、`input_tokens=0`），由用户暂停中止，
+  目标转 `paused`。它**不影响本轮结论**（结论由本块与 `docs/R7_72_RW_B_PILOT.md` 承载），
+  但说明这一轮不能靠自动校验收尾；成因、26 次校验调用的路由分布与恢复步骤见
+  `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §2，约定见决策 0024。
 - **下一动作**：**给 RW-B 做减法而不是加法**——在同一 400-update 协议族下，把
   `local_solver_state` 拆成三个各自单独可开关的部件（(a) 门控+锚定提案、(b) Z 的递推、
   (c) role 标记），用**预声明的单一对比**回答「负结果来自哪一件」；修正几何（幅度 ×1.8、

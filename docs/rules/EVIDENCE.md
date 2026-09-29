@@ -341,11 +341,21 @@
 | E-199 | 独立于结果的两条实测：(a) RW-B 的第一步修正幅度约为 RW-A 的 **1.8 倍**（能量约 3.4 倍），且第 2–3 步误差—修正余弦**转正**（+0.070/+0.057）而 RW-A 全程为负，第 3 步恶化比例 0.61/0.57 超过一半；(b) K=1/2/4 探针上两个 seed 都不单调改善，6h 处 K=4 一致最差且 RW-B 在每个 K 上都差于 RW-A。这两条与 E-196、#66/S4 同向，但本轮**没有**能做归因的消融臂 | `outputs/r7_72_rw_b_pilot/seed*/seed_result.json` 的 `probes.correction` / `probes.depth`；`depth_probe_table.csv` | 抽样（2 seed × 8 窗口 / 2 seed × 2 臂 × 3 K） | 已确认 |
 | E-200 | 一轮**实现缺陷**与它的代价：首次尝试在训练与 40 次评估**全部完成后**，于新写的修正探针抛 `KeyError: 'atmos_target'`（`ZarrRolloutDataset` 的字段名是 `rollout_targets`）。该尝试的产物目录**保留未删**（`outputs/r7_72_rw_b_pilot_attempt1_probe_defect`），其 0.4203 GPU-h 照记，数字**未采用**；修字段映射+深度守卫、补 reader 回归钉住测试后重跑一个干净尝试（0.4154 GPU-h），本轮合计 **0.8356 GPU-h**（自设上限 1.0，未超）。另一条同轮发现的工具缺陷：`tools/check_conventions.py` 的 R-006 里 `tolerated` 是在路径循环内才赋值的变量，无 bounded-study 函数的 study 作用域模块会**继承上一个文件的 tolerated 值**从而被静默放行（本轮把 `training/r7_arm_study.py` 改名出 `training/r7_*study.py` glob 以回避，未改 checker） | 失败日志 `logs/r7_72_rw_b_seed41.log` 的 traceback；两个产物目录的 `elapsed_seconds` 求和；`tools/check_conventions.py:535-561` 与 `tests/test_check_conventions.py::test_repository_study_exceptions_are_exactly_three` | 单点 | 已确认 |
 
+## 第十一遍（2026-09-30）：goal 完成校验的两种失败形态（客户端只读取证）
+
+为决策 0024 取证：用户报告 goal 模式下 UI 停在「目标校验中」不推进。全部证据来自本机客户端日志与
+`db.sqlite` 的只读查询；不改动客户端状态，也不涉及本仓代码或数据。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-201 | goal 完成校验调用在客户端**没有任何超时**（只有 `abortSignal`），provider 不返回时会永久停在 `goal.status="verifying"`：UI 显示「第 N 次迭代 · 目标校验中」，该会话新输入被排队。2026-09-30 的实例悬挂 **1773.0 s** 后由用户暂停中止（`model_usage`：`status='cancelled'`、`cancelled_by_user=1`、`input_tokens=0`）。全量 26 次校验调用按 provider 分布：`new-provider`（deepseek-v4.1-flash）**14/14 completed**（11.6–47.4 s，最大输入 532,730 token）、`account:zai-start-plan`（GLM-5.3-Flash）**6/6 completed**、`new-provider-4`（cline-pass 路由）**0/6**（`error`×4 各 17.1–46.9 s 且 `input_tokens=0`；`cancelled`×2 各 1436.6 s / 1773.0 s）⇒ 失败与请求体积无关、与路由相关。已排除：objective 长度（990 码点）、`check_goal_brief.py`（0 失败）、仓库产物与工作区、本仓 hooks（该会话项目 hooks 处于 pending workspace trust 且 blocked）。代码依据：非流式校验调用（`Jka`）不传 `timeout`，主流式回合的 10 分钟 idle 看门狗不覆盖它。**另发现台账自身的漂移**：本文件「统计」块的覆盖度/置信度数字与按行重数不符，本次一并改正 | `~/.zcode/cli/log/zcode-2026-09-30.jsonl`（span `e6c36daf-e5a8-4a` 的起始与失败三连）；`db.sqlite` 的 `session_entry 7d7ce89b` / `08141ff0`、`model_usage` 该 `query_source` 全 26 行、`session_target.status='paused'`；客户端 `~/.zcode/server/agents/glm/zcode.cjs` 偏移 ≈12862744（失败语义）/≈12863500（调用点）/≈4022247（executor）；整理见 `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §2 | 抽样（26 次校验调用 + 2 次会话事件） | 已确认 |
+
 ## 统计
 
-- 台账条目：**200** 条（E-001 – E-200；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1 + 第九遍 2 + 第十遍 3）。
-- 按覆盖度：全体扫描 140 条，抽样 21 条，单点 39 条。
-- 按置信度：已确认 197 条，推测 1 条，未知 0 条。
+- 台账条目：**201** 条（E-001 – E-201；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1 + 第九遍 2 + 第十遍 3 + 第十一遍 1）。
+- 按覆盖度（2026-09-30 按行重数）：全体/全体扫描 **142** 条、抽样 **15** 条、单点 **44** 条。
+  此前写的「140 / 21 / 39」与行数对不上（漂移），本次按行改正。
+- 按置信度（2026-09-30 按行重数）：已确认 **200** 条、推测 1 条、未知 0 条；此前写「已确认 197」，同为漂移值。
   （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
   E-187 已登记为 Q-013。）
 - 未列入凭据类条目：5 类凭据模式全部 0 命中，故无"疑似凭据点位"可报告。

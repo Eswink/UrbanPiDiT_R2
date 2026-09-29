@@ -49,3 +49,4 @@
 | [0021](0021-experiment-authorization-channel.md) | 实验授权的会话内询问通道 | accepted | 2026-09-29 |
 | [0022](0022-size-and-naming-hard-caps.md) | 规模硬上限与目录命名：先量后立、例外只许缩小 | accepted | 2026-09-29 |
 | [0023](0023-main-model-first-baseline-freeze.md) | 主模型优先与基线冻结：开发期门禁与发表期门禁分开 | accepted | 2026-09-29 |
+| [0024](0024-goal-verifier-best-effort-and-standard-recovery.md) | goal 自动完成校验按 best-effort：保留 harness 驱动，收尾不依赖自动结项 | accepted | 2026-09-30 |
