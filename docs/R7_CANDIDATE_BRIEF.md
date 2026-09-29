@@ -26,8 +26,8 @@ Records: 12; human-review candidates: 1
 
 - Outcome class: `unresolved`; candidate state: `needs-review`
 - Human triage priority: `79` (not a scientific score)
-- Evidence: `docs/R7_72_RW_B_SUBTRACTION.md` (SHA256 `70440241027e7c0cf1fd26ffcf3267a9ae4fa2b5e41d15592bf87315fb65e8f4`)
-- Evidence commit: `85d3e705190959fabd10ffc6b372f167a0dc46fa`; experiment commit: `85d3e705190959fabd10ffc6b372f167a0dc46fa`
+- Evidence: `docs/R7_72_RW_B_SUBTRACTION.md` (SHA256 `5de5b165cb3a4a6fd0820265bc137a24c2dcf9ee0f92de8d384654b81aae92fb`)
+- Evidence commit: `85d3e705190959fabd10ffc6b372f167a0dc46fa`; experiment commit: `fed56f4aa1fb1fd5352c81f5b5e625acb5118acb`
 - Protocol SHA256: `58fc74b7a7aaa513197d85f836684cd55851013b3c7f8519f184649837b357d4`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
 - Reason: The pre-declared subtraction round: the registered negative control RW-B-(a) is degenerate by construction - with identical weights it is bitwise identical to RW-A in the forward pass, the training loss and all 131 shared gradients, receiving zero gradient on the solver side - so its same-sign 'worsening' of 3e-05..8e-05 K is float noise on an identity comparison, not a confound. The frozen branch rule fired as written (stop-confounded-control) and no attribution is reported. The primary arm's own reading (48 h +0.785 K, 72 h +1.174 K, both seeds, worsened) would have pointed at the gate+anchored proposal had the control been admissible, and the previous round's registered deltas reproduced to ~2e-04 K under a changed model-code digest.
 - Limitations:
@@ -64,8 +64,8 @@ Records: 12; human-review candidates: 1
 
 - Outcome class: `audit`; candidate state: `needs-review`
 - Human triage priority: `76` (not a scientific score)
-- Evidence: `docs/R7_72_RW_B_SUBTRACTION.md` (SHA256 `70440241027e7c0cf1fd26ffcf3267a9ae4fa2b5e41d15592bf87315fb65e8f4`)
-- Evidence commit: `85d3e705190959fabd10ffc6b372f167a0dc46fa`; experiment commit: `85d3e705190959fabd10ffc6b372f167a0dc46fa`
+- Evidence: `docs/R7_72_RW_B_SUBTRACTION.md` (SHA256 `5de5b165cb3a4a6fd0820265bc137a24c2dcf9ee0f92de8d384654b81aae92fb`)
+- Evidence commit: `85d3e705190959fabd10ffc6b372f167a0dc46fa`; experiment commit: `fed56f4aa1fb1fd5352c81f5b5e625acb5118acb`
 - Protocol SHA256: `not recorded`; data identity: `not recorded`
 - Reason: The 0 GPU-h leave-one-observation probe over the archived RW-B checkpoints: removing the gate+anchored proposal collapses the step-1 correction to 0.20-0.24x the RW-A magnitude in both seeds, while removing the cross-step recurrence of Z turns the error/correction cosine positive from step 1 in both seeds without reproducing the 1.8x magnitude. The same probe measures that the focus arm's correction_head never received a gradient, which is why the decision-0021 round retrains the leave-one-out arms from scratch rather than reusing this row.
 - Limitations:

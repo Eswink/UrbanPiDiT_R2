@@ -138,6 +138,16 @@ RW-A 本身**（相同权重下输出逐位相同），因此它的 0.00003–0.
 **臂配对是实测**：四臂同 seed 构造、共享张量逐位相同；RW-A 的 `state_dict` 经 trainer 自己的
 transfer 规则载入其余三臂，`applied=131 / ignored=0`，载入后逐张量 `torch.equal`。
 
+**失败尝试与账本（如实记录）**：第一次启动时两 seed 都在 `run_seed` 里以
+`NameError: name 'EARLY_STOPPING_PATIENCE' is not defined` 立即退出——那是把协议拆成
+`training/r7_rw_b_subtraction_protocol.py` 时漏带的导入常量，修复提交 `fed56f4`。
+这次失败发生在**写出 `protocol.json` 之前、更在任何优化器步之前**，因此**没有消耗 GPU 时间、
+也没有产生任何产物**（`outputs/r7_72_rw_b_subtraction/` 当时不存在，日志里没有 `protocol.json` 也没有
+`elapsed_seconds`）。这是**修复缺陷**，不是「重试凑数」；它的代价是墙钟与两次 `AskUserQuestion`
+之外的返工，**不计入 GPU-h**。随后一次干净尝试跑完全部 8 个 run 与 40 次评估，本节所有数字来自它。
+（与上一轮 attempt1 的区别要照写：上一轮那次是在训练与评估**都完成之后**才失败，因此花了 0.4203 GPU-h
+并保留产物；本次没有类似的已耗预算。）
+
 **实测代价**（协议冻结前测量，`arm_table.csv` / `memory_table.csv` / `training_table.csv`）：
 
 | 臂 | 参数量 | 前向 FLOPs | 前向+反向 FLOPs | 训练峰值 allocated | 墙钟（2 seed 合计） |
