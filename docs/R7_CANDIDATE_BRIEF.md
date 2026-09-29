@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 9; human-review candidates: 1
+Records: 10; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -21,6 +21,24 @@ Records: 9; human-review candidates: 1
 - CI run: `36276587108`
 - Excluded from runnable candidates: Candidate for human review only; follow-up still requires a new frozen protocol and explicit authorization.
 - Recorded metrics (not recomputed): gate_met=false, gpu_hours=1.157, lead_hours=[6, 12, 24, 48, 72], seeds=3, test_read=false
+
+## rw-b-bounded-round-negative
+
+- Outcome class: `negative`; candidate state: `needs-review`
+- Human triage priority: `78` (not a scientific score)
+- Evidence: `docs/R7_72_RW_B_PILOT.md` (SHA256 `5a544971153a6a89f57e3b711fede9f403f86f7823f5057c6cf9c3e8245c093b`)
+- Evidence commit: `d8c828d8d34a97096465b3c46308dd4ddc889b52`; experiment commit: `d8c828d8d34a97096465b3c46308dd4ddc889b52`
+- Protocol SHA256: `6f48874296352d660c2a5d07c3de7c3bceac16619e54adec4a505ce8ff5d9ed9`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: The first bounded real comparison of RW-B: the registered primary RW-B - RW-A on t2m is not supported (12/24 h improve by 0.08 K, 6/48/72 h worsen by 0.12/1.07/1.58 K, every lead sign-consistent across both seeds, modal reading 'worsened'), so the local gated solver state is a negative result at this budget and capacity and must not be extended before the mechanism is attributed.
+- Limitations:
+  - Two seeds: sign agreement is a consistency check, not significance; no threshold was introduced.
+  - The arms are not capacity-matched, so the negative result is not attributed to the per-position gate, the X_t-anchored proposal or Z; decision 0023's matched-Generic prerequisite is still unmet.
+  - Validation split only (22 windows, 11-22 per lead depending on lead); the test split was never opened for method selection.
+  - One bounded 400-update run on one winter segment in one region: not a convergence or cross-season comparison.
+  - The K=1/2/4 depth probe runs on a K=3 checkpoint, and the correction probe covers 8 windows: diagnostics, not deployable rules.
+  - The round spent 0.8356 GPU-h instead of 0.42 because a first attempt died in a new probe after training and evaluation had completed; that attempt's numbers are retained but were not used.
+- Excluded from runnable candidates: Negative result at one bounded budget: not a candidate for extension. The next admissible action is a predeclared subtraction of the gate/proposal, Z and the role markers, which needs its own authorization.
+- Recorded metrics (not recomputed): arms=4, forward_flops_ratio_vs_rw_a=1.2097, gpu_hours=0.8356, gpu_hours_single_clean_attempt=0.4154, parameters_added_vs_rw_a=314898, primary_leads_supported=2, primary_leads_worsened=3, seeds=2, t2m_delta_48h=1.065, t2m_delta_72h=1.5804, test_read=false, thresholds_added=0, updates_per_arm=400
 
 ## b1-d1-controlled-comparison
 
@@ -43,10 +61,10 @@ Records: 9; human-review candidates: 1
 
 - Outcome class: `engineering-positive`; candidate state: `needs-review`
 - Human triage priority: `75` (not a scientific score)
-- Evidence: `docs/R7_72_RW_B.md` (SHA256 `2e07694d7c791f8662e5fcb168c63be3e3f1699ea2631879c3456e94cc23a110`)
+- Evidence: `docs/R7_72_RW_B.md` (SHA256 `96fc5f10f598aa27f43e19cdaef59fc033bb8da914b2143fdb11517926c5e172`)
 - Evidence commit: `f4a571b370691162126f207b7d984761ec7ec57f`; experiment commit: `f4a571b370691162126f207b7d984761ec7ec57f`
 - Protocol SHA256: `not recorded`; data identity: `not recorded`
-- Reason: RW-B is implemented as real model code behind two default-off switches, its boundaries are asserted with counterproofs, and the step now has a single implementation across the fixed, streamed and adaptive paths.
+- Reason: RW-B is implemented as real model code behind two default-off switches, its boundaries are asserted with counterproofs, and the step now has a single implementation across the fixed, streamed and adaptive paths. The evidence document carries a dated update block: the bounded train/val comparison it recorded as not executed was run in the following round, and its verdict is registered separately.
 - Limitations:
   - No training was run, so this record carries no RMSE, no skill and no accuracy-compute frontier.
   - The gate is a stabilization candidate, not a guarantee of monotone improvement or physical correctness.
