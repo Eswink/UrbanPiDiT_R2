@@ -31,6 +31,7 @@ jobs:
           run-id: 35875707823
           github-token: ${{ github.token }}
       - name: Run predeclared study without source networking
+        id: study
         run: |
           python - <<'PY'
           import runpy, socket, sys
@@ -48,6 +49,34 @@ jobs:
           mkdir -p outputs/cpu_study
           git archive --format=zip --output=outputs/cpu_study/code.zip HEAD
           git rev-parse HEAD > outputs/cpu_study/code_commit.txt
+      - name: Build and validate verification receipt
+        if: always()
+        env:
+          STUDY_OUTCOME: ${{ steps.study.outcome }}
+        run: |
+          status=failed
+          reason="CPU study outcome: ${STUDY_OUTCOME}"
+          if [ "${STUDY_OUTCOME}" = "success" ]; then
+            status=success
+            reason=""
+          elif [ "${STUDY_OUTCOME}" = "cancelled" ]; then
+            status=cancelled
+          elif [ "${STUDY_OUTCOME}" = "skipped" ]; then
+            status=skipped
+          fi
+          args=(--root outputs/cpu_study --run-id "${GITHUB_RUN_ID}" \
+                --workflow "${GITHUB_WORKFLOW}" --status "${status}")
+          if [ -n "${reason}" ]; then
+            args+=(--failure-reason "${reason}")
+          fi
+          python tools/build_verification_receipt.py "${args[@]}"
+          verify=(--receipt outputs/cpu_study/verification_receipt.json \
+                  --root outputs/cpu_study)
+          if [ "${status}" = "success" ]; then
+            verify+=(--require-success)
+          fi
+          python tools/verify_experiment_receipt.py "${verify[@]}"
+
       - name: Preserve all results including failures
         if: always()
         uses: actions/upload-artifact@v4

@@ -102,8 +102,12 @@ Q 解决时**写一份决策记录**，并在 Q 标题加指针。只改 Q 不�
 ## R-037 治理层必须在版本控制内
 
 - **级别**：必须
-- **范围**：`AGENTS.md`、`docs/rules/**`、`.agents/skills/**`、`docs/skills/README.md`、
-  `tools/**`、`tests/test_check_conventions.py`、`tests/test_agent_hooks.py`、`docs/plans/**`、
+- **范围**：`AGENTS.md`、`.zcode/config.json`、`.zcode/agents/**`、`docs/rules/**`、`.agents/skills/**`、`docs/skills/README.md`、
+  `tools/**`、`docs/R7_EVIDENCE_INDEX.jsonl`、`docs/R7_CANDIDATE_BRIEF.md`、
+  `docs/decisions/0019-verification-receipt-pilot.md`、
+  `docs/decisions/0020-verification-contract-and-governance-drift.md`、
+  `tests/test_check_conventions.py`、`tests/test_agent_hooks.py`、
+  `tests/test_verify_experiment_receipt.py`、`tests/test_verify_r7_evidence_index.py`、`docs/plans/**`、
   `docs/decisions/**`、`docs/goals/**`
 - **陈述**：这些文件必须被 git 跟踪。它们是**可执行**的治理资产：CI 会运行
   `tools/check_conventions.py`，skill 会被代理自动加载，契约会被注入每轮上下文 ——

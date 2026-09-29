@@ -22,6 +22,24 @@ description: 当一个计算结果需要被引用、写进报告或归档时使�
 3. 代码身份已知（产生该结果的 commit，或它归档的 `code.zip`）；
 4. 工作树状态已知：`git status` 无意外改动。
 
+## 机器可读验证回执（CPU study 试点）
+
+`r7-cpu-study` 的 `always()` 收尾步骤会在运行目录写入
+`verification_receipt.json`，并调用 `tools/verify_experiment_receipt.py` 做只读核验。回执至少记录：
+
+- `run_id`、`workflow`、完整 `commit_sha`；
+- `protocol_sha256`、`source_sha256`、`data_identity`；
+- `status`：`success`、`partial`、`failed`、`cancelled`、`queued` 或 `skipped`；
+- `required_artifacts` 与逐文件 `output_artifacts`（含相对路径和 SHA256）；
+- `scientific_claim: false` 与非空 `limitations`，以及非成功状态的 `failure_reason`。
+
+只有 `status: success` 且所有必需文件、结果声明和 digest 都通过校验，才会被命令行的
+`--require-success` 接受。`partial`、`failed`、`cancelled`、`queued`、`skipped` 都是有用的工程记录，
+但不能作为通过、科学结论或训练授权。job-level 的标签门控如果使整个 workflow 显示 skipped，步骤不会启动，
+因此不会伪造一份回执；该 CI 状态仍按本文件的“取消/排队不算通过”纪律处理。
+
+这是第一条试点 workflow 的最小契约；严格 profile 使用 `urbanpidit-verification-receipt-v1.1`，要求 source bytes、protocol source digest、source receipt 和结果身份交叉一致。它不替代已有的 `protocol.json`、source receipt、代码归档或结果冻结步骤；只验证身份和产物完整性，不判断指标好坏、seed 一致性或科学 gate。
+
 ## 步骤
 
 1. **核对记录完整性。** 打开结果目录，确认存在：

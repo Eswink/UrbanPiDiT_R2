@@ -2,10 +2,11 @@
 
 范围：`tests/**`、`pytest.ini`。
 
-现状基线（实测，2026-09-24 第二遍）：67 个测试文件、**280 个测试函数、560 个断言**、
-78 处 `parametrize`、2 处 `skipif`、0 处 `xfail`、0 处被注释掉的断言、0 处 TODO/FIXME。
-这两项计数被 R-009 作为报告基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
-的 `TEST_FUNCTION_BASELINE` / `ASSERT_BASELINE`**，并在 CHANGELOG 说明原因。
+现状基线（实测，2026-09-29 回执 profile、简报同步与 workflow 漂移试点）：107 个测试文件、**811 个测试函数、2009 个断言**、
+117 处 `parametrize`、2 处 `skipif`、0 处 `xfail`、0 处被注释掉的断言、0 处 TODO/FIXME。
+其中 811/2009 是 R-009 使用的稳定基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
+的 `TEST_FUNCTION_BASELINE` / `ASSERT_BASELINE`** 并在 CHANGELOG 说明原因。测试文件数与参数化计数是当前观测值，
+不单独构成门禁。
 
 全量可运行测试：改动前 451 passed → 改动后 492 passed，两侧同为 29 failed / 3 skipped / 18 errors，
 失败**全部**为缺失可选依赖（`xarray`/`h5netcdf`/`pytorch_lightning`），非代码缺陷（E-157、E-158）。
@@ -57,9 +58,8 @@
 
 ### 观察（不立规）
 
-- `pytest.ini` 没有 `markers` 段，也没有 `--strict-markers`。当前只用 `parametrize`（76 处）
-  与 `skipif`（2 处），未注册自定义 marker，所以现在没有实际风险。
-  一旦引入需要 GPU/网络的 marker，应先注册并开启 `--strict-markers`。见 OPEN_QUESTIONS Q-003。
+- `pytest.ini` 已启用 `--strict-markers`，并注册 `gpu`、`network`、`slow` 三个自定义 marker。当前测试中尚未使用这些 marker；
+  一旦为 GPU、联网或慢测试添加 marker，拼写错误会在收集阶段失败，而不会静默变成 no-op。Q-003 已决并已落地。
 - 2 处 `skipif` 依赖 `data/raw/real_smoke/` 下的可选 fixture，理由写得很明确
   （"clean checkout 无 fixture，禁止合成回退"）。这符合 R-008 的精神，**不应**视为债务。
 - 测试直接依赖 `torch`（27 个文件）、`pandas`（16）、`xarray`（7）等，这些是 `requirements.txt`

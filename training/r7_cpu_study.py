@@ -232,7 +232,9 @@ def run_study(source, receipt, output_dir, *, plan=StudyPlan()):
     _csv(out/'seed_rmse.csv', raw)
     _csv(out/'seed_summary.csv', summary)
     result = dict(format='r7-cpu-study-result-v1', scientific_claim=False, gpu_used=False,
-        protocol=protocol, preparation=preparation, resources=resources, records=records,
+        protocol=protocol, protocol_sha256=protocol['protocol_sha256'],
+        source_sha256=audited['source_netcdf_sha256'], data_identity=identity,
+        primary_manifest='manifests/train.jsonl', preparation=preparation, resources=resources, records=records,
         persistence=baselines, summary=summary, elapsed_seconds=time.monotonic()-started,
         limitations=['Small sampled tile and correlated cases; not representative regional weather skill',
             'Mean/SD across seeds describe initialization variation, not statistical significance',

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -131,6 +132,7 @@ FALSIFICATION_CASES = [
      "R-007 must fire without a claim flag"),
     ("R-010", (".github", "workflows", "r7-demo-study.yml"),
      "name: demo\non:\n  push:\njobs:\n  run:\n    steps:\n"
+     "      - uses: actions/download-artifact@v4\n"
      "      - run: python -m training.r7_cpu_study\n",
      "R-010 must fire when a study workflow archives no code identity"),
     ("R-001", ("data", "preprocess", "build.py"),
@@ -278,6 +280,119 @@ def test_blocking_and_report_groups_are_disjoint(checker):
     assert not overlap, f"rules cannot be both blocking and reporting: {overlap}"
 
 
+def test_rule_execution_counts_match_docs(checker):
+    """The executable rule groups and their documented counts must stay aligned."""
+    assert len(checker.BLOCKING_RULES) == 34
+    assert len(checker.REPORT_RULES) == 11
+    assert len(checker.RULES_NOT_MECHANISED) == 6
+    assert len(checker.RULES) + len(checker.RULES_NOT_MECHANISED) == 51
+    assert not (set(checker.BLOCKING_RULES) & set(checker.REPORT_RULES))
+    assert not (set(checker.BLOCKING_RULES) & set(checker.RULES_NOT_MECHANISED))
+    assert not (set(checker.REPORT_RULES) & set(checker.RULES_NOT_MECHANISED))
+    migration = (ROOT / "docs" / "rules" / "MIGRATION.md").read_text(encoding="utf-8")
+    ci_rules = (ROOT / "docs" / "rules" / "ci-and-verification.md").read_text(encoding="utf-8")
+    assert "（**34 条**，实测" in migration
+    assert "34 条阻断规则" in ci_rules
+    assert "20 条阻断" not in ci_rules
+    assert "811/2009" in migration
+
+
+def test_pytest_marker_contract_matches_documentation():
+    """The pytest config and testing rule must describe the same marker policy."""
+    config = (ROOT / "pytest.ini").read_text(encoding="utf-8")
+    testing = (ROOT / "docs" / "rules" / "testing.md").read_text(encoding="utf-8")
+    assert "--strict-markers" in config
+    for marker in ("gpu", "network", "slow"):
+        assert f"{marker}:" in config
+        assert f"`{marker}`" in testing
+    assert "没有 `markers` 段" not in testing
+    assert "没有 `--strict-markers`" not in testing
+
+
+def _workflow_names_from_doc_row(text: str, label: str) -> set[str]:
+    row = next(line for line in text.splitlines() if line.startswith(f"| {label}"))
+    names = row.split("|")[2].strip()
+    return {f"r7-{name.strip()}.yml" for name in names.split(",")}
+
+
+def test_workflow_classification_matches_files():
+    """The CI table must classify every experiment workflow exactly once."""
+    doc = (ROOT / "docs" / "rules" / "ci-and-verification.md").read_text(encoding="utf-8")
+    offline = _workflow_names_from_doc_row(doc, "离线实验")
+    real = _workflow_names_from_doc_row(doc, "真实数据获取")
+    files = {path.name for path in (ROOT / ".github" / "workflows").glob("r7-*.yml")}
+    assert len(files) == 17
+    assert offline | real == files
+    assert not offline & real
+    actual_offline = set()
+    for name in files:
+        text = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+        if "socket.socket.connect = deny" in text and "socket.create_connection = deny" in text:
+            actual_offline.add(name)
+    assert actual_offline == offline
+    assert "r7-pressure-pilot.yml" in real
+    assert {"r7-common-case.yml", "r7-correction-audit.yml", "r7-restored-diagnostic.yml"} <= offline
+
+
+def test_workflow_tags_match_documentation_and_skill_counts():
+    """Rules docs, triage skill, and workflow job tags must describe one set."""
+    doc = (ROOT / "docs" / "rules" / "ci-and-verification.md").read_text(encoding="utf-8")
+    skill = (ROOT / ".agents" / "skills" / "ci-workflow-triage" / "SKILL.md").read_text(encoding="utf-8")
+    expected = {
+        f"{match.group(2)}.yml": match.group(1)
+        for match in re.finditer(r"^\| `?\[([a-z0-9-]+)\]`? \| (r7-[a-z0-9-]+) \|$", doc, re.MULTILINE)
+    }
+    actual = {}
+    for path in (ROOT / ".github" / "workflows").glob("r7-*.yml"):
+        text = path.read_text(encoding="utf-8")
+        match = re.search(
+            r"(?m)^\s+if:\s+contains\(github\.event\.head_commit\.message,\s*['\"]\[([a-z0-9-]+)\]['\"]\)",
+            text,
+        )
+        assert match, f"workflow has no commit-message tag: {path.name}"
+        actual[path.name] = match.group(1)
+    assert actual == expected
+    assert "离线实验（study/control/replay/audit） | 10 |" in skill
+    assert "真实数据获取（pilot/probe） | 7 |" in skill
+    assert "本项目 18 条 workflow" in skill
+
+
+def test_workflow_jobs_have_timeout_and_artifact_pins():
+    """Every R7 workflow has a positive timeout and complete artifact pins."""
+    workflows = sorted((ROOT / ".github" / "workflows").glob("r7-*.yml"))
+    for path in workflows:
+        text = path.read_text(encoding="utf-8")
+        assert re.search(r"(?m)^    timeout-minutes:\s*[1-9][0-9]*\s*$", text), path.name
+        lines = text.splitlines()
+        for index, line in enumerate(lines):
+            if "actions/download-artifact@" not in line:
+                continue
+            block = "\n".join(lines[index:index + 10])
+            assert re.search(r"(?m)^\s+name:\s*\S+", block), f"missing artifact name: {path.name}"
+            assert re.search(r"(?m)^\s+run-id:\s*[0-9]+\s*$", block), f"missing artifact run-id: {path.name}"
+
+
+def test_real_workflows_do_not_have_partial_socket_denial():
+    """A real-data workflow must not accidentally carry one half of offline denial."""
+    doc = (ROOT / "docs" / "rules" / "ci-and-verification.md").read_text(encoding="utf-8")
+    real = _workflow_names_from_doc_row(doc, "真实数据获取")
+    for name in real:
+        text = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+        assert "socket.socket.connect = deny" not in text
+        assert "socket.create_connection = deny" not in text
+
+
+def test_decision_index_matches_decision_files():
+    """Every ADR file must be indexed, and every indexed link must exist."""
+    directory = ROOT / "docs" / "decisions"
+    actual = {path.name for path in directory.glob("[0-9][0-9][0-9][0-9]-*.md")}
+    index = (directory / "README.md").read_text(encoding="utf-8")
+    indexed = {match.group(2) for match in re.finditer(
+        r"^\| \[(\d{4})\]\(([^)]+)\)", index, flags=re.MULTILINE
+    )}
+    assert indexed == actual
+
+
 def test_exception_lists_use_exact_paths(checker):
     """No glob amnesty: every exception entry is a concrete path."""
     for name in ("PROTOCOL_EXCEPTIONS", "CI_ARCHIVE_EXCEPTIONS", "EXEMPT_FROM_ANNOTATIONS"):
@@ -299,6 +414,29 @@ def _decision_text(number, slug, status="accepted", consequences_cost=True):
         f"## Decision\n\n决定。\n\n"
         f"## Consequences\n\n{cost}\n"
     )
+
+
+def test_r029_checks_each_job_timeout(checker, tmp_path):
+    create_fixture(
+        tmp_path,
+        ".github",
+        "workflows",
+        "multi.yml",
+        text=(
+            "name: multi\n"
+            "jobs:\n"
+            "  first:\n"
+            "    runs-on: ubuntu-latest\n"
+            "    timeout-minutes: 10\n"
+            "    steps: []\n"
+            "  second:\n"
+            "    runs-on: ubuntu-latest\n"
+            "    steps: []\n"
+        ),
+    )
+    hits = run(checker, "R-029", tmp_path)
+    assert hits
+    assert "second" in hits[0].detail
 
 
 def test_r032_fires_without_results_section(checker, tmp_path):
@@ -369,15 +507,35 @@ def test_r036_accepts_reachable_supersede(checker, tmp_path):
     assert not run(checker, "R-036", tmp_path), "a reachable supersede chain must pass"
 
 
+def test_r037_reports_untracked_zcode_config(checker, tmp_path):
+    """Runtime hook configuration is governance and must survive a clean clone."""
+    _init_repo(tmp_path)
+    create_fixture(tmp_path, ".zcode", "config.json", text="{}\n")
+    hits = run(checker, "R-037", tmp_path)
+    assert any(h.path == ".zcode/config.json" for h in hits), (
+        "R-037 must report an untracked ZCode hook configuration"
+    )
+
+
+def test_r037_reports_untracked_agent_directory(checker, tmp_path):
+    """Agent definitions are executable routing assets, not local-only notes."""
+    _init_repo(tmp_path)
+    create_fixture(tmp_path, ".zcode", "agents", "planner.md", text="# planner\n")
+    hits = run(checker, "R-037", tmp_path)
+    assert any(h.path == ".zcode/agents/" for h in hits), (
+        "R-037 must report an untracked ZCode agent directory"
+    )
+
+
 def test_r037_reports_unknown_without_git(checker, tmp_path):
     hits = run(checker, "R-037", tmp_path)
     assert hits and "UNKNOWN" in hits[0].detail
 
 
 def test_r037_passes_on_the_real_repository(checker):
-    """The governance layer must be tracked; this is the regression guard for the
-    clean-clone CI failure found on 2026-09-24."""
-    hits = [h for h in run(checker, "R-037", ROOT) if "UNKNOWN" not in h.detail]
+    """Tracked governance assets must pass; untracked worktree assets stay visible but tolerated."""
+    hits = [h for h in run(checker, "R-037", ROOT)
+            if not h.tolerated and "UNKNOWN" not in h.detail]
     assert not hits, f"untracked governance assets: {[(h.path, h.detail) for h in hits[:5]]}"
 
 

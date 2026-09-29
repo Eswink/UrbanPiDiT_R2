@@ -59,9 +59,9 @@
 - **陈述**：禁止删除测试、跳过测试、降低断言强度、放宽已冻结阈值，或未实跑就记录 PASS。
 - **依据**：E-062（`R7_MANUAL_ITERATION.md:17` "A cancelled or queued run is not a pass"）、
   E-063（`R7_MANUAL_ITERATION.md:15` "fix the actual failure without weakening scientific/tests requirements"）、
-  E-064（全仓 262 个测试函数中仅 2 处 skipif，且理由注明"clean checkout 无 fixture，禁止合成回退"）
+  E-064（全仓历史基线中仅 2 处 skipif，且理由注明"clean checkout 无 fixture，禁止合成回退"）
 - **现状**：A 类 —— 无被注释掉的断言、无长期 xfail、无降级记录；测试强度计数有基线监控
-- **执行方式**：**脚本（`--rule R-009`，报告型）**对照记录基线（280 个测试函数 / 560 个断言），
+- **执行方式**：**脚本（`--rule R-009`，报告型）**对照当前记录基线（811 个测试函数 / 2009 个断言），
   低于基线即报告；语义层面的削弱（降低断言强度、事后放宽阈值）仍为**人工评审**
 - **例外**：无
 - **引入日期**：2026-09-24

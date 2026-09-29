@@ -42,3 +42,8 @@
 | [0014](0014-round-two-pooled-query-capacity-control.md) | V2 第二轮：池化 query 容量控制臂 + 四臂三 seed 归因设计 | accepted | 2026-09-28 |
 | [0015](0015-goal-loop-scope.md) | goal-loop 能力：目标撰写与会话手工循环，校检器只读且非阻断 | accepted | 2026-09-28 |
 | [0016](0016-round-three-field-modes-and-primary-reader.md) | V2 第三轮：字段模式的臂内替换、batch=1 的确定性语义、primary 读者按冻结文字实现 | accepted | 2026-09-28 |
+| [0017](0017-local-gate-scope-and-commit-guard.md) | 本地闸门的判定范围（按已跟踪集合）与提交前闸门 | accepted | 2026-09-28 |
+| [0018](0018-web-research-route.md) | 外部检索的唯一出口（web-researcher）与引用纪律 | accepted | 2026-09-28 |
+| [0019](0019-verification-receipt-pilot.md) | 机器可读验证回执先行试点 | accepted | 2026-09-29 |
+| [0020](0020-verification-contract-and-governance-drift.md) | 验证回执身份契约与治理漂移防护 | accepted | 2026-09-29 |
+| [0021](0021-experiment-authorization-channel.md) | 实验授权的会话内询问通道 | accepted | 2026-09-29 |

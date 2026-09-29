@@ -6,9 +6,9 @@
 
 | 类别 | workflow | 说明 |
 | --- | --- | --- |
-| 主测试门禁 | `ci.yml` | push 到 `r7/weather-reasoning` 或 PR 到 `main` 时触发；`compileall` + `git diff --check` + `pytest -q`；30 分钟超时 |
-| 离线实验（11 个） | baseline-study, common-case, continuous-control, correction-audit, cpu-study, extended-control, restored-diagnostic, seasonal-study, spatial-solver, pressure-replay, pressure-pilot | 由提交信息标签触发，下载已归档产物，禁用 socket，跑实验，归档代码身份 |
-| 真实数据获取（7 个） | continuous-pilot, earthmover-probe, public-data, real-smoke, seasonal-pilot, surface-pilot | 允许联网，受字节/时间预算约束 |
+| 主测试门禁 | `ci.yml` | push 到 `r7/weather-reasoning` 或 PR 到 `main` 时触发；`compileall` + `git show --check` + `pytest -q`；30 分钟超时 |
+| 离线实验（10 个） | baseline-study, common-case, continuous-control, correction-audit, cpu-study, extended-control, restored-diagnostic, seasonal-study, spatial-solver, pressure-replay | 由提交信息标签触发，下载已归档产物，禁用 socket，跑实验，归档代码身份 |
+| 真实数据获取（7 个） | continuous-pilot, earthmover-probe, pressure-pilot, public-data, real-smoke, seasonal-pilot, surface-pilot | 允许联网，受字节/时间预算约束 |
 
 触发机制：除 `ci.yml` 外，每个 workflow 由提交信息里的方括号标签触发
 （如 `[cpu-study]`、`[public-data]`）。全仓 134 个提交中 133 个带 issue 引用，
@@ -38,8 +38,7 @@
 - **依据**：E-077（10 个 workflow 内联安装该拒绝逻辑，如 `r7-cpu-study.yml:37-39`）、
   E-095（`training/r7_baseline_study.py:85-91` 在子进程中同样禁网，并在 `:96-98` 检查返回码）
 - **现状**：A 类 —— 所有"下载产物 + 跑有界实验"的 workflow 均已实现
-- **执行方式**：**脚本（`--rule R-028`，阻断）**——检查含 `download-artifact` 且匹配实验模式的
-  workflow 是否同时含两个 socket 赋值
+- **执行方式**：**脚本（`--rule R-028`，阻断）**——检查所有消费归档 artifact 的 `r7-*.yml` workflow，确认其实验/诊断步骤同时含两个 socket 赋值
 - **例外**：无
 - **引入日期**：2026-09-24
 - **复核触发**：当把该片段抽成共享 `deny_network()` 辅助时（应改为检查 import 而非文本赋值）
@@ -81,7 +80,7 @@
 ### 本文件的强制机制（第二遍新增）
 
 `tools/check_conventions.py` 已接入 CI：`.github/workflows/ci.yml` 的
-`Check repository conventions` 步骤运行 20 条阻断规则（不含 R-027/R-030 等报告型）。
+`Check repository conventions` 步骤运行 **34 条阻断规则**（不含 R-009、R-027、R-030 等报告型，另有 6 条规则未机械化）。
 
 `ci.yml:35-40` 原有步骤（第二遍已修正范围）：
 
@@ -93,6 +92,18 @@
 
 **没有**任何静态分析门禁：全仓无 ruff / flake8 / mypy / black / pylint 配置，
 也没有 `.pre-commit-config.yaml`（E-080）。这是本次引导识别出的最大工程缺口，见 `MIGRATION.md`。
+
+### 机器可读验证回执试点
+
+`r7-cpu-study` 在 `always()` 收尾步骤生成并只读校验 `verification_receipt.json`。回执绑定
+`run_id`、workflow、commit/protocol/source/data identity、必需产物和逐文件 SHA256，并保留
+`scientific_claim: false`、`limitations` 与失败原因。仅 `status: success` 且 `--require-success` 校验通过
+才是工程上的成功；`partial`、`failed`、`cancelled`、`queued`、`skipped` 均不算通过，也不产生科学结论。
+该试点不改变 workflow 标签、预算、禁网边界或现有结果冻结/人工科学判定。
+
+CI 主门禁还会调用 `tools/verify_r7_evidence_index.py --check-brief`，确保提交的
+`docs/R7_CANDIDATE_BRIEF.md` 与 `docs/R7_EVIDENCE_INDEX.jsonl` 的规范渲染逐字一致；该步骤只读，
+不会自动生成或覆盖简报。
 
 ## Workflow 触发契约与 GitHub 通道（2026-09-25 追加）
 
@@ -128,6 +139,10 @@ skipped 是设计行为，不是失败**——它们是有意做成"按需运行
 
 需要运行某条实验时，把它的标签写进 commit message 再推到工作分支；一条 commit 可带多个
 标签。不要为了"消除 skip"而给它们加 `paths:` 过滤——那会改变既有触发契约且无证据支持。
+
+**（2026-09-29 追加）触发实验的授权按决策 0021 的通道取得**：执行前用 `AskUserQuestion` 提问（写明
+范围 / 预算 / 产物与证据 / 失败与 skip 处理），或按用户预先书面的具名授权执行。标签只表达触发意图，
+**不构成授权**；`skip` / `cancelled` / `queued` 不算通过。
 
 **用户决定（2026-09-25）：issue 关闭工作期间不主动触发实验 workflow**（运行成本过高，
 本轮无新实验）。skip 状态被接受为设计行为；验收证据以早前已核验的绿色 run 为准，

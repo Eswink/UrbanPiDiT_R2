@@ -27,8 +27,10 @@ description: 当 CI 失败、运行 pending/被取消、或要判断"这次算�
    | 类别 | 数量 | 触发方式 | 是否该联网 |
    | --- | --- | --- | --- |
    | 主测试门禁 `ci.yml` | 1 | push 到 `r7/weather-reasoning` 或 PR 到 `main` | 否 |
-   | 离线实验（study/control/replay/audit） | 11 | **提交信息里的方括号标签**（如 `[cpu-study]`） | **否，必须禁网** |
+   | 离线实验（study/control/replay/audit） | 10 | **提交信息里的方括号标签**（如 `[cpu-study]`） | **实验/诊断步骤内必须禁网** |
    | 真实数据获取（pilot/probe） | 7 | 同类方括号标签 | 是（受字节预算约束） |
+
+   这里的“离线”只约束实验/诊断 run step；依赖安装、artifact download 和其它 job 步骤仍可能联网。
 
    **第一件事**：确认你等的是哪一类。实验 workflow **不会**因为 `ci.yml` 绿了就自动跑。
 

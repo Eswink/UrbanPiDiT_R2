@@ -74,7 +74,17 @@ PROTOCOL_WRITE = re.compile(r"protocol")
 
 # R-010 scope.
 CI_WORKFLOW_DIR = ".github/workflows"
-CI_STUDY_EVIDENCE = re.compile(r"r7_\w*(study|control)|study_r7_|real_r7_\w*pilot")
+
+
+def _artifact_workflow_texts(root: Path):
+    """Yield R7 workflow paths and text that consume a pinned artifact."""
+    wf_dir = root / CI_WORKFLOW_DIR
+    if not wf_dir.is_dir():
+        return
+    for path in sorted(wf_dir.glob("r7-*.yml")):
+        text = read(path) or ""
+        if "actions/download-artifact" in text:
+            yield path, text
 
 ABSOLUTE_PATH = re.compile(r"""['"](/(?:home|data|mnt|media|opt|srv|scratch)/|[A-Za-z]:\\\\)""")
 OS_PATH_ALLOWED = {"os.path.relpath"}
@@ -128,17 +138,17 @@ PARAM_MAX = 8
 # message naming the rule), and four for the refined tests/-removal rule (untracked
 # scratch allowed, staged denied, test-named denied, real-repo denials). Nothing
 # was removed.
-# 2026-09-28 (external-research route, R-049/R-050, decision 0018): 761/1885 ->
-# 772/1911. Eleven test functions in tests/test_agent_hooks.py: the main link being
-# denied for both web tools (with the deny naming the subagent, the curl fallback
-# and the skill), a payload without a session treated as the main link, subagent
-# sessions never locked out, the guard covering only the web tools, the guard not
-# drifting from the agent definitions (sole exit) and being wired to both tools in
-# .zcode/config.json, plus five for the fetch notice (flagging a shell fetch,
-# capping the URLs listed, staying silent for non-fetches and non-Bash tools, and
-# emitting exactly one systemMessage). Nothing was removed.
-TEST_FUNCTION_BASELINE = 772
-ASSERT_BASELINE = 1911
+# 2026-09-29 (verification receipt + evidence index pilots): 772/1911 -> 797/1975.
+# Twenty-five test functions and sixty-four assertions were added across two files:
+# receipt status/digest/result counterproofs and evidence-index source/state/brief
+# counterproofs. Nothing was removed.
+# 2026-09-29 (receipt profiles, brief sync, workflow drift): 797/1975 -> 811/2009.
+# Fourteen test functions and thirty-four assertions were added across three files:
+# strict source-binding and nested-layout receipt counterproofs, brief sync CLI/repository
+# checks, workflow tag/category/timeout/artifact-pin counterproofs, and the R-029
+# multi-job timeout counterproof. Nothing was removed.
+TEST_FUNCTION_BASELINE = 811
+ASSERT_BASELINE = 2009
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")
@@ -504,11 +514,8 @@ def r_010_ci_code_archive(root: Path, allowed):
     wf_dir = root / CI_WORKFLOW_DIR
     if not wf_dir.is_dir():
         return out
-    for path in sorted(wf_dir.glob("*.yml")):
+    for path, text in _artifact_workflow_texts(root):
         rel = path.relative_to(root).as_posix()
-        text = read(path) or ""
-        if not CI_STUDY_EVIDENCE.search(text):
-            continue
         has_commit = "rev-parse HEAD" in text
         has_archive = "git archive" in text
         if not (has_commit and has_archive):
@@ -983,11 +990,8 @@ def r_028_offline_workflow_denies_network(root: Path, allowed):
     wf_dir = root / CI_WORKFLOW_DIR
     if not wf_dir.is_dir():
         return out
-    for path in sorted(wf_dir.glob("*.yml")):
+    for path, text in _artifact_workflow_texts(root):
         rel = path.relative_to(root).as_posix()
-        text = read(path) or ""
-        if "download-artifact" not in text or not CI_STUDY_EVIDENCE.search(text):
-            continue
         if "socket.socket.connect" not in text or "socket.create_connection" not in text:
             missing = [n for n, ok in (("socket.socket.connect", "socket.socket.connect" in text),
                                        ("socket.create_connection", "socket.create_connection" in text))
@@ -998,7 +1002,7 @@ def r_028_offline_workflow_denies_network(root: Path, allowed):
 
 
 def r_029_workflow_has_timeout(root: Path, allowed):
-    """Every CI workflow job must set timeout-minutes."""
+    """Every CI workflow job must set a positive timeout-minutes value."""
     out = []
     wf_dir = root / CI_WORKFLOW_DIR
     if not wf_dir.is_dir():
@@ -1008,8 +1012,24 @@ def r_029_workflow_has_timeout(root: Path, allowed):
         text = read(path) or ""
         if "jobs:" not in text:
             continue
-        if "timeout-minutes" not in text:
-            out.append(Finding("R-029", rel, 0, "workflow sets no timeout-minutes"))
+        job_names = []
+        in_jobs = False
+        for line in text.splitlines():
+            if line.strip() == "jobs:":
+                in_jobs = True
+                continue
+            if in_jobs and line and not line.startswith(" "):
+                break
+            if in_jobs and len(line) - len(line.lstrip()) == 2 and line.strip().endswith(":"):
+                job_names.append(line.strip()[:-1])
+        for job_name in job_names:
+            block = re.search(
+                rf"(?ms)^  {re.escape(job_name)}:\s*$((?:\n(?!  \S).*)*)",
+                text,
+            )
+            if block is None or not re.search(r"(?m)^    timeout-minutes:\s*[1-9][0-9]*\s*$", block.group(0)):
+                out.append(Finding("R-029", rel, 0,
+                                   f"job {job_name!r} lacks a positive timeout-minutes"))
     return out
 
 
@@ -1052,13 +1072,26 @@ def r_030_study_has_wall_deadline(root: Path, allowed):
 # checker, skills are auto-loaded, the contract is injected every turn.
 GOVERNANCE_ASSETS = (
     "AGENTS.md",
+    ".zcode/config.json",
     "docs/skills/README.md",
     "tools/check_conventions.py",
     "tools/check_planner_plan.py",
+    "tools/verify_experiment_receipt.py",
+    "tools/build_verification_receipt.py",
+    "tools/verify_r7_evidence_index.py",
+    "tools/verification_profiles.py",
+    "docs/R7_EVIDENCE_INDEX.jsonl",
+    "docs/R7_CANDIDATE_BRIEF.md",
+    "docs/decisions/0019-verification-receipt-pilot.md",
+    "docs/decisions/0020-verification-contract-and-governance-drift.md",
+    "docs/decisions/0021-experiment-authorization-channel.md",
     "tests/test_check_conventions.py",
     "tests/test_agent_hooks.py",
+    "tests/test_verify_experiment_receipt.py",
+    "tests/test_verify_r7_evidence_index.py",
 )
 GOVERNANCE_DIRS = (
+    ".zcode/agents/",
     "docs/rules/",
     ".agents/skills/",
     "tools/agent_hooks/",

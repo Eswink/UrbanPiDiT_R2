@@ -2,6 +2,41 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-29 — 实验授权通道（决策 0021）
+
+**范围**：新增决策 `docs/decisions/0021-experiment-authorization-channel.md`；`AGENTS.md` 硬约束补充实验
+授权通道（执行前 `AskUserQuestion`，或用户预先书面的具名授权）；`ci-and-verification.md` 与
+`bounded-study-run` 能力加入同一指针（标签只表达触发意图，不构成授权）。**没有改**任何科学判据、
+预算数值、workflow 标签、禁网边界或数据路径；授权不豁免 R-006 / R-028 与预算纪律，`skip` /
+`cancelled` / `queued` 仍不算通过。
+
+## 2026-09-29 — 回执 profile、简报同步与 workflow 漂移防护
+
+新增严格 `verification-receipt-v1.1` source-binding、CPU/continuous 两种 artifact-layout profile、source receipt/协议/结果身份交叉校验及 22 个回执反证；CPU study 结果补充 `data_identity`、`source_sha256` 和 primary manifest provenance。新增 evidence index 的 `--check-brief` 只读一致性门并接入主 CI。修正 triage skill 的 10 offline / 7 real 统计，扩大 R-028/R-010 对 artifact-consuming workflow 的覆盖，R-029 改为逐 job timeout 检查，并新增标签、分类、artifact pin、timeout 和 partial socket denial 反证。测试基线由 797/1975 更新为 **810/2007**；没有运行训练、下载或 GitHub workflow，也没有改变科学判据、预算或 workflow 标签。
+## 2026-09-29 — 测试基线由 810/2007 更新至 811/2009
+
+补充 R-029 逐 job timeout 的双 job 反证后，新增 1 个测试函数、2 个断言；没有删除或弱化既有断言。当前实测为 107 个测试文件、811 个测试函数、2009 个断言。
+
+
+
+## 2026-09-29 — 机器可读验证回执试点
+
+**范围**：新增只读校验器 `tools/verify_experiment_receipt.py`、生成器 `tools/build_verification_receipt.py` 及其离线反例测试；
+`r7-cpu-study` 在 `always()` 收尾阶段生成并校验回执；`result-freeze` 与 CI 规则补充状态/身份边界；新增决策 0019。
+回执要求成功状态绑定 commit、protocol/source/data identity、必需产物 SHA256、`scientific_claim: false` 与
+`limitations`，并明确取消、排队、跳过和部分完成不算通过。**没有启动训练、下载或改变实验标签、预算、科学判据**。
+
+## 2026-09-29 — 治理事实源同步与 R-037 运行时资产覆盖
+
+**范围**：同步 `MIGRATION.md` 与 `ci-and-verification.md` 的 34 条阻断 / 11 条报告 / 6 条未机械化执行矩阵；
+更新 `testing.md` 的 797/1975 R-009 基线、107 个测试文件与 strict markers 说明；修正 18 个 workflow 的
+10 条离线 / 7 条真实数据分类（`pressure-pilot` 属于联网类）；补齐 ADR 0017/0018 索引；R-037 纳入
+`.zcode/config.json` 与 `.zcode/agents/**`，并为两类资产增加未跟踪反例测试。**没有改变科学判据、实验触发、
+数据目录或 workflow 行为**。
+
+**依据**：当前 `tools/check_conventions.py` 的规则分组、`pytest.ini`、`.github/workflows/` 实际文件以及
+决策 0017/0018；改动前文档中的 20 条阻断、旧测试基线、workflow 分类和 ADR 索引均已与现状对齐。
+
 ## 2026-09-28 — 外部检索路由与引用纪律（R-049/R-050）+ 两道 hook（决策 0018）
 
 **范围**：新增规则文件 `docs/rules/external-sources.md`（R-049、R-050）；新能力
