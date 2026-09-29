@@ -317,7 +317,9 @@ transfer 规则载入其余三臂，`applied=131 / ignored=0`，载入后逐张�
 `python tools/check_conventions.py`：37 条阻断 **0 违规**；`git show --check` 干净。
 R-009 基线随本轮从 885/2180 抬到 **900/2210**，同步更新了 `docs/rules/MIGRATION.md` 与
 `docs/rules/testing.md`（两处数字由 `tests/test_check_conventions.py` 直接对 checker 常量断言）；
-规模报告标记同步为 R-020=44 / R-021=28 / R-023=17（`size-thresholds.md` 的机器核对标记同行更新）。
+规模报告标记同步为 R-020=45 / R-021=28 / R-023=17（`size-thresholds.md` 的机器核对标记同行更新；
+初版误写 R-020=44——那是在最后一个新文件落盘**之前**测的，干净检出把它读成 45 而红，
+已按重测值修正）。
 第一次写的 624 行驱动**越过 R-051 的 600 行硬上限**，按规则拆出
 `training/r7_rw_b_subtraction_protocol.py` 后回到上限内，**未新增任何例外**。
 

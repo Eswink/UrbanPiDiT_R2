@@ -139,12 +139,25 @@ def main() -> int:
             "the pre-declared falsifiable hypothesis in the evidence document, or the turn to "
             "forecast state / training objective / data regime that stop condition 3 requires."))
 
-    with INDEX.open("a", encoding="utf-8") as handle:
-        for entry in (probe, bounded):
+    # Idempotent on purpose: the evidence document gets edited (it is a living page until
+    # the round closes), and every edit moves its hash. Re-running this tool has to leave
+    # exactly one record per id with the *current* hash rather than accumulate stale ones -
+    # a stale digest is the defect that failed the previous round's first CI run.
+    entries = {entry["record_id"]: entry for entry in (probe, bounded)}
+    existing = []
+    if INDEX.is_file():
+        for line in INDEX.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            parsed = json.loads(line)
+            if parsed.get("record_id") not in entries:
+                existing.append(parsed)
+    merged = existing + list(entries.values())
+    with INDEX.open("w", encoding="utf-8") as handle:
+        for entry in merged:
             handle.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
-    print(f"appended 2 records at HEAD {head[:12]}")
+    print(f"recorded {len(entries)} records at HEAD {head[:12]}; index now {len(merged)}")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
