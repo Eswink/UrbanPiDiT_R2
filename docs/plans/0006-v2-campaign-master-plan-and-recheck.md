@@ -61,8 +61,9 @@
 | 校检器自测 | `.venv/bin/python -m pytest -q tests/test_check_goal_brief.py` | 19 passed |
 | recheck 自测 | `.venv/bin/python -m pytest -q tests/test_check_campaign_state.py` | 13 passed |
 | 阻断规则 | `python tools/check_conventions.py` | 37 条 0 违规 |
-| 全量测试 | `.venv/bin/python -m pytest -q` | 见收尾提交（含本机与干净检出两个口径） |
-| CI | `Check campaign state` 步骤 | 首次随本提交运行（作业由八步变九步） |
+| 全量测试 | `.venv/bin/python -m pytest -q` | 本机 **1513 passed / 3 skipped**（新增 14 项）；干净检出（`git clone` 到 `b888080`）**1508 passed / 8 skipped**——多出的 5 个 skip 是既有的依赖 M2 store 的用例，与上一轮同口径 |
+| 钉住值 | `test_size_report_counts_match_the_checker` | 提交后新文件转为已跟踪，`check()` 一度把 R-020 从 45 顶到 46；按仓库做法**拆分函数**（不记新命中），R-020 回到 45，标记未改 |
+| CI | `R7 CPU CI` run **`36670833220`**（commit `b888080`） | **success**：九步全绿（新增的 `Check campaign state` 步骤通过；17 条实验 workflow 按标签门控 skipped 是设计行为） |
 
 ### 遗留
 
