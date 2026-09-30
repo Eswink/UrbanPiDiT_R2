@@ -141,5 +141,8 @@
 - **限制与未做**：独立eval峰值缺失、validation deadline内部覆盖缺口、future finalizer全集合拒绝未实现；
   本次终态完整核齐不是future guard已修。M3/M4/M5/matched-Generic/确认轮未动用；目标完成未独立裁定。
   不新增seed/臂，不为补证重跑，test始终封存；禁止项保持。
-- **下一动作**：N1停止记录供用户/独立复核审阅，提议N2d但不自动改current_node。登记树工程CI核验后
-  即停；任何未来重开都先走§3 recheck、具名协议/预算与决策0021授权，不能沿用本轮执行许可。
+- **登记工程验证**：提交`6b7875b8da3e047f3bddf35a830deee67064be07`的CI36699197294已终态success、
+  九主步骤成功；精确干净clone1795passed/14skipped/2warnings（162.16s），skip不算通过。
+  一手URL/访问日期/响应digest与判定边界见本轮长文进度，不改被冻结证据页。
+- **下一动作**：N1已停；停止记录供用户/独立复核审阅，提议N2d但不自动改current_node。任何未来重开
+  都先走§3 recheck、具名协议/预算与决策0021新授权，不能沿用本轮执行许可。

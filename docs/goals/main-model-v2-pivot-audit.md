@@ -173,7 +173,22 @@
   精确efa410b的干净clone1795passed/14skipped/2warnings（161.04s），skip原因同上；远端test计数未取得。
   一手API访问2026-09-30，run/jobs响应在`outputs/r7_n1_audit/ci/`；最终登记提交的CI尾记录只写本进度，
   不改冻结证据页而产生digest自引用。Mimosa报scanner_enobufs，扫描无结论，不是安全通过。
+- **最终登记验证（2026-09-30）**：`6b7875b8da3e047f3bddf35a830deee67064be07`已普通SSH推送至
+  `r7/weather-reasoning`，索引/brief/账本/轮次结构均核验；工程CI **36699197294 completed/success**，
+  精确head_sha匹配、九主步骤成功。一手来源
+  [run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36699197294)、
+  [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36699197294/jobs?per_page=100)，
+  访问日期2026-09-30；web-researcher初读为in_progress（未当PASS），curl终态原响应排他归档于
+  `outputs/r7_n1_audit/ci/36699197294{,_jobs}.json`，SHA256分别
+  `f2a1c17e7d01a94599b9f8c661a1547f49c00b4149eb48478a0ddadc98f1f516` /
+  `e90cbc02fd5b8ac919fabb40205363ee4c8f56441b109052467d199624445d45`。
+  精确6b7875b的干净clone实跑 **1795passed/14skipped/2warnings**（162.16s），test计数是本地值，
+  不是未取得的远端日志计数；skip理由仍为六CUDA隐藏、八可选真实产物缺失，未合成回退。
+  七条ledger数值一致（四条历史无索引notes保留）、13条index/brief同步、37阻断0违规、whitespace干净；
+  工作树仅原两个未跟踪工具文件，无其它变动，冻结实验代码/历史证据/数据路径未动。
+  D1–D5覆盖对表在证据页§8，独立eval峰值缺口未标PASS；本次CI只认证工程，不认证机制/科学/安全。
+  本条是终止登记的尾记录，不改证据页/index digest；尾提交自身CI只在最终回复报告，不再次递归写文档。
 - **未做**：目标完成的独立裁定；三工程缺口修复/独立eval内存补测/训练逐位复现；显著性、跨季节区域、
   matched-Generic、M3/M4/M5/确认轮。未读test/下载/租GPU/改model或main/force/merge/关闭#70–#75/动归档。
-- **下一动作**：N1停在本证据记录，提交/绑定并核验登记树的工程CI后即停；等待用户或独立复核审阅
-  `docs/R7_N1_PIVOT_AUDIT.md`的N2d停止提议，不自动推进节点、不再执行实验。
+- **下一动作**：N1已停止；等待用户或独立复核审阅`docs/R7_N1_PIVOT_AUDIT.md`的N2d停止提议。
+  不自动推进节点、不再执行实验；任何未来重开仍先recheck、具名协议/预算与决策0021新授权。
