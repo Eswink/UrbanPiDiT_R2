@@ -123,15 +123,16 @@
 | RW-B pilot（四臂 × 两种子） | 0.8356 | 3.2984 | `docs/R7_72_RW_B_PILOT.md` + 索引记录 `record:rw-b-bounded-round-negative`（`gpu_hours = 0.8356`，机器可核） |
 | RW-B 减法轮（四臂 × 两种子） | 0.4128 | 3.7112 | `docs/R7_72_RW_B_SUBTRACTION.md` + 索引记录 `record:rw-b-subtraction-round-cannot-attribute`（`gpu_hours = 0.4128`，机器可核） |
 | N1冻结随机Z审计（三臂 × 两种子） | 0.3590 | 4.0702 | `docs/R7_N1_PIVOT_AUDIT.md` + 索引记录 `record:n1-pivot-audit-frozen-z-unresolved`（`gpu_hours = 0.3590401737619605`；账本四位小数舍入，差≤1e-4） |
-| **合计已用** | **4.0702** | — | 24 − 4.0702 = **余 19.9298 GPU-h** |
+| N1独立evaluation成本补测（failed，1/30） | 0.0060 | 4.0762 | `docs/R7_N1_COST_SUPPLEMENT_ATTEMPT.md` + 索引记录 `record:n1-evaluation-cost-supplement-failed`（`gpu_hours = 0.005956627869357666`；失败全额计费，四位显示舍入） |
+| **合计已用** | **4.0762** | — | 24 − 4.0762 = **余 19.9238 GPU-h** |
 
-说明（如实）：**账本不是从证据索引机械累加的**——索引覆盖其中三行（其余四轮没有索引记录），
+说明（如实）：**账本不是从证据索引机械累加的**——索引覆盖其中四行（其余四轮没有索引记录），
 所以 `check_campaign_state.py` 做的是「逐行算术 + 证据指针存在性 + 有索引者数值一致」，
 没有索引支撑的行会被**列出来**而不是被当成已核。把索引补成全量账本是将来可做的一件事，本轮不做。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N1", "previous_node": "N0", "current_round_goal": "docs/goals/main-model-v2-pivot-audit.md", "previous_round_goal": "docs/goals/main-model-v2-rw-b-subtraction.md", "previous_round_evidence": "docs/R7_72_RW_B_SUBTRACTION.md", "previous_round_predates_mechanism": true, "cap_gpu_h": 24.0, "used_gpu_h": 4.0702, "remaining_gpu_h": 19.9298, "status": "paused", "next_node_proposal": "N2d", "current_round_evidence": "docs/R7_N1_PIVOT_AUDIT.md", "current_round_record": "n1-pivot-audit-frozen-z-unresolved"} -->
+<!-- campaign-state: {"current_node": "N1", "previous_node": "N0", "current_round_goal": "docs/goals/main-model-v2-pivot-audit.md", "previous_round_goal": "docs/goals/main-model-v2-rw-b-subtraction.md", "previous_round_evidence": "docs/R7_72_RW_B_SUBTRACTION.md", "previous_round_predates_mechanism": true, "cap_gpu_h": 24.0, "used_gpu_h": 4.0762, "remaining_gpu_h": 19.9238, "status": "paused", "next_node_proposal": "N2d", "current_round_evidence": "docs/R7_N1_PIVOT_AUDIT.md", "current_round_record": "n1-pivot-audit-frozen-z-unresolved"} -->
 
 - **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
 - **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
@@ -144,10 +145,17 @@
 - **登记工程验证**：提交`6b7875b8da3e047f3bddf35a830deee67064be07`的CI36699197294已终态success、
   九主步骤成功；精确干净clone1795passed/14skipped/2warnings（162.16s），skip不算通过。
   一手URL/访问日期/响应digest与判定边界见本轮长文进度，不改被冻结证据页。
-- **成本补测准备（2026-09-30；未执行）**：独立只读验收确认停止合规，但独立eval内存缺失仍阻断完整验收。
+- **成本补测准备（2026-09-30；当时未执行）**：独立只读验收确认停止合规，但独立eval内存缺失仍阻断完整验收。
   用户回复「允许跑实验，反正就是把它搞得完整。」要求补齐，不是豁免缺项；只准备原六checkpoint×五val时效、
   0训练更新的独立计量，拟≤0.09GPU-h/≤600s，新输出且旧归档不改。具名范围/预算/失败停止问题未收到回答，
   没有补测授权回执或GPU运行，账本未增加；准备记录见`docs/R7_N1_SUPPLEMENTAL_COST.md`。
   原主结果与N2d提议不变；不以工程准备或既有实验授权代替新的执行许可。
-- **下一动作**：N1仍paused/current_node=N1；补测只待执行时的具名授权及空闲设备确认，未获授权不得运行。
-  补测即使成功也须独立复核成本完整性，不自行宣布目标完成、不自动进入N2d或其它节点。
+- **具名成本补测执行（2026-09-30）**：用户AskUserQuestion答「授权上述一次补测 (Recommended)」，
+  原30val/0训练/≤324s/≤600s/新输出/失败即停；用户手动腾出GPU1，设备/归档身份重核后执行计量commit1e03f82。
+  first seed41/RW-A/+6h零基线、peak39590400/46137344B、22case/17RMSE精确重放；second lead开始前非零
+  allocator基线触发failed，1/30完成，没有result/终态四成本表，不自动重试。失败GPU21.443860329687595s
+  全额计0.005956627869357666h，whole22.372659532353282s；N1原+失败0.3649968016313182≤0.45。
+  campaign精确已用4.076196801631319/余19.923803198368685，显示4.0762/19.9238不扩授权。
+  原归档/证据页/科学判据不改；独立只读核验部分记录有效、完整成本验收BLOCKED，失效基线数值/原因未知。
+- **下一动作**：N1仍paused/current_node=N1；一次执行授权已用，停止并保留失败。仅可提议失败原因审阅及
+  单独具名的修复/重试决策，不自行重跑、放宽零基线或推进N2d/其它节点，不宣告目标完成。

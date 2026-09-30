@@ -188,7 +188,7 @@
   工作树仅原两个未跟踪工具文件，无其它变动，冻结实验代码/历史证据/数据路径未动。
   D1–D5覆盖对表在证据页§8，独立eval峰值缺口未标PASS；本次CI只认证工程，不认证机制/科学/安全。
   本条是终止登记的尾记录，不改证据页/index digest；尾提交自身CI只在最终回复报告，不再次递归写文档。
-- **成本补测准备（2026-09-30；GPU未执行）**：独立只读验收裁定停止合规，但D2独立eval内存缺口阻断完整验收；
+- **成本补测准备（2026-09-30；当时GPU未执行）**：独立只读验收裁定停止合规，但D2独立eval内存缺口阻断完整验收；
   原实验授权不等于接受缺项。用户回复「允许跑实验，反正就是把它搞得完整。」明确要求补齐证据。
   只准备原六selected400 checkpoint×五val时效的独立计量，0训练更新，拟≤0.09GPU-h/≤600s；
   用原归档code.zip、source/model/data/checkpoint/BUILD_COMPLETE身份，独立新输出，原归档及冻结证据页不变。
@@ -196,8 +196,30 @@
   只读CPU身份核对和fake CUDA守卫测试已做，准备记录见`docs/R7_N1_SUPPLEMENTAL_COST.md`；
   初跑195passed，独立复核守卫修复后定向232passed；都不等于实验通过。新增实耗0，
   账本4.0702/19.9298、原主unresolved与N2d提议保持。
-- **未做**：具名补测执行授权、独立eval内存GPU补测与成本验收、目标完成裁定；原validation/finalizer缺口
-  未热改、训练逐位复现未做；显著性、跨季节区域、matched-Generic、M3/M4/M5/确认轮未做。
-  未读test/下载/租GPU/改model或main/force/merge/关闭#70–#75/动归档。
-- **下一动作**：N1仍paused/current_node=N1；补测执行需具名授权及空闲设备确认，未获授权不得运行。
-  补测只补成本、不重判科学结果；成本完整性待独立复核，不自行宣布目标完成或推进下一节点。
+- **一次具名成本补测（2026-09-30）**：用户AskUserQuestion答「授权上述一次补测 (Recommended)」，
+  范围原30val/0训练/≤0.09GPU-h/≤600s，新输出、归档成本重放例外、失败即停不自动重试。
+  用户手动腾出GPU1后复核空闲/source/checkpoint/BUILD_COMPLETE，使用计量commit1e03f820、原code.zip；
+  新protocol canonical `1ce9222321bfe6d799b0f86d7bc0ff4de127d451edaa0e5e8a45ca5a4a3ffc22`在CUDA前冻结。
+  首项seed41/RW-A/+6h零baseline、peak39590400/46137344B、22case/17RMSE精确重放；准备lead12h时
+  基线非零守卫在evaluator前抛错，failed1/30，无result/四成本表，不自动重试或诊断再跑。
+  实耗21.443860329687595s＝0.005956627869357666GPU-h、whole22.372659532353282s，failed照记。
+  N1原+失败0.3649968016313182≤0.45；ledger显示4.0762/19.9238，精确4.076196801631319/19.923803198368685。
+  新证据`docs/R7_N1_COST_SUPPLEMENT_ATTEMPT.md`、E-213/E-214与独立audit/blocked记录；原证据页/hash保持。
+  基线失败的具体allocated/reserved字节数未记录、原因未知；独立只读确认部分有效但完整成本仍BLOCKED。
+  单个旧PID清卡授权两次在发信号前失败（API缺失/旧PID消失），没有向其它项目进程发送信号；GPU1由用户手动腾出。
+- **失败补测独立复核/登记**：只读复核81输入byte pins、六checkpoint原始字节与118归档源码hash匹配；
+  首项RMSE/ACC/skill逐字节一致、provenance只差elapsed，零基线与UUID绑定有效；全集合guard拒绝1/30。
+  独立结论FAILED/完整成本BLOCKED，未认证cache张量或持续无竞争；回执`outputs/r7_n1_cost_failed_independent_review.json`。
+  新证据commit`33d57d67fc8b247262e807aa74510cb5828792f8`/SHA256
+  `4b350357af20ce95bc9c2e31b7411f83108fda4dc4366e681b61e0cbecdac9fc`；单独索引
+  `record:n1-evaluation-cost-supplement-failed`为audit/blocked，原记录字节不变，canonical brief共14条同步。
+  index.ci_run_id36718455666只指计量准备commit1e03f82，不冒充随后登记CI；自身发布CI只在最终回复报告。
+  登记后CPU五文件232passed（20.83s），37阻断0违规、两brief0失败、campaign0失败/6历史notes、whitespace干净；
+  没有把工程测试或CI当成本通过，也不因结果failed删记录或不记实耗。隔离登记快照全量CPU
+  1861passed/14skipped/2warnings（162.05s）；6CUDA显式隐藏+8可选真实产物缺失，skip不算通过，
+  2warning为既有Lightning未挂Trainer日志调用。此后只追加进度记录，代码未改；远端test计数未取得。
+- **未做**：其余29项独立eval内存、完整成本验收及目标完成裁定；没有补测重试或扩大诊断。
+  原validation/finalizer缺口未热改、训练逐位复现未做；显著性、跨季节区域、matched-Generic、M3/M4/M5/确认轮未做。
+  未读test/下载/租GPU/改model或main/force/merge/关闭#70–#75/动原归档。
+- **下一动作**：N1仍paused/current_node=N1；当前一次补测授权已用，失败即停。仅提议原因审阅与单独具名
+  修复/重试决策，不能把预算余量或这次许可当重跑授权；原unresolved/N2d提议不变，不自宣完成或推进节点。

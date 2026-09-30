@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 13; human-review candidates: 1
+Records: 14; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -21,6 +21,28 @@ Records: 13; human-review candidates: 1
 - CI run: `36276587108`
 - Excluded from runnable candidates: Candidate for human review only; follow-up still requires a new frozen protocol and explicit authorization.
 - Recorded metrics (not recomputed): gate_met=false, gpu_hours=1.157, lead_hours=[6, 12, 24, 48, 72], seeds=3, test_read=false
+
+## n1-evaluation-cost-supplement-failed
+
+- Outcome class: `audit`; candidate state: `blocked`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_N1_COST_SUPPLEMENT_ATTEMPT.md` (SHA256 `4b350357af20ce95bc9c2e31b7411f83108fda4dc4366e681b61e0cbecdac9fc`)
+- Evidence commit: `33d57d67fc8b247262e807aa74510cb5828792f8`; experiment commit: `1e03f82067e429185a4dc41b6d76da0020d6dece`
+- Protocol SHA256: `1ce9222321bfe6d799b0f86d7bc0ff4de127d451edaa0e5e8a45ca5a4a3ffc22`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: The named one-shot validation-only cost supplement failed after the first of thirty evaluations. Seed41/RW-A/6h has an independent zero-baseline allocated/reserved peak and exact original RMSE/case replay; the second evaluation was refused before its call because the allocator baseline was nonzero. The failed interval is fully charged, no automatic retry occurred, and the original unresolved scientific result is unchanged.
+- Limitations:
+  - Only one of thirty evaluations completed; no worker success summary, result.json, terminal four cost tables or cost_views.json was produced.
+  - The second-lead allocated/reserved baseline values were not logged; the underlying allocator/object cause is unverified and no additional CUDA diagnostic or rerun occurred.
+  - Memory scope is the whole archived evaluate_local call including model loading, IO and metrics, not isolated model-forward memory or the original run's historical peak.
+  - Exact RMSE, per-case MSE and identity replay is verified only for the retained seed41/RW-A/6h cell, not the missing twenty-nine cells.
+  - Parameters, FLOPs and training throughput were to reference the original archive; zero optimizer updates or new selection were performed.
+  - Occupancy checks cannot exclude transient competition between observations; device UUID was bound to the exclusive child environment.
+  - The original 48h/72h primary remains cannot-distinguish; this failure does not revise a scientific criterion or authorize campaign advancement.
+  - The one-shot authorization has been used; the remaining budget is arithmetic only, not automatic retry permission.
+  - Mimosa commit/push scans have been inconclusive (scanner_enobufs), not security clearance; credentials and security configuration are unchanged.
+- CI run: `36718455666`
+- Excluded from runnable candidates: Failed cost evidence is retained for audit and budget accounting, not accepted full cost delivery or a runnable scientific candidate. Twenty-nine evaluation peaks and the terminal four cost tables remain missing; any repair/retry needs a separate decision and named authorization.
+- Recorded metrics (not recomputed): attempt_sha256=662dd5ab2862bd4b0a1cfc585366bfe4b29a0e57edffd6f7f03715f405a35479, attempt_status=failed, automatic_retry=false, campaign_status=paused, current_node=N1, evaluations_completed=1, evaluations_missing=29, evaluations_registered=30, first_cell_allocated_baseline_bytes=0, first_cell_arm=process_spacetime_rwa, first_cell_cases=22, first_cell_cost_measurement_sha256=b654d17d812d3353e887b392505248f9bbdf5d8796c397b2dccb51ab85dcf270, first_cell_elapsed_seconds=11.9927125191316, first_cell_exact_numeric_replay=true, first_cell_lead_hours=6, first_cell_peak_allocated_bytes=39590400, first_cell_peak_reserved_bytes=46137344, first_cell_reserved_baseline_bytes=0, first_cell_rmse_variables=17, first_cell_seed=41, gpu_hours=0.005956627869357666, gpu_hours_cap=0.09, gpu_phase_seconds=21.443860329687595, independent_evaluation_cost_complete=false, measurement_code_zip_sha256=b7f20e7b8adda117c394deb0751fcd1683b536404d5cfa18e121d61c39b742c0, original_branch=cannot-distinguish, original_plus_supplement_gpu_hours=0.3649968016313182, test_read=false, thresholds_added=0, training_updates=0, whole_wall_seconds=22.372659532353282
 
 ## n1-pivot-audit-frozen-z-unresolved
 
