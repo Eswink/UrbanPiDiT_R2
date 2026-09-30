@@ -151,8 +151,18 @@
   两seed反号、mean=null，branch=cannot-distinguish/stop_required=true；只提议N2d，不追加seed/臂。
   同轮RW-B仍48/72h worsened；冻结−RW-B长时效改善为次对比，不替换主问句，不推导Z必要性。
 - **D4/D5证据**：`docs/R7_N1_PIVOT_AUDIT.md`记录D1四块、D2全部角色/成本/digest、限制与逐项覆盖；
-  E-207–E-212；索引`record:n1-pivot-audit-frozen-z-unresolved`预定为audit/needs-review，
-  本证据页先提交，再由独立登记提交绑定其实际SHA/digest并同步canonical brief（目前登记待写）。
+  E-207–E-212；索引`record:n1-pivot-audit-frozen-z-unresolved`为audit/needs-review、canonical brief同步；
+  evidence_commit `33ee4702b22bfac5db303164886c1a57a3406a59`，evidence SHA256
+  `e5448064f1c4612ce30026ababb3b1b5a725048da566f72be4eec7cec92b8106`；该commit文件字节与索引hash一致。
+  index.ci_run_id36691526554仅绑定ci_commit efa410b的工程实现，不冒充最终登记提交的CI。
+- **登记前验证**：CPU隐藏GPU实跑campaign/goal/index/conventions/D3/protocol六文件 **330passed**（20.51s）；
+  E条目机械重数212、覆盖度145/20/47、确认211/推测1；37阻断0违规、brief0失败、campaign0失败/6notes，
+  `git diff --cached --check`与证据commit的`git show --check`干净。最终登记四文档快照的干净clone
+  全量 **1795passed/14skipped/2warnings**（157.29s）；此后仅证据术语/指针澄清，实验代码仍不变。
+  四视图指参数/FLOPs/吞吐/内存（case表是覆盖而非成本）；独立文档审阅确认停止/身份/预算自洽，
+  非触发分支因果措辞只按已冻结协议限域、N2b提议出处是执行前c4e7e83证据页§7而非新科学判据；
+  这两项及四视图措辞在证据澄清提交33ee470中修正追溯说明，固定长文判据/实验代码未变。
+  澄清后登记定向campaign/goal/index/conventions四文件 **166passed**（20.59s），结构/索引/账本重检无失败。
   D1排序目标/暴露/数据/状态（前两项共享结构证据、不是因果排名）；N2d门禁已触发，其他节点不执行。
 - **独立工程复核与未齐项**：终态全集合、共同case、protocol/contract/source元数据交叉一致；
   归档#60纯元数据重算paired JSON逐字节相同。validation中途deadline不覆盖、finalizer未强制全集合；

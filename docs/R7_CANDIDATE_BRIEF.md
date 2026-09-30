@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 12; human-review candidates: 1
+Records: 13; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -21,6 +21,29 @@ Records: 12; human-review candidates: 1
 - CI run: `36276587108`
 - Excluded from runnable candidates: Candidate for human review only; follow-up still requires a new frozen protocol and explicit authorization.
 - Recorded metrics (not recomputed): gate_met=false, gpu_hours=1.157, lead_hours=[6, 12, 24, 48, 72], seeds=3, test_read=false
+
+## n1-pivot-audit-frozen-z-unresolved
+
+- Outcome class: `audit`; candidate state: `needs-review`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_N1_PIVOT_AUDIT.md` (SHA256 `e5448064f1c4612ce30026ababb3b1b5a725048da566f72be4eec7cec92b8106`)
+- Evidence commit: `33ee4702b22bfac5db303164886c1a57a3406a59`; experiment commit: `c4e7e83a5deaaade1caa21fe82faa064e75b3b72`
+- Protocol SHA256: `e19ef488be60136364702b1df389e5f58be7ebf3845487289139e10d30231e01`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: N1 four zero-GPU audit sections plus the authorized frozen-random-Z falsification arm: frozen Z - RW-A is seed-disagreeing at both t2m 48h and 72h, so the preregistered reading is cannot-distinguish and the round stops with N2d proposed only. The contemporaneous RW-B reference still worsens; frozen Z - RW-B improves at the two long leads but cannot replace the unresolved primary.
+- Limitations:
+  - Two seeds and 400 updates on one winter regional ERA5 train/val segment; no significance, convergence, cross-season or causal verdict.
+  - Frozen random Z changes trainable capacity and backward FLOPs; original cell forward still runs, so this is not perfectly matched compute or capacity.
+  - The primary 48h and 72h seed signs disagree; their means are null and the secondary carrier contrast does not settle necessity of learned Z.
+  - Training is config-reproducible only, not bit-reproducible; no GPU retraining or additional model evaluation was performed after the stop.
+  - The three predeclared pairs contain complete final metadata and exactly paired cases, but the finalizer does not enforce the full secondary set for future runs.
+  - Validation has no per-case deadline check; this run stayed below both caps but a general hard-stop guarantee remains unverified.
+  - All 30 evaluation peak-memory values inherit the last training peak; independent evaluation allocated/reserved peaks are missing, so the memory view is not fully accepted.
+  - The merged whole_round_elapsed_seconds field contains GPU phase time; true whole-wall time is taken from attempt.json without rewriting the archive.
+  - D1 objective/exposure rankings share structural evidence, not independent statistical support or a causal ranking; no next-node experiment is authorized.
+  - Mimosa pre-commit/pre-push scans were inconclusive (scanner_enobufs), not security clearance; no security or credential configuration was changed.
+- CI run: `36691526554`
+- Excluded from runnable candidates: Stopped under the frozen unresolved rule, not a runnable model candidate or permission to add seeds, rerun an arm, change a criterion, read test or enter another node. The execution is recorded, not the goal declared complete.
+- Recorded metrics (not recomputed): archived_comparison_metadata_replay=byte-identical, arms=3, branch=cannot-distinguish, case_counts_by_lead=[22, 21, 19, 15, 11], cells_per_pair=85, code_zip_sha256=5fd26146af2a7d11016fb769d67390f5daa23a73620de9ae83e2e6cc38a35a0a, deadline_per_validation_case_guarded=false, depth0_table_rows=255, engineering_local_clone_passed=1795, engineering_local_clone_skipped=14, evaluations=30, finalizer_full_set_guarded=false, gpu_hours=0.3590401737619605, gpu_hours_cap=0.45, gpu_phase_seconds=1292.544625543058, independent_evaluation_peak_measured=false, next_node_proposal=N2d, paired_comparison_sha256=d7a345c17923cd49d1b03f2cbea767c95579e5d18a043965bf29fb697c222a64, primary_long_lead_means_K=[null, null], primary_long_lead_outcomes=["unresolved", "unresolved"], primary_t2m_48h_seed_deltas_K=[0.06312165146909354, -0.19323128240116816], primary_t2m_72h_seed_deltas_K=[0.32588177204935054, -0.15142658867975278], reproducibility_level=config-reproducible training; byte-identical metadata comparator replay, rmse_cells=510, seeds=[41, 42], stop_required=true, test_read=false, thresholds_added=0, training_runs=6, updates_per_arm=400, whole_wall_seconds=1297.8983452636749
 
 ## rw-b-subtraction-round-cannot-attribute
 

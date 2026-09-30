@@ -1,6 +1,6 @@
 # main-model-v2-campaign：主模型 V2 的 campaign 主计划与每轮对表
 
-**状态：campaign 级主计划（活文档）。当前节点 N1（转向审计）。最近完成的一轮：RW-B 减法轮（不能归因）。**
+**状态：campaign 级主计划（活文档）。当前节点仍N1；本轮主长lead不可分辨，已paused，只提议N2d停止，不宣告目标完成。**
 
 本文件是「主计划 + 每轮 recheck」机制的**唯一权威**：节点图（§2）、每轮开工前必须走的对表清单（§3）、
 预算账本（§7）与进度块（§8）都在这里。每一轮的目标长文是它的**派生物**，不是平行的第二处真相——
@@ -13,7 +13,9 @@
 
 ## §1 现状（带 file:line，2026-09-30 核对）
 
-- 分支 `r7/weather-reasoning`，HEAD `4bf92e9`；open issue 恰为 **#70–#75**（六个，2026-09-30 匿名 API 核对）。
+- 分支 `r7/weather-reasoning`；机制设计时HEAD `4bf92e9`，N1实验代码 `c4e7e83`、工程标记修复 `efa410b`、
+  最终证据页提交 `33ee4702b22bfac5db303164886c1a57a3406a59`。open issue **#70–#75**沿用本日开工时
+  匿名API核对，收尾未再次查询issue；本轮未执行关闭。
 - **N0 已终结**：M2-B 的 RW-B 在登记主端点上 negative（`docs/R7_72_RW_B_PILOT.md:84-94`），
   且在换了 `model_code_sha256` 与 `protocol_sha256` 之后**复现到 1.8e-4 K**（`docs/R7_72_RW_B_SUBTRACTION.md` §5）——
   这不是一次性噪声。减法轮的分支判定是 `stop-confounded-control`：负控制按构造退化成 RW-A 本身，
@@ -34,9 +36,11 @@
     （决策 0010：保留原样，读历史文件要乘 `normalization_std`）。
   - autoregressive exposure：内部 K 步是自条件（草稿反馈）而物理自由 rollout 从未被训练
     （计划 0004 `:325`；与 #64 curriculum 的「换训练时效＝零和再分配」同向）。
-- **本机制目前在仓库里不存在**：GPU 账本此前是手写散文、无脚本可核；`tools/check_goal_brief.py` 只查结构、
-  非阻断、不进 CI；没有任何工具比对「主计划当前节点」与「上一轮 §8 下一动作」。
-  本文件 + `tools/check_campaign_state.py`（决策 0025）就是补上这一层。
+- **机制设计时的缺口**：GPU账本此前是手写散文，无脚本核「主计划当前节点」与「上一轮下一动作」。
+  本文件+`tools/check_campaign_state.py`（决策0025）已落地并接入CI，不再称它尚不存在。
+- **N1本轮读数**：`docs/R7_N1_PIVOT_AUDIT.md`四块审计支持解释候选；冻结Z−RW-A的48/72h
+  均seed41正/seed42负，主分支cannot-distinguish；只提议N2d停止。30val评估/510RMSE cell核齐，
+  0.3590401737619605GPU-h未超cap；独立evaluation峰值缺失等工程局限如实记录，不据工程CI判科学结论。
 - 工程态：37 条阻断规则 0 违规；门禁是 `R7 CPU CI` 的八步（新增 campaign 检查后为九步，
   历史证据页里的「八步」是它们当时的实测，**不回溯改写**）。
 
@@ -118,19 +122,24 @@
 | V2 第三轮（M1 容量控制） | 0.5489 | 2.4628 | `docs/R7_71_72_ROUND_THREE.md:14` |
 | RW-B pilot（四臂 × 两种子） | 0.8356 | 3.2984 | `docs/R7_72_RW_B_PILOT.md` + 索引记录 `record:rw-b-bounded-round-negative`（`gpu_hours = 0.8356`，机器可核） |
 | RW-B 减法轮（四臂 × 两种子） | 0.4128 | 3.7112 | `docs/R7_72_RW_B_SUBTRACTION.md` + 索引记录 `record:rw-b-subtraction-round-cannot-attribute`（`gpu_hours = 0.4128`，机器可核） |
-| **合计已用** | **3.7112** | — | 24 − 3.7112 = **余 20.2888 GPU-h** |
+| N1冻结随机Z审计（三臂 × 两种子） | 0.3590 | 4.0702 | `docs/R7_N1_PIVOT_AUDIT.md` + 索引记录 `record:n1-pivot-audit-frozen-z-unresolved`（`gpu_hours = 0.3590401737619605`；账本四位小数舍入，差≤1e-4） |
+| **合计已用** | **4.0702** | — | 24 − 4.0702 = **余 19.9298 GPU-h** |
 
-说明（如实）：**账本不是从证据索引机械累加的**——索引只覆盖其中两行（其余四轮没有索引记录），
+说明（如实）：**账本不是从证据索引机械累加的**——索引覆盖其中三行（其余四轮没有索引记录），
 所以 `check_campaign_state.py` 做的是「逐行算术 + 证据指针存在性 + 有索引者数值一致」，
 没有索引支撑的行会被**列出来**而不是被当成已核。把索引补成全量账本是将来可做的一件事，本轮不做。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N1", "previous_node": "N0", "current_round_goal": "docs/goals/main-model-v2-pivot-audit.md", "previous_round_goal": "docs/goals/main-model-v2-rw-b-subtraction.md", "previous_round_evidence": "docs/R7_72_RW_B_SUBTRACTION.md", "previous_round_predates_mechanism": true, "cap_gpu_h": 24.0, "used_gpu_h": 3.7112, "remaining_gpu_h": 20.2888} -->
+<!-- campaign-state: {"current_node": "N1", "previous_node": "N0", "current_round_goal": "docs/goals/main-model-v2-pivot-audit.md", "previous_round_goal": "docs/goals/main-model-v2-rw-b-subtraction.md", "previous_round_evidence": "docs/R7_72_RW_B_SUBTRACTION.md", "previous_round_predates_mechanism": true, "cap_gpu_h": 24.0, "used_gpu_h": 4.0702, "remaining_gpu_h": 19.9298, "status": "paused", "next_node_proposal": "N2d", "current_round_evidence": "docs/R7_N1_PIVOT_AUDIT.md", "current_round_record": "n1-pivot-audit-frozen-z-unresolved"} -->
 
-- **状态**：`active`（N1 尚未开工；上一轮 N0 已终结为 negative）
-- **已完成**：N0（RW-B 实现 + 有界对照 + 减法归因轮，结论 negative 与"不能归因"，见 §1）
-- **未做**：N1 的四块审计与那条可证伪臂；M3/M4/M5；确认轮（≤2.5 GPU-h）未动用
-- **下一动作**：N1 开工 —— 先跑 `tools/check_campaign_state.py`，再执行
-  `docs/goals/main-model-v2-pivot-audit.md` 的 D1（0 GPU-h 四块审计），
-  完成后再按决策 0021 取 D2（那条臂）的授权
+- **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
+- **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
+  索引audit/needs-review与canonical brief登记。D1排序目标/暴露/数据/状态，前两项非独立统计证据。
+- **实耗**：N1为0.3590401737619605GPU-h，账本记0.3590；原已用3.7112，精确加和4.070240173761961，
+  精确余19.92975982623804，显示4.0702/19.9298不扩大授权。GPU1292.5446s/whole1297.8983s均未超cap。
+- **限制与未做**：独立eval峰值缺失、validation deadline内部覆盖缺口、future finalizer全集合拒绝未实现；
+  本次终态完整核齐不是future guard已修。M3/M4/M5/matched-Generic/确认轮未动用；目标完成未独立裁定。
+  不新增seed/臂，不为补证重跑，test始终封存；禁止项保持。
+- **下一动作**：N1停止记录供用户/独立复核审阅，提议N2d但不自动改current_node。登记树工程CI核验后
+  即停；任何未来重开都先走§3 recheck、具名协议/预算与决策0021授权，不能沿用本轮执行许可。
