@@ -2,6 +2,22 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-30 — N1 零 GPU 审计与冻结 Z 工程准备（未运行 D2；判据未改）
+
+**范围**：新增只读复算工具、driver 层冻结随机 Z intervention 与新协议/driver/测试；
+runner/evaluator 接入可选干预、严格 checkpoint 恢复与整轮截止时间，默认 None 保持原路径；
+成本 writer 仅在协议声明时追加 trainable 参数列，历史臂表不变。`model/` 与 model digest 不变，
+不新增 solver 部件，不修改历史实验协议/产物，不改科学端点、阈值、比较器、预算或授权通道。
+
+R-009 基线 **900/2210 → 992/2525**（新增 92 个函数、315 条断言；无删除或弱化）。
+`run_scheduled_updates` 拆至 R-052 的 200 行，冻结清单 **5→4**，只缩不扩；
+规模机器标记按所有新文件进入暂存树后复算为 R-019=0 / R-019b=176 / R-020=45 /
+R-021=34 / R-022=23 / R-023=23。报告型目标仍不阻断，600/200 硬上限不变。
+
+初次 utility 名称 `r7_frozen_z_control.py` 命中既有实验 scope glob，已在自身未跟踪阶段
+改为 `r7_frozen_z_intervention.py`，不用新增例外放行。D1/D3 已有零 GPU 读数；
+D2 尚未得到决策 0021 授权，没有 GPU 训练/评估。证据与最终工程验证见 `docs/R7_N1_PIVOT_AUDIT.md`。
+
 ## 2026-09-30 — campaign 主计划与每轮对表：决策 0025 + `check_campaign_state.py` 接入 CI（未改规则判据）
 
 **范围**：新增 `tools/check_campaign_state.py` 与其自测、`.github/workflows/ci.yml` 多一个

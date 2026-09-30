@@ -245,7 +245,6 @@ FROZEN_FUNC_BODY_EXCEPTIONS = {
     ("scripts/study_r7_65_ablation.py", "run_phase"),
     ("scripts/study_r7_b1_baselines.py", "run_study"),
     ("scripts/study_r7_b2_multiseed.py", "run_phase"),
-    ("training/r7_scheduled_runner.py", "run_scheduled_updates"),
 }
 
 

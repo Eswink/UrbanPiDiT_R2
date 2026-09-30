@@ -2,7 +2,7 @@
 
 <!-- round-node: N1 -->
 
-**THIS FILE IS A PROMPT TEMPLATE. GOAL MODE HAS NOT BEEN STARTED.**
+**N1 已于 2026-09-30 启动。D1/D3 与 D2 工程准备已实跑；D2 已获决策 0021 授权，尚未执行。**
 
 本文件是**主计划 `docs/goals/main-model-v2-campaign.md` 的节点 N1** 的目标长文，不是平行真相：
 节点、账本、对表清单都在主计划里；本文件只写「这一轮怎么做」。启动后第一件事是按主计划 §3 对表
@@ -116,8 +116,28 @@
 
 ## §7 进度块
 
-- **状态**：`active`（**本文件写就时 N1 尚未开工**；启动后立即把本块替换为起点 SHA、账本余量与第一动作）
-- **已完成**：无
-- **未做**：D1–D5 全部
-- **下一动作**：按 §4 第 1 步对表（`python tools/check_campaign_state.py`），然后做 D1 的
-  forecast state 与 training objective 两块审计
+- **状态**：`active`（2026-09-30 开工；不自行判定完成）
+- **起点 SHA**：`efe7d82d11542047897196e4d278cdb18752d6b2`；分支 `r7/weather-reasoning`。
+- **开工对表（主计划 §3 六条）**：① current_node=N1、上一轮下一动作指向转向审计；②账本逐行合计
+  3.7112、24−3.7112=20.2888 GPU-h；③上一轮登记与本轮 brief 结构核验通过；④本轮由 N1 派生，
+  常设禁止项保持；⑤开工 `git diff -- docs/rules docs/R7_72_RW_B_SUBTRACTION.md docs/R7_72_RW_B_PILOT.md`
+  为空，冻结判据无未记录改动；⑥无硬漂移，继续 D1。`check_campaign_state.py`：failures=0、notes=6；
+  其中四行历史账本没有索引机器支撑，证据页指针存在，主计划 §7 已解释，并不伪称全量核账。
+- **实际验证**：`check_goal_brief.py --brief docs/goals/main-model-v2-pivot-audit.md`：0 失败。
+  当前 provider 的历史完成校验查询无记录；harness 校验仍仅作 best-effort，不依赖其结项。
+- **已执行的 D1 读数**：只读源代码与归档 CSV；K=3 的四个草稿权重为 1/6、2/9、5/18、1/3，
+  都对同一 +6h target；train 186、val 22 的 lead 全为 6。RW-B−RW-A 的 48/72h 均值 delta
+  1.065106/1.580487 K，除以 RW-B 两 seed 的 max−min spread 为 1.599049/0.757468。
+  这些比值只是描述，不是新阈值或因果判据。
+- **D1/D3 产物**：`docs/R7_N1_PIVOT_AUDIT.md` 四节；`outputs/r7_n1_audit/audit.json`
+  SHA256 `d895c96dd4936ebb75adbf9bd23bb8799185bd00b1c41482c6d8182c7a2c4a07`；源文件摘要前后未变。
+- **工程准备验证**：N1 定向合并 310 passed；runner/rollout 回归 61 passed；无真实产物隔离 git clone
+  全量 1795 passed / 14 skipped / 0 failed（158.97s）；14 skip=6 GPU 被显式隐藏 +8 可选真实产物不存在，
+  不视为通过。driver 设备映射修正后另实跑 14 passed。
+- **D2 授权**：2026-09-30 执行前 `AskUserQuestion` 用户回复「全部授权」；三臂 ×seed41/42 ×400 updates，
+  现有 M2 train/val，只读 val、test 封存；一张空闲本地 RTX3090 顺序执行，≤0.45 GPU-h、≤30min；
+  失败/partial/unresolved 保留全部证据即停、不自动重跑或进入下一节点。回执
+  `outputs/r7_n1_audit/authorization.json`。同次授权工作分支提交与普通 push，只触发工程 CI。
+- **当前实耗**：0 GPU-h；执行前重读账本仍为 20.2888，`check_campaign_state.py` failures=0。
+- **未做**：D2 GPU 运行、D4 最终登记与 CI 绑定、D5 最终提议。未读 test、未下载、未动归档、未改 model/。
+- **下一动作**：将可执行代码身份提交到工作分支，再重查空闲卡、排他冻结协议、执行已授权的一轮 D2。

@@ -23,12 +23,48 @@ class Persistence(nn.Module):
         return SimpleNamespace(forecast=batch['coarse_history'][:,-1].clone())
 
 
+def _check_deadline(deadline):
+    if time.perf_counter() >= deadline:
+        raise RuntimeError('local evaluation deadline exceeded')
+
+
+def _write_skill_tables(out, ds, skill, rmse, acc):
+    skills=skill.compute()
+    # Fail closed if the two accumulators ever disagree on units again: this file
+    # exists to be compared against rmse.csv, and a silent label mismatch is
+    # exactly how a normalized baseline got read as a physical one.
+    if tuple(skill.units)!=tuple(rmse.units):
+        raise ValueError(f'climatology skill units {skill.units} do not match forecast units {rmse.units}')
+    with (out/'climatology_skill.csv').open('x',encoding='utf-8',newline='') as f:
+        writer=csv.writer(f)
+        writer.writerow(['lead_hours','variable','rmse_forecast','rmse_climatology',
+            'mse_skill','unit','n_initializations'])
+        for i,lead in enumerate(ds.lead_hours):
+            for j,name in enumerate(ds.names):
+                forecast=float(skills['rmse_forecast'][i,j])
+                climatology_rmse=float(skills['rmse_climatology'][i,j])
+                value=float(skills['mse_skill'][i,j])
+                writer.writerow([lead,name,forecast,climatology_rmse,
+                    value if torch.isfinite(skills['mse_skill'][i,j]) else '',
+                    skill.units[j],skill.initializations])
+    values=acc.compute()
+    with (out/'acc.csv').open('x',encoding='utf-8',newline='') as f:
+        writer=csv.writer(f)
+        writer.writerow(['lead_hours','variable','pooled_acc','status','n_initializations'])
+        for i,lead in enumerate(ds.lead_hours):
+            for j,name in enumerate(ds.names):
+                value=float(values[i,j])
+                writer.writerow([lead,name,value if torch.isfinite(values[i,j]) else '',
+                    'defined' if torch.isfinite(values[i,j]) else 'undefined_zero_anomaly_energy',acc.initializations])
+    return skills
+
+
 @torch.no_grad()
 def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,72),
                    step_hours=6,max_samples=32,device_name='cpu',normalized=False,reasoning_steps=None,
                    controller_checkpoint=None,min_reasoning_steps=1,force_full_depth=False,
                    policy_selection=None,validation_thresholds=None,boundary_margins=None,
-                   baseline=None):
+                   baseline=None,deadline=None):
     if isinstance(max_samples,bool) or not isinstance(max_samples,int) or max_samples<1:
         raise ValueError('max_samples must be a positive explicit cap')
     if baseline not in (None,'persistence','climatology'):
@@ -43,6 +79,8 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         raise ValueError('halting policy requires a controller checkpoint')
     if policy_selection is not None and (validation_thresholds is not None or reasoning_steps is not None or min_reasoning_steps!=1 or force_full_depth):
         raise ValueError('frozen selected policy cannot be overridden')
+    if deadline is not None:
+        _check_deadline(deadline)
     manifest=Path(manifest)
     reader=ZarrAtmosWindowDataset(manifest)
     splits={r['split'] for r in reader.records}
@@ -68,7 +106,9 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     device=select_device(device_name)
     inference={}
     checkpoint_hash=training_identity=controller_hash=selection_hash=None
-    controller_policy=effective_policy=None
+    controller_policy=effective_policy=intervention=None
+    if deadline is not None:
+        _check_deadline(deadline)
     if checkpoint:
         saved=load_checkpoint(checkpoint)
         contract=saved['contract']
@@ -76,7 +116,13 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         if training_identity!=contract['data_identity']:
             raise ValueError('checkpoint training data/normalization identity mismatch')
         model=make_model(contract['kind'],contract['model'])
+        intervention=contract.get('intervention')
+        if intervention is not None:
+            from .r7_frozen_z_intervention import install_frozen_z,validate_frozen_z
+            install_frozen_z(model,intervention)
         model.load_state_dict(saved['model'],strict=True)
+        if intervention is not None:
+            validate_frozen_z(model,intervention)
         if controller_checkpoint:
             if contract['kind']!='process':
                 raise ValueError('adaptive controller needs a process checkpoint')
@@ -108,9 +154,13 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         elif contract['kind']!='native':
             inference['reasoning_steps']=contract['steps'] if reasoning_steps is None else reasoning_steps
         checkpoint_hash=hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
+        if deadline is not None:
+            _check_deadline(deadline)
         clim=fit_training_climatology(store)
         model=model.to(device).eval()
     else:
+        if deadline is not None:
+            _check_deadline(deadline)
         clim=fit_training_climatology(store)
         model=None if baseline=='climatology' else Persistence().to(device).eval()
     rmse=RolloutRMSEAccumulator(ds.lead_hours,ds.names,
@@ -137,6 +187,8 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         torch.cuda.synchronize(device)
     started=time.perf_counter()
     for i in range(min(max_samples,len(ds))):
+        if deadline is not None:
+            _check_deadline(deadline)
         sample=ds[i]
         climate=normalized_climatology(clim,sample['valid_times'],ds.mean,ds.std).unsqueeze(0)
         if baseline=='climatology':
@@ -162,38 +214,14 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         initializations.append({'init_time':sample['init_time'],'valid_times':sample['valid_times'],
             'mse':case.compute().square().tolist(),
             'cumulative_reasoning_steps':steps})
+    if deadline is not None:
+        _check_deadline(deadline)
     if device.type=='cuda':
         torch.cuda.synchronize(device)
     rmse.write_csv(out/'rmse.csv')
     if boundary is not None:
         boundary.write_csv(out/'boundary_rmse.csv')
-    skills=skill.compute()
-    # Fail closed if the two accumulators ever disagree on units again: this file
-    # exists to be compared against rmse.csv, and a silent label mismatch is
-    # exactly how a normalized baseline got read as a physical one.
-    if tuple(skill.units)!=tuple(rmse.units):
-        raise ValueError(f'climatology skill units {skill.units} do not match forecast units {rmse.units}')
-    with (out/'climatology_skill.csv').open('x',encoding='utf-8',newline='') as f:
-        writer=csv.writer(f)
-        writer.writerow(['lead_hours','variable','rmse_forecast','rmse_climatology',
-            'mse_skill','unit','n_initializations'])
-        for i,lead in enumerate(ds.lead_hours):
-            for j,name in enumerate(ds.names):
-                forecast=float(skills['rmse_forecast'][i,j])
-                climatology_rmse=float(skills['rmse_climatology'][i,j])
-                value=float(skills['mse_skill'][i,j])
-                writer.writerow([lead,name,forecast,climatology_rmse,
-                    value if torch.isfinite(skills['mse_skill'][i,j]) else '',
-                    skill.units[j],skill.initializations])
-    values=acc.compute()
-    with (out/'acc.csv').open('x',encoding='utf-8',newline='') as f:
-        writer=csv.writer(f)
-        writer.writerow(['lead_hours','variable','pooled_acc','status','n_initializations'])
-        for i,lead in enumerate(ds.lead_hours):
-            for j,name in enumerate(ds.names):
-                value=float(values[i,j])
-                writer.writerow([lead,name,value if torch.isfinite(values[i,j]) else '',
-                    'defined' if torch.isfinite(values[i,j]) else 'undefined_zero_anomaly_energy',acc.initializations])
+    skills=_write_skill_tables(out,ds,skill,rmse,acc)
     provenance={'scientific_claim':False,'checkpoint_sha256':checkpoint_hash,'training_identity':training_identity,
         'parameter_free_baseline':baseline,'trainable_parameters':0 if baseline else None,
         'controller_sha256':controller_hash,'controller_policy':controller_policy,'inference_options':inference,
@@ -216,6 +244,10 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         'deterministic':True,
         'determinism_scope':'no sampling: evaluation is deterministic given checkpoint, manifest and options; no seed field is recorded because none is consumed',
         'note':'offline local evaluation, no future forcing; monthly-hour climatology is not a WeatherBench2 reproduction'}
+    if intervention is not None:
+        provenance['intervention']=intervention
+    if deadline is not None:
+        _check_deadline(deadline)
     with (out/'provenance.json').open('x',encoding='utf-8') as f:
         json.dump(provenance,f,ensure_ascii=False,indent=2,allow_nan=False)
     return provenance

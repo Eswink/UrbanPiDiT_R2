@@ -258,8 +258,11 @@ def write_study_tables(merged, output_dir):
     output_dir = Path(output_dir)
     with (output_dir / "arm_table.csv").open("x", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
+        has_trainable = all("trainable_parameters" in entry
+                            for entry in merged["protocol"]["arms"])
         writer.writerow(["arm", "parameters", "forward_flops", "forward_backward_flops",
-                         "switches", "gpu_seconds_total"])
+                         "switches", "gpu_seconds_total"]
+                        + (["trainable_parameters"] if has_trainable else []))
         for entry in merged["protocol"]["arms"]:
             seconds = sum(per_arm[entry["name"]]["elapsed_seconds"]
                           for per_arm in merged["training"].values())
@@ -267,7 +270,8 @@ def write_study_tables(merged, output_dir):
                              entry["forward_backward_flops"],
                              " ".join(f"{key}={value}" for key, value
                                       in sorted(entry["switches"].items())),
-                             f"{seconds:.1f}"])
+                             f"{seconds:.1f}"]
+                            + ([entry["trainable_parameters"]] if has_trainable else []))
     with (output_dir / "training_table.csv").open("x", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(["seed", "arm", "protocol_sha256", "selected_update", "updates_run",

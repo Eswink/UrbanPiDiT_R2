@@ -7,7 +7,7 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=169 R-020=45 R-021=28 R-022=18 R-023=17 -->
+<!-- measured: R-019=0 R-019b=176 R-020=45 R-021=34 R-022=23 R-023=23 -->
 
 上面那行 HTML 注释是**机器核对标记**：`tests/test_check_conventions.py` 的
 `test_size_report_counts_match_the_checker` 会重算这几个命中数并逐项比对。代码变化导致数字变化时
@@ -180,9 +180,10 @@ R-019b 与 R-022 未变。四个文件在 **R-051 的 600 行硬上限内**（�
 - **范围**：`SIZE_SCOPES`
 - **陈述**：函数体长度硬上限 **200** 行。
 - **依据**：E-191 —— 2,127 个函数中 p99=128、最长 245；200 只让 5 个长编排入口越线
-- **现状**：B 类 —— 5 个既有函数列入 `FUNC_BODY_EXCEPTIONS`，仓库 0 违规
+- **现状**：B 类 —— 4 个既有函数列入 `FUNC_BODY_EXCEPTIONS`，仓库 0 违规；N1 接入时
+  `run_scheduled_updates` 已拆至 200 行，依 R-052 从冻结清单移出（未放宽上限）
 - **执行方式**：脚本（`--rule R-052`，**阻断**；预提交闸门自动生效）
-- **例外**：5 条 `(路径, 函数名)` 精确对（见下表），同样只许缩小；例外绑定函数名而非行号，
+- **例外**：4 条 `(路径, 函数名)` 精确对（见下表），同样只许缩小；例外绑定函数名而非行号，
   拆分导致的移动不会让检查静默失效
 - **引入日期**：2026-09-29
 - **复核触发**：这 5 个入口重构时缩减清单
@@ -190,7 +191,6 @@ R-019b 与 R-022 未变。四个文件在 **R-051 的 600 行硬上限内**（�
 | 行数 | 例外（`路径::函数`） |
 | --- | --- |
 | 245 | `scripts/study_r7_b1_baselines.py::run_study` |
-| 232 | `training/r7_scheduled_runner.py::run_scheduled_updates` |
 | 222 | `scripts/study_r7_64_curriculum.py::run_curriculum` |
 | 222 | `scripts/study_r7_65_ablation.py::run_phase` |
 | 212 | `scripts/study_r7_b2_multiseed.py::run_phase` |

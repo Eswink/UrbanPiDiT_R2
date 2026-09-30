@@ -27,6 +27,7 @@ protocol.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 import math
 import time
@@ -136,6 +137,114 @@ def score_validation(model, dataset, *, kind, device, steps, lead_hours=(6,), st
             "split": "val"}
 
 
+def _check_deadline(deadline):
+    if time.perf_counter() >= deadline:
+        raise RuntimeError("scheduled runner deadline exceeded")
+
+
+def _validate_schedule(*, total_updates, batch_size, steps, seed, validation_every,
+                       lr, clip, minimum_lr_ratio, early_stopping_patience,
+                       minimum_improvement, validation_dataset):
+    for value, name, minimum in ((total_updates, "total_updates", 1),
+                                 (batch_size, "batch_size", 1),
+                                 (steps, "steps", 0), (seed, "seed", 0),
+                                 (validation_every, "validation_every", 0)):
+        _integer(value, name, minimum)
+    if not math.isfinite(lr) or lr <= 0 or not math.isfinite(clip) or clip <= 0:
+        raise ValueError("positive finite lr and clip required")
+    if not math.isfinite(minimum_lr_ratio) or not 0 < minimum_lr_ratio <= 1:
+        raise ValueError("minimum_lr_ratio must be in (0, 1]")
+    if early_stopping_patience is not None:
+        _integer(early_stopping_patience, "early_stopping_patience", 1)
+    if not math.isfinite(minimum_improvement) or minimum_improvement < 0:
+        raise ValueError("minimum_improvement must be nonnegative and finite")
+    if validation_every and validation_dataset is None:
+        raise ValueError("validation_every > 0 requires an explicit held-out "
+                         "validation_dataset; the training dataset is not validation")
+    if validation_every == 0 and early_stopping_patience is not None:
+        raise ValueError("early stopping without validation checks is not a rule")
+
+
+def _scheduled_contract(*, kind, model_config, data_identity, batch_size, steps, seed, lr,
+                        process_weight, clip, bf16, device, dataset, warmup_updates,
+                        minimum_lr_ratio, validation_every, early_stopping_patience,
+                        minimum_improvement, validation_lead_hours, step_hours,
+                        validation_dataset, intervention):
+    contract = {
+        "kind": kind, "model": dict(model_config), "data_identity": str(data_identity),
+        "batch_size": batch_size, "steps": steps, "seed": seed, "lr": lr,
+        "process_weight": process_weight, "clip": clip, "bf16": bool(bf16),
+        "device_type": device.type, "torch_version": str(torch.__version__),
+        "dataset_length": len(dataset),
+        "optimization": "streamed-truncated" if kind != "native" else "native",
+        "schedule": "linear-warmup-then-cosine",
+        "warmup_updates": warmup_updates, "minimum_lr_ratio": minimum_lr_ratio,
+        "validation_every": validation_every,
+        "early_stopping_patience": early_stopping_patience,
+        "minimum_improvement": minimum_improvement,
+        "validation_lead_hours": [int(lead) for lead in validation_lead_hours],
+        "step_hours": int(step_hours),
+        "validation_split": "val" if validation_dataset is not None else None,
+    }
+    if intervention is not None:
+        contract["intervention"] = deepcopy(intervention)
+    return contract
+
+
+def _initialize_scheduled_model(*, kind, model_config, device, seed, lr,
+                                shared_initial_state, intervention, saved, dataset):
+    seed_everything(seed)
+    model = make_model(kind, model_config).to(device).train()
+    applied, ignored = [], []
+    if shared_initial_state is not None:
+        target = model.state_dict()
+        transfer = {}
+        for name, tensor in shared_initial_state.items():
+            if name in target and tuple(target[name].shape) == tuple(tensor.shape):
+                transfer[name] = tensor
+                applied.append(name)
+            else:
+                ignored.append(name)
+        if not applied:
+            raise ValueError("shared_initial_state matched no parameter of the target model")
+        model.load_state_dict(transfer, strict=False)
+    if intervention is not None:
+        from .r7_frozen_z_intervention import install_frozen_z
+        install_frozen_z(model, intervention)
+    optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad),
+                                  lr=lr, weight_decay=1e-4)
+    updates, epoch, cursor = 0, 0, 0
+    if saved:
+        model.load_state_dict(saved["model"], strict=True)
+        if intervention is not None:
+            from .r7_frozen_z_intervention import validate_frozen_z
+            validate_frozen_z(model, intervention)
+        optimizer.load_state_dict(saved["optimizer"])
+        updates, epoch, cursor = saved["updates"], saved["epoch"], saved["cursor"]
+        if not (0 <= cursor <= len(dataset)):
+            raise ValueError("checkpoint cursor outside dataset")
+        restore_rng(saved["rng"])
+    return model, optimizer, updates, epoch, cursor, applied, ignored
+
+
+def _publish_checkpoint(folder, update_number, *, model, optimizer, signature, contract,
+                        epoch, cursor, intervention):
+    # Validate before publication as well, so corrupted state cannot be archived
+    # as a selected checkpoint. The post-save check guards the publication path.
+    if intervention is not None:
+        from .r7_frozen_z_intervention import validate_frozen_z
+        validate_frozen_z(model, intervention)
+    target = folder / f"update_{update_number:07d}.pt"
+    save_exclusive(target, {
+        "format": "r7-local-v1", "signature": signature, "contract": contract,
+        "model": {name: tensor.detach().cpu() for name, tensor in model.state_dict().items()},
+        "optimizer": optimizer.state_dict(), "updates": update_number,
+        "epoch": epoch, "cursor": cursor, "rng": rng_state()})
+    if intervention is not None:
+        validate_frozen_z(model, intervention)
+    return target
+
+
 def run_scheduled_updates(
     dataset,
     *,
@@ -162,6 +271,8 @@ def run_scheduled_updates(
     bf16=False,
     shared_initial_state=None,
     resume=None,
+    intervention=None,
+    deadline=None,
 ):
     """Train to a pre-declared schedule, selecting on validation only.
 
@@ -173,43 +284,26 @@ def run_scheduled_updates(
     the freshly constructed model before the first step, for the #64 B2
     requirement that arms sharing a structure start from the same common
     weights. Its applied/ignored parameter names are recorded in the report so
-    the difference is an artifact, not a claim.
+    the difference is an artifact, not a claim. ``intervention`` is an optional
+    JSON frozen-Z specification; ``deadline`` is an absolute perf-counter limit.
+    Neither option changes the ordinary arm's contract when left at None.
     """
-    for value, name, minimum in ((total_updates, "total_updates", 1),
-                                 (batch_size, "batch_size", 1),
-                                 (steps, "steps", 0), (seed, "seed", 0),
-                                 (validation_every, "validation_every", 0)):
-        _integer(value, name, minimum)
-    if not math.isfinite(lr) or lr <= 0 or not math.isfinite(clip) or clip <= 0:
-        raise ValueError("positive finite lr and clip required")
-    if not math.isfinite(minimum_lr_ratio) or not 0 < minimum_lr_ratio <= 1:
-        raise ValueError("minimum_lr_ratio must be in (0, 1]")
-    if early_stopping_patience is not None:
-        _integer(early_stopping_patience, "early_stopping_patience", 1)
-    if not math.isfinite(minimum_improvement) or minimum_improvement < 0:
-        raise ValueError("minimum_improvement must be nonnegative and finite")
-    if validation_every and validation_dataset is None:
-        raise ValueError("validation_every > 0 requires an explicit held-out "
-                         "validation_dataset; the training dataset is not validation")
-    if validation_every == 0 and early_stopping_patience is not None:
-        raise ValueError("early stopping without validation checks is not a rule")
+    _validate_schedule(total_updates=total_updates, batch_size=batch_size, steps=steps,
+                       seed=seed, validation_every=validation_every, lr=lr, clip=clip,
+                       minimum_lr_ratio=minimum_lr_ratio,
+                       early_stopping_patience=early_stopping_patience,
+                       minimum_improvement=minimum_improvement,
+                       validation_dataset=validation_dataset)
     device = select_device(device_name, bf16)
-    contract = {
-        "kind": kind, "model": dict(model_config), "data_identity": str(data_identity),
-        "batch_size": batch_size, "steps": steps, "seed": seed, "lr": lr,
-        "process_weight": process_weight, "clip": clip, "bf16": bool(bf16),
-        "device_type": device.type, "torch_version": str(torch.__version__),
-        "dataset_length": len(dataset),
-        "optimization": "streamed-truncated" if kind != "native" else "native",
-        "schedule": "linear-warmup-then-cosine",
-        "warmup_updates": warmup_updates, "minimum_lr_ratio": minimum_lr_ratio,
-        "validation_every": validation_every,
-        "early_stopping_patience": early_stopping_patience,
-        "minimum_improvement": minimum_improvement,
-        "validation_lead_hours": [int(lead) for lead in validation_lead_hours],
-        "step_hours": int(step_hours),
-        "validation_split": "val" if validation_dataset is not None else None,
-    }
+    contract = _scheduled_contract(
+        kind=kind, model_config=model_config, data_identity=data_identity, batch_size=batch_size,
+        steps=steps, seed=seed, lr=lr, process_weight=process_weight, clip=clip, bf16=bf16,
+        device=device, dataset=dataset, warmup_updates=warmup_updates,
+        minimum_lr_ratio=minimum_lr_ratio, validation_every=validation_every,
+        early_stopping_patience=early_stopping_patience, minimum_improvement=minimum_improvement,
+        validation_lead_hours=validation_lead_hours, step_hours=step_hours,
+        validation_dataset=validation_dataset, intervention=intervention)
+    intervention = contract.get("intervention")
     signature = canonical_digest(contract)
     saved = load_checkpoint(resume, expected=signature) if resume else None
     folder = Path(output_dir)
@@ -224,30 +318,10 @@ def run_scheduled_updates(
     else:
         folder.mkdir(parents=True, exist_ok=True)
 
-    seed_everything(seed)
-    model = make_model(kind, model_config).to(device).train()
-    applied, ignored = [], []
-    if shared_initial_state is not None:
-        target = model.state_dict()
-        transfer = {}
-        for name, tensor in shared_initial_state.items():
-            if name in target and tuple(target[name].shape) == tuple(tensor.shape):
-                transfer[name] = tensor
-                applied.append(name)
-            else:
-                ignored.append(name)
-        if not applied:
-            raise ValueError("shared_initial_state matched no parameter of the target model")
-        model.load_state_dict(transfer, strict=False)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    updates, epoch, cursor = 0, 0, 0
-    if saved:
-        model.load_state_dict(saved["model"], strict=True)
-        optimizer.load_state_dict(saved["optimizer"])
-        updates, epoch, cursor = saved["updates"], saved["epoch"], saved["cursor"]
-        if not (0 <= cursor <= len(dataset)):
-            raise ValueError("checkpoint cursor outside dataset")
-        restore_rng(saved["rng"])
+    model, optimizer, updates, epoch, cursor, applied, ignored = _initialize_scheduled_model(
+        kind=kind, model_config=model_config, device=device, seed=seed, lr=lr,
+        shared_initial_state=shared_initial_state, intervention=intervention,
+        saved=saved, dataset=dataset)
 
     losses, validations = [], []
     best_mse, best_update, stale = None, 0, 0
@@ -259,18 +333,15 @@ def run_scheduled_updates(
     started = time.perf_counter()
 
     def _publish(update_number):
-        # ``save_exclusive`` publishes atomically and returns None, so the path is
-        # built here: the caller needs the published path, and a None would turn
-        # "no checkpoint selected" into a silent success.
-        target = folder / f"update_{update_number:07d}.pt"
-        save_exclusive(target, {
-            "format": "r7-local-v1", "signature": signature, "contract": contract,
-            "model": {name: tensor.detach().cpu() for name, tensor in model.state_dict().items()},
-            "optimizer": optimizer.state_dict(), "updates": update_number,
-            "epoch": epoch, "cursor": cursor, "rng": rng_state()})
-        return target
+        if deadline is not None:
+            _check_deadline(deadline)
+        return _publish_checkpoint(
+            folder, update_number, model=model, optimizer=optimizer, signature=signature,
+            contract=contract, epoch=epoch, cursor=cursor, intervention=intervention)
 
     while updates < total_updates:
+        if deadline is not None:
+            _check_deadline(deadline)
         if cursor == len(dataset):
             epoch += 1
             cursor = 0
@@ -284,6 +355,8 @@ def run_scheduled_updates(
                                          minimum_ratio=minimum_lr_ratio)
         for group in optimizer.param_groups:
             group["lr"] = rate
+        if deadline is not None:
+            _check_deadline(deadline)
         loss = update_group(model, optimizer, batches, kind=kind, device=device, steps=steps,
                             bf16=bf16, process_weight=process_weight, clip=clip)
         updates += 1
@@ -292,6 +365,8 @@ def run_scheduled_updates(
         del batches
 
         if validation_every and updates % validation_every == 0:
+            if deadline is not None:
+                _check_deadline(deadline)
             # Validation must not consume the training RNG stream, or the same
             # seed would produce a different trajectory depending on how often
             # we happened to look. Snapshot and restore around the scoring pass.
@@ -365,6 +440,8 @@ def run_scheduled_updates(
         "note": ("wall time includes batch reads and validation scoring; CUDA peaks cover "
                  "this bounded run, not a forecast-skill benchmark"),
     }
+    if deadline is not None:
+        _check_deadline(deadline)
     with metrics_path.open("x", encoding="utf-8") as handle:
         json.dump(report, handle, ensure_ascii=False, indent=2, allow_nan=False)
     return selected_path, report
