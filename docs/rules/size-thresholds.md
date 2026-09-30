@@ -7,7 +7,7 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=176 R-020=45 R-021=34 R-022=23 R-023=23 -->
+<!-- measured: R-019=0 R-019b=176 R-020=45 R-021=35 R-022=23 R-023=23 -->
 
 上面那行 HTML 注释是**机器核对标记**：`tests/test_check_conventions.py` 的
 `test_size_report_counts_match_the_checker` 会重算这几个命中数并逐项比对。代码变化导致数字变化时
