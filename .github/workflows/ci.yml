@@ -41,6 +41,10 @@ jobs:
           pip install -r requirements-r7-data.txt
       - name: Check repository conventions
         run: python tools/check_conventions.py
+      - name: Check campaign state
+        # Master plan vs round brief vs GPU ledger vs evidence registration
+        # (decision 0025). Read-only; exits 1 on hard drift.
+        run: python tools/check_campaign_state.py --quiet
       - name: Check evidence index and candidate brief
         run: python tools/verify_r7_evidence_index.py --index docs/R7_EVIDENCE_INDEX.jsonl --root . --check-brief docs/R7_CANDIDATE_BRIEF.md
       - name: Compile active modules and check whitespace

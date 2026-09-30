@@ -149,7 +149,15 @@ def check_brief(path: Path, *, root: Path = ROOT) -> dict:
         fail("G-02", "no objective section (heading must contain 'objective')")
         objective_heading, objective_body = "", ""
     else:
+        # A brief whose *title* mentions the word (e.g. an audit of the training
+        # objective) must not shadow the real objective section: take the first
+        # candidate that actually carries a quoted block, and fall back to the
+        # first candidate so the G-02 message still names the documented section.
         objective_heading, objective_body = objective_sections[0]
+        for candidate_heading, candidate_body in objective_sections:
+            if _quote_blocks(candidate_body):
+                objective_heading, objective_body = candidate_heading, candidate_body
+                break
         blocks = _quote_blocks(objective_body)
         if not blocks:
             fail("G-02", "objective section has no quoted objective block")

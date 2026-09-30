@@ -1,0 +1,123 @@
+# main-model-v2-pivot-audit：N1 转向审计（forecast state / training objective / data regime / autoregressive exposure）
+
+<!-- round-node: N1 -->
+
+**THIS FILE IS A PROMPT TEMPLATE. GOAL MODE HAS NOT BEEN STARTED.**
+
+本文件是**主计划 `docs/goals/main-model-v2-campaign.md` 的节点 N1** 的目标长文，不是平行真相：
+节点、账本、对表清单都在主计划里；本文件只写「这一轮怎么做」。启动后第一件事是按主计划 §3 对表
+（跑 `tools/check_campaign_state.py`），再按 §4 执行。
+
+## §0 Objective（可粘贴；实测 705 字符）
+
+> 本轮目标：执行主计划 docs/goals/main-model-v2-campaign.md 的节点 N1——在不再新增 solver 部件的前提下，对四个嫌疑对象做 0 GPU-h 审计（forecast state / training objective / data regime / autoregressive exposure），并跑一条预声明的可证伪臂（把 Z 换成同形状冻结随机张量、其余不变，与 RW-B 配对）回答「48/72h 的恶化是否还需要一个学到的 Z 才出现」。判据与边界见 docs/goals/main-model-v2-pivot-audit.md，节点与账本见主计划。交付物：D1 四块审计（每块给 file:line 与可复核命令）；D2 可证伪臂（2 seed × 400 updates、协议在第一次优化器更新前冻结、只读 val、test 封存、≤0.45 GPU-h，执行前按决策 0021 取授权并重读账本）；D3 能机械化就落复算脚本；D4 证据页 + E 条目 + 索引记录（outcome_class: audit）；D5 下一节点提议与它的预声明门禁（只提议，不自行宣布完成）。禁止：新增 solver 部件、改已冻结判据或阈值、重跑或改写归档产物、读 test、下载数据、租 GPU、改 main、force push、关闭 #70–#75、自动进入下一节点。预算 ≤0.45 GPU-h（账本结余 20.2888 之内）；停止条件为预算用尽、审计需要新判据、审计判定「不可分辨」、或需要新数据/租 GPU/合并 main。不要自行宣布目标完成。
+
+## §1 现状（带 file:line，2026-09-30 核对）
+
+- 起点：主计划 `docs/goals/main-model-v2-campaign.md` 的 `current_node = N1`，上一节点 N0 已终结为
+  negative（`docs/R7_72_RW_B_PILOT.md:84-94`）且复现到 1.8e-4 K（`docs/R7_72_RW_B_SUBTRACTION.md` §5）。
+  启动时必须自己 `git rev-parse HEAD` 并重读账本。
+- **本轮的由来（冻结文字）**：`docs/goals/main-model-v2-rw-b-subtraction.md:206-208` 的「下一动作」
+  要求停止发明新模块、记录可反驳假设、转向重查三块；`docs/plans/0004-r7-main-model-v2.md:323-325`
+  在同样出口上多列一条 **autoregressive exposure**，`:335` 另有「连续两次定向改动无收益：停止加开关，
+  重新分析预测状态/边界/数据量」——两条都已命中。
+- **可反驳假设（上一轮写下的原文，本轮 D2 直接检验它）**：*若换一个真正可区分的负控制——例如把 `Z`
+  换成同形状的冻结随机张量、其余不变——则 48/72h 的恶化应当仍然出现，因为 §4.4 与 D1 都指向 (a)。*
+  （`docs/R7_72_RW_B_SUBTRACTION.md:301-311`）
+- **四个嫌疑对象的既有线索**（审计的输入，全部已登记，不得在审计里另立判据）：
+  - **forecast state**：E-195（`docs/rules/EVIDENCE.md:321`）——递推键 `torch.cat([context, draft_tokens])`
+    无来源角色标记与 mask，cell 无法区分两半；设计契约 `docs/R7_MAIN_MODEL_V2_DESIGN.md:70-82`（§3.2）
+    记同一缺口与候选处置；`correction_head` 在焦点臂**从未收到梯度**（E-202）；「关掉递推后门控学会
+    几乎关闭」（E-206，且同一干预在推理期与训练期相差 35–60×）。
+  - **training objective**：损失权重轴是内部推理步 K（`training/r7_streaming.py:126-128`，
+    `weights = linspace(1.0, final_weight, steps + 1)`），而报告分组轴是物理时效
+    （`training/r7_coreasoning_compare.py:240`）；训练 target 只有 **+6h**
+    （`outputs/r7_m2_segment/store/manifests/train.jsonl` 实测 186 条 `lead_time_hours` 全为 `[6]`）；
+    `PROCESS_WEIGHT = 0.0`（`training/r7_rw_b_subtraction_protocol.py:31`）⇒ 过程监督从未参与训练；
+    损失在归一化空间按变量等权（`training/r7_halting.py:16`），报告在物理单位逐变量
+    （`training/r7_rollout_metrics.py:69`）。
+  - **data regime**：M2 段 train 186 / val 22 / test 26，逐 lead 窗口 22/21/19/15/11
+    （`outputs/r7_72_rw_b_subtraction/case_table.csv`）；72h 的 seed spread 20–23%（`docs/R7_B2_MULTISEED.md`）；
+    气候态是 8 桶（month × hour）train-only 均值（弱基线）；归档产物的 `climatology_skill.csv`
+    **仍是归一化单位**（决策 0010：保留原样，读历史文件要乘 `normalization_std`）。
+  - **autoregressive exposure**：内部 K 步是自条件（草稿反馈），物理自由 rollout 从未被训练
+    （计划 0004 `:325`；#64 curriculum 的「换训练时效＝零和再分配」是同向的既有证据）。
+- 上一轮的两条可用读数（**非归因**，本轮的输入而不是结论）：主问句 `RW-B−(b)` 在 48h +0.785 / 72h +1.174 K
+  仍为 worsened；同一「去掉递推」干预在训练期把第 1 步幅度压到 RW-A 的 0.04/0.05 倍
+  （`docs/R7_72_RW_B_SUBTRACTION.md` §4.4/§4.5）。
+
+## §2 交付物清单
+
+| 编号 | 交付物 | 证据形态 |
+| --- | --- | --- |
+| D1 | 四块 0 GPU-h 审计 | 每块一节：事实（file:line）、可复核命令、以及「该嫌疑是否被支持为解释」的明确读法；**不新增阈值** |
+| D2 | 一条预声明可证伪臂 | `protocol.json`（第一次 `optimizer.step()` 前冻结，含 digest）+ 逐 seed 结果 + t2m 五时效三态 + 四张成本表 + 实测 GPU-h；控制臂的**构造方式**（冻结参数怎么做）写进协议与证据页 |
+| D3 | 复算脚本（能机械化就落） | 例如 data regime 的「Δ 与 seed spread 之比」复算工具；跑过的命令与输出 |
+| D4 | 证据页与登记 | `docs/R7_*.md` + `docs/rules/EVIDENCE.md` 新条目 + `docs/R7_EVIDENCE_INDEX.jsonl` 记录（`outcome_class: audit`）+ brief 同步 + CI run id 与 SHA 绑定 |
+| D5 | 下一节点提议 | 四方向证据强度排序 + 对 N2a/N2b/N2c/N2d 的**预声明门禁**（写明「什么读数会支持哪个节点」）；执行者只提议 |
+
+## §3 判据与证据来源
+
+- **工程判据**：`python tools/check_conventions.py` 37 条阻断 0 违规；`pytest -q` 无失败（skip 逐条给理由）；
+  `git show --check` 与 `git diff --cached --check` 干净；干净检出用 `git clone` 复核；
+  主计划对表 `python tools/check_campaign_state.py` 退出码 0。判据来源见 `docs/rules/ci-and-verification.md`。
+- **D1 四块的读法（预先写定，避免事后挑解释）**：每块必须给出「**支持 / 不支持 / 不可分辨**」之一，
+  并写明它据以判断的既有登记证据（上表 §1 的 file:line）。四块都不允许引入新阈值或新端点；
+  若某块需要新判据才能判定，**停下报告**（停止条件 2）。
+- **D2 臂的预声明读法**（对 t2m × 6/12/24/48/72h × 2 seed，沿用 #60 比较器的逐 seed 同号三态，
+  `depth = 0`，与上一轮同一配对方式）：
+  1. 冻结随机 Z 臂的 48h 与 72h **仍然 worsened**（逐 seed 同号）⇒ 排除「学到的 Z」为主因，
+     恶化落在「锚定提案 + 门控被施加」这条通路或更外层；
+  2. 48h/72h **不再 worsened** ⇒ 学到的 Z 是载体——与 D1 探针的 (a) 倾向冲突，必须在证据页里
+     明确记录这一冲突并重审 D1 的相关读数；
+  3. 两 seed **反号（unresolved）** ⇒ 读作「在 2 seed × 400 updates 下不可分辨」，按停止条件 3 触发 N2d 提议。
+- **D1 内的可复算读数（0 GPU-h，用归档产物）**：data regime 至少算出「主端点 48/72h 的登记差值与
+  同臂之间 seed spread 的比值」（分子分母都取自既有文件，**不新增阈值**，只报告该比值与它的含义）；
+  training objective 至少量化「K 轴权重与物理时效的关系」与「+6h-only target」的事实；
+  forecast state 至少复述 E-195/E-202/E-206 三条与「模型能看到什么」的关系；
+  autoregressive exposure 至少写清「内部 K 自条件覆盖了什么、物理自由 rollout 没被训练什么」。
+- **运行资格**：`queued` / `cancelled` / `skipped` / `partial` 不算通过；commit 标签只是触发意图，
+  不是授权（决策 0021）。
+- **科学判据（本轮不要求达到）**：≥3 固定 seed、精确配对、公平信息预算与算力报告、冻结 test、
+  不确定度、负结果保留——见 `docs/plans/0004-r7-main-model-v2.md` 的 Scientific gates 一节。
+
+## §4 实施顺序（不跳步）
+
+1. **对表**：读主计划 §8 与上一轮 §8 的下一动作 → `python tools/check_campaign_state.py` 必须退出 0；
+   记录起点 SHA 与账本（结余 20.2888 起算，重算后再用）。
+2. **D1（0 GPU-h）**：四块审计，先做 forecast state 与 training objective（纯读代码与既有文档），
+   再按 D3 落复算脚本做 data regime 的比值，最后写 autoregressive exposure 的「覆盖/未覆盖」清单。
+3. **D2（有界实验）**：执行那一刻按决策 0021 取授权（范围/预算/产物与证据/失败与 skip 处理）。
+   冻结协议 → 训练 → 评估 → 比较；**`model/` 不新增开关**：冻结随机 Z 的控制臂在 driver 层实现
+   （例如把 `solver_*` 参数置为固定随机值并冻结，或让递推输出等价于固定张量），做法必须写进协议与证据页，
+   并给出「其余路径与既有 RW-B 逐位相同」的核对证据。
+4. **D5 提议**：按 §3 的读数给出四方向排序与 N2 候选的门禁；**不自行开跑下一节点**。
+5. **D4 收尾**：证据页、E 条目、索引记录、brief 同步、CI 绑定；回写主计划 §8（节点/账本/下一动作）。
+
+## §5 预算与停止条件
+
+- **D1/D3**：0 GPU-h（只读代码、文档与归档产物；不重训、不覆盖）。
+- **D2**：单轮自设上限 **≤0.45 GPU-h**（3 臂 × 2 seed × 400 updates 量级；上一轮同形状 4 臂实测 0.4128）；
+  单次实验 ≤30 min；账本结余 20.2888 起算。
+- **停止条件**（满足任一即停并向用户报告，不自行扩大范围）：
+  1. 预算用尽或账本不足；
+  2. 任一审计块需要**新判据**才能判定；
+  3. 审计判定为「不可分辨」，或 D2 的读数落进 §3 第 3 种（两 seed 反号）——此时提议 N2d，不追加臂数；
+  4. 需要新数据、租 GPU、合并 main 或任何破坏性操作。
+- 目标状态 `active / paused / budget_limited / complete`；**执行者只可提议，不得自宣完成**。
+
+## §6 明确不做
+
+- 不新增 solver 部件、不新增 `model/` 开关（D2 的控制在 driver 层）；不改已冻结判据、阈值、端点或案例集。
+- 不重跑、不覆盖、不改写 `outputs/` 下的任何归档产物与历史证据页（一律只读）。
+- 不读封存 test；不下载数据；不租 GPU；不动 main；不 force push；不合并；不关闭 #70–#75。
+- 不自动进入下一节点；不建立定时任务或后台续跑。
+- 不把 12/24h 的小改善当作加码理由；不把 role 标记的小幅改善写成机制声明；不把 2 seed 写成显著性。
+
+## §7 进度块
+
+- **状态**：`active`（**本文件写就时 N1 尚未开工**；启动后立即把本块替换为起点 SHA、账本余量与第一动作）
+- **已完成**：无
+- **未做**：D1–D5 全部
+- **下一动作**：按 §4 第 1 步对表（`python tools/check_campaign_state.py`），然后做 D1 的
+  forecast state 与 training objective 两块审计

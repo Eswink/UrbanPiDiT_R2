@@ -82,6 +82,14 @@
 `tools/check_conventions.py` 已接入 CI：`.github/workflows/ci.yml` 的
 `Check repository conventions` 步骤运行 **37 条阻断规则**（不含 R-009、R-027、R-030 等报告型，另有 6 条规则未机械化）。
 
+**2026-09-30 追加**：同一作业新增 `Check campaign state` 步骤，运行
+`python tools/check_campaign_state.py --quiet`（决策 0025）。它把主计划
+（`docs/goals/main-model-v2-campaign.md`）的当前节点、GPU 账本算术、上一轮证据的索引登记与
+轮次长文的结构对表；规则号 `C-01`…`C-06` 属该工具自己的命名空间，**不是** `R-0xx`；
+硬漂移（节点不一致、账本对不上、证据未登记、长文结构失败）退出码 1。
+它**不判断科学方向**——通过只表示「与主计划不矛盾」。该步骤使作业从八步变**九步**；
+历史证据页里的「八步」是它们当时的实测，不回溯改写。
+
 `ci.yml:35-40` 原有步骤（第二遍已修正范围）：
 
 1. `python -m compileall -q data model training scripts train_r7_local.py evaluate_r7_local.py`

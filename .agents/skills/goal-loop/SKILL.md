@@ -39,6 +39,15 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
    校验是否成功（`~/.zcode/cli/db/db.sqlite`，`query_source='target_completion_verification'`）；
    已知 `new-provider-4`（cline-pass 路由）在该表里 6/6 未成功，分布见
    `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §2.4。收尾纪律见下节的两种形态处置。
+7. **若本目标属于一个 campaign（当前是主模型 V2）**：开工前先读主计划
+   `docs/goals/main-model-v2-campaign.md` 的当前节点与 §3 对表清单，跑
+   ```bash
+   .venv/bin/python tools/check_campaign_state.py
+   ```
+   退出码必须为 0。它查的是**机械可判定**的四件事（规则号 `C-01`…`C-06`，属该工具自己的命名空间）：
+   节点一致性、账本算术与证据指针、上一轮证据已登记、本轮长文结构与 `<!-- round-node: X -->` 标记。
+   任一条对不上（或它列出了「无机器支撑的账本行」而你无法解释）⇒ **停下问用户**，不得自行选方向——
+   工具通过只表示「与主计划不矛盾」，不表示方向正确（决策 0025）。
 
 ## 步骤
 
@@ -47,6 +56,9 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
    `§0 objective（可粘贴）` → `§1 现状（带 file:line）` → `§2 交付物清单 D1..Dn（每条带证据形态）` →
    `§3 判据与证据来源（文档指针）` → `§4 实施顺序（依赖，不跳步）` → `§5 预算与停止条件` →
    `§6 与 planner 草案的差异（若委派过）` → `§7 明确不做` → `§8 进度块`。
+   属于 campaign 的目标还要：文件里写 `<!-- round-node: X -->`（X = 主计划的当前节点号），
+   §1 写明本轮的由来（引用上一轮 §8 的下一动作与主计划节点），收尾时**回写主计划 §8**
+   （`current_node` / `previous_node` / 账本三行与 `<!-- campaign-state: {...} -->` 状态块）。
 3. **产出 objective**：**单段、无换行**、≤4000 字符（按 code point 计），**自带交付物清单** ——
    因为 verifier 不能调工具、读不到文件，判据必须能在对话里当场核对；
    结尾写明"不要自行宣布目标完成"。把同一段粘进 `§0` 与文末，并标注实测字符数。
@@ -70,7 +82,8 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
    都不能给"完成"定论；状态只能由用户或下一轮以新证据重审后推进。
 7. **收尾**：治理层 `git add`（R-037）、在分支内提交、核对 CI（17 条实验 workflow 的 skipped
    是 commit-message 标签门控，不算失败，见 `ci-workflow-triage`）；报告九项并写明
-   "下一项的第一个具体动作"。
+   "下一项的第一个具体动作"。属于 campaign 的轮次还要回写主计划 §8 并让
+   `check_campaign_state.py` 在收尾时仍退出 0（CI 里它是 `Check campaign state` 步骤）。
 8. **跨会话继续**：从 `§8` 的"下一动作"起步；先复核起点 SHA 与预算余量，再动代码或产物。
 
 ## 检查点
@@ -80,6 +93,8 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
 - **步骤 4 后**：校检器 0 失败。手改文档让它通过而不修内容，等于绕过门禁。
 - **步骤 5 后（手工循环每轮）**：本轮只推进一项吗？未做与失败如实写了吗？`§8` 与证据一致吗？
 - **收尾前**：谁判定完成？执行者没有这个权力（`docs/goals/README.md:22`）。
+- **campaign 轮每轮收尾后**：`check_campaign_state.py` 仍退出 0 吗？主计划 §8 的节点、账本与
+  状态块跟着这一轮更新了吗（决策 0025）？
 
 ## 常见失败
 

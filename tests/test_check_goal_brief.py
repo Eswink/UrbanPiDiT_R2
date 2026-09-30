@@ -164,6 +164,21 @@ def test_skill_example_is_accepted(checker, tmp_path):
     assert result["failures"] == [], result
 
 
+def test_title_mentioning_objective_does_not_shadow_the_objective_section(checker, tmp_path):
+    """Counterproof for the section-picking fix.
+
+    The campaign briefs name the thing under audit in their title ("training
+    objective", "data regime"), which made the title the first section whose
+    heading contains the marker word; without the fix the checker read the
+    title's body, found no quoted block and rejected a valid brief.
+    """
+    text = brief_text().replace("# 目标：example-goal-brief",
+                                "# audit：the training objective and the data regime")
+    path = write_brief(tmp_path, text=text)
+    result = checker.check_brief(path, root=tmp_path)
+    assert result["failures"] == [], result
+
+
 def test_skill_documents_every_mechanical_rule(checker):
     """Anti-drift: a rule the checker enforces must be documented in the skill."""
     source = (TOOLS / "check_goal_brief.py").read_text(encoding="utf-8")

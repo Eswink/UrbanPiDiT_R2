@@ -2,6 +2,20 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-09-30 — campaign 主计划与每轮对表：决策 0025 + `check_campaign_state.py` 接入 CI（未改规则判据）
+
+**范围**：新增 `tools/check_campaign_state.py` 与其自测、`.github/workflows/ci.yml` 多一个
+`Check campaign state` 步骤（作业由八步变九步；历史证据页里的「八步」是当时的实测，不回溯改写）、
+新活文档 `docs/goals/main-model-v2-campaign.md`（主计划）与 `docs/goals/main-model-v2-pivot-audit.md`（N1 轮次）、
+决策 `0025`；`tools/check_goal_brief.py` 修一处解析缺陷（标题里出现 "objective" 会遮蔽真正的 §0 节，
+例如本轮标题里的 "training objective"）并加反证测试；`ci-and-verification.md` 与本文件同步。
+**未改任何规则的级别、范围、阈值、判据或执行分组；未新增或删除 `R-0xx` 规则。**
+
+**Why**：减法轮之后，仓库里没有任何机制核对「主计划当前节点 ↔ 上一轮下一动作」；GPU 账本此前是
+手写散文、无脚本可累加或对账；`check_goal_brief.py` 只查结构、非阻断、不进 CI。于是「每轮不许跑偏」
+这条要求没有任何落点。新检查器把这个交叉核对变成 CI 里**可失败**的步骤（规则号 `C-01`…`C-06`
+属该工具自己的命名空间），并把「账本行没有索引支撑」如实列为 note 而不是放过。
+
 ## 2026-09-30 — #72 M2-B（RW-B 减法）：R-009 基线更新 + `model_code_sha256` 变化（未改任何规则判据）
 
 **范围**：改 `model/process_forecast_r7.py`、`model/process_step_r7.py`（新增两个**默认 True**、
