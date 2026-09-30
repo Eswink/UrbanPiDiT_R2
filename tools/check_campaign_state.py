@@ -23,8 +23,8 @@ This module checks the mechanically decidable part only:
   names the master plan's current node;
 - ``C-05`` the current round brief exists, declares ``<!-- round-node: X -->``
   equal to the current node, and passes the structural brief check;
-- ``C-06`` the previous round brief is registered in ``docs/R7_EVIDENCE_INDEX.jsonl``
-  and the recorded ``evidence_commit`` exists in git.
+- ``C-06`` the previous round's evidence page is registered in
+  ``docs/R7_EVIDENCE_INDEX.jsonl`` and the recorded ``evidence_commit`` exists in git.
 
 It never writes, runs no shell, and does **not** judge scientific direction:
 passing means "nothing here contradicts the master plan", not "the next node is
@@ -145,46 +145,41 @@ def commit_exists(root: Path, sha: str) -> bool | None:
     return done.returncode == 0
 
 
-def check(root: Path = ROOT) -> dict:
-    failures: list[str] = []
-    notes: list[str] = []
-
-    campaign_path = root / CAMPAIGN_DOC
-    if not campaign_path.is_file():
-        return {"failures": [f"C-01 master plan missing: {CAMPAIGN_DOC}"],
-                "notes": [], "node": None}
-
-    campaign_text = campaign_path.read_text(encoding="utf-8")
+def check_state_block(campaign_text: str, failures: list[str],
+                      notes: list[str]) -> dict | None:
+    """C-01: the machine-readable state block exists and carries its keys."""
     state = parse_state(campaign_text)
     if state is None:
         failures.append(f"C-01 no parseable campaign-state block in {CAMPAIGN_DOC}")
-        return {"failures": failures, "notes": notes, "node": None}
+        return None
     missing = [key for key in REQUIRED_STATE_KEYS if key not in state]
     if missing:
         failures.append(f"C-01 campaign-state block lacks keys: {', '.join(missing)}")
+    return state
 
+
+def check_ledger(campaign_text: str, state: dict, records: dict[str, dict],
+                 root: Path, failures: list[str], notes: list[str]) -> None:
+    """C-02 arithmetic, C-03 evidence pointers and index-backed values."""
     rows = ledger_rows(campaign_text)
     if not rows:
         failures.append("C-02 no ledger rows found in the master plan")
-    else:
-        total = round(sum(row["gpu_h"] for row in rows), 6)
-        used = float(state.get("used_gpu_h", float("nan")))
-        cap = float(state.get("cap_gpu_h", float("nan")))
-        remaining = float(state.get("remaining_gpu_h", float("nan")))
-        if abs(total - used) > TOLERANCE:
-            failures.append(f"C-02 ledger rows sum to {total}, state says used_gpu_h={used}")
-        if abs((cap - used) - remaining) > TOLERANCE:
-            failures.append(
-                f"C-02 cap - used = {round(cap - used, 6)}, state says remaining_gpu_h={remaining}")
-        running = 0.0
-        for row in rows:
-            running = round(running + row["gpu_h"], 6)
-            if abs(running - row["cumulative"]) > TOLERANCE:
-                failures.append(
-                    f"C-02 cumulative for '{row['name']}' is {row['cumulative']}, "
-                    f"running sum is {running}")
-
-    records = load_index(root)
+        return
+    total = round(sum(row["gpu_h"] for row in rows), 6)
+    used = float(state.get("used_gpu_h", float("nan")))
+    cap = float(state.get("cap_gpu_h", float("nan")))
+    remaining = float(state.get("remaining_gpu_h", float("nan")))
+    if abs(total - used) > TOLERANCE:
+        failures.append(f"C-02 ledger rows sum to {total}, state says used_gpu_h={used}")
+    if abs((cap - used) - remaining) > TOLERANCE:
+        failures.append(
+            f"C-02 cap - used = {round(cap - used, 6)}, state says remaining_gpu_h={remaining}")
+    running = 0.0
+    for row in rows:
+        running = round(running + row["gpu_h"], 6)
+        if abs(running - row["cumulative"]) > TOLERANCE:
+            failures.append(f"C-02 cumulative for '{row['name']}' is {row['cumulative']}, "
+                            f"running sum is {running}")
     for row in rows:
         pointers = DOC_POINTER_RE.findall(row["evidence"])
         if not pointers:
@@ -192,99 +187,135 @@ def check(root: Path = ROOT) -> dict:
         for pointer in pointers:
             if not (root / pointer).is_file():
                 failures.append(f"C-03 ledger row '{row['name']}' cites missing file {pointer}")
-        refs = RECORD_REF_RE.findall(row["evidence"])
-        if not refs:
-            notes.append(f"C-03 ledger row '{row['name']}' ({row['gpu_h']} GPU-h) has no "
-                         f"evidence-index record: value not machine-checked")
+        _check_row_record(row, records, notes, failures)
+
+
+def _check_row_record(row: dict, records: dict[str, dict], notes: list[str],
+                      failures: list[str]) -> None:
+    refs = RECORD_REF_RE.findall(row["evidence"])
+    if not refs:
+        notes.append(f"C-03 ledger row '{row['name']}' ({row['gpu_h']} GPU-h) has no "
+                     f"evidence-index record: value not machine-checked")
+        return
+    for record_id in refs:
+        record = records.get(record_id)
+        if record is None:
+            failures.append(f"C-03 ledger row '{row['name']}' cites unknown record "
+                            f"'{record_id}'")
             continue
-        for record_id in refs:
-            record = records.get(record_id)
-            if record is None:
-                failures.append(f"C-03 ledger row '{row['name']}' cites unknown record "
-                                f"'{record_id}'")
-                continue
-            gpu_hours = record_gpu_hours(record)
-            if gpu_hours is None:
-                notes.append(f"C-03 record '{record_id}' carries no gpu_hours metric")
-            elif abs(gpu_hours - row["gpu_h"]) > RECORD_TOLERANCE:
-                failures.append(f"C-03 ledger row '{row['name']}' says {row['gpu_h']} GPU-h, "
-                                f"record '{record_id}' says {gpu_hours}")
+        gpu_hours = record_gpu_hours(record)
+        if gpu_hours is None:
+            notes.append(f"C-03 record '{record_id}' carries no gpu_hours metric")
+        elif abs(gpu_hours - row["gpu_h"]) > RECORD_TOLERANCE:
+            failures.append(f"C-03 ledger row '{row['name']}' says {row['gpu_h']} GPU-h, "
+                            f"record '{record_id}' says {gpu_hours}")
 
-    current_node = state.get("current_node")
-    previous_node = state.get("previous_node")
+
+def check_previous_round(state: dict, records: dict[str, dict], root: Path,
+                         failures: list[str], notes: list[str]) -> None:
+    """C-04 the previous round points here; C-06 its evidence is registered."""
     previous_goal = state.get("previous_round_goal")
-    previous_evidence = state.get("previous_round_evidence")
-    current_goal = state.get("current_round_goal")
-
     if isinstance(previous_goal, str) and previous_goal:
         previous_path = root / previous_goal
         if not previous_path.is_file():
             failures.append(f"C-04 previous round brief missing: {previous_goal}")
         else:
-            text = previous_path.read_text(encoding="utf-8")
-            marker = ROUND_NODE_RE.search(text)
-            graded_by_next_action = True
-            if marker is None:
-                notes.append(f"C-04 {previous_goal} predates the round-node marker; node "
-                             f"identity checked through its next action only")
-            elif isinstance(previous_node, str) and marker.group(1) != previous_node:
-                failures.append(f"C-04 {previous_goal} declares round-node {marker.group(1)}, "
-                                f"master plan says previous_node={previous_node}")
-            if state.get("previous_round_predates_mechanism") is True:
-                graded_by_next_action = False
-                notes.append(f"C-04 {previous_goal} predates the node ids in this mechanism; "
-                             f"the next action is not graded against current_node "
-                             f"(declared by previous_round_predates_mechanism)")
-            action_tail = text[text.rfind("下一动作"):] if "下一动作" in text else ""
-            if not action_tail:
-                failures.append(f"C-04 {previous_goal} has no 下一动作 entry")
-            elif graded_by_next_action and isinstance(current_node, str) \
-                    and current_node not in action_tail:
-                failures.append(
-                    f"C-04 {previous_goal}'s next action does not name the master plan's "
-                    f"current node {current_node}")
+            _check_previous_next_action(previous_path, state, failures, notes)
+    _check_previous_evidence(state, records, root, failures, notes)
 
-    if isinstance(previous_evidence, str) and previous_evidence:
-        if not (root / previous_evidence).is_file():
-            failures.append(f"C-06 previous round evidence missing: {previous_evidence}")
-        registered = [record for record in records.values()
-                      if record.get("evidence_path") == previous_evidence]
-        if not registered:
-            failures.append(f"C-06 previous round evidence {previous_evidence} is not "
-                            f"registered in {INDEX}")
-        for record in registered:
-            commit = record.get("evidence_commit")
-            if not isinstance(commit, str) or not commit:
-                failures.append(f"C-06 record '{record.get('record_id')}' has no "
-                                f"evidence_commit")
-                continue
-            exists = commit_exists(root, commit)
-            if exists is None:
-                notes.append(f"C-06 commit existence for '{commit[:12]}' not checkable here")
-            elif not exists:
-                failures.append(f"C-06 record '{record.get('record_id')}' binds commit "
-                                f"{commit[:12]} which does not exist in this repository")
 
-    if isinstance(current_goal, str) and current_goal:
-        current_path = root / current_goal
-        if not current_path.is_file():
-            failures.append(f"C-05 current round brief missing: {current_goal}")
-        else:
-            text = current_path.read_text(encoding="utf-8")
-            marker = ROUND_NODE_RE.search(text)
-            if marker is None:
-                failures.append(f"C-05 {current_goal} carries no <!-- round-node: X --> marker")
-            elif marker.group(1) != current_node:
-                failures.append(f"C-05 {current_goal} declares round-node {marker.group(1)}, "
-                                f"master plan says current_node={current_node}")
-            brief_report = _load_brief_checker().check_brief(current_path, root=root)
-            if brief_report["failures"]:
-                detail = "; ".join(
-                    f"{finding['rule']} {finding['detail']}"
-                    for finding in brief_report["failures"])
-                failures.append(f"C-05 {current_goal} fails the brief structure check: {detail}")
+def _check_previous_next_action(previous_path: Path, state: dict,
+                                failures: list[str], notes: list[str]) -> None:
+    text = previous_path.read_text(encoding="utf-8")
+    graded = True
+    marker = ROUND_NODE_RE.search(text)
+    if marker is None:
+        notes.append(f"C-04 {previous_path.name} predates the round-node marker; node "
+                     f"identity checked through its next action only")
+    elif isinstance(state.get("previous_node"), str) \
+            and marker.group(1) != state["previous_node"]:
+        failures.append(f"C-04 {previous_path.name} declares round-node {marker.group(1)}, "
+                        f"master plan says previous_node={state['previous_node']}")
+    if state.get("previous_round_predates_mechanism") is True:
+        graded = False
+        notes.append(f"C-04 {previous_path.name} predates the node ids in this mechanism; "
+                     f"the next action is not graded against current_node "
+                     f"(declared by previous_round_predates_mechanism)")
+    action_tail = text[text.rfind("下一动作"):] if "下一动作" in text else ""
+    if not action_tail:
+        failures.append(f"C-04 {previous_path.name} has no 下一动作 entry")
+    elif graded and isinstance(state.get("current_node"), str) \
+            and state["current_node"] not in action_tail:
+        failures.append(
+            f"C-04 {previous_path.name}'s next action does not name the master plan's "
+            f"current node {state['current_node']}")
 
-    return {"failures": failures, "notes": notes, "node": current_node}
+
+def _check_previous_evidence(state: dict, records: dict[str, dict], root: Path,
+                             failures: list[str], notes: list[str]) -> None:
+    evidence = state.get("previous_round_evidence")
+    if not isinstance(evidence, str) or not evidence:
+        return
+    if not (root / evidence).is_file():
+        failures.append(f"C-06 previous round evidence missing: {evidence}")
+    registered = [record for record in records.values()
+                  if record.get("evidence_path") == evidence]
+    if not registered:
+        failures.append(f"C-06 previous round evidence {evidence} is not registered in "
+                        f"{INDEX}")
+    for record in registered:
+        commit = record.get("evidence_commit")
+        if not isinstance(commit, str) or not commit:
+            failures.append(f"C-06 record '{record.get('record_id')}' has no evidence_commit")
+            continue
+        exists = commit_exists(root, commit)
+        if exists is None:
+            notes.append(f"C-06 commit existence for '{commit[:12]}' not checkable here")
+        elif not exists:
+            failures.append(f"C-06 record '{record.get('record_id')}' binds commit "
+                            f"{commit[:12]} which does not exist in this repository")
+
+
+def check_current_round(state: dict, root: Path, failures: list[str]) -> None:
+    """C-05 the current round brief exists, declares its node and is well formed."""
+    current_goal = state.get("current_round_goal")
+    if not isinstance(current_goal, str) or not current_goal:
+        return
+    current_path = root / current_goal
+    if not current_path.is_file():
+        failures.append(f"C-05 current round brief missing: {current_goal}")
+        return
+    text = current_path.read_text(encoding="utf-8")
+    marker = ROUND_NODE_RE.search(text)
+    current_node = state.get("current_node")
+    if marker is None:
+        failures.append(f"C-05 {current_goal} carries no <!-- round-node: X --> marker")
+    elif marker.group(1) != current_node:
+        failures.append(f"C-05 {current_goal} declares round-node {marker.group(1)}, "
+                        f"master plan says current_node={current_node}")
+    brief_report = _load_brief_checker().check_brief(current_path, root=root)
+    if brief_report["failures"]:
+        detail = "; ".join(f"{finding['rule']} {finding['detail']}"
+                           for finding in brief_report["failures"])
+        failures.append(f"C-05 {current_goal} fails the brief structure check: {detail}")
+
+
+def check(root: Path = ROOT) -> dict:
+    failures: list[str] = []
+    notes: list[str] = []
+    campaign_path = root / CAMPAIGN_DOC
+    if not campaign_path.is_file():
+        return {"failures": [f"C-01 master plan missing: {CAMPAIGN_DOC}"],
+                "notes": [], "node": None}
+    campaign_text = campaign_path.read_text(encoding="utf-8")
+    state = check_state_block(campaign_text, failures, notes)
+    if state is None:
+        return {"failures": failures, "notes": notes, "node": None}
+    records = load_index(root)
+    check_ledger(campaign_text, state, records, root, failures, notes)
+    check_previous_round(state, records, root, failures, notes)
+    check_current_round(state, root, failures)
+    return {"failures": failures, "notes": notes, "node": state.get("current_node")}
 
 
 def main(argv=None) -> int:
