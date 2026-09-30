@@ -377,11 +377,20 @@
 | E-211 | **实际预算合规，但四成本视图（参数/FLOPs/吞吐/内存）有实质缺口**：attempt success，GPU1292.544625543058s=0.3590401737619605h（≤0.45），whole1297.8983452636749s（≤1800）。validation内部不检查deadline、future finalizer未强制全集合；本次终态全集合已外部只读核齐，未超预算。两seed的30个eval峰值均255424000B，继承末臂training峰值且未reset，不是独立eval测量，内存视图不得称验收齐全。merged的whole字段实际是GPU区间；whole取attempt。代码/产物保留不热改、不补测 | `attempt.json` SHA256 `a4d8da66f8d25f68c89b5ccbf680f498b000fb82e6884e0099b6b9514074f226`、四成本/案例CSV；`training/r7_scheduled_runner.py:108-128,367-377`、`scripts/study_r7_72_frozen_z.py:219-243,289-313`、`training/r7_arm_harness.py:374-397`；证据页§5.3/§5.4 | 单点（一次运行及其计量/守卫） | 已确认 |
 | E-212 | **代码身份与工程CI有精确绑定，失败照记**：实验commit c4e7e83，code.zip SHA256 `5fd26146af2a7d11016fb769d67390f5daa23a73620de9ae83e2e6cc38a35a0a`的953路径/字节与commit核齐；model digest不变。初次CI36690064571的pytest因R-021 marker34/actual35失败，本地重现，文档标记修复efa410b的CI36691526554 completed/success、九主步骤成功；精确efa410b的干净clone1795passed/14skipped/2warnings，skip不算通过，远端日志计数未取得。Mimosa报scanner_enobufs，安全扫描无结论；不能把CI成功或扫描fail-open解释为机制/安全通过 | `code_commit.txt`、`code.zip`、git blob比对；[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36691526554)、[jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36691526554/jobs?per_page=100)，访问日期2026-09-30；`outputs/r7_n1_audit/ci/`与本地pytest日志；证据页§6.2 | 单点（本轮代码及两次CI） | 已确认 |
 
+## 第十四遍（2026-09-30）：N1 一次具名独立evaluation成本补测失败
+
+证据页`docs/R7_N1_COST_SUPPLEMENT_ATTEMPT.md`；原证据页与归档保持不变，failed也计费，不自动重试。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-213 | **一次成本补测只完成1/30，零基线守卫如实拒绝，成本验收仍阻塞**：执行前AskUserQuestion具名授权30原val/0训练/≤324s/失败即停；计量代码1e03f82、原code.zip不改。首项seed41/RW-A/+6h从allocated/reserved均0开始，peak为39590400/46137344B，22case/17变量RMSE及逐caseMSE精确重放；第二lead12h在evaluate调用前因allocated或reserved基线非零失败。没有result、四成本CSV或其余29行，没有自动重试。原guard没记录具体非零字节数，原因未取证；不能断言内存泄漏或外部负载 | `outputs/r7_n1_eval_cost_supplement/attempt.json` SHA256 `662dd5ab2862bd4b0a1cfc585366bfe4b29a0e57edffd6f7f03715f405a35479`、worker日志、首项cost_measurement SHA256 `b654d17d812d3353e887b392505248f9bbdf5d8796c397b2dccb51ab85dcf270`；新protocol canonical `1ce9222321bfe6d799b0f86d7bc0ff4de127d451edaa0e5e8a45ca5a4a3ffc22`；证据页§1–3 | 单点（一次失败尝试及首项计量） | 已确认 |
+| E-214 | **失败全额计入账本，不扩大授权或改科学读法**：GPU保守区间21.443860329687595s＝0.005956627869357666h，whole22.372659532353282s；原N1加失败共0.3649968016313182h≤0.45，算术余0.08500319836868184h不构成重试许可。campaign精确已用4.076196801631319/余19.923803198368685，显示4.0762/19.9238。原主48/72h仍unresolved/不可分辨，N1/paused；GPU1由用户手动腾出。另授单个旧PID的SIGTERM两次检查均未发信号（API缺失/旧PID消失），不干预替代任务；计量子进程失败后退出，没有新训练/节点推进 | 原attempt与`outputs/r7_n1_cost_authorization.json`、两份`r7_n1_cost_gpu_release*_result.json`；只读budget算术、GPU状态；证据页§1/§4–5，主计划账本 | 单点（一次失败成本与停止处理） | 已确认 |
+
 ## 统计
 
-- 台账条目：**212** 条（E-001 – E-212；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6）。
-- 按覆盖度（2026-09-30按行重数）：全体/全体扫描 **145** 条、抽样 **20** 条、单点 **47** 条。
+- 台账条目：**214** 条（E-001 – E-214；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2）。
+- 按覆盖度（2026-09-30按行重数）：全体/全体扫描 **145** 条、抽样 **20** 条、单点 **49** 条。
   保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
-- 按置信度（2026-09-30按行重数）：已确认 **211** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+- 按置信度（2026-09-30按行重数）：已确认 **213** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
   不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。
