@@ -9,7 +9,8 @@
 0.3590401737619605 GPU-h（账本0.3590，已用4.0702/余19.9298）。主48/72h两seed反号，
 `cannot-distinguish`触发停止，只提议N2d；current_node保持N1、paused，不宣告完成。
 
-四成本表保留，但eval峰值继承training峰值，**独立eval内存计量未完成**；validation内部deadline与
+四成本视图保留（参数/FLOPs共用arm_table、吞吐在training_table、内存在memory_table；case表不是成本），
+成品登记前只校正先前“四表”措辞，不改数字；eval峰值继承training峰值，**独立eval内存计量未完成**；validation内部deadline与
 finalizer全集合拒绝有工程覆盖缺口。实际全轮未超cap、最终全集合已只读核齐，三缺口仍明确披露，
 不热改/重跑冻结代码或产物。比较器从归档code.zip只重算已发表元数据、JSON逐字节一致，不执行模型。
 merged的whole字段实际是GPU区间，真实整轮墙钟取attempt；原JSON不改。两seed不作显著性，训练仅

@@ -227,8 +227,10 @@ FLOPs是CPU、enable_grad下按协议约定测量，registration前冻结；不�
 | 42 | RW-B | 169.94 | 0.424841 | 400/400 | 254.3/342.0 |
 | 42 | 冻结Z | 158.29 | 0.395715 | 400/400 | 243.6/342.0 |
 
-training峰值保留实际allocator作用域，reserved并非清空缓存后的隔离显存。成本/训练/内存/case四表
-均已产生；**evaluation独立峰值缺失，内存视图不得称验收齐全**（见§5.4）。
+training峰值保留实际allocator作用域，reserved并非清空缓存后的隔离显存。四成本**视图**是
+参数、FLOPs、训练吞吐、内存：前两项在`arm_table.csv`，吞吐在`training_table.csv`，内存在
+`memory_table.csv`；`case_table.csv`是案例覆盖而非第四张独立成本表。成品登记前校正此处术语，
+不是更改测量或判据。**evaluation独立峰值缺失，内存视图不得称验收齐全**（见§5.4）。
 
 `attempt.json.status=success`、failure_reason=null：GPU区间 **1292.544625543058 s**，计费
 **0.3590401737619605 GPU-h**（≤0.45）；整轮墙钟 **1297.8983452636749 s**（≤1800）。GPU钟从
@@ -376,7 +378,10 @@ D1排序仍为 **training objective / autoregressive exposure / data regime / fo
 
 **本轮只提议N2d停止**：冻结Z−RW-A的48/72h均unresolved，已命中长文§3第3条/§5停止条件3。
 N1状态paused、current_node保持N1待用户/独立复核；不自动把主计划移到N2d，不追加种子或臂。
-下列门禁是运行前已有提议条件的如实检查，不能拿排序越过当前停止条件：
+下列门禁沿用实验代码提交`c4e7e83`中本页§7的执行前提议，主计划§2仍是节点通道的权威；
+它们不是给N2b另加一个科学判据，不能拿排序越过当前停止条件。长文§3未触发的两条因果措辞按
+**运行前已冻结协议**限域为「本预算下必要性排除/载体候选」，不是普遍主因证明；本次只读第三分支，
+不回改长文判据，也不据未触发分支宣称机制：
 
 - **N2a**：N1需把M3 scale/eps与三类时刻列为最强支持；当前process_weight=0且未列最强，门禁未成立。
 - **N2b**：预提议要求随机Z在48/72h仍worsened且RW-B同轮恶化仍在；后者成立，前者不成立，不能开跑。
@@ -394,7 +399,7 @@ N1状态paused、current_node保持N1待用户/独立复核；不自动把主计
 | D1四块、每块file:line/命令/支持读法 | §1–4；D3的audit.json | 0GPU-h；只支持解释候选，不作因果归因 |
 | D2构造、2seed×400、先冻协议、val/test纪律 | §5.1、6run/30provenance、同digest | 运行success；主问句unresolved，非机制通过 |
 | D2五时效/全部变量/案例 | §5.2、510RMSE/255table/3×85cells、case_table | 精确全集合核齐；future completeness guard缺口保留 |
-| D2四成本/预算 | §5.3、四CSV与attempt.json | 实耗未超cap；独立eval峰值未完成，时限guard不完整 |
+| D2四成本视图/预算 | §5.3：arm_table的参数/FLOPs、training_table的吞吐、memory_table的内存；attempt.json | 实耗未超cap；独立eval峰值未完成，时限guard不完整；case表非成本 |
 | D3机械复算 | tools/recompute_r7_n1_audit.py及stdout digest；归档元数据比较器重算 | 无模型/重训；比较器字节可重现，不宣称训练bit-reproducible |
 | D4证据/E/索引/brief/CI绑定 | 本页；E-207–E-212；record:n1-pivot-audit-frozen-z-unresolved；本轮长文进度 | outcome_class:audit；needs-review；证据commit在后续索引精确绑定 |
 | D5排序与下一节点门禁 | §7 | 只提议N2d；不推进节点或自宣完成 |
