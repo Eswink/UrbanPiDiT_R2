@@ -363,12 +363,25 @@
 | E-205 | **上一轮登记的 `RW-B − RW-A` 在改过 `model_code_sha256` 与 `protocol_sha256` 之后几乎逐位复现**：t2m 五时效逐 seed delta 与 `docs/R7_72_RW_B_PILOT.md` 的登记值对照，最大偏差 ~1.8e-4 K（6h 0.198648 vs 0.198633；48h 1.061699 vs 1.061712；72h 1.817077 vs 1.816831）。⇒ 该负结果不是一次性噪声；且新增的两个子开关**没有移动默认路径**（与 E-203 的两条等价一致）。两轮 digest 不同，**不得相加或并列** | `docs/R7_72_RW_B_PILOT.md` §3；`outputs/r7_72_rw_b_subtraction/paired_comparison.json` 的 `round_reference` | 抽样（2 seed × 5 时效 × 1 变量） | 已确认 |
 | E-206 | **同一「去掉递推」干预在推理期与训练期差 35–60 倍**：D1 在冻结门控的归档 checkpoint 上移除递推，第 1 步幅度是 RW-A 的 1.48/3.04 倍；而从零训练的 `RW-B−(b)` 第 1 步幅度只有 **0.0015**（RW-A 的 0.04/0.05 倍，约 23 倍更小），余弦全程为正。⇒ **门控在「Z 不递推」的配置里学会几乎关闭**，这是门控作为稳定器起作用的直接证据，也说明推理期消融读数不能直接当成训练期结论 | `outputs/r7_rw_b_subtraction_probe/probe.json` 的 `recurrence_removed`；`outputs/r7_72_rw_b_subtraction/seed*/seed_result.json` 的 `probes.correction` | 抽样（2 seed × 8 窗口） | 已确认 |
 
+## 第十三遍（2026-09-30）：N1 四块零GPU审计与冻结随机Z的不可分辨停止
+
+证据页 `docs/R7_N1_PIVOT_AUDIT.md`；零GPU复算 `outputs/r7_n1_audit/`，一次具名授权的D2
+`outputs/r7_72_frozen_z/`。下列事实不认证科学机制，也不把工程成功当目标完成。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-207 | **训练目标权重轴是内部K，而非物理时效**：K=3、final_weight=2时四草稿权重精确为1/6、2/9、5/18、1/3，全部对同一+6h target。真实train186/val22的manifest lead全为6；process_weight=0；+6h归一化MSE选择checkpoint。自由48/72h评估却分别含8/12次+6h预测写回，内部K间detach不覆盖物理自由轨迹反传。这确认目标/暴露的结构失配，不单独归因RW-B相对RW-A的损害 | `training/r7_streaming.py:123-160`、`training/r7_scheduled_runner.py:367-392`、`model/r7_rollout.py:72-88,114-139`；`outputs/r7_n1_audit/audit.json` SHA256 `d895c96dd4936ebb75adbf9bd23bb8799185bd00b1c41482c6d8182c7a2c4a07`；证据页§2/§4 | 单点（一个冻结协议与实现） | 已确认 |
+| E-208 | **data regime的量化是描述，不新增噪声阈值**：val五lead窗口22/21/19/15/11；旧减法轮RW-B−RW-A在48/72h平均delta为1.065106/1.580487 K，除以RW-B两seed max−min为1.599049/0.757468；除以RW-A spread为1.615576/0.979625。48h既有同号恶化不能用spread抹去，72h同量级幅度限制归因与外推，不是显著性或新判据。标准库只读六个具名输入，复算stdout digest与保存JSON一致，未读test/checkpoint/cache数组 | `tools/recompute_r7_n1_audit.py`（SHA256 `0acb81c18e5ee6944ad10e4034177ed2732ced8ace00186b0e36e6a88c690dba`）；`outputs/r7_n1_audit/audit.json`及`input_pins.json`；证据页§3/§6.1 | 抽样（2seed×2长lead，旧归档算术） | 已确认 |
+| E-209 | **冻结随机Z的构造不新增solver或模型开关**：private CPU RNG、seed+1000003、FP32 normal×0.02、shape[1,1089,192]，同seed跨样本/内部K/物理转移复用。原solver_cell前向仍算但输出被替换，只冻结solver_init/cell，门控/提案仍学习；同seed151个RW-B原参数安装前相同，RW-A转入131共享张量/ignored0。strict加载前安装、加载后buffer/spec校验；CPU测试显示solver权重未动而proposal/gate有梯度和学习。总参数不减但trainable及反向FLOPs下降，不能声称容量/算力完美匹配 | `training/r7_frozen_z_intervention.py`、`tests/test_r7_frozen_z_control.py`（89passed）、`tests/test_r7_frozen_z_runner.py`；D2协议digest `e19ef488be60136364702b1df389e5f58be7ebf3845487289139e10d30231e01`与seed_result.arm_pairing；证据页§5.1/§5.3 | 全体（本轮声明的构造与CPU反证） | 已确认 |
+| E-210 | **主问句不可分辨并触发停止**：冻结Z−RW-A的t2m48h两seed为+0.063121651/−0.193231282 K，72h为+0.325881772/−0.151426589，均unresolved/mean=null；分支cannot-distinguish、stop_required=true、N2d仅提议。同轮RW-B−RW-A两长lead仍worsened；冻结Z−RW-B虽同号改善但属于单独载体对比，不替换主问句。六训练各400更新、30val评估、510RMSE cell/255depth0行/3×85cell完整，共同case22/21/19/15/11；按归档code.zip纯元数据重算paired JSON逐字节相同，未再执行模型 | `outputs/r7_72_frozen_z/paired_comparison.json` SHA256 `d7a345c17923cd49d1b03f2cbea767c95579e5d18a043965bf29fb697c222a64`；merged/30provenance/CSV；`outputs/r7_n1_audit/metadata_replay.json`；证据页§5.2/§6.1 | 抽样（2seed×400updates×一个冬季段） | 已确认 |
+| E-211 | **实际预算合规，但四成本视图有实质缺口**：attempt success，GPU1292.544625543058s=0.3590401737619605h（≤0.45），whole1297.8983452636749s（≤1800）。validation内部不检查deadline、future finalizer未强制全集合；本次终态全集合已外部只读核齐，未超预算。两seed的30个eval峰值均255424000B，继承末臂training峰值且未reset，不是独立eval测量，内存视图不得称验收齐全。merged的whole字段实际是GPU区间；whole取attempt。代码/产物保留不热改、不补测 | `attempt.json` SHA256 `a4d8da66f8d25f68c89b5ccbf680f498b000fb82e6884e0099b6b9514074f226`、四成本/案例CSV；`training/r7_scheduled_runner.py:108-128,367-377`、`scripts/study_r7_72_frozen_z.py:219-243,289-313`、`training/r7_arm_harness.py:374-397`；证据页§5.3/§5.4 | 单点（一次运行及其计量/守卫） | 已确认 |
+| E-212 | **代码身份与工程CI有精确绑定，失败照记**：实验commit c4e7e83，code.zip SHA256 `5fd26146af2a7d11016fb769d67390f5daa23a73620de9ae83e2e6cc38a35a0a`的953路径/字节与commit核齐；model digest不变。初次CI36690064571的pytest因R-021 marker34/actual35失败，本地重现，文档标记修复efa410b的CI36691526554 completed/success、九主步骤成功；精确efa410b的干净clone1795passed/14skipped/2warnings，skip不算通过，远端日志计数未取得。Mimosa报scanner_enobufs，安全扫描无结论；不能把CI成功或扫描fail-open解释为机制/安全通过 | `code_commit.txt`、`code.zip`、git blob比对；[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36691526554)、[jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36691526554/jobs?per_page=100)，访问日期2026-09-30；`outputs/r7_n1_audit/ci/`与本地pytest日志；证据页§6.2 | 单点（本轮代码及两次CI） | 已确认 |
+
 ## 统计
 
-- 台账条目：**206** 条（E-001 – E-206；第一遍 143 + 第二遍 15 + 第三遍 10 + 第四遍 13 + 第五遍 7 + 第六遍 2 + 第七遍 4 + 第八遍 1 + 第九遍 2 + 第十遍 3 + 第十一遍 1 + 第十二遍 5）。
-- 按覆盖度（2026-09-30 按行重数）：全体/全体扫描 **144** 条、抽样 **18** 条、单点 **44** 条。
-  此前写的「140 / 21 / 39」与行数对不上（漂移），本次按行改正。
-- 按置信度（2026-09-30 按行重数）：已确认 **205** 条、推测 1 条、未知 0 条；此前写「已确认 197」，同为漂移值。
-  （凡不确定者均写入 `OPEN_QUESTIONS.md`，不在此处填一个看起来合理的答案；本轮的推测条目
-  E-187 已登记为 Q-013。）
-- 未列入凭据类条目：5 类凭据模式全部 0 命中，故无"疑似凭据点位"可报告。
+- 台账条目：**212** 条（E-001 – E-212；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6）。
+- 按覆盖度（2026-09-30按行重数）：全体/全体扫描 **145** 条、抽样 **20** 条、单点 **47** 条。
+  保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
+- 按置信度（2026-09-30按行重数）：已确认 **211** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+  不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013。
+- 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。

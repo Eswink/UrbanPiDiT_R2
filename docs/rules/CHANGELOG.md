@@ -2,7 +2,24 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
-## 2026-09-30 — N1 零 GPU 审计与冻结 Z 工程准备（未运行 D2；判据未改）
+## 2026-09-30 — N1 最终证据登记：不可分辨即停（未改规则/判据/实验代码）
+
+**范围**：新证据页补入一次具名授权的D2实测结果；EVIDENCE新增E-207–E-212与机械重数；
+索引新增`outcome_class: audit`/`needs-review`记录并同步canonical brief；主计划/轮次长文登记实耗
+0.3590401737619605 GPU-h（账本0.3590，已用4.0702/余19.9298）。主48/72h两seed反号，
+`cannot-distinguish`触发停止，只提议N2d；current_node保持N1、paused，不宣告完成。
+
+四成本表保留，但eval峰值继承training峰值，**独立eval内存计量未完成**；validation内部deadline与
+finalizer全集合拒绝有工程覆盖缺口。实际全轮未超cap、最终全集合已只读核齐，三缺口仍明确披露，
+不热改/重跑冻结代码或产物。比较器从归档code.zip只重算已发表元数据、JSON逐字节一致，不执行模型。
+merged的whole字段实际是GPU区间，真实整轮墙钟取attempt；原JSON不改。两seed不作显著性，训练仅
+config-reproducible，未作重训逐位复现。既有授权范围、预算、端点、阈值、test封存、#70–#75状态不变。
+
+工程标记修复`efa410b`的CI36691526554九主步骤绿；精确clone1795passed/14skipped/2warnings，
+skip不算通过，未取得远端test计数。Mimosa提交/push扫描`scanner_enobufs`无结论，未改安全配置。
+最终登记提交与CI的尾记录只进目标进度，不为账务递归改证据页digest。
+
+## 2026-09-30 — N1 零 GPU 审计与冻结 Z 工程准备（当时未运行 D2；判据未改）
 
 **范围**：新增只读复算工具、driver 层冻结随机 Z intervention 与新协议/driver/测试；
 runner/evaluator 接入可选干预、严格 checkpoint 恢复与整轮截止时间，默认 None 保持原路径；

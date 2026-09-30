@@ -2,7 +2,7 @@
 
 <!-- round-node: N1 -->
 
-**N1 已于 2026-09-30 启动。D1/D3 与 D2 工程准备已实跑；D2 已获决策 0021 授权，尚未执行。**
+**N1 于 2026-09-30 执行；D2 主48/72h均unresolved，已按停止条件暂停，只提议N2d。不是目标完成声明。**
 
 本文件是**主计划 `docs/goals/main-model-v2-campaign.md` 的节点 N1** 的目标长文，不是平行真相：
 节点、账本、对表清单都在主计划里；本文件只写「这一轮怎么做」。启动后第一件事是按主计划 §3 对表
@@ -116,7 +116,7 @@
 
 ## §7 进度块
 
-- **状态**：`active`（2026-09-30 开工；不自行判定完成）
+- **状态**：`paused`（D2两主长lead均unresolved，2026-09-30触发停止条件3；current_node仍N1，不自行判定完成）
 - **起点 SHA**：`efe7d82d11542047897196e4d278cdb18752d6b2`；分支 `r7/weather-reasoning`。
 - **开工对表（主计划 §3 六条）**：① current_node=N1、上一轮下一动作指向转向审计；②账本逐行合计
   3.7112、24−3.7112=20.2888 GPU-h；③上一轮登记与本轮 brief 结构核验通过；④本轮由 N1 派生，
@@ -138,6 +138,32 @@
   现有 M2 train/val，只读 val、test 封存；一张空闲本地 RTX3090 顺序执行，≤0.45 GPU-h、≤30min；
   失败/partial/unresolved 保留全部证据即停、不自动重跑或进入下一节点。回执
   `outputs/r7_n1_audit/authorization.json`。同次授权工作分支提交与普通 push，只触发工程 CI。
-- **当前实耗**：0 GPU-h；执行前重读账本仍为 20.2888，`check_campaign_state.py` failures=0。
-- **未做**：D2 GPU 运行、D4 最终登记与 CI 绑定、D5 最终提议。未读 test、未下载、未动归档、未改 model/。
-- **下一动作**：将可执行代码身份提交到工作分支，再重查空闲卡、排他冻结协议、执行已授权的一轮 D2。
+- **D2实际执行**：`outputs/r7_72_frozen_z/`一次尝试status=success；三臂×seed41/42每臂400更新，
+  selected400、无early stop；30val评估、510逐seed RMSE cell、255depth0行、三pair各85cell。
+  protocol canonical digest `e19ef488be60136364702b1df389e5f58be7ebf3845487289139e10d30231e01`，
+  code commit `c4e7e83a5deaaade1caa21fe82faa064e75b3b72`，code.zip SHA256
+  `5fd26146af2a7d11016fb769d67390f5daa23a73620de9ae83e2e6cc38a35a0a`。原归档/代码不改、不重跑。
+- **当前实耗与账本**：执行前再核余20.2888、campaign failures=0；D1/D3为0GPU-h，D2 GPU区间
+  1292.544625543058s＝**0.3590401737619605 GPU-h**（≤0.45），whole1297.8983452636749s（≤1800）。
+  ledger记0.3590，已用4.0702/余19.9298；精确加和4.070240173761961/19.92975982623804，
+  显示舍入不扩授权。`merged.whole`字段实际是GPU区间，真实whole取attempt，不修改归档。
+- **主读法与停止**：冻结Z−RW-A在48h为+0.063121651/−0.193231282 K，72h为+0.325881772/−0.151426589，
+  两seed反号、mean=null，branch=cannot-distinguish/stop_required=true；只提议N2d，不追加seed/臂。
+  同轮RW-B仍48/72h worsened；冻结−RW-B长时效改善为次对比，不替换主问句，不推导Z必要性。
+- **D4/D5证据**：`docs/R7_N1_PIVOT_AUDIT.md`记录D1四块、D2全部角色/成本/digest、限制与逐项覆盖；
+  E-207–E-212；索引`record:n1-pivot-audit-frozen-z-unresolved`预定为audit/needs-review，
+  本证据页先提交，再由独立登记提交绑定其实际SHA/digest并同步canonical brief（目前登记待写）。
+  D1排序目标/暴露/数据/状态（前两项共享结构证据、不是因果排名）；N2d门禁已触发，其他节点不执行。
+- **独立工程复核与未齐项**：终态全集合、共同case、protocol/contract/source元数据交叉一致；
+  归档#60纯元数据重算paired JSON逐字节相同。validation中途deadline不覆盖、finalizer未强制全集合；
+  两seed30次evaluation峰值继承末臂training值255424000B，独立eval峰值缺失，内存视图不能标PASS。
+  三项不热改/补测，仅列未来driver使用前工程前置项；source/checkpoint/cache bytes未再次认证。
+- **工程CI**：c4e7e83的run36690064571失败，本地重现R-021 marker34/actual35；只修文档标记，
+  `efa410b812cada42ccf0eba3d1f47afd54b3aecb`的run36691526554 completed/success、九主步骤绿。
+  精确efa410b的干净clone1795passed/14skipped/2warnings（161.04s），skip原因同上；远端test计数未取得。
+  一手API访问2026-09-30，run/jobs响应在`outputs/r7_n1_audit/ci/`；最终登记提交的CI尾记录只写本进度，
+  不改冻结证据页而产生digest自引用。Mimosa报scanner_enobufs，扫描无结论，不是安全通过。
+- **未做**：目标完成的独立裁定；三工程缺口修复/独立eval内存补测/训练逐位复现；显著性、跨季节区域、
+  matched-Generic、M3/M4/M5/确认轮。未读test/下载/租GPU/改model或main/force/merge/关闭#70–#75/动归档。
+- **下一动作**：N1停在本证据记录，提交/绑定并核验登记树的工程CI后即停；等待用户或独立复核审阅
+  `docs/R7_N1_PIVOT_AUDIT.md`的N2d停止提议，不自动推进节点、不再执行实验。
