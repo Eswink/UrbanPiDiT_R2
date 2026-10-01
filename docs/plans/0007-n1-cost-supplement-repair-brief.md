@@ -54,7 +54,8 @@
 - `python tools/check_conventions.py`：37 条阻断 0 违规；`pytest -q`：本机 **1872 passed / 3 skipped**；
   定向（goal brief + campaign state）32 passed。
 - `python tools/verify_r7_evidence_index.py --index docs/R7_EVIDENCE_INDEX.jsonl --root .`：PASS（14 records）。
-- 推送后 CI run 绑定本提交 SHA（工作分支，普通 push，只触发工程 CI）。
+- 推送后 CI：`c56cbe3` 的 `R7 CPU CI` run `36838072212` completed/success（九主步骤全绿，含
+  `Check campaign state`；实验 workflow 全部 skipped 为设计行为）。访问 2026-10-01，匿名 API 只读核对。
 
 ## 遗留
 
