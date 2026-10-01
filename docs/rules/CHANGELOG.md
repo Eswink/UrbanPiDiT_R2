@@ -39,6 +39,18 @@ GPU计费从首探针spawn前至末child退出，imports/pins/setup/gaps/cleanup
 硬上限与冻结例外均不变。规则总数55，R-054如实登记未机械化；本轮无依赖/模型digest/真实数据/凭据或
 安全配置变更。Mimosa写前拒绝泛化command参数候选，改成固定参数列表+shell=False+stdin JSON，不绕过扫描。
 
+## 2026-10-01 — N1 v2 工程门禁通过、具名授权未答（0 GPU-h，准备态收尾）
+
+准备commit b227020完整SHA与CI36855190840精确绑定，completed/success九主步骤绿；干净clone1988passed/
+14skipped/2warnings、173.22s（CUDA隐藏、skip不算通过），最终定向359passed/23.31s。只读核原30val/
+六checkpoint/source与三项v1冻结哈希未变；回执/日志/API响应在outputs/r7_n1_cost_v2_preparation。
+
+执行那一刻按决策0021 AskUserQuestion询问具名探针+30val共驻≤0.25GPU-h/≤1200s、失败保留即停全额计费不重试，
+未收到回答；不是拒绝或许可。没有授权回执或GPU步骤，不沿用v1许可/存量余额；D1/D3/D4未做、成本验收仍阻塞。
+准备证据页R7_N1_COST_V2_PREPARATION与E-218/索引audit单独登记，不冒称R7_N1_COST_SUPPLEMENT_V2执行结果。
+主计划/本轮进度同步，实耗0、账本不增加、N1paused/current_node及原cannot-distinguish/N2d提议不变。
+无main/force/关闭issue/数据/模型/依赖/凭据或安全配置变更；Mimosa两扫描scanner_enobufs无结论，不宣称安全通过。
+
 ## 2026-10-01 — N1 补测失败审阅（0 GPU-h）与修复轮准备（不新增实验，不改代码/判据）
 
 **范围**：只读审阅 2026-09-30 失败补测的原因边界，写修复轮长文

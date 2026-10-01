@@ -2,7 +2,7 @@
 
 <!-- round-node: N1 -->
 
-**状态：prepared（2026-10-01 扩围），尚未执行；任何 GPU 步骤都需按决策 0021 重新取具名授权。N1 保持 paused，
+**状态：prepared / awaiting named authorization（2026-10-01 D0/D2已验证，D3提问未收到回答），尚未执行GPU；任何 GPU 步骤都需按决策 0021 重新取具名授权。N1 保持 paused，
 不因补齐成本工程项改写 48/72h 的 `cannot-distinguish`，也不宣告目标完成。**
 
 本文件是主计划 `docs/goals/main-model-v2-campaign.md` 的节点 N1 的目标长文（N1 的第三个轮次：转向审计 →
@@ -167,5 +167,16 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
   最终全集359passed/23.31s）；GPU仍未授权/执行。独立工程复核的状态/身份、v1目录保护、超时reap、逐项启动/括号证据、
   直接worker截止/单次父claim、严格int解析与失败诊断不遮原异常均已修，反证保持；复核不认证GPU计量。
   增44函数/122断言，基线1065/2691；37阻断及600/200上限不变。科学判据、model digest与数据不改。
-- **下一动作**：冻结D0/D2准备提交并过精确clone/工程CI；之后执行那一刻按决策0021 AskUserQuestion取具名授权。
-  未获本轮授权前不启动GPU；N1仍paused，48/72h cannot-distinguish与N2d提议不变。
+- **D2精确验证与CI绑定**：准备提交`b227020ca3d4932a765a6cd7a79e26fc659cdeaf`；精确clone
+  `/tmp/n1_v2_exact_clone_8cktlsir` 1988passed/14skipped/2warnings，173.22s，CUDA隐藏；skip不算通过。
+  CI`36855190840` head_sha精确匹配，completed/success，九主步骤成功；远端测试计数未取得。
+  一手[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36855190840)、
+  [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36855190840/jobs?per_page=100)，访问2026-10-01；
+  响应/日志/回执在`outputs/r7_n1_cost_v2_preparation/`，回执SHA256`362c8686…`。
+- **D3阻塞（执行那一刻）**：工程门禁后按决策0021 AskUserQuestion询问具名探针+30val、共驻、≤0.25GPU-h/
+  ≤1200s、失败全额计费即停不重试。**未收到回答**，不是拒绝或许可，不生成授权回执、不执行GPU。
+  D1/D4未做，v2执行目录/probe/attempt/result/终态四表/cost_views不存在；账本未增行、实耗0 GPU-h。
+  准备证据页`docs/R7_N1_COST_V2_PREPARATION.md`单独记录，不冒充已执行V2证据。Mimosa两扫描
+  scanner_enobufs无结论，未改安全配置/凭据、不声明安全通过。
+- **下一动作**：执行前取得具名授权回答，再重核账本、余量、代码与input pins，冻结新回执后才允许一次运行。
+  未获本轮授权前不启动GPU；N1仍paused，48/72h cannot-distinguish与N2d提议不变，不自动推进或自宣完成。

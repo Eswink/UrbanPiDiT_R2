@@ -403,11 +403,13 @@
 
 | E-217 | **v2工程修复按逐评估新进程与余量门槛实现，CPU证据不冒称CUDA验收**：父调度30个seed/arm/lead子进程、单行summary；UUID固定单可见卡，邻居只记录，拒绝先写字节/snapshot。P1单matmul+私有clear仅诊断，零残渣才P2两原val同进程，不能归因即停。30行/17RMSE/source/checkpoint/归档code.zip精确重放契约保持。独立工程复核发现failed P1可能先触发P2、输出可能写v1子目录，均加严格父报告身份/状态/分支验证与冻结v1 ancestry拒绝及反证。定稿初步329passed、复核新增后175核心/资源/探针/政策passed；GPU尚未授权/执行，账本不增加 | `training/r7_n1_cost_replay.py`、`scripts/measure_r7_n1_eval_cost.py`、`scripts/measure_r7_n1_eval_worker.py`、`scripts/probe_r7_n1_allocator.py`及三个计量/探针反证测试；`/tmp/n1-v2-preparation-targeted.log`，最终完整回归/clone/CI另记轮次进度 | 全体（本轮声明的实现与CPU反证） | 已确认 |
 
+| E-218 | **v2工程准备门禁通过，但具名GPU授权未答，仍无实际成本验收**：准备b227020完整SHA的CI36855190840 completed/success九主步骤绿；精确clone1988passed/14skipped/2warnings173.22s，定向359passed。原30val/六checkpoint/source只读身份与v1三个冻结hash核齐。执行那一刻AskUserQuestion具名探针+30val/共驻/≤0.25GPU-h/≤1200s/失败全额计费即停不重试未收到回答；不生成授权回执、不执行GPU，probe/attempt/result/成本四表/cost_views未产。实耗0，账本不增，N1paused及cannot-distinguish/N2d提议不变；Mimosa scanner_enobufs无安全结论 | `docs/R7_N1_COST_V2_PREPARATION.md`、`outputs/r7_n1_cost_v2_preparation/preparation_verification.json` SHA256 `362c8686…`；[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36855190840)与[jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36855190840/jobs?per_page=100)，匿名curl访问2026-10-01；本轮AskUserQuestion返回“用户未提供回答” | 单点（本轮工程准备与授权阻塞） | 已确认 |
+
 ## 统计
 
-- 台账条目：**217** 条（E-001 – E-217；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍2）。
-- 按覆盖度（2026-10-01按行重数）：全体/全体扫描 **147** 条、抽样 **20** 条、单点 **50** 条。
+- 台账条目：**218** 条（E-001 – E-218；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3）。
+- 按覆盖度（2026-10-01按行重数）：全体/全体扫描 **147** 条、抽样 **20** 条、单点 **51** 条。
   保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
-- 按置信度（2026-10-01按行重数）：已确认 **216** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+- 按置信度（2026-10-01按行重数）：已确认 **217** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
   不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013；E-215 记明其推测成分（失败字节未取证）。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。

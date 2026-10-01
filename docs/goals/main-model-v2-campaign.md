@@ -189,6 +189,12 @@
   独立复核缺口修复后补startupclaim/有界reap/30launch证据/失败诊断。未取本轮GPU授权、未执行CUDA，
   账本/节点/状态块不变。
   planner请求失败按能力降级自规划，草案校验verified=true；不外委科学判据。
-- **下一动作**：D2过定向、精确clone全量与工程CI后，在执行那一刻按决策0021取具名授权（探针+30val、
-  共驻、≤0.25GPU-h/≤1200s、失败全额计费即停不重试）。未获授权不执行GPU；N1保持paused，
-  cannot-distinguish与N2d提议不变，不推进节点或宣告目标完成。
+- **修复轮准备验证与执行阻塞**：D0/D2提交`b227020ca3d4932a765a6cd7a79e26fc659cdeaf`的
+  CI`36855190840` completed/success九主步骤全绿；精确clone1988passed/14skipped/2warnings、173.22s，
+  skip不算通过、远端计数未取得。准备回执/响应/日志`outputs/r7_n1_cost_v2_preparation/`；证据页
+  `docs/R7_N1_COST_V2_PREPARATION.md`。2026-10-01执行那一刻按决策0021问具名探针+30val共驻授权，
+  **未收到回答**；不是拒绝或许可，无回执、无GPU运行/成本表、实耗0 GPU-h，账本与状态块不增加或推进。
+  一手API URL/访问日期/精确SHA见修复轮进度；Mimosa scanner_enobufs无安全结论。
+- **下一动作**：执行前先取得具名授权回答（探针+30val、共驻、≤0.25GPU-h/≤1200s、失败全额计费即停不重试），
+  再重核账本/余量/身份与冻结回执。未获授权不执行GPU；N1保持paused，cannot-distinguish与N2d提议不变，
+  不推进节点或宣告目标完成。
