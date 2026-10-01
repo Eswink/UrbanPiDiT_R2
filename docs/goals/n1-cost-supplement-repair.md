@@ -56,11 +56,10 @@ grep -rn "lru_cache" --include="*.py" model/ training/ data/ scripts/
 | 编号 | 交付物 | 证据形态 |
 | --- | --- | --- |
 | D1 | 原因探针 P1（条件 P2） | P1：纯 torch 最小复现（初始化 → matmul → del → gc/sync/empty_cache → 读 allocated/reserved → `_cuda_clearCublasWorkspaces()` → 再读数），输出 `probe_residue.json`（字节 + `memory_snapshot` 摘要）到 v2 输出目录；≤60s GPU。三态读法见 §3.1。P2（仅当 P1 纯 torch 残渣=0）：同进程两次原评估 + 字节记录，≤120s GPU |
-| D2 | v2 计量实现（就地修订 v1 的四个计量文件） | 每次评估一个全新子进程（30 子进程）；守卫拒绝时先落 `guard_refusal.json`（字节 + snapshot 摘要）再抛错；30 行契约、精确重放、四张终态表、`cost_views.json` 不变；v1 的 `measurement_code.zip`（`b7f20e7b…`）与失败目录只读 |
-| D3 | 定向测试 + 工程 CI（**执行授权之前**） | v1 成本测试改到 v2 语义后的定向集合 + 干净 `git clone` 全量；CI run 绑定准备提交的 SHA |
-| D4 | 具名授权（决策 0021） | 执行那一刻 AskUserQuestion：范围＝探针 + 30 次原 val 评估；建议 ≤0.25 GPU-h / 整轮 ≤1200s / 一卡独占 / 失败即停全额计费不重试；回执 JSON 冻结后才执行 |
-| D5 | 执行与登记 | attempt/result/四成本表/cost_views；证据页 `docs/R7_N1_COST_SUPPLEMENT_V2.md` + E 条目 + 索引记录（`outcome_class: audit`）+ 账本行 + brief 与主计划回写 + CI 绑定 |
-| D6 | 只提议 | 成本验收补齐后仍只提议 N2d；不改写原 `cannot-distinguish`，不推进节点 |
+| D2 | v2 计量实现（就地修订 v1 的四个计量文件）+ 测试与 CI（**执行授权之前**） | 每次评估一个全新子进程（30 子进程）；守卫拒绝时先落 `guard_refusal.json`（字节 + snapshot 摘要）再抛错；30 行契约、精确重放、四张终态表、`cost_views.json` 不变；v1 的 `measurement_code.zip`（`b7f20e7b…`）与失败目录只读。先过 v2 语义的定向测试 + 干净 `git clone` 全量，CI run 绑定准备提交的 SHA |
+| D3 | 具名授权（决策 0021） | 执行那一刻 AskUserQuestion：范围＝探针 + 30 次原 val 评估；建议 ≤0.25 GPU-h / 整轮 ≤1200s / 一卡独占 / 失败即停全额计费不重试；回执 JSON 冻结后才执行 |
+| D4 | 执行与登记 | attempt/result/四成本表/cost_views；证据页 `docs/R7_N1_COST_SUPPLEMENT_V2.md` + E 条目 + 索引记录（`outcome_class: audit`）+ 账本行 + brief 与主计划回写 + CI 绑定 |
+| D5 | 只提议 | 成本验收补齐后仍只提议 N2d；不改写原 `cannot-distinguish`，不推进节点 |
 
 ## §3 判据与预声明读法
 
@@ -90,14 +89,14 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
 ## §4 实施顺序（不跳步）
 
 1. **对表**：重跑 `tools/check_campaign_state.py`（退出 0）、重读账本、核 v1 失败页/复核 JSON 的哈希未变。
-2. **D2 + D3（0 GPU-h）**：就地修订计量四文件与探针；定向测试通过；工程 CI 绿；干净 clone 全量核数。
-3. **D4 取授权**：按 §3.2 的范围与预算提问；**未获授权即停在准备态并报告**，不以存量余量代替许可。
-4. **D1 + D5 执行**：同一授权内按序：探针子步骤 → 30 次评估（每次全新进程）→ 四表；任一失败即停。
-5. **D5 登记**：证据页、E 条目、索引记录、账本行、brief 与主计划 §8 回写、CI 绑定；**D6 只提议**。
+2. **D2（0 GPU-h）**：就地修订计量四文件与探针；定向测试通过；工程 CI 绿；干净 clone 全量核数。
+3. **D3 取授权**：按 §3.2 的范围与预算提问；**未获授权即停在准备态并报告**，不以存量余量代替许可。
+4. **D1 + D4 执行**：同一授权内按序：探针子步骤 → 30 次评估（每次全新进程）→ 四表；任一失败即停。
+5. **D4 登记**：证据页、E 条目、索引记录、账本行、brief 与主计划 §8 回写、CI 绑定；**D5 只提议**。
 
 ## §5 预算与停止条件
 
-- 探针 ≤60s GPU（条件 P2 ≤120s）；D2/D3 为 0 GPU-h。
+- 探针 ≤60s GPU（条件 P2 ≤120s）；D2（计量实现 + 测试 + CI）为 0 GPU-h。
 - 执行建议值：**≤0.25 GPU-h / 整轮 ≤1200s**（以授权回答为准；主计划单次实验 ≤30 min；账本余 19.9238）。
 - **停止条件**（满足任一即停并向用户报告，不自行扩大范围）：探针无法归因；预算用尽或授权被拒；
   需要新判据/新数据/租 GPU/合并 main；任一评估失败（即停、全额计费、不重试）。
