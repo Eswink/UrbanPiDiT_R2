@@ -386,11 +386,20 @@
 | E-213 | **一次成本补测只完成1/30，零基线守卫如实拒绝，成本验收仍阻塞**：执行前AskUserQuestion具名授权30原val/0训练/≤324s/失败即停；计量代码1e03f82、原code.zip不改。首项seed41/RW-A/+6h从allocated/reserved均0开始，peak为39590400/46137344B，22case/17变量RMSE及逐caseMSE精确重放；第二lead12h在evaluate调用前因allocated或reserved基线非零失败。没有result、四成本CSV或其余29行，没有自动重试。原guard没记录具体非零字节数，原因未取证；不能断言内存泄漏或外部负载 | `outputs/r7_n1_eval_cost_supplement/attempt.json` SHA256 `662dd5ab2862bd4b0a1cfc585366bfe4b29a0e57edffd6f7f03715f405a35479`、worker日志、首项cost_measurement SHA256 `b654d17d812d3353e887b392505248f9bbdf5d8796c397b2dccb51ab85dcf270`；新protocol canonical `1ce9222321bfe6d799b0f86d7bc0ff4de127d451edaa0e5e8a45ca5a4a3ffc22`；证据页§1–3 | 单点（一次失败尝试及首项计量） | 已确认 |
 | E-214 | **失败全额计入账本，不扩大授权或改科学读法**：GPU保守区间21.443860329687595s＝0.005956627869357666h，whole22.372659532353282s；原N1加失败共0.3649968016313182h≤0.45，算术余0.08500319836868184h不构成重试许可。campaign精确已用4.076196801631319/余19.923803198368685，显示4.0762/19.9238。原主48/72h仍unresolved/不可分辨，N1/paused；GPU1由用户手动腾出。另授单个旧PID的SIGTERM两次检查均未发信号（API缺失/旧PID消失），不干预替代任务；计量子进程失败后退出，没有新训练/节点推进 | 原attempt与`outputs/r7_n1_cost_authorization.json`、两份`r7_n1_cost_gpu_release*_result.json`；只读budget算术、GPU状态；证据页§1/§4–5，主计划账本 | 单点（一次失败成本与停止处理） | 已确认 |
 
+## 第十五遍（2026-10-01）：补测失败原因的 0 GPU-h 审阅与修复轮准备
+
+无新实验；只读审阅 `docs/R7_N1_COST_SUPPLEMENT_ATTEMPT.md` 所记录失败的原因边界，修复轮长文
+`docs/goals/n1-cost-supplement-repair.md`（prepared，未执行）；失败记录与归档在本遍未被改写。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-215 | **失败原因审阅把范围收窄到进程级 allocator 残渣（推测、未取证），修复设计＝零基线由构造保证（每次评估一个全新进程）**：确认（a）失败发生在第二项评估调用之前，清零守卫（`training/r7_n1_cost_replay.py:268-273`）是该子步骤第一个分配相关的 CUDA 触点，之前只有 CPU 哈希/子进程查询/设备属性；（b）跑过的评测器与归档 code.zip 逐字节相同（`training/r7_evaluate.py` sha256 `95fff1be…`）；（c）checkpoint 以 `map_location='cpu'` 载入（`training/r7_experiment.py:125`）；（d）对活跃代码表面的扫描未发现会持有 CUDA 张量的模块级状态——唯一 `lru_cache` 只产生 CPU 张量（`model/sparse_process_graph.py:6-18`），无模块级 torch 张量，两处 `register_forward_hook` 分属冻结 Z 干预与 DDP smoke、均不在 RW-A 评估路径；（e）环境 torch 2.11.0+cu128 与归档 protocol 一致，且存在 `torch._C._cuda_clearCublasWorkspaces`。**推测（未取证）**：torch 进程级工作区族（cuBLAS/cuBLASLt）在第一项完成后常驻、`gc/empty_cache` 释放不掉；v1 守卫拒绝时未记录字节，持有者与字节数均未取证，不能写成已确认。修复＝**每次评估一个全新进程**（30 子进程，不调用释放/私有 API；已考虑未采用私有 API 方案），探针三态读法已预声明（修复轮长文 §3.1）。登记核验：失败页 sha256 `4b350357…`、三提交 `1e03f82/33d57d6/9d8d2b6` 均在 git、CI `36737308495` 对 `9d8d2b6` completed/success 九主步骤全绿（匿名 API，访问 2026-10-01）。本遍 0 GPU-h，账本未增行 | `outputs/r7_n1_eval_cost_supplement/worker_seed41_process_spacetime_rwa.log:11-15`、`scripts/measure_r7_n1_eval_worker.py:28-42`、`training/r7_n1_cost_replay.py:268-273`、`model/sparse_process_graph.py:6-18`、`training/r7_experiment.py:125`；只读命令见 `docs/goals/n1-cost-supplement-repair.md` §1.1；[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36737308495) | 全体（排除性扫描）+ 单点（一次失败尝试） | 已确认 |
+
 ## 统计
 
-- 台账条目：**214** 条（E-001 – E-214；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2）。
-- 按覆盖度（2026-09-30按行重数）：全体/全体扫描 **145** 条、抽样 **20** 条、单点 **49** 条。
+- 台账条目：**215** 条（E-001 – E-215；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1）。
+- 按覆盖度（2026-10-01按行重数）：全体/全体扫描 **146** 条、抽样 **20** 条、单点 **49** 条。
   保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
-- 按置信度（2026-09-30按行重数）：已确认 **213** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
-  不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013。
+- 按置信度（2026-10-01按行重数）：已确认 **214** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+  不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013；E-215 记明其推测成分（失败字节未取证）。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。

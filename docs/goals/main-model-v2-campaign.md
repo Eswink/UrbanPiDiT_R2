@@ -41,6 +41,13 @@
 - **N1本轮读数**：`docs/R7_N1_PIVOT_AUDIT.md`四块审计支持解释候选；冻结Z−RW-A的48/72h
   均seed41正/seed42负，主分支cannot-distinguish；只提议N2d停止。30val评估/510RMSE cell核齐，
   0.3590401737619605GPU-h未超cap；独立evaluation峰值缺失等工程局限如实记录，不据工程CI判科学结论。
+- **N1 补测失败与修复设计（2026-10-01）**：一次具名授权的独立 evaluation 成本补测在 30 项里完成 1 项后
+  失败（第二项零基线守卫拒绝：`training/r7_n1_cost_replay.py:268-273`；失败字节未记录、原因未确认。
+  见 `docs/R7_N1_COST_SUPPLEMENT_ATTEMPT.md`、`outputs/r7_n1_cost_failed_independent_review.json`）。
+  0 GPU-h 只读审阅把范围收窄到**进程级 allocator 残渣**（推测，未取证）：评测器与归档逐字节相同、
+  checkpoint CPU 载入、仓内无 CUDA 全局缓存；修复设计＝**每次评估一个全新进程**，零基线由构造保证
+  （已考虑但未采用「调用私有释放 API」方案）。修复轮长文 `docs/goals/n1-cost-supplement-repair.md`
+  （prepared，未执行；执行那一刻按决策 0021 重新取具名授权）。
 - 工程态：37 条阻断规则 0 违规；门禁是 `R7 CPU CI` 的八步（新增 campaign 检查后为九步，
   历史证据页里的「八步」是它们当时的实测，**不回溯改写**）。
 
@@ -132,7 +139,7 @@
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N1", "previous_node": "N0", "current_round_goal": "docs/goals/main-model-v2-pivot-audit.md", "previous_round_goal": "docs/goals/main-model-v2-rw-b-subtraction.md", "previous_round_evidence": "docs/R7_72_RW_B_SUBTRACTION.md", "previous_round_predates_mechanism": true, "cap_gpu_h": 24.0, "used_gpu_h": 4.0762, "remaining_gpu_h": 19.9238, "status": "paused", "next_node_proposal": "N2d", "current_round_evidence": "docs/R7_N1_PIVOT_AUDIT.md", "current_round_record": "n1-pivot-audit-frozen-z-unresolved"} -->
+<!-- campaign-state: {"current_node": "N1", "previous_node": "N1", "current_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_goal": "docs/goals/main-model-v2-pivot-audit.md", "previous_round_evidence": "docs/R7_N1_PIVOT_AUDIT.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.0762, "remaining_gpu_h": 19.9238, "status": "paused", "next_node_proposal": "N2d"} -->
 
 - **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
 - **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
@@ -157,5 +164,12 @@
   全额计0.005956627869357666h，whole22.372659532353282s；N1原+失败0.3649968016313182≤0.45。
   campaign精确已用4.076196801631319/余19.923803198368685，显示4.0762/19.9238不扩授权。
   原归档/证据页/科学判据不改；独立只读核验部分记录有效、完整成本验收BLOCKED，失效基线数值/原因未知。
-- **下一动作**：N1仍paused/current_node=N1；一次执行授权已用，停止并保留失败。仅可提议失败原因审阅及
-  单独具名的修复/重试决策，不自行重跑、放宽零基线或推进N2d/其它节点，不宣告目标完成。
+- **失败审阅与修复准备（2026-10-01，0 GPU-h）**：只读复核失败页哈希、复核 JSON、三提交与
+  CI 36737308495（`9d8d2b6`，九步全绿）全部对上；审阅确认失败发生在第二项评估**调用之前**
+  （守卫是该子步骤首个 CUDA 触点）、评测器与归档逐字节相同（`95fff1be…`）、checkpoint CPU 载入、
+  仓内无持有 CUDA 张量的全局缓存；**推测**＝进程级 allocator 残渣（失败字节未记录，无法取证）。
+  修复设计＝**每次评估一个全新进程**（零基线由构造保证）；修复轮长文
+  `docs/goals/n1-cost-supplement-repair.md` 已备好（prepared、未执行），执行那一刻按决策 0021 重新取具名授权。
+  账本未增行（本轮无 GPU 消耗）；48/72h cannot-distinguish 与 N2d 提议不变。
+- **下一动作**：N1 保持 paused/current_node=N1，修复轮已备好；等用户触发后先对表再按该轮 §4 执行，
+  执行前按决策 0021 取新的具名授权；不自行重跑、放宽零基线或推进 N2d/其它节点，不宣告目标完成。
