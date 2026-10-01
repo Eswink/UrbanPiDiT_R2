@@ -42,5 +42,9 @@
     本轮文件 0 失败；
   - 本地全量 `pytest -q` → **1872 passed / 3 skipped**（170.96s）；3 个 skip 是
     「干净 checkout 不含真实数据 fixture」的既有跳过，skip 不算通过。
+  - 推送后 CI：提交 `d8dc6fd` 的 `R7 CPU CI` run `36845897605` **completed / success**，九主步骤
+    全部 success（含 `Check conventions`、`Check campaign state`、`Run unit, integration and installed-wheel tests`）；
+    17 条实验 workflow 全 skipped 是 commit-message 标签门控的设计行为（2026-10-01 匿名 API 只读核对）。
+    本记录提交自身的 CI 尾号只回写进长文与主计划的进度块。
 - **遗留**：共驻政策的正式文本（决策 0026、规则细则、AGENTS.md 一行）与 v2 计量改造仍待执行轮的
   D0/D2；N1 成本验收仍 BLOCKED；本扩围不改写 48/72h 的 `cannot-distinguish` 与 N2d 提议。
