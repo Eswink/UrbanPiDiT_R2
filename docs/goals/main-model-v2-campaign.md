@@ -195,6 +195,10 @@
   `docs/R7_N1_COST_V2_PREPARATION.md`。2026-10-01执行那一刻按决策0021问具名探针+30val共驻授权，
   **未收到回答**；不是拒绝或许可，无回执、无GPU运行/成本表、实耗0 GPU-h，账本与状态块不增加或推进。
   一手API URL/访问日期/精确SHA见修复轮进度；Mimosa scanner_enobufs无安全结论。
+- **准备态登记CI尾核**：证据页`90e2c83`、索引`d9abdc02251c1f4714762d1f19f3b1aaa33311f7`，audit/blocked
+  与canonical brief15条齐。CI`36857019490`对索引SHA completed/success九主步骤绿，登记后定向359passed；
+  一手API URL/访问2026-10-01/response digest见修复轮进度及`outputs/r7_n1_cost_v2_preparation/registration_*`。
+  prompt-to-artifact审计明确D0/D2工程已验证、D1/D3/D4因未答授权仍缺；账本0新增、N1paused不动。
 - **下一动作**：执行前先取得具名授权回答（探针+30val、共驻、≤0.25GPU-h/≤1200s、失败全额计费即停不重试），
   再重核账本/余量/身份与冻结回执。未获授权不执行GPU；N1保持paused，cannot-distinguish与N2d提议不变，
   不推进节点或宣告目标完成。

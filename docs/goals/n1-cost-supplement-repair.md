@@ -178,5 +178,13 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
   D1/D4未做，v2执行目录/probe/attempt/result/终态四表/cost_views不存在；账本未增行、实耗0 GPU-h。
   准备证据页`docs/R7_N1_COST_V2_PREPARATION.md`单独记录，不冒充已执行V2证据。Mimosa两扫描
   scanner_enobufs无结论，未改安全配置/凭据、不声明安全通过。
+- **准备态收尾登记**：证据页提交`90e2c839bfafeeb97c9b20b3f4ffa2040676b4c0`，SHA256`e86aa5f9…`；
+  索引提交`d9abdc02251c1f4714762d1f19f3b1aaa33311f7`新增audit/blocked记录，canonical brief同步15条。
+  登记CI`36857019490` head_sha精确匹配completed/success、九主步骤绿；登记后定向359passed/23.26s，
+  campaign0失败/4notes、v1哈希/证据git blob逐字节核齐。逐交付物审计在
+  `outputs/r7_n1_cost_v2_preparation/deliverable_audit.json`：D0/D2有工程证据，D1/D3/D4缺GPU授权与实跑，
+  不把manifest/CI当缺项替代。回执/一手响应归档registration_*，访问2026-10-01；
+  [run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36857019490)、
+  [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36857019490/jobs?per_page=100)。
 - **下一动作**：执行前取得具名授权回答，再重核账本、余量、代码与input pins，冻结新回执后才允许一次运行。
   未获本轮授权前不启动GPU；N1仍paused，48/72h cannot-distinguish与N2d提议不变，不自动推进或自宣完成。
