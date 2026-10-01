@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 14; human-review candidates: 1
+Records: 15; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -21,6 +21,25 @@ Records: 14; human-review candidates: 1
 - CI run: `36276587108`
 - Excluded from runnable candidates: Candidate for human review only; follow-up still requires a new frozen protocol and explicit authorization.
 - Recorded metrics (not recomputed): gate_met=false, gpu_hours=1.157, lead_hours=[6, 12, 24, 48, 72], seeds=3, test_read=false
+
+## n1-cost-v2-coresidency-preparation
+
+- Outcome class: `audit`; candidate state: `blocked`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_N1_COST_V2_PREPARATION.md` (SHA256 `e86aa5f938533a9f6f94103aef486d538766fe00cfda690d7de490f248bb1c1d`)
+- Evidence commit: `90e2c839bfafeeb97c9b20b3f4ffa2040676b4c0`; experiment commit: `b227020ca3d4932a765a6cd7a79e26fc659cdeaf`
+- Protocol SHA256: `not recorded`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: Default co-residency policy and per-cell fresh-process v2 implementation are prepared and engineering-verified. Decision-0021 execution-time AskUserQuestion received no answer, so no GPU probe or thirty-evaluation cost attempt was launched.
+- Limitations:
+  - No named v2 authorization response or receipt; no GPU experiment, probe result, cost attempt, terminal tables or cost_views exists.
+  - CPU/fake CUDA and exact-commit CI do not verify real allocator residues, peak memory, replay or budget feasibility.
+  - Fourteen skipped clean-clone tests are not passing tests; local test counts are not remote CI log counts.
+  - Original v1 failure and all original scientific evidence and pins remain unchanged; N1 stays paused and N2d is only proposed.
+  - Co-residency memory queries are not reservations and neighbors can affect wall-clock measurements.
+  - Mimosa scanner_enobufs is inconclusive, not security clearance; no security or credential configuration changed.
+- CI run: `36855190840`
+- Excluded from runnable candidates: Awaiting named probe-plus-30-val co-residency execution authorization. Engineering tests and free-memory observations do not replace actual CUDA cost evidence or permission.
+- Recorded metrics (not recomputed): campaign_status=paused, clean_clone_passed=1988, clean_clone_seconds=173.22, clean_clone_skipped=14, current_node=N1, engineering_ci_main_steps_success=9, evaluations_completed=0, evaluations_planned=30, gpu_execution_authorized=false, gpu_experiment_executed=false, gpu_hours=0.0, independent_evaluation_cost_complete=false, original_branch=cannot-distinguish, targeted_tests_passed=359, test_read=false, training_updates=0
 
 ## n1-evaluation-cost-supplement-failed
 
