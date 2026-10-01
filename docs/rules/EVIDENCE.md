@@ -405,11 +405,18 @@
 
 | E-218 | **v2工程准备门禁通过，但具名GPU授权未答，仍无实际成本验收**：准备b227020完整SHA的CI36855190840 completed/success九主步骤绿；精确clone1988passed/14skipped/2warnings173.22s，定向359passed。原30val/六checkpoint/source只读身份与v1三个冻结hash核齐。执行那一刻AskUserQuestion具名探针+30val/共驻/≤0.25GPU-h/≤1200s/失败全额计费即停不重试未收到回答；不生成授权回执、不执行GPU，probe/attempt/result/成本四表/cost_views未产。实耗0，账本不增，N1paused及cannot-distinguish/N2d提议不变；Mimosa scanner_enobufs无安全结论 | `docs/R7_N1_COST_V2_PREPARATION.md`、`outputs/r7_n1_cost_v2_preparation/preparation_verification.json` SHA256 `362c8686…`；[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36855190840)与[jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36855190840/jobs?per_page=100)，匿名curl访问2026-10-01；本轮AskUserQuestion返回“用户未提供回答” | 单点（本轮工程准备与授权阻塞） | 已确认 |
 
+## 第十七遍（2026-10-01）：N1 v2具名一次成本补测成功（不改变科学读法）
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-219 | **P1纯torch复现进程级可释放工作区族，条件P2不触发**：用户随后明确答「明确授权，刚刚没有看到」，确认先前AskUserQuestion的一次具名探针+30val共驻≤0.25h/≤1200s范围；回执SHA0770b4f8…先冻。1024² FP32 matmul删除+gc/sync/empty_cache后allocated/reserved8519680/20971520B、1snapshot段，private clear诊断后0/0。按预声明三态①、P1内0.9619s/含启动至退出4.1747s≤60、requires_p2=false；P2不触发不是skip。只确认工作区族，不回填v1当时字节或具体对象，不在30成本路径用私有clear | `outputs/r7_n1_eval_cost_supplement_v2/probe_residue.json` SHA256 `b94aa9383e453635bce5a67edaa38696e816a630ef6dda23f8a09b7474f134b9`、probe parent/claim/exit、具名授权回执；`docs/R7_N1_COST_SUPPLEMENT_V2.md` §1–2 | 单点（一次P1原因探针） | 已确认 |
+| E-220 | **30独立eval成本齐并全额记账，原cannot-distinguish不变**：原六checkpoint×五val，30不同PID/launchID、30零baseline、正allocated≤reserved、528案例/510RMSE格；30rmse.csv文件hash等于原归档，固定provenance/case/MSE精确重放。参数/FLOPs/train吞吐引用原值，四表3/3/6/36行与cost_views digest齐；attempt/result success，无失败/重试/未确认退出。GPU461.74807197228074s=0.12826335332563354h≤0.25，whole463.4213050529361s≤1200；账本显示4.2045/余19.7955。原N1+v1+v2共0.49326015495695175h，v2另授权成本审计，不冒称总≤原0.45h。共驻门槛minfree23713MiB且无外部PID观测，不等于有邻居负载性能实测；N1仍paused/N2d仅提议，0训练/test未读，v1原hash未变 | v2 `attempt.json` SHA256 `e172da59a39ceb9b456e2e910b0e616e67876b8a1e51df34e2d530e1f1cae9e0`、`result.json` SHA256 `7b758e2d428f9a256e8b60fb97535c479b9114b9098aa20d0d3aa34b5b076b0c`、四表/cost_views/启动前后记录；protocol canonical `877d0cab…`；`docs/R7_N1_COST_SUPPLEMENT_V2.md` §3–5 | 全体（本轮30项与终态成本契约） | 已确认 |
+
 ## 统计
 
-- 台账条目：**218** 条（E-001 – E-218；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3）。
-- 按覆盖度（2026-10-01按行重数）：全体/全体扫描 **147** 条、抽样 **20** 条、单点 **51** 条。
+- 台账条目：**220** 条（E-001 – E-220；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3 + 第十七遍2）。
+- 按覆盖度（2026-10-01按行重数）：全体/全体扫描 **148** 条、抽样 **20** 条、单点 **52** 条。
   保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
-- 按置信度（2026-10-01按行重数）：已确认 **217** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+- 按置信度（2026-10-01按行重数）：已确认 **219** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
   不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013；E-215 记明其推测成分（失败字节未取证）。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。

@@ -131,15 +131,16 @@
 | RW-B 减法轮（四臂 × 两种子） | 0.4128 | 3.7112 | `docs/R7_72_RW_B_SUBTRACTION.md` + 索引记录 `record:rw-b-subtraction-round-cannot-attribute`（`gpu_hours = 0.4128`，机器可核） |
 | N1冻结随机Z审计（三臂 × 两种子） | 0.3590 | 4.0702 | `docs/R7_N1_PIVOT_AUDIT.md` + 索引记录 `record:n1-pivot-audit-frozen-z-unresolved`（`gpu_hours = 0.3590401737619605`；账本四位小数舍入，差≤1e-4） |
 | N1独立evaluation成本补测（failed，1/30） | 0.0060 | 4.0762 | `docs/R7_N1_COST_SUPPLEMENT_ATTEMPT.md` + 索引记录 `record:n1-evaluation-cost-supplement-failed`（`gpu_hours = 0.005956627869357666`；失败全额计费，四位显示舍入） |
-| **合计已用** | **4.0762** | — | 24 − 4.0762 = **余 19.9238 GPU-h** |
+| N1 v2独立evaluation成本补测（success，30/30，含P1） | 0.1283 | 4.2045 | `docs/R7_N1_COST_SUPPLEMENT_V2.md` + 索引记录 `record:n1-cost-v2-evaluation-supplement-success`（`gpu_hours = 0.12826335332563354`；含P1与全部启动/间隔/清理，四位显示舍入） |
+| **合计已用** | **4.2045** | — | 24 − 4.2045 = **余 19.7955 GPU-h** |
 
-说明（如实）：**账本不是从证据索引机械累加的**——索引覆盖其中四行（其余四轮没有索引记录），
+说明（如实）：**账本不是从证据索引机械累加的**——索引覆盖其中五行（其余四轮没有索引记录），
 所以 `check_campaign_state.py` 做的是「逐行算术 + 证据指针存在性 + 有索引者数值一致」，
 没有索引支撑的行会被**列出来**而不是被当成已核。把索引补成全量账本是将来可做的一件事，本轮不做。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N1", "previous_node": "N1", "current_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_goal": "docs/goals/main-model-v2-pivot-audit.md", "previous_round_evidence": "docs/R7_N1_PIVOT_AUDIT.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.0762, "remaining_gpu_h": 19.9238, "status": "paused", "next_node_proposal": "N2d"} -->
+<!-- campaign-state: {"current_node": "N1", "previous_node": "N1", "current_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_goal": "docs/goals/main-model-v2-pivot-audit.md", "previous_round_evidence": "docs/R7_N1_PIVOT_AUDIT.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.2045, "remaining_gpu_h": 19.7955, "status": "paused", "next_node_proposal": "N2d"} -->
 
 - **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
 - **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
@@ -199,6 +200,16 @@
   与canonical brief15条齐。CI`36857019490`对索引SHA completed/success九主步骤绿，登记后定向359passed；
   一手API URL/访问2026-10-01/response digest见修复轮进度及`outputs/r7_n1_cost_v2_preparation/registration_*`。
   prompt-to-artifact审计明确D0/D2工程已验证、D1/D3/D4因未答授权仍缺；账本0新增、N1paused不动。
-- **下一动作**：执行前先取得具名授权回答（探针+30val、共驻、≤0.25GPU-h/≤1200s、失败全额计费即停不重试），
-  再重核账本/余量/身份与冻结回执。未获授权不执行GPU；N1保持paused，cannot-distinguish与N2d提议不变，
-  不推进节点或宣告目标完成。
+- **修复轮具名执行（2026-10-01）**：用户随后明确答「明确授权，刚刚没有看到」，仅确认之前AskUserQuestion
+  的一次具名范围；回执`outputs/r7_n1_cost_v2_authorization.json` SHA0770b4f8…先冻结。执行起点b714458，
+  八计量源码逐字节等于准备b227020，原30val/六checkpoint/source只读重核，新输出排他创建。
+  P1纯torch清理后8519680/20971520B，私有clear诊断后0/0，预声明三态①；条件P2不触发。
+  30新进程独立baseline0/0、正峰值、30RMSE文件逐字节等于原归档、528案例/510RMSE格精确语义重放；
+  四成本表3/3/6/36行及cost_views齐。attempt/result success，GPU461.74807197228074s=0.12826335332563354h，
+  whole463.4213050529361s均未超cap，无失败/重试/退出未确认。共驻门槛minfree23713MiB，未观测邻居PID。
+- **修复轮账本与科学边界**：新行0.1283，精确累计4.204460154956952/余19.79553984504305，显示4.2045/19.7955。
+  原N1+v1+v2共0.49326015495695175h，超过原科学轮0.45h历史值；v2是另授≤0.25h成本审计，不回改或冒称
+  合计≤0.45h。原证据/判据/归档不变，独立成本齐不改cannot-distinguish；N1paused/current_node=N1，
+  N2d仅提议。证据页`docs/R7_N1_COST_SUPPLEMENT_V2.md`；独立只读复核/最终登记CI另记本轮进度。
+- **下一动作**：只读核齐并登记实际成本证据、索引/账本与精确CI，再交用户/独立复核审阅既有N2d提议；
+  一次范围已用，不再启动GPU或任何下一节点、不自宣目标完成。

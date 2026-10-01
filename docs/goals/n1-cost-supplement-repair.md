@@ -2,7 +2,7 @@
 
 <!-- round-node: N1 -->
 
-**状态：prepared / awaiting named authorization（2026-10-01 D0/D2已验证，D3提问未收到回答），尚未执行GPU；任何 GPU 步骤都需按决策 0021 重新取具名授权。N1 保持 paused，
+**状态：executed / awaiting independent acceptance（2026-10-01用户明确回答授权后，一次P1+30val成功，0.1282633533 GPU-h；正在只读复核与登记）。一次授权已用，不再运行；N1 保持 paused，
 不因补齐成本工程项改写 48/72h 的 `cannot-distinguish`，也不宣告目标完成。**
 
 本文件是主计划 `docs/goals/main-model-v2-campaign.md` 的节点 N1 的目标长文（N1 的第三个轮次：转向审计 →
@@ -143,7 +143,7 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
 
 ## §7 进度块
 
-- **状态**：`prepared`（2026-10-01 扩围）；未执行任何 GPU 步骤；账本未增行。
+- **状态**：`executed / awaiting independent acceptance`（2026-10-01）：用户随后明确答授权，一次P1+30val成功；账本新增0.1283GPU-h，N1仍paused，不宣告完成。以下准备态记录保留其当时事实。
 - **准备期对表（2026-10-01）**：`check_campaign_state.py` `failures=0 notes=6`；账本逐行合计 4.0762/余 19.9238 复核通过；
   v1 失败页/复核 JSON/三个提交/CI `36737308495`（`9d8d2b6`，九步全绿）均在 git 与匿名 API 上核过，见主计划 §8。
 - **扩围（2026-10-01）**：用户决定「默认共驻、用空闲显存」并授权把它写成本轮 D0；旧「一卡独占/等腾卡」表述
@@ -186,5 +186,21 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
   不把manifest/CI当缺项替代。回执/一手响应归档registration_*，访问2026-10-01；
   [run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36857019490)、
   [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36857019490/jobs?per_page=100)。
-- **下一动作**：执行前取得具名授权回答，再重核账本、余量、代码与input pins，冻结新回执后才允许一次运行。
-  未获本轮授权前不启动GPU；N1仍paused，48/72h cannot-distinguish与N2d提议不变，不自动推进或自宣完成。
+- **D3随后明确授权与执行前核对**：用户回复「明确授权，刚刚没有看到」，仅确认之前AskUserQuestion具名一次
+  探针+30val/共驻/≤0.25h/≤1200s/失败全额计费即停不重试。回执SHA0770b4f80ff1b95b0223d10cf80b498c524ffc626e1ece91f10ae3199db35edf，
+  执行起点b714458；八测量源码逐字节等于b227020 green准备、对表0失败4notes、原30任务/六checkpoint/source
+  只读pins与新输出不存在先核齐。不是把旧未答/余额当授权，不复用v1许可。
+- **D1/D4实跑**：v2输出排他创建，P1清理后allocated/reserved8519680/20971520B，诊断clear后0/0；
+  分类torch-releasable-workspace-family、requires_p2=false，条件P2未执行。P1内0.9619s/含启动至退出4.1747s≤60。
+  30新PID/launchID、全baseline0/0、正峰值，30RMSE文件逐字节同原/固定provenance与case/MSE精确重放，
+  528案例/510RMSE格。四表3/3/6/36行+cost_views齐，attempt/result success；GPU461.74807197228074s
+  =0.12826335332563354h≤0.25，whole463.4213050529361s≤1200，无失败重试或未确认退出。
+  本卡minfree23713MiB，启动/前后均无外部compute PID，不把共驻政策冒称有邻居负载时性能实测。
+- **账本与登记中**：证据页`docs/R7_N1_COST_SUPPLEMENT_V2.md`；新账本0.1283，显示4.2045/余19.7955，
+  精确4.204460154956952/19.79553984504305。原N1+v1+v2共0.49326015495695175h，超原0.45历史值，
+  v2为另授≤0.25h成本审计，不回改/冒称合计≤0.45。原失败页/review/计量归档hash仍原值；不改变科学判据。
+  主链collect_rows/registration/probe_report/inputpins只读重验通过；执行后登记定向359passed/23.37s，
+  八source未改、600/200和37阻断仍原值。全407产物hash清单另放`outputs/r7_n1_cost_v2_acceptance/`，
+  不改运行目录；独立复核与登记CI仍待。
+- **下一动作**：只读核齐并登记实际成本证据/索引/账本/精确CI，再交用户或独立复核审阅；一次范围已用，
+  不再启动GPU、读test、改变cannot-distinguish/N1paused/N2d提议或自行宣布完成。
