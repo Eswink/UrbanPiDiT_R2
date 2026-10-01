@@ -151,6 +151,21 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
   未执行任何 GPU 步骤。扩围提交 `d8dc6fd` 的 CI `36845897605` 九主步骤全绿（2026-10-01 匿名 API 只读核对；
   实验 workflow 全 skipped 是标签门控的设计行为）。
 - **本轮由此被写死的前提**（退出条件照抄主计划 §5）：不一致即停并问用户；执行前重跑对表。
-- **下一动作**：N1 保持 paused/current_node=N1，等用户触发；触发后从 §4.1 开始，先重跑对表，再依次落
-  D0 → D2 → D3；执行那一刻按决策 0021 取具名授权（共驻）。不改写 48/72h 的 cannot-distinguish 与 N2d 提议，
-  不自宣完成或推进节点。
+- **本轮启动与对表（2026-10-01，0 GPU-h）**：用户触发本objective；起点 `7064ff138daddde852cce100767aa3d65505b79c`。
+  六项对表：①N1/paused与上一动作一致；②账本4.0762/余19.9238，算术与证据指针通过（四旧行无索引支撑，
+  不冒称机器核数）；③上一轮登记在索引、commit可达，campaign failures=0 notes=4；④本轮仅实现N1修复，
+  判据指向§3冻结文档，禁止项保持；⑤开工规则/失败证据页无未记录改动，v1页sha4b350357…、review
+  sha9540549b…、measurement_code.zip shab7f20e7b…未变；⑥未发现不一致，不另选方向。
+- **D0落地**：决策0026、R-054细则与AGENTS一行、决策/规则索引、CHANGELOG、E-216已写；ADR两规则与
+  全部37阻断0违规。政策元数据反证2passed，相关治理/goal/campaign/hooks自测348passed（20.35s）。
+  此步无GPU运行、账本不增加。
+- **规划降级**：planner请求`Model request failed`，自行整理`/tmp/n1-cost-repair-plan.json`，校验器
+  verified=true/failures=[]；草案不是证据、不定义科学判据。抽查旧守卫/零基线代码指针与冻结cap一致。
+  goal校验路线只读查询new-provider-7最近一条为cancelled（18.986s）；不依赖它自宣完成。
+- **D2工程实现**：四计量文件就地修订，逐cell新worker、启动/调用余量观察、拒绝前字节/snapshot；P1/P2探针
+  及30行精确重放契约齐。核心最终193passed，定向准备全集341passed（此后新增启动claim与失败诊断反证，
+  最终全集359passed/23.31s）；GPU仍未授权/执行。独立工程复核的状态/身份、v1目录保护、超时reap、逐项启动/括号证据、
+  直接worker截止/单次父claim、严格int解析与失败诊断不遮原异常均已修，反证保持；复核不认证GPU计量。
+  增44函数/122断言，基线1065/2691；37阻断及600/200上限不变。科学判据、model digest与数据不改。
+- **下一动作**：冻结D0/D2准备提交并过精确clone/工程CI；之后执行那一刻按决策0021 AskUserQuestion取具名授权。
+  未获本轮授权前不启动GPU；N1仍paused，48/72h cannot-distinguish与N2d提议不变。

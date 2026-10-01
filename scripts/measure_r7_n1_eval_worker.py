@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import math
+import os
 from types import SimpleNamespace
 from pathlib import Path
 import socket
@@ -25,24 +26,49 @@ def load_support(path):
     return module
 
 
+def failed_call_evidence(directory, device, protocol, torch, support, deadline, error):
+    record = {"scientific_claim": False, "failure_reason": f"{type(error).__name__}: {error}"}
+    try:
+        record["device_after"] = support.gpu_headroom(device, deadline, gpu_uuid=protocol["physical_gpu_uuid"],
+                                                     refusal_path=directory.parent / "guard_refusal.json")
+    except Exception as query_error:
+        record["query_error"] = f"{type(query_error).__name__}: {query_error}"
+    if time.perf_counter() < deadline:
+        record["allocator"] = support.allocator_record(torch.cuda, torch.device(device))
+    else:
+        record["allocator_unavailable"] = "deadline exhausted; no further CUDA diagnostic"
+    support.write_json(directory.parent / f"{directory.name}_failed_call.json", record)
+
+
 def measure_task(task, protocol, directory, evaluate, torch, support, deadline):
     support.check_deadline(deadline)
     support.verify_task_inputs(task, protocol)
     execution_device = protocol["execution_device"]
-    support.gpu_exclusive(execution_device, deadline, gpu_uuid=protocol["physical_gpu_uuid"])
+    refusal_path = directory.parent / "guard_refusal.json"
+    device_before = support.gpu_headroom(execution_device, deadline, gpu_uuid=protocol["physical_gpu_uuid"],
+                                         refusal_path=refusal_path)
     device = torch.device(execution_device)
     support.verify_cuda_device(torch.cuda, device, protocol["physical_gpu_uuid"])
-    baseline = support.reset_measurement(torch.cuda, device)
+    baseline = support.reset_measurement(torch.cuda, device, refusal_path=refusal_path)
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    support.write_json(directory.parent / f"{directory.name}_device_before.json", device_before)
     started = time.perf_counter()
-    report = evaluate(
-        protocol["val_manifest"], output_dir=directory,
-        checkpoint=task["checkpoint"]["path"], lead_hours=(task["lead"],),
-        max_samples=32, device_name=execution_device, reasoning_steps=3,
-        deadline=deadline,
-    )
-    peaks = support.read_peaks(torch.cuda, device)
-    elapsed = time.perf_counter() - started
-    support.gpu_exclusive(execution_device, deadline, gpu_uuid=protocol["physical_gpu_uuid"])
+    try:
+        report = evaluate(
+            protocol["val_manifest"], output_dir=directory,
+            checkpoint=task["checkpoint"]["path"], lead_hours=(task["lead"],),
+            max_samples=32, device_name=execution_device, reasoning_steps=3, deadline=deadline)
+        peaks = support.read_peaks(torch.cuda, device)
+        elapsed = time.perf_counter() - started
+        device_after = support.gpu_headroom(execution_device, deadline, gpu_uuid=protocol["physical_gpu_uuid"],
+                                            refusal_path=refusal_path)
+    except BaseException as error:
+        try:
+            failed_call_evidence(directory, execution_device, protocol, torch, support, deadline, error)
+        except Exception as diagnostic_error:
+            print(f"failure diagnostic unavailable: {type(diagnostic_error).__name__}: {diagnostic_error}", flush=True)
+        raise
+    support.write_json(directory.parent / f"{directory.name}_device_after.json", device_after)
     replay = support.compare_evaluation(task, directory, report)
     support.check_deadline(deadline)
     row = {"seed": task["seed"], "arm": task["arm"], "lead": task["lead"],
@@ -51,7 +77,9 @@ def measure_task(task, protocol, directory, evaluate, torch, support, deadline):
            "original_checkpoint_sha256": task["checkpoint"]["sha256"],
            "evaluation_dir": str(directory), "gpu_uuid": protocol["physical_gpu_uuid"],
            "evaluation_artifacts_sha256": support.evaluation_artifacts(directory),
-           "protocol_sha256": protocol["protocol_sha256"],
+           "protocol_sha256": protocol["protocol_sha256"], "worker_pid": os.getpid(),
+           "launch_id": os.environ["N1_COST_LAUNCH_ID"],
+           "device_before": device_before, "device_after": device_after,
            "measurement_scope": "whole archived evaluate_local call, including model loading, IO and metrics; not isolated model latency"}
     support.write_json(directory / "cost_measurement.json", row)
     return row
@@ -69,6 +97,8 @@ def run(args):
         support.pinned_file(wrapper_root / name, expected, wrapper_root)
     for entry in protocol["extracted_code"]:
         support.pinned_file(code_root / entry["path"], entry["sha256"], code_root)
+    support.claim_parent_launch(protocol, args.output,
+                               f"worker_seed{args.seed}_{args.arm}_lead{args.lead:03d}", args.deadline)
     sys.path.insert(0, str(code_root))
     import torch
     from training.r7_evaluate import evaluate_local
@@ -81,17 +111,15 @@ def run(args):
         raise ValueError("cost supplement torch environment differs from original")
     torch.set_num_threads(4)
     tasks = [task for task in protocol["tasks"]
-             if task["seed"] == args.seed and task["arm"] == args.arm]
-    if [task["lead"] for task in tasks] != list(support.LEADS):
-        raise ValueError("worker requires the original five leads")
-    rows = []
-    for task in tasks:
-        directory = args.output / f"seed{args.seed}" / args.arm / f"lead_{task['lead']:03d}h"
-        rows.append(measure_task(task, protocol, directory, evaluate_local, torch, support, args.deadline))
-        print(f"measured seed={args.seed} arm={args.arm} lead={task['lead']}", flush=True)
+             if (task["seed"], task["arm"], task["lead"]) == (args.seed, args.arm, args.lead)]
+    if len(tasks) != 1:
+        raise ValueError("worker requires exactly one original evaluation")
+    task = tasks[0]
+    directory = args.output / f"seed{args.seed}" / args.arm / f"lead_{args.lead:03d}h"
+    rows = [measure_task(task, protocol, directory, evaluate_local, torch, support, args.deadline)]
+    print(f"measured seed={args.seed} arm={args.arm} lead={args.lead}", flush=True)
     torch.cuda.synchronize(torch.device(protocol["execution_device"]))
-    support.gpu_exclusive(protocol["execution_device"], args.deadline, gpu_uuid=protocol["physical_gpu_uuid"])
-    support.write_json(args.output / f"worker_seed{args.seed}_{args.arm}.json", {
+    support.write_json(args.output / f"worker_seed{args.seed}_{args.arm}_lead{args.lead:03d}.json", {
         "status": "success", "protocol_sha256": protocol["protocol_sha256"],
         "scientific_claim": False, "test_read": False, "rows": rows,
         "limitations": protocol["limitations"],
@@ -99,7 +127,7 @@ def run(args):
 
 
 def parse_request(value):
-    if set(value) != {"protocol", "code_root", "output", "seed", "arm", "deadline"}:
+    if set(value) != {"protocol", "code_root", "output", "seed", "arm", "lead", "deadline"}:
         raise ValueError("cost worker request fields differ")
     wrapper_root = Path(__file__).resolve().parents[1]
     output = Path(value["output"]).resolve()
@@ -107,12 +135,13 @@ def parse_request(value):
     metadata = json.loads(protocol.read_text(encoding="utf-8"))
     input_root = Path(metadata["wrapper_location"]["input_repo"]).resolve()
     if (not output.is_relative_to(input_root / "outputs") or protocol != output / "protocol.json"
-            or isinstance(value["seed"], bool) or value["seed"] not in (41, 42)
+            or type(value["seed"]) is not int or value["seed"] not in (41, 42)
             or value["arm"] not in ("process_spacetime_rwa", "process_local_solver", "process_local_solver_frozen_z")
-            or not math.isfinite(value["deadline"])):
+            or type(value["lead"]) is not int or value["lead"] not in (6, 12, 24, 48, 72)
+            or isinstance(value["deadline"], bool) or not math.isfinite(value["deadline"])):
         raise ValueError("cost worker request outside its named scope")
     return SimpleNamespace(protocol=protocol, code_root=Path(value["code_root"]),
-                           output=output, seed=value["seed"], arm=value["arm"],
+                           output=output, seed=value["seed"], arm=value["arm"], lead=value["lead"],
                            deadline=value["deadline"], support=wrapper_root / "training/r7_n1_cost_replay.py")
 
 

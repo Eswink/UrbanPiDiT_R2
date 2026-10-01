@@ -21,7 +21,10 @@ COUNTS = {6: 22, 12: 21, 24: 19, 48: 15, 72: 11}
 VARIABLES = "t2m u10 v10 mslp z850 t850 q850 u850 v850 z500 t500 q500 u500 v500 z250 u250 v250".split()
 ORIGINAL_PROTOCOL_SHA = "e19ef488be60136364702b1df389e5f58be7ebf3845487289139e10d30231e01"
 ORIGINAL_ZIP_SHA = "5fd26146af2a7d11016fb769d67390f5daa23a73620de9ae83e2e6cc38a35a0a"
-SUPPLEMENT_CAP_SECONDS = 324.0
+SUPPLEMENT_CAP_SECONDS = 900.0
+WHOLE_CAP_SECONDS = 1200.0
+MIN_FREE_MIB = 2048
+AUTHORIZATION_SCOPE = "n1-evaluation-cost-supplement-v2-with-residue-probe"
 
 
 def read_json(path):
@@ -65,10 +68,15 @@ def pinned_file(path, expected, root=None):
 def verify_authorization(value):
     if (value.get("status") != "authorized" or value.get("channel") != "AskUserQuestion"
             or not isinstance(value.get("user_response"), str) or not value["user_response"].strip()
-            or value.get("scope") != "n1-evaluation-cost-supplement"
+            or value.get("scope") != AUTHORIZATION_SCOPE
             or value.get("gpu_seconds_cap") != SUPPLEMENT_CAP_SECONDS
+            or value.get("whole_wall_seconds_cap") != WHOLE_CAP_SECONDS
+            or value.get("device_policy") != "shared-headroom"
+            or value.get("min_free_mib") != MIN_FREE_MIB
+            or value.get("probe_seconds_cap") != 60 or value.get("conditional_p2_seconds_cap") != 120
             or value.get("training_updates") != 0 or value.get("evaluations") != 30
-            or value.get("test_read") is not False or value.get("automatic_retry") is not False):
+            or value.get("test_read") is not False or value.get("automatic_retry") is not False
+            or value.get("failure_policy") != "stop-retain-charge-no-retry"):
         raise ValueError("named decision-0021 cost-supplement authorization required")
 
 
@@ -76,8 +84,12 @@ def verify_registration(path):
     value = read_json(path)
     body = {key: item for key, item in value.items() if key != "protocol_sha256"}
     if (digest(body) != value.get("protocol_sha256")
-            or value.get("format") != "r7-n1-evaluation-cost-supplement-v1"
+            or value.get("format") != "r7-n1-evaluation-cost-supplement-v2"
             or value.get("gpu_seconds_cap") != SUPPLEMENT_CAP_SECONDS
+            or value.get("whole_wall_seconds_cap") != WHOLE_CAP_SECONDS
+            or value.get("device_policy") != "shared-headroom"
+            or value.get("min_free_mib") != MIN_FREE_MIB
+            or value.get("evaluations_per_child") != 1
             or value.get("training_updates") != 0 or value.get("test_read") is not False
             or value.get("original_protocol_sha256") != ORIGINAL_PROTOCOL_SHA):
         raise ValueError("supplement registration mismatch")
@@ -220,7 +232,15 @@ def extract_code(archive_path, target):
     return entries
 
 
-def gpu_exclusive(device, deadline=None, *, gpu_uuid=None):
+def gpu_query(arguments, deadline):
+    timeout = min(5.0, deadline - time.perf_counter()) if deadline is not None else 5.0
+    if timeout <= 0:
+        raise RuntimeError("device-query deadline exhausted")
+    return subprocess.run(["nvidia-smi", *arguments, "--format=csv,noheader,nounits"],
+                          shell=False, check=True, capture_output=True, text=True, timeout=timeout).stdout
+
+
+def device_selector(device, gpu_uuid=None):
     if not isinstance(device, str) or not device.startswith("cuda:") or not device[5:].isdigit():
         raise ValueError("explicit single CUDA device required")
     index = int(device[5:])
@@ -228,38 +248,124 @@ def gpu_exclusive(device, deadline=None, *, gpu_uuid=None):
     identities = visible.split(",") if visible else []
     if identities and index >= len(identities):
         raise ValueError("logical CUDA device outside visible mapping")
-    physical = gpu_uuid if gpu_uuid is not None else identities[index] if identities else str(index)
-    timeout = min(5.0, deadline - time.perf_counter()) if deadline is not None else 5.0
-    if timeout <= 0:
-        raise RuntimeError("device-query deadline exhausted")
-    devices = subprocess.run(["nvidia-smi", "--query-gpu=index,uuid", "--format=csv,noheader"],
-                             shell=False, check=True, capture_output=True, text=True, timeout=timeout).stdout
-    matches = [fields[1] for row in devices.splitlines()
-               if len(fields := [f.strip() for f in row.split(",")]) == 2 and physical in fields]
+    return gpu_uuid if gpu_uuid is not None else identities[index] if identities else str(index)
+
+
+def headroom_record(fields, device, physical, processes):
+    index, uuid, free, total = fields
+    free, total = int(free), int(total)
+    if not 0 <= free <= total:
+        raise ValueError("invalid GPU free/total memory query")
+    neighbors = []
+    for row in processes.splitlines():
+        parts = [part.strip() for part in row.split(",")]
+        if len(parts) != 2 or not parts[1].isdigit():
+            raise ValueError("invalid GPU process query")
+        if parts[0] == uuid and parts[1] != str(os.getpid()):
+            neighbors.append(int(parts[1]))
+    return {"logical_device": device, "physical_selector": physical, "physical_index": int(index),
+            "physical_device": f"cuda:{index}",
+            "gpu_uuid": uuid, "free_mib": free, "total_mib": total,
+            "free_bytes": free * 1024 * 1024, "minimum_free_mib": MIN_FREE_MIB,
+            "external_pids": neighbors, "query_perf_counter": time.perf_counter(),
+            "query_unix_seconds": time.time(), "device_policy": "shared-headroom"}
+
+
+def guard_refusal(path, reason, **details):
+    if path is None:
+        raise ValueError("refusal evidence path required")
+    path = plain_path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(path, {"status": "refused", "reason": reason, "scientific_claim": False,
+                     "test_read": False, "limitations": ["Guard evidence is not a scientific conclusion."],
+                     **details})
+
+
+def gpu_headroom(device, deadline=None, *, gpu_uuid=None, refusal_path=None):
+    physical = device_selector(device, gpu_uuid)
+    devices = gpu_query(["--query-gpu=index,uuid,memory.free,memory.total"], deadline)
+    matches = [fields for row in devices.splitlines()
+               if len(fields := [f.strip() for f in row.split(",")]) == 4 and physical in fields[:2]]
     if len(matches) != 1:
         raise ValueError("physical device mapping is ambiguous or missing")
-    uuid = matches[0]
-    timeout = min(5.0, deadline - time.perf_counter()) if deadline is not None else 5.0
-    if timeout <= 0:
-        raise RuntimeError("device-query deadline exhausted")
-    processes = subprocess.run(["nvidia-smi", "--query-compute-apps=gpu_uuid,pid",
-                               "--format=csv,noheader"], shell=False, check=True,
-                              capture_output=True, text=True, timeout=timeout).stdout
-    for row in processes.splitlines():
-        fields = [field.strip() for field in row.split(",")]
-        if len(fields) == 2 and fields[0] == uuid and fields[1] != str(os.getpid()):
-            raise RuntimeError("cost measurement device is occupied; do not interfere")
-    return {"logical_device": device, "physical_selector": physical, "gpu_uuid": uuid}
+    processes = gpu_query(["--query-compute-apps=gpu_uuid,pid"], deadline)
+    record = headroom_record(matches[0], device, physical, processes)
+    if record["free_mib"] < MIN_FREE_MIB:
+        guard_refusal(refusal_path, "GPU free memory below frozen headroom threshold", device_query=record)
+        raise RuntimeError("GPU headroom insufficient; do not interfere with other processes")
+    return record
+
+
+def select_shared_gpu(device, deadline, refusal_path, *, wait_seconds=600.0):
+    device_selector(device)
+    wait_deadline = min(deadline, time.perf_counter() + wait_seconds)
+    observations = []
+    while True:
+        if time.perf_counter() >= wait_deadline and observations:
+            guard_refusal(refusal_path, "both GPUs below frozen headroom threshold", observations=observations)
+            raise RuntimeError("both GPUs lack headroom after bounded read-only wait")
+        devices = gpu_query(["--query-gpu=index,uuid,memory.free,memory.total"], min(deadline, wait_deadline))
+        candidates = [tuple(f.strip() for f in row.split(",")) for row in devices.splitlines()]
+        if len(candidates) != 2 or any(len(fields) != 4 for fields in candidates):
+            raise ValueError("N1 co-residency requires the declared two-GPU topology")
+        preferred = device_selector(device)
+        candidates.sort(key=lambda fields: preferred not in fields[:2])
+        processes = gpu_query(["--query-compute-apps=gpu_uuid,pid"], min(deadline, wait_deadline))
+        records = [headroom_record(fields, device, fields[1], processes) for fields in candidates]
+        observations.append(records)
+        for record in records:
+            if record["free_mib"] >= MIN_FREE_MIB:
+                return dict(record, startup_observations=observations)
+        remaining = wait_deadline - time.perf_counter()
+        if remaining <= 0:
+            guard_refusal(refusal_path, "both GPUs below frozen headroom threshold", observations=observations)
+            raise RuntimeError("both GPUs lack headroom after bounded read-only wait")
+        time.sleep(min(60.0, remaining))
 
 
 def verify_cuda_device(cuda, device, gpu_uuid):
     actual = str(cuda.get_device_properties(device).uuid)
     if actual.lower().removeprefix("gpu-") != gpu_uuid.lower().removeprefix("gpu-"):
-        raise RuntimeError("selected CUDA device UUID differs from exclusive physical GPU")
+        raise RuntimeError("selected CUDA device UUID differs from bound physical GPU")
     return gpu_uuid
 
 
-def reset_measurement(cuda, device):
+def claim_parent_launch(protocol, output, kind, deadline):
+    launch_id = os.environ.get("N1_COST_LAUNCH_ID", "")
+    record = read_json(Path(output) / f"launch_{kind}.json")
+    if (plain_path(output) != plain_path(protocol["output_dir"])
+            or type(deadline) not in (int, float) or not math.isfinite(deadline)
+            or not time.perf_counter() < deadline <= min(protocol["gpu_phase_deadline_perf_counter"],
+                                                       protocol["whole_deadline_perf_counter"])
+            or len(launch_id) != 64 or any(c not in "0123456789abcdef" for c in launch_id)
+            or record.get("launch_id") != launch_id or record.get("kind") != kind
+            or record.get("parent_pid") != os.getppid() or record.get("deadline") != deadline
+            or record.get("protocol_sha256") != protocol["protocol_sha256"]):
+        raise ValueError("worker/probe requires a bound, unexpired, single-use parent launch")
+    write_json(Path(output) / f"claimed_{kind}.json", {**record, "worker_pid": os.getpid()})
+    return record
+
+
+def allocator_record(cuda, device):
+    allocated, reserved = cuda.memory_allocated(device), cuda.memory_reserved(device)
+    record = {"allocated_bytes": allocated, "reserved_bytes": reserved}
+    try:
+        snapshot = cuda.memory_snapshot()
+        segments = [segment for segment in snapshot if segment["device"] == int(str(device).split(":")[-1])]
+        states = {}
+        for segment in segments:
+            for block in segment.get("blocks", []):
+                state = block["state"]
+                states[state] = states.get(state, 0) + block["size"]
+        record["memory_snapshot"] = {"sha256": digest(snapshot), "segments": len(segments),
+                                     "total_bytes": sum(s["total_size"] for s in segments),
+                                     "block_state_bytes": states, "raw_segments": segments}
+    except Exception as error:
+        record["memory_snapshot"] = {"error": f"{type(error).__name__}: {error}"}
+    return record
+
+
+def reset_measurement(cuda, device, *, refusal_path=None):
     cuda.set_device(device)
     gc.collect()
     cuda.synchronize(device)
@@ -267,6 +373,8 @@ def reset_measurement(cuda, device):
     cuda.synchronize(device)
     allocated, reserved = cuda.memory_allocated(device), cuda.memory_reserved(device)
     if allocated != 0 or reserved != 0:
+        guard_refusal(refusal_path, "nonzero independent evaluation allocator baseline",
+                      allocator=allocator_record(cuda, device), device=str(device))
         raise RuntimeError("independent evaluation requires zero allocated/reserved baseline")
     cuda.reset_peak_memory_stats(device)
     return {"allocated_bytes": allocated, "reserved_bytes": reserved}
@@ -313,6 +421,53 @@ def check_deadline(deadline):
         raise RuntimeError("supplement deadline exhausted")
 
 
+def probe_residue(record):
+    if (not isinstance(record, dict) or type(record.get("allocated_bytes")) is not int
+            or type(record.get("reserved_bytes")) is not int
+            or not 0 <= record["allocated_bytes"] <= record["reserved_bytes"]
+            or not isinstance(record.get("memory_snapshot"), dict) or "error" in record["memory_snapshot"]):
+        raise RuntimeError("invalid residue probe allocator evidence")
+    return record["allocated_bytes"] != 0 or record["reserved_bytes"] != 0
+
+
+def verify_probe_report(report, protocol, mode, output):
+    name = "probe_residue.json" if mode == "P1" else "probe_project_path.json"
+    cap = 60 if mode == "P1" else 120
+    if (mode not in ("P1", "P2") or read_json(Path(output) / name) != report
+            or report.get("format") != "r7-n1-allocator-probe-v1" or report.get("mode") != mode
+            or report.get("status") != "success" or report.get("failure_reason") is not None
+            or report.get("protocol_sha256") != protocol["protocol_sha256"]
+            or report.get("gpu_uuid") != protocol["physical_gpu_uuid"]
+            or report.get("execution_device") != protocol["execution_device"]
+            or report.get("torch_version") != protocol["original_torch_version"]
+            or report.get("scientific_claim") is not False or report.get("test_read") is not False
+            or type(report.get("training_updates")) is not int or report["training_updates"] != 0
+            or report.get("accepted_cost_rows") is not False or report.get("cap_seconds") != cap
+            or type(report.get("elapsed_seconds")) not in (int, float)
+            or not math.isfinite(report["elapsed_seconds"]) or not 0 <= report["elapsed_seconds"] <= cap
+            or probe_residue(report.get("initial"))):
+        raise RuntimeError("residue probe cannot attribute a bound successful observation; stop")
+    if mode == "P1":
+        before, after = probe_residue(report.get("before_clear")), probe_residue(report.get("after_clear"))
+        classification = ("torch-process-residue" if after else "torch-releasable-workspace-family") if before else "needs-project-probe"
+        if (not before and after or report.get("classification") != classification
+                or report.get("requires_p2") is not (not before)
+                or report.get("attribution_confirmed") is not before):
+            raise RuntimeError("residue probe P1 classification/bytes differ")
+    else:
+        prior = read_json(Path(output) / "probe_residue.json")
+        verify_probe_report(prior, protocol, "P1", output)
+        items = report.get("evaluations", [])
+        if (prior["requires_p2"] is not True or report.get("classification") != "project-path-residue"
+                or report.get("attribution_confirmed") is not True
+                or report.get("p1_probe_sha256") != sha256(Path(output) / "probe_residue.json")
+                or [(item["seed"], item["arm"], item["lead"]) for item in items] != [(41, ARMS[0], 6), (41, ARMS[0], 12)]
+                or not any(probe_residue(item.get("after_evaluation")) for item in items)
+                or any(item.get("replay", {}).get("exact_numeric_replay") is not True for item in items)):
+            raise RuntimeError("residue probe P2 attribution/replay differs")
+    return report
+
+
 def validate_measurements(rows, protocol=None, output=None):
     expected = set(itertools.product(SEEDS, ARMS, LEADS))
     keys = [(r["seed"], r["arm"], r["lead"]) for r in rows]
@@ -331,6 +486,17 @@ def validate_measurements(rows, protocol=None, output=None):
                     or row["gpu_uuid"] != protocol["physical_gpu_uuid"]
                     or plain_path(row["evaluation_dir"]) != plain_path(directory)):
                 raise ValueError("cost row does not bind its frozen task/device/protocol")
+            for phase in ("device_before", "device_after"):
+                observed = row.get(phase, {})
+                if (observed.get("gpu_uuid") != protocol["physical_gpu_uuid"]
+                        or observed.get("free_mib", -1) < MIN_FREE_MIB
+                        or observed.get("device_policy") != "shared-headroom"
+                        or not isinstance(observed.get("external_pids"), list)):
+                    raise ValueError("cost row bracketing headroom/UUID evidence differs")
+                if read_json(directory.parent / f"{directory.name}_{phase}.json") != observed:
+                    raise ValueError("cost row persisted device observation differs")
+            if row["device_before"]["query_perf_counter"] > row["device_after"]["query_perf_counter"]:
+                raise ValueError("cost row bracketing query order differs")
             if (evaluation_artifacts(directory) != row["evaluation_artifacts_sha256"]
                     or read_json(directory / "cost_measurement.json") != row
                     or compare_evaluation(task, directory, read_json(directory / "provenance.json")) != row["replay"]):

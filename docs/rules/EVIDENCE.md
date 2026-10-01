@@ -395,11 +395,19 @@
 | --- | --- | --- | --- | --- |
 | E-215 | **失败原因审阅把范围收窄到进程级 allocator 残渣（推测、未取证），修复设计＝零基线由构造保证（每次评估一个全新进程）**：确认（a）失败发生在第二项评估调用之前，清零守卫（`training/r7_n1_cost_replay.py:268-273`）是该子步骤第一个分配相关的 CUDA 触点，之前只有 CPU 哈希/子进程查询/设备属性；（b）跑过的评测器与归档 code.zip 逐字节相同（`training/r7_evaluate.py` sha256 `95fff1be…`）；（c）checkpoint 以 `map_location='cpu'` 载入（`training/r7_experiment.py:125`）；（d）对活跃代码表面的扫描未发现会持有 CUDA 张量的模块级状态——唯一 `lru_cache` 只产生 CPU 张量（`model/sparse_process_graph.py:6-18`），无模块级 torch 张量，两处 `register_forward_hook` 分属冻结 Z 干预与 DDP smoke、均不在 RW-A 评估路径；（e）环境 torch 2.11.0+cu128 与归档 protocol 一致，且存在 `torch._C._cuda_clearCublasWorkspaces`。**推测（未取证）**：torch 进程级工作区族（cuBLAS/cuBLASLt）在第一项完成后常驻、`gc/empty_cache` 释放不掉；v1 守卫拒绝时未记录字节，持有者与字节数均未取证，不能写成已确认。修复＝**每次评估一个全新进程**（30 子进程，不调用释放/私有 API；已考虑未采用私有 API 方案），探针三态读法已预声明（修复轮长文 §3.1）。登记核验：失败页 sha256 `4b350357…`、三提交 `1e03f82/33d57d6/9d8d2b6` 均在 git、CI `36737308495` 对 `9d8d2b6` completed/success 九主步骤全绿（匿名 API，访问 2026-10-01）。本遍 0 GPU-h，账本未增行 | `outputs/r7_n1_eval_cost_supplement/worker_seed41_process_spacetime_rwa.log:11-15`、`scripts/measure_r7_n1_eval_worker.py:28-42`、`training/r7_n1_cost_replay.py:268-273`、`model/sparse_process_graph.py:6-18`、`training/r7_experiment.py:125`；只读命令见 `docs/goals/n1-cost-supplement-repair.md` §1.1；[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36737308495) | 全体（排除性扫描）+ 单点（一次失败尝试） | 已确认 |
 
+## 第十六遍（2026-10-01）：N1 修复扩围的 GPU 共驻政策
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-216 | **用户决定本机 GPU 默认使用空闲显存共驻，不干预邻居**：修复轮明确预声明启动/每次 spawn 前只读余量门槛 ≥2048 MiB，PID 只记录，禁止非本实验信号与冻结/终止自动化，独占须另取具名授权。政策三件套已写为决策0026、R-054与AGENTS一行；读数不是显存预留，共驻墙钟影响列为代价。起点7064ff1，对表failures=0 notes=4；v1失败页sha4b350357…、review sha9540549b…、计量归档shab7f20e7b…只读核齐。此条只证明政策决定与落地，不证明GPU运行或成本验收；本步骤0 GPU-h | `docs/goals/n1-cost-supplement-repair.md` §1.2/§2/§5与本轮用户objective；`docs/decisions/0026-shared-gpu-coresidency-policy.md`；`docs/rules/gpu-resources.md`；`AGENTS.md`；2026-10-01开工git/hash/对表输出 | 单点（一次用户政策决定与本轮落地） | 已确认 |
+
+| E-217 | **v2工程修复按逐评估新进程与余量门槛实现，CPU证据不冒称CUDA验收**：父调度30个seed/arm/lead子进程、单行summary；UUID固定单可见卡，邻居只记录，拒绝先写字节/snapshot。P1单matmul+私有clear仅诊断，零残渣才P2两原val同进程，不能归因即停。30行/17RMSE/source/checkpoint/归档code.zip精确重放契约保持。独立工程复核发现failed P1可能先触发P2、输出可能写v1子目录，均加严格父报告身份/状态/分支验证与冻结v1 ancestry拒绝及反证。定稿初步329passed、复核新增后175核心/资源/探针/政策passed；GPU尚未授权/执行，账本不增加 | `training/r7_n1_cost_replay.py`、`scripts/measure_r7_n1_eval_cost.py`、`scripts/measure_r7_n1_eval_worker.py`、`scripts/probe_r7_n1_allocator.py`及三个计量/探针反证测试；`/tmp/n1-v2-preparation-targeted.log`，最终完整回归/clone/CI另记轮次进度 | 全体（本轮声明的实现与CPU反证） | 已确认 |
+
 ## 统计
 
-- 台账条目：**215** 条（E-001 – E-215；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1）。
-- 按覆盖度（2026-10-01按行重数）：全体/全体扫描 **146** 条、抽样 **20** 条、单点 **49** 条。
+- 台账条目：**217** 条（E-001 – E-217；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍2）。
+- 按覆盖度（2026-10-01按行重数）：全体/全体扫描 **147** 条、抽样 **20** 条、单点 **50** 条。
   保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
-- 按置信度（2026-10-01按行重数）：已确认 **214** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+- 按置信度（2026-10-01按行重数）：已确认 **216** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
   不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013；E-215 记明其推测成分（失败字节未取证）。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。

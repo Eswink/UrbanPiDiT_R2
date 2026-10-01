@@ -80,7 +80,7 @@
 ### 本文件的强制机制（第二遍新增）
 
 `tools/check_conventions.py` 已接入 CI：`.github/workflows/ci.yml` 的
-`Check repository conventions` 步骤运行 **37 条阻断规则**（不含 R-009、R-027、R-030 等报告型，另有 6 条规则未机械化）。
+`Check repository conventions` 步骤运行 **37 条阻断规则**（不含 R-009、R-027、R-030 等报告型，另有 7 条规则未机械化）。
 
 **2026-09-30 追加**：同一作业新增 `Check campaign state` 步骤，运行
 `python tools/check_campaign_state.py --quiet`（决策 0025）。它把主计划

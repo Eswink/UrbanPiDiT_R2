@@ -2,6 +2,43 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-01 — N1 修复扩围：GPU 默认共驻政策（D0，0 GPU-h）
+
+用户已决定本机 GPU 默认使用空闲显存共驻。新增决策 0026 与 `gpu-resources.md`（R-054），
+`AGENTS.md` 硬约束一行、决策/规则索引及 E-216 同步：启动前与每次 spawn 前只读核 UUID/余量，
+外部 PID 只记录，禁止对非本实验进程发任何信号或实现冻结/终止自动化，独占须先取具名授权。
+N1 v2 预声明工程门槛 ≥2048 MiB、启动两卡不足时有限只读等待；读数不是显存预留，共驻墙钟影响
+如实披露。R-054 未接入全仓机械检查（运行时约束）；37 条阻断规则与既有阈值均不变。
+
+起点 `7064ff138daddde852cce100767aa3d65505b79c`；开工对表 failures=0 notes=4（四条旧账本无索引
+支撑，指针与算术有效，未冒称机器核数）。v1 失败页、复核 JSON 与 measurement_code.zip 哈希未变。
+planner 调用 Model request failed，按能力规定降级自规划；草案 `/tmp/n1-cost-repair-plan.json`
+只作工作态，不作证据。D1/D3/D4 尚未执行，0 GPU-h 不增加账本；判据、原归档、数据、模型、48/72h
+cannot-distinguish 与 N2d 提议不变，不推进节点、不宣告完成。
+
+## 2026-10-01 — N1 v2 工程修复与原因探针准备（D2，未执行GPU）
+
+就地修订原四计量文件（support/parent/worker/test），新增纯torch P1与条件同进程P2探针及反证。
+父进程逐seed/arm/lead启动30个新worker，stdin多lead字段、独立日志与单行summary；finalizer仍强制
+30原val/17变量RMSE与provenance/case/MSE精确重放，checkpoint/source/归档code.zip校验不改。
+UUID绑定单可见卡，启动两卡余量选卡及每spawn/调用前后只读≥2048MiB，PID只记录不拒绝；allocator
+非零先落guard_refusal字节/snapshot再抛。默认新输出r7_n1_eval_cost_supplement_v2，v1只读不覆盖。
+
+探针P1单个1024² FP32 matmul、cleanup前后allocated/reserved/memory_snapshot，私有clear仅用于诊断；
+P1无残渣才P2，同进程两原val重放、只reset初始一次，无法归因即停。P1≤60s/P2≤120s、30val、
+共驻≤900GPU秒/整轮≤1200s必须执行那一刻按决策0021取具名授权，旧324s/v1回执不接受。
+GPU计费从首探针spawn前至末child退出，imports/pins/setup/gaps/cleanup/失败全额计入；只kill自身
+持有句柄的child，无邻居信号。标签门控实验CI不触发，主工程CI不代表GPU实测。
+
+核心/余量/政策95passed，探针最终70passed（CPU/fake CUDA）；最终扩展核心193passed、准备全集359passed/23.31s。
+独立复核所见failedP1先触发P2/v1目录ancestry/无界reap/启动证据/直接worker截止/float任务/失败诊断遮异常
+均已修并反证：父校验报告+单次parent-PID/token claim、protocol绝对截止、2s有界reap与退出未确认记录、
+30独立launchID及spawn/前后观察绑定；不信号邻居、不改变科学契约。准备回归曾因新fixture缺协议pin/input_pins
+而失败，补fixture后通过；尺寸反漂移按动态编辑检测到183→190→194，最终定稿实测标记201/45/38/23/23，
+不是放宽阈值。R-009基线1021/2569→1065/2691（新增44函数/122断言，无删除或弱化）；37阻断、600/200
+硬上限与冻结例外均不变。规则总数55，R-054如实登记未机械化；本轮无依赖/模型digest/真实数据/凭据或
+安全配置变更。Mimosa写前拒绝泛化command参数候选，改成固定参数列表+shell=False+stdin JSON，不绕过扫描。
+
 ## 2026-10-01 — N1 补测失败审阅（0 GPU-h）与修复轮准备（不新增实验，不改代码/判据）
 
 **范围**：只读审阅 2026-09-30 失败补测的原因边界，写修复轮长文

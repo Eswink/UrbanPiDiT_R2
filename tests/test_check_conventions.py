@@ -424,8 +424,8 @@ def test_rule_execution_counts_match_docs(checker):
     """The executable rule groups and their documented counts must stay aligned."""
     assert len(checker.BLOCKING_RULES) == 37
     assert len(checker.REPORT_RULES) == 11
-    assert len(checker.RULES_NOT_MECHANISED) == 6
-    assert len(checker.RULES) + len(checker.RULES_NOT_MECHANISED) == 54
+    assert len(checker.RULES_NOT_MECHANISED) == 7
+    assert len(checker.RULES) + len(checker.RULES_NOT_MECHANISED) == 55
     assert not (set(checker.BLOCKING_RULES) & set(checker.REPORT_RULES))
     assert not (set(checker.BLOCKING_RULES) & set(checker.RULES_NOT_MECHANISED))
     assert not (set(checker.REPORT_RULES) & set(checker.RULES_NOT_MECHANISED))

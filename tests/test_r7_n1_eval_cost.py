@@ -17,7 +17,10 @@ from scripts import measure_r7_n1_eval_worker as worker
 
 def authorization():
     return {"status": "authorized", "channel": "AskUserQuestion", "user_response": "authorized",
-            "scope": "n1-evaluation-cost-supplement", "gpu_seconds_cap": 324.0,
+            "scope": support.AUTHORIZATION_SCOPE, "gpu_seconds_cap": 900.0,
+            "whole_wall_seconds_cap": 1200.0, "device_policy": "shared-headroom", "min_free_mib": 2048,
+            "probe_seconds_cap": 60, "conditional_p2_seconds_cap": 120,
+            "failure_policy": "stop-retain-charge-no-retry",
             "training_updates": 0, "evaluations": 30, "test_read": False, "automatic_retry": False}
 
 
@@ -34,8 +37,9 @@ def pin_fixture_protocol(monkeypatch):
 
 def protocol():
     original = original_protocol()
-    body = {"format": "r7-n1-evaluation-cost-supplement-v1", "gpu_seconds_cap": 324.0,
-            "training_updates": 0, "test_read": False,
+    body = {"format": "r7-n1-evaluation-cost-supplement-v2", "gpu_seconds_cap": 900.0,
+            "whole_wall_seconds_cap": 1200.0, "device_policy": "shared-headroom",
+            "min_free_mib": 2048, "evaluations_per_child": 1, "training_updates": 0, "test_read": False,
             "original_protocol_sha256": support.ORIGINAL_PROTOCOL_SHA,
             "original_protocol": original, "val_manifest": original["data"]["val_manifest"],
             "data_identity": original["data"]["data_identity"], "source_identity": original["data"]["source_identity"],
@@ -95,11 +99,15 @@ def test_reset_and_read_use_explicit_device_and_zero_baseline(monkeypatch):
 
 
 @pytest.mark.parametrize("allocated,reserved", [(1, 0), (0, 1), (1, 2)])
-def test_nonzero_baseline_refuses_before_reset(allocated, reserved):
+def test_nonzero_baseline_refuses_before_reset(tmp_path, allocated, reserved):
     cuda = FakeCuda(allocated, reserved)
+    path = tmp_path / "guard_refusal.json"
     with pytest.raises(RuntimeError, match="zero allocated/reserved"):
-        support.reset_measurement(cuda, "cuda:1")
+        support.reset_measurement(cuda, "cuda:1", refusal_path=path)
     assert not any(event[0] == "reset" for event in cuda.events)
+    record = support.read_json(path)["allocator"]
+    assert (record["allocated_bytes"], record["reserved_bytes"]) == (allocated, reserved)
+    assert "memory_snapshot" in record
 
 
 @pytest.mark.parametrize("peak,reserved", [(0, 0), (2, 1), (-1, 3)])
@@ -109,7 +117,7 @@ def test_invalid_peak_refused(peak, reserved):
 
 
 @pytest.mark.parametrize("field,value", [("status", "pending"), ("user_response", ""),
-    ("scope", "other"), ("gpu_seconds_cap", 325), ("training_updates", 1),
+    ("scope", "other"), ("gpu_seconds_cap", 901), ("training_updates", 1),
     ("evaluations", 29), ("test_read", True), ("automatic_retry", True), ("channel", "notification")])
 def test_named_authorization_fail_closed(field, value):
     data = authorization()
@@ -122,7 +130,7 @@ def test_no_authorization_means_no_archive_or_cuda_access(tmp_path, monkeypatch)
     path = tmp_path / "authorization.json"
     support.write_json(path, {"status": "pending"})
     monkeypatch.setattr(parent, "inspect_archive", lambda *_: pytest.fail("archive accessed"))
-    monkeypatch.setattr(parent, "gpu_exclusive", lambda *_: pytest.fail("GPU accessed"))
+    monkeypatch.setattr(parent, "gpu_headroom", lambda *_: pytest.fail("GPU accessed"))
     with pytest.raises(ValueError, match="authorization"):
         parent.run(tmp_path / "archive", tmp_path / "out", path, "cuda:1")
     assert not (tmp_path / "out").exists()
@@ -139,7 +147,7 @@ def test_registration_rehashed_missing_secondary_cell_refuses(tmp_path):
         support.verify_registration(tmp_path / "missing.json")
 
 
-@pytest.mark.parametrize("field,value", [("gpu_seconds_cap", 325), ("training_updates", 1),
+@pytest.mark.parametrize("field,value", [("gpu_seconds_cap", 901), ("training_updates", 1),
                                          ("test_read", True), ("original_protocol_sha256", "0" * 64)])
 def test_registration_rehashed_fixed_controls_refused(tmp_path, field, value):
     p = protocol()
@@ -196,7 +204,12 @@ def valid_rows():
     return [{"seed": s, "arm": a, "lead": h, "n_cases": support.COUNTS[h],
              "baseline": {"allocated_bytes": 0, "reserved_bytes": 0},
              "peak_allocated_bytes": 128, "peak_reserved_bytes": 256, "elapsed_seconds": 1.0,
-             "replay": {"exact_numeric_replay": True}}
+             "replay": {"exact_numeric_replay": True}, "worker_pid": s * 100 + h,
+             "launch_id": support.digest([s, a, h]),
+             "device_before": {"gpu_uuid": "GPU-a", "free_mib": 2048, "external_pids": [],
+                               "device_policy": "shared-headroom", "query_perf_counter": 1.1},
+             "device_after": {"gpu_uuid": "GPU-a", "free_mib": 2048, "external_pids": [],
+                              "device_policy": "shared-headroom", "query_perf_counter": 1.9}}
             for s in support.SEEDS for a in support.ARMS for h in support.LEADS]
 
 
@@ -251,7 +264,8 @@ def test_worker_measurement_sequence_and_record(tmp_path, monkeypatch):
     task.update(seed=41, arm=support.ARMS[0], lead=6, checkpoint={"path": str(output), "sha256": "pin"})
     cuda = FakeCuda()
     torch = SimpleNamespace(cuda=cuda, device=lambda value: value)
-    monkeypatch.setattr(support, "gpu_exclusive", lambda *_a, **_k: None)
+    monkeypatch.setattr(support, "gpu_headroom", lambda *_a, **_k: {"gpu_uuid": "GPU-a", "free_mib": 2048})
+    monkeypatch.setenv("N1_COST_LAUNCH_ID", "a" * 64)
     monkeypatch.setattr(support, "verify_task_inputs", lambda *_: cuda.events.append(("inputs",)))
     monkeypatch.setattr(support.gc, "collect", lambda: cuda.events.append(("gc",)))
     def evaluate(*args, **kwargs):
@@ -277,30 +291,33 @@ def test_expired_deadline_refuses_before_evaluation(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("busy", [False, True])
-def test_gpu_mapping_and_exclusivity(monkeypatch, busy):
+def test_gpu_mapping_and_coresidency(monkeypatch, busy):
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "1")
-    responses = iter(["0, GPU-a\n1, GPU-b\n", f"GPU-b, {12345 if busy else support.os.getpid()}\n"])
+    responses = iter(["0, GPU-a, 9000, 24576\n1, GPU-b, 3000, 24576\n",
+                      f"GPU-b, {12345 if busy else support.os.getpid()}\n"])
     def run(arguments, **kwargs):
         assert kwargs["shell"] is False
         return SimpleNamespace(stdout=next(responses))
     monkeypatch.setattr(support.subprocess, "run", run)
-    if busy:
-        with pytest.raises(RuntimeError, match="occupied"):
-            support.gpu_exclusive("cuda:0")
-    else:
-        assert support.gpu_exclusive("cuda:0")["physical_selector"] == "1"
+    record = support.gpu_headroom("cuda:0")
+    assert record["physical_selector"] == "1" and record["free_mib"] == 3000
+    assert record["external_pids"] == ([12345] if busy else [])
 
 
 def test_owned_child_timeout_kills_only_child_and_waits(tmp_path, monkeypatch):
     events = []
+    support.write_json(tmp_path / "protocol.json", {"protocol_sha256": "protocol"})
     class Child:
+        pid = 123
         def communicate(self, **kwargs):
             assert '"seed": 41' in kwargs["input"]
             events.append("communicate")
             raise subprocess.TimeoutExpired("owned", 1)
         def poll(self): return None
         def kill(self): events.append("kill")
-        def wait(self): events.append("wait")
+        def wait(self, timeout):
+            assert timeout == 2.0
+            events.append("wait")
     def launch(arguments, **kwargs):
         assert arguments == ["./.venv/bin/python", "-B", "measurement/scripts/measure_r7_n1_eval_worker.py"]
         assert kwargs["shell"] is False
@@ -308,7 +325,7 @@ def test_owned_child_timeout_kills_only_child_and_waits(tmp_path, monkeypatch):
     monkeypatch.setattr(parent.subprocess, "Popen", launch)
     monkeypatch.setattr(parent.time, "perf_counter", lambda: 0)
     with pytest.raises(subprocess.TimeoutExpired):
-        parent.run_owned_child(tmp_path, tmp_path, 41, support.ARMS[0], deadline=1, environment={})
+        parent.run_owned_child(tmp_path, tmp_path, 41, support.ARMS[0], 6, deadline=1, environment={})
     assert events == ["communicate", "kill", "wait"]
 
 
@@ -321,7 +338,12 @@ def test_measurement_identity_is_bound_to_task(tmp_path, field, value, monkeypat
     monkeypatch.setattr(support, "evaluation_artifacts", lambda *_: {})
     monkeypatch.setattr(support, "compare_evaluation", lambda *_: {"exact_numeric_replay": True})
     def stored(path):
-        return next((r for r in rows if Path(r["evaluation_dir"]) / "cost_measurement.json" == path), {})
+        for row in rows:
+            directory = Path(row["evaluation_dir"])
+            if directory / "cost_measurement.json" == path: return row
+            for phase in ("device_before", "device_after"):
+                if directory.parent / f"{directory.name}_{phase}.json" == path: return row[phase]
+        return {}
     monkeypatch.setattr(support, "read_json", stored)
     for task, row in zip(p["tasks"], rows):
         task["checkpoint"] = {"sha256": "pin"}
@@ -339,7 +361,7 @@ def test_expired_parent_never_spawns_child(tmp_path, monkeypatch):
     monkeypatch.setattr(parent.time, "perf_counter", lambda: 10)
     monkeypatch.setattr(parent.subprocess, "Popen", lambda *_a, **_k: pytest.fail("spawned"))
     with pytest.raises(RuntimeError, match="deadline"):
-        parent.run_owned_child(tmp_path, tmp_path, 41, support.ARMS[0], deadline=9, environment={})
+        parent.run_owned_child(tmp_path, tmp_path, 41, support.ARMS[0], 6, deadline=9, environment={})
     assert not list(tmp_path.glob("*.log"))
 
 
@@ -347,15 +369,15 @@ def test_gpu_queries_are_bounded_by_remaining_deadline(monkeypatch):
     monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
     monkeypatch.setattr(support.time, "perf_counter", lambda: 10)
     calls = []
-    responses = iter(["0, GPU-a\n1, GPU-b\n", ""])
+    responses = iter(["0, GPU-a, 9000, 24576\n1, GPU-b, 3000, 24576\n", ""])
     def run(arguments, **kwargs):
         calls.append(kwargs["timeout"])
         return SimpleNamespace(stdout=next(responses))
     monkeypatch.setattr(support.subprocess, "run", run)
-    support.gpu_exclusive("cuda:1", deadline=12)
+    support.gpu_headroom("cuda:1", deadline=12)
     assert calls == [2, 2]
     with pytest.raises(RuntimeError, match="deadline"):
-        support.gpu_exclusive("cuda:1", deadline=9)
+        support.gpu_headroom("cuda:1", deadline=9)
     assert calls == [2, 2]
 
 
@@ -387,12 +409,15 @@ def test_failure_after_worker_is_charged_and_retained(tmp_path, monkeypatch):
     monkeypatch.setattr(parent, "extract_code", lambda *_: [])
     monkeypatch.setattr(parent, "freeze_wrapper", lambda *_: {})
     monkeypatch.setattr(parent, "registration", lambda *_: protocol())
-    monkeypatch.setattr(parent, "gpu_exclusive", lambda *_a, **_k: {"gpu_uuid": "GPU-a"})
+    monkeypatch.setattr(parent, "gpu_headroom", lambda *_a, **_k: {"gpu_uuid": "GPU-a"})
+    monkeypatch.setattr(parent, "select_shared_gpu", lambda *_a, **_k: {"gpu_uuid": "GPU-a", "physical_device": "cuda:0"})
+    monkeypatch.setattr(parent, "run_probe", lambda *_a, **_k: {"status": "success", "attribution_confirmed": True, "requires_p2": False})
+    monkeypatch.setattr(parent, "verify_probe_report", lambda *_a, **_k: None)
     monkeypatch.setattr(parent.time, "perf_counter", lambda: 100.0)
     calls = []
     def fail(*args, **kwargs):
         assert kwargs["environment"]["CUDA_VISIBLE_DEVICES"] == "GPU-a"
-        calls.append((args[2], args[3]))
+        calls.append((args[2], args[3], args[4]))
         monkeypatch.setattr(parent.time, "perf_counter", lambda: 125.0)
         raise RuntimeError("worker failure")
     monkeypatch.setattr(parent, "run_owned_child", fail)
@@ -401,7 +426,7 @@ def test_failure_after_worker_is_charged_and_retained(tmp_path, monkeypatch):
     attempt = support.read_json(out / "attempt.json")
     assert attempt["status"] == "failed" and attempt["gpu_phase_seconds"] == 25.0
     assert attempt["gpu_hours_charged"] == 25 / 3600
-    assert calls == [(41, support.ARMS[0])]
+    assert calls == [(41, support.ARMS[0], 6)]
     assert (out / "protocol.json").is_file() and not (out / "result.json").exists()
 
 
@@ -435,7 +460,7 @@ def test_changed_source_refuses_before_cuda_or_evaluation(tmp_path, monkeypatch)
     def changed(*args):
         raise ValueError("source digest mismatch")
     monkeypatch.setattr(support, "verify_source", changed)
-    monkeypatch.setattr(support, "gpu_exclusive", lambda *_a, **_k: pytest.fail("CUDA checked before source"))
+    monkeypatch.setattr(support, "gpu_headroom", lambda *_a, **_k: pytest.fail("CUDA checked before source"))
     with pytest.raises(ValueError, match="source digest"):
         worker.measure_task({}, {}, tmp_path, lambda *_a, **_k: pytest.fail("evaluation ran"), None, support, 1e12)
     assert not list(tmp_path.iterdir())
@@ -460,33 +485,36 @@ def test_actual_cuda_uuid_is_bound_to_checked_device(uuid):
             support.verify_cuda_device(FakeCuda(), "cuda:1", uuid)
 
 
-def test_uuid_exclusivity_does_not_assume_numeric_ordinal(monkeypatch):
+def test_uuid_coresidency_does_not_assume_numeric_ordinal(monkeypatch):
     monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
-    responses = iter(["0, GPU-a\n1, GPU-b\n", "GPU-b, 12345\n"])
+    responses = iter(["0, GPU-a, 9000, 24576\n1, GPU-b, 3000, 24576\n", "GPU-b, 12345\n"])
     monkeypatch.setattr(support.subprocess, "run", lambda *_a, **_k: SimpleNamespace(stdout=next(responses)))
-    selected = support.gpu_exclusive("cuda:1", gpu_uuid="GPU-a")
+    selected = support.gpu_headroom("cuda:1", gpu_uuid="GPU-a")
     assert selected["gpu_uuid"] == "GPU-a"
 
 
-def test_occupied_after_evaluation_refuses_row_publication(tmp_path, monkeypatch):
+def test_insufficient_headroom_after_evaluation_refuses_row_publication(tmp_path, monkeypatch):
     task, directory, report = evaluation_files(tmp_path)
     task.update(seed=41, arm=support.ARMS[0], lead=6, checkpoint={"path": "fixture", "sha256": "pin"})
     monkeypatch.setattr(support, "verify_task_inputs", lambda *_: None)
     occupied = [False]
     def check(*args, **kwargs):
-        if occupied[0]: raise RuntimeError("device occupied")
-    monkeypatch.setattr(support, "gpu_exclusive", check)
+        if occupied[0]:
+            support.guard_refusal(kwargs["refusal_path"], "GPU headroom insufficient", free_bytes=1024)
+            raise RuntimeError("headroom insufficient")
+    monkeypatch.setattr(support, "gpu_headroom", check)
     def evaluate(*args, **kwargs):
         occupied[0] = True
         return report
     p = {"device": "cuda:1", "execution_device": "cuda:0", "physical_gpu_uuid": "GPU-a", "val_manifest": "val.jsonl"}
     torch = SimpleNamespace(cuda=FakeCuda(), device=lambda value: value)
-    with pytest.raises(RuntimeError, match="occupied"):
+    with pytest.raises(RuntimeError, match="headroom"):
         worker.measure_task(task, p, directory, evaluate, torch, support, 1e12)
     assert not (directory / "cost_measurement.json").exists()
+    assert support.read_json(directory.parent / "guard_refusal.json")["free_bytes"] == 1024
 
 
-@pytest.mark.parametrize("change", ["absent", "provenance", "rmse", "measurement", "acc"])
+@pytest.mark.parametrize("change", ["absent", "provenance", "rmse", "measurement", "acc", "bracket", "claimed", "spawn", "exit", "launch"])
 def test_final_collection_requires_all_bound_replay_artifacts(tmp_path, change):
     rows, p = valid_rows(), protocol()
     p.update(device="cuda:1", execution_device="cuda:0", physical_gpu_uuid="GPU-a")
@@ -502,14 +530,28 @@ def test_final_collection_requires_all_bound_replay_artifacts(tmp_path, change):
                    original_checkpoint_sha256="pin", evaluation_dir=str(directory),
                    evaluation_artifacts_sha256=support.evaluation_artifacts(directory))
         support.write_json(directory / "cost_measurement.json", row)
-    for seed in support.SEEDS:
-        for arm in support.ARMS:
-            selected = [r for r in rows if r["seed"] == seed and r["arm"] == arm]
-            support.write_json(tmp_path / f"worker_seed{seed}_{arm}.json",
-                               {"status": "success", "protocol_sha256": p["protocol_sha256"], "rows": selected})
+        for phase in ("device_before", "device_after"):
+            support.write_json(directory.parent / f"{directory.name}_{phase}.json", row[phase])
+    for row in rows:
+        stem = f"seed{row['seed']}_{row['arm']}_lead{row['lead']:03d}"
+        support.write_json(tmp_path / f"worker_{stem}.json",
+                           {"status": "success", "protocol_sha256": p["protocol_sha256"], "rows": [row]})
+        support.write_json(tmp_path / f"child_{stem}.json", {
+            "worker_pid": row["worker_pid"], "launch_id": row["launch_id"], "returncode": 0,
+            "seed": row["seed"], "arm": row["arm"], "lead": row["lead"],
+            "protocol_sha256": p["protocol_sha256"], "launched_perf_counter": 1, "finished_perf_counter": 2})
+        support.write_json(tmp_path / f"spawn_{stem}.json", {"gpu_uuid": "GPU-a", "free_mib": 2048})
+        issued = {"protocol_sha256": p["protocol_sha256"], "launch_id": row["launch_id"]}
+        support.write_json(tmp_path / f"launch_worker_{stem}.json", issued)
+        support.write_json(tmp_path / f"claimed_worker_{stem}.json", dict(issued, worker_pid=row["worker_pid"]))
     assert parent.collect_rows(tmp_path, p) == rows
     first = Path(rows[0]["evaluation_dir"])
+    stem = f"seed41_{support.ARMS[0]}_lead006"
     if change == "absent": first.rename(first.parent / "absent")
+    elif change == "bracket": (first.parent / f"{first.name}_device_after.json").write_text("{}", encoding="utf-8")
+    elif change in ("claimed", "spawn", "exit", "launch"):
+        prefix = {"claimed": "claimed_worker", "spawn": "spawn", "exit": "child", "launch": "launch_worker"}[change]
+        (tmp_path / f"{prefix}_{stem}.json").write_text("{}", encoding="utf-8")
     else:
         names = {"provenance": "provenance.json", "rmse": "rmse.csv",
                  "measurement": "cost_measurement.json", "acc": "acc.csv"}
