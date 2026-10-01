@@ -49,5 +49,5 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 | [`main-model-v2-rw-b-round.md`](main-model-v2-rw-b-round.md) | V2 第二阶段：RW-B 局部门控求解状态（#72 M2-B） | 已完成（negative，`docs/R7_72_RW_B_PILOT.md`）；含 goal 校验悬挂的恢复记录指针 |
 | [`main-model-v2-rw-b-subtraction.md`](main-model-v2-rw-b-subtraction.md) | RW-B 减法归因（(a) 门控+锚定提案 / (b) Z 递推 / (c) role 标记） | 已完成（`branch=stop-confounded-control`：负控制按构造退化，不能归因） |
 | [`main-model-v2-pivot-audit.md`](main-model-v2-pivot-audit.md) | N1 转向审计（四块 0 GPU-h）+ 冻结随机 Z 可证伪臂 | 已完成（两 seed 反号 → `cannot-distinguish`，只提议 N2d） |
-| [`n1-cost-supplement-repair.md`](n1-cost-supplement-repair.md) | N1 独立 evaluation 成本补测的失败审阅与 v2 重测（逐评估新进程） | **prepared**（未执行；执行那一刻按决策 0021 取具名授权） |
+| [`n1-cost-supplement-repair.md`](n1-cost-supplement-repair.md) | N1 独立 evaluation 成本补测的失败审阅、v2 重测（逐评估新进程）与 GPU 共驻政策落地 | **prepared（2026-10-01 扩围）**（未执行；D0 落共驻政策、D2 改余量门槛；执行那一刻按决策 0021 取具名授权） |
 | `docs/R7_GPU_BRINGUP_BRIEF.md` | （已迁移） | R-034 登记为早于约定的例外；现仅为指向本目录的指针，不再维护第二份定义 |

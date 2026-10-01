@@ -43,3 +43,4 @@
 | [0005](0005-zcode-goal-verifier-hang.md) | ZCode goal 完成校验挂起：成因定位、恢复与本地超时补丁 | 仓库侧已完成（补丁已落盘，重启生效与冒烟留待用户选时机；4 处与计划的差异见文内） | 2026-09-30 |
 | [0006](0006-v2-campaign-master-plan-and-recheck.md) | R7 V2 的主计划与每轮对表（含 N1 审计轮的目标长文） | 已完成（含 1 处计划外的工具缺陷修复与 3 处契约收紧，见文内） | 2026-09-30 |
 | [0007](0007-n1-cost-supplement-repair-brief.md) | N1 成本补测失败审阅与修复轮长文（prepared） | 已完成（0 GPU-h 审阅 + 修复轮长文；修复执行待新具名授权） | 2026-10-01 |
+| [0008](0008-n1-cost-coresidency-handoff.md) | N1 成本轮的共驻扩围与 goal 交接（prepared） | 已完成（只产出 objective 与承载文档；共驻政策正文与 v2 计量留给执行轮 D0/D2） | 2026-10-01 |
