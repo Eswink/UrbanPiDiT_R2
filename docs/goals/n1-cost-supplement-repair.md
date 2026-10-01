@@ -2,7 +2,7 @@
 
 <!-- round-node: N1 -->
 
-**状态：executed / awaiting independent acceptance（2026-10-01用户明确回答授权后，一次P1+30val成功，0.1282633533 GPU-h；正在只读复核与登记）。一次授权已用，不再运行；N1 保持 paused，
+**状态：executed / artifact-verified，登记CI待核（2026-10-01）：一次P1+30val成功，0.1282633533 GPU-h；独立只读产物门已通过，正在登记。一次授权已用，不再运行；N1 保持 paused，
 不因补齐成本工程项改写 48/72h 的 `cannot-distinguish`，也不宣告目标完成。**
 
 本文件是主计划 `docs/goals/main-model-v2-campaign.md` 的节点 N1 的目标长文（N1 的第三个轮次：转向审计 →
@@ -143,7 +143,7 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
 
 ## §7 进度块
 
-- **状态**：`executed / awaiting independent acceptance`（2026-10-01）：用户随后明确答授权，一次P1+30val成功；账本新增0.1283GPU-h，N1仍paused，不宣告完成。以下准备态记录保留其当时事实。
+- **状态**：`executed / artifact-verified`，登记CI待核（2026-10-01）：一次P1+30val成功，独立产物门已通过；账本新增0.1283GPU-h，N1仍paused，不宣告完成。以下准备态记录保留其当时事实。
 - **准备期对表（2026-10-01）**：`check_campaign_state.py` `failures=0 notes=6`；账本逐行合计 4.0762/余 19.9238 复核通过；
   v1 失败页/复核 JSON/三个提交/CI `36737308495`（`9d8d2b6`，九步全绿）均在 git 与匿名 API 上核过，见主计划 §8。
 - **扩围（2026-10-01）**：用户决定「默认共驻、用空闲显存」并授权把它写成本轮 D0；旧「一卡独占/等腾卡」表述
@@ -201,6 +201,21 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
   v2为另授≤0.25h成本审计，不回改/冒称合计≤0.45。原失败页/review/计量归档hash仍原值；不改变科学判据。
   主链collect_rows/registration/probe_report/inputpins只读重验通过；执行后登记定向359passed/23.37s，
   八source未改、600/200和37阻断仍原值。全407产物hash清单另放`outputs/r7_n1_cost_v2_acceptance/`，
-  不改运行目录；独立复核与登记CI仍待。
-- **下一动作**：只读核齐并登记实际成本证据/索引/账本/精确CI，再交用户或独立复核审阅；一次范围已用，
+  不改运行目录；以下追加独立复核与登记证据，不改上述实跑数据。
+- **独立只读产物门（2026-10-01）**：独立stdlib校验8592断言、exit0，407运行文件前后hash集合不变；
+  81input pins（源仅hash不解码）、六selected400 checkpoint、原code.zip953/953成员逐byte对原git c4e7e83、
+  118活跃源pin/model digest与八计量源逐byte对准备b227020/执行b714458核齐。30RMSE/ACC/skill各CSV同原，
+  provenance仅elapsed_seconds不同；30PID/launch/claim/exit/单父时序无重叠，91UUID余量记录均≥2048MiB。
+  snapshot字节/digest三态①、P2不触发、四表逐单元/hash、授权/计费/三项v1冻结hash均核齐。
+  复核没有GPU/evaluator重跑、network/test manifest或tensor解码、运行目录写；不提供完整syscall trace，
+  不把无邻居PID观测当作真实共驻负载证明，不声称v1具体残渣对象或逐位GPU复现/科学/目标完成。
+  回执`outputs/r7_n1_cost_v2_acceptance/independent_verification.json` SHA256
+  `40699952b68fedabfa159ec8ca52ee4dab20ffeaf7c11ddcaa06d9202a08b0f2`；checker SHA256
+  `4b15ba9559fa69eacf56620dd161d32ffeca886536fca77be736b491f35a0abc`，主链归档同一checker并只读实跑回执一致。
+- **实际审计登记**：证据页冻结提交`3d7a8e2e52941407cfb882780413b8b99d7e5a3c`，页SHA256
+  `7ce659dfa6e244b754383a8b42bc5ce8e16eacb6b136a24f97bad63cd9e01873`；E-219–E-221与索引
+  `n1-cost-v2-evaluation-supplement-success`按audit/needs-review单独登记，不改旧准备/失败/主科学记录。
+  canonical brief同步16条；主计划新行机器支撑，原四条历史无索引行仍如实列note。最终登记CPU定向
+  555passed/24.23s，37阻断0违规，goal0失败0advisory、campaign0失败4历史notes，git whitespace通过；登记CI待核。
+- **下一动作**：核对实际审计索引/账本登记提交的精确CI，再交用户或独立复核审阅；一次范围已用，
   不再启动GPU、读test、改变cannot-distinguish/N1paused/N2d提议或自行宣布完成。

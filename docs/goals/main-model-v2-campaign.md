@@ -211,5 +211,14 @@
   原N1+v1+v2共0.49326015495695175h，超过原科学轮0.45h历史值；v2是另授≤0.25h成本审计，不回改或冒称
   合计≤0.45h。原证据/判据/归档不变，独立成本齐不改cannot-distinguish；N1paused/current_node=N1，
   N2d仅提议。证据页`docs/R7_N1_COST_SUPPLEMENT_V2.md`；独立只读复核/最终登记CI另记本轮进度。
-- **下一动作**：只读核齐并登记实际成本证据、索引/账本与精确CI，再交用户/独立复核审阅既有N2d提议；
+- **修复轮独立产物复核（2026-10-01）**：独立stdlib校验8592断言、407运行文件前后hash不变；81输入pin、
+  原code.zip 953/953成员逐字节等于原c4e7e83、118源pin/model digest、八计量源对准备/执行commit核齐。
+  30RMSE/ACC/climatology_skill各CSV逐字节同原，provenance仅elapsed_seconds不同，30PID/launch/claim/exit与
+  91UUID/余量/时序观察齐；P1三态①、P2条件未触发，四表逐单元/预算/三项v1冻结hash核齐。
+  回执`outputs/r7_n1_cost_v2_acceptance/independent_verification.json` SHA256`40699952b68fedabfa159ec8ca52ee4dab20ffeaf7c11ddcaa06d9202a08b0f2`。
+  这是产物工程接受，不是科学gate/目标完成或新授权；没有GPU重放、syscall全程审计或真实邻居负载性能验证。
+  证据页冻结提交`3d7a8e2e52941407cfb882780413b8b99d7e5a3c`、页SHA256`7ce659dfa6e244b754383a8b42bc5ce8e16eacb6b136a24f97bad63cd9e01873`；
+  audit记录`n1-cost-v2-evaluation-supplement-success`单独登记，保留旧prepared/failed记录；canonical brief16条。
+  最终登记CPU定向555passed/24.23s、37阻断0违规、campaign0失败4历史notes/goal0失败，登记CI待核。
+- **下一动作**：核对实际审计索引/账本登记提交的精确CI，再交用户/独立复核审阅既有N2d提议；
   一次范围已用，不再启动GPU或任何下一节点、不自宣目标完成。

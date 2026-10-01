@@ -412,11 +412,13 @@
 | E-219 | **P1纯torch复现进程级可释放工作区族，条件P2不触发**：用户随后明确答「明确授权，刚刚没有看到」，确认先前AskUserQuestion的一次具名探针+30val共驻≤0.25h/≤1200s范围；回执SHA0770b4f8…先冻。1024² FP32 matmul删除+gc/sync/empty_cache后allocated/reserved8519680/20971520B、1snapshot段，private clear诊断后0/0。按预声明三态①、P1内0.9619s/含启动至退出4.1747s≤60、requires_p2=false；P2不触发不是skip。只确认工作区族，不回填v1当时字节或具体对象，不在30成本路径用私有clear | `outputs/r7_n1_eval_cost_supplement_v2/probe_residue.json` SHA256 `b94aa9383e453635bce5a67edaa38696e816a630ef6dda23f8a09b7474f134b9`、probe parent/claim/exit、具名授权回执；`docs/R7_N1_COST_SUPPLEMENT_V2.md` §1–2 | 单点（一次P1原因探针） | 已确认 |
 | E-220 | **30独立eval成本齐并全额记账，原cannot-distinguish不变**：原六checkpoint×五val，30不同PID/launchID、30零baseline、正allocated≤reserved、528案例/510RMSE格；30rmse.csv文件hash等于原归档，固定provenance/case/MSE精确重放。参数/FLOPs/train吞吐引用原值，四表3/3/6/36行与cost_views digest齐；attempt/result success，无失败/重试/未确认退出。GPU461.74807197228074s=0.12826335332563354h≤0.25，whole463.4213050529361s≤1200；账本显示4.2045/余19.7955。原N1+v1+v2共0.49326015495695175h，v2另授权成本审计，不冒称总≤原0.45h。共驻门槛minfree23713MiB且无外部PID观测，不等于有邻居负载性能实测；N1仍paused/N2d仅提议，0训练/test未读，v1原hash未变 | v2 `attempt.json` SHA256 `e172da59a39ceb9b456e2e910b0e616e67876b8a1e51df34e2d530e1f1cae9e0`、`result.json` SHA256 `7b758e2d428f9a256e8b60fb97535c479b9114b9098aa20d0d3aa34b5b076b0c`、四表/cost_views/启动前后记录；protocol canonical `877d0cab…`；`docs/R7_N1_COST_SUPPLEMENT_V2.md` §3–5 | 全体（本轮30项与终态成本契约） | 已确认 |
 
+| E-221 | **独立只读产物门通过，实际v2单独按audit登记，非科学/目标完成判定**：stdlib校验实跑8592断言，运行目录407文件前后rawSHA集合不变；81input pins、原code.zip953/953成员逐byte对原git c4e7e83、118源pin/model digest、八计量源对准备b227020及执行b714458核齐。30RMSE/ACC/skill各文件byte同原，provenance只有elapsed_seconds不同；30PID/launch/claim/exit/时序、91UUID余量记录、P1 snapshot三态①/P2条件不触发、四表逐单元/hash与全额预算核齐，三v1冻结hash不变。不额外GPU重跑/数据解码或运行目录写；证据页冻结3d7a8e2、索引audit/needs-review保持N1paused与原cannot-distinguish/N2d提议，登记CI另记进度 | `outputs/r7_n1_cost_v2_acceptance/independent_artifact_check.py` SHA256 `4b15ba9559fa69eacf56620dd161d32ffeca886536fca77be736b491f35a0abc`，回执`independent_verification.json` SHA256 `40699952b68fedabfa159ec8ca52ee4dab20ffeaf7c11ddcaa06d9202a08b0f2`；`docs/R7_N1_COST_SUPPLEMENT_V2.md`页SHA256 `7ce659dfa6e244b754383a8b42bc5ce8e16eacb6b136a24f97bad63cd9e01873`，提交`3d7a8e2e52941407cfb882780413b8b99d7e5a3c`；索引记录`n1-cost-v2-evaluation-supplement-success` | 全体（本轮407产物与原身份/重放/进程/表/预算契约） | 已确认 |
+
 ## 统计
 
-- 台账条目：**220** 条（E-001 – E-220；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3 + 第十七遍2）。
-- 按覆盖度（2026-10-01按行重数）：全体/全体扫描 **148** 条、抽样 **20** 条、单点 **52** 条。
+- 台账条目：**221** 条（E-001 – E-221；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3 + 第十七遍3）。
+- 按覆盖度（2026-10-01按行重数）：全体/全体扫描 **149** 条、抽样 **20** 条、单点 **52** 条。
   保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
-- 按置信度（2026-10-01按行重数）：已确认 **219** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+- 按置信度（2026-10-01按行重数）：已确认 **220** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
   不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013；E-215 记明其推测成分（失败字节未取证）。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。

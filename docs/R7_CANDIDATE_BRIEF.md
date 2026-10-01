@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 15; human-review candidates: 1
+Records: 16; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -40,6 +40,29 @@ Records: 15; human-review candidates: 1
 - CI run: `36855190840`
 - Excluded from runnable candidates: Awaiting named probe-plus-30-val co-residency execution authorization. Engineering tests and free-memory observations do not replace actual CUDA cost evidence or permission.
 - Recorded metrics (not recomputed): campaign_status=paused, clean_clone_passed=1988, clean_clone_seconds=173.22, clean_clone_skipped=14, current_node=N1, engineering_ci_main_steps_success=9, evaluations_completed=0, evaluations_planned=30, gpu_execution_authorized=false, gpu_experiment_executed=false, gpu_hours=0.0, independent_evaluation_cost_complete=false, original_branch=cannot-distinguish, targeted_tests_passed=359, test_read=false, training_updates=0
+
+## n1-cost-v2-evaluation-supplement-success
+
+- Outcome class: `audit`; candidate state: `needs-review`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_N1_COST_SUPPLEMENT_V2.md` (SHA256 `7ce659dfa6e244b754383a8b42bc5ce8e16eacb6b136a24f97bad63cd9e01873`)
+- Evidence commit: `3d7a8e2e52941407cfb882780413b8b99d7e5a3c`; experiment commit: `b714458ed2ed1e29282d024ae5b72bf2c4839215`
+- Protocol SHA256: `877d0cabef976b2896ab3ffd817e78ba6f92ac03e218c6920c1c0ea32a9a510f`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: The explicitly authorized one-shot v2 cost audit succeeded: P1 reproduced a releasable torch process workspace family, so conditional P2 did not trigger; thirty fresh subprocesses replayed the original six checkpoints and five validation leads at zero allocator baselines. Four terminal cost views are complete, independently artifact-verified and fully charged. The original 48h/72h cannot-distinguish reading, paused N1 and proposed-only N2d are unchanged.
+- Limitations:
+  - This is validation-only cost replay with zero training updates, no new arms/seeds/cases and test_read false; two seeds on one winter segment do not establish significance, convergence or seasonal skill.
+  - All thirty RMSE, ACC and climatology-skill CSV files are byte-identical to their originals; provenance differs only in elapsed_seconds. This does not establish future bit-reproducible GPU execution, allocator peaks or wall-clock measurements; original training remains config-reproducible.
+  - Evaluation memory and elapsed cover the whole archived evaluate_local call including loading, IO and metrics, not isolated forward latency/memory, device-wide usage or the original run's historical peaks.
+  - Parameters, FLOPs, training throughput and six training-memory rows reference the original archive, not newly recomputed or retrained values; thirty independent evaluation-memory rows are newly measured.
+  - P1 supports a releasable torch workspace family only. The exact v1 residual holder and historical byte counts remain unrecorded; the private release API is diagnostic-only, never used for accepted evaluations.
+  - Shared-headroom queries are not reservations. Ninety-one startup/spawn/bracket observations recorded no external PID, so this is not empirical performance under an actively co-resident neighbor load.
+  - Independent read-only verification checks persisted identities, process records, tables, snapshots and budgets, not a second GPU run or complete runtime syscall proof of absence of networking, test tensor reads or neighbor signals.
+  - Original N1 plus failed v1 plus v2 totals 0.49326015495695175 GPU-h, above the historical 0.45 figure. The separate v2 audit authorization caps v2 at 0.25 GPU-h and does not rewrite the old cap; every interval remains charged to the campaign.
+  - Cost completion does not repair the original scientific design limitations, satisfy matched-Generic or revise the unresolved primary contrast; N1 remains paused and N2d is a proposal only.
+  - Mimosa pre-commit/pre-push scans were inconclusive (scanner_enobufs), not security clearance; dependencies, model/data identities, credentials and security configuration are unchanged.
+- CI run: `36855190840`
+- Excluded from runnable candidates: Accepted cost-audit artifacts, not a runnable model candidate, scientific mechanism verdict, goal-completion declaration or permission to advance N1. The one-shot authorization is consumed; historical prepared/failed records and original scientific evidence remain unchanged.
+- Recorded metrics (not recomputed): all_allocator_baselines_zero=true, attempt_sha256=e172da59a39ceb9b456e2e910b0e616e67876b8a1e51df34e2d530e1f1cae9e0, attempt_status=success, authorization_scope=n1-evaluation-cost-supplement-v2-with-residue-probe, authorization_sha256=0770b4f80ff1b95b0223d10cf80b498c524ffc626e1ece91f10ae3199db35edf, automatic_retry=false, byte_identical_csv_counts={"acc.csv": 30, "climatology_skill.csv": 30, "rmse.csv": 30}, campaign_remaining_gpu_hours_exact=19.79553984504305, campaign_status=paused, campaign_used_gpu_hours_exact=4.204460154956952, case_evaluations=528, checkpoint_identities=6, conditional_p2_triggered=false, cost_views_sha256=42606c5782d6f25d90e1686aefbf3f52d74fbf75423655d81c44ee935fbb98db, current_node=N1, device_policy=shared-headroom, distinct_launch_ids=30, distinct_worker_pids=30, evaluations_completed=30, evaluations_missing=0, evaluations_registered=30, flops_table_rows=3, gpu_hours=0.12826335332563354, gpu_hours_cap=0.25, gpu_phase_seconds=461.74807197228074, independent_artifact_assertions=8592, independent_evaluation_cost_complete=true, independent_verification_sha256=40699952b68fedabfa159ec8ca52ee4dab20ffeaf7c11ddcaa06d9202a08b0f2, measurement_code_zip_sha256=b14b3252f1b440c942ce220ae1e6707c9c9213cfdbc20a82423e294f4c2cdae0, memory_table_rows=36, minimum_free_mib=2048, minimum_observed_free_mib=23713, next_node_proposal=N2d, observed_external_pids=[], original_branch=cannot-distinguish, original_n1_plus_v1_plus_v2_gpu_hours=0.49326015495695175, p1_after_clear_allocated_bytes=0, p1_after_clear_reserved_bytes=0, p1_before_clear_allocated_bytes=8519680, p1_before_clear_reserved_bytes=20971520, p1_classification=torch-releasable-workspace-family, p1_diagnostic_seconds=0.9619096238166094, parameter_table_rows=3, peak_allocated_bytes_range=[39590400, 45923840], peak_reserved_bytes_range=[46137344, 77594624], probe_sha256=b94aa9383e453635bce5a67edaa38696e816a630ef6dda23f8a09b7474f134b9, reproducibility_level=byte-identical validation metric CSV replay; original training config-reproducible; no future bitwise GPU cost guarantee, result_sha256=7b758e2d428f9a256e8b60fb97535c479b9114b9098aa20d0d3aa34b5b076b0c, rmse_cells=510, run_files_unchanged=407, selected_device_observations=91, selected_update=400, test_read=false, thresholds_added=0, training_throughput_table_rows=6, training_updates=0, whole_wall_seconds=463.4213050529361, whole_wall_seconds_cap=1200.0
 
 ## n1-evaluation-cost-supplement-failed
 

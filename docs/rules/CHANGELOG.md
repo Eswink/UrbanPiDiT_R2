@@ -2,6 +2,16 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-01 — N1 v2独立产物验收与实际审计登记（0新增GPU-h）
+
+独立stdlib核验8592断言、407运行文件前后不变；81输入pin、原code.zip953/953成员对原git blob、118源pin/
+model digest、八计量源对准备/执行commit核齐。30RMSE/ACC/skill逐文件byte同原、provenance仅耗时变化，
+30进程launch/claim/退出/时序与91余量UUID记录、P1三态/P2不触发、四表逐单元与预算核齐；回执另存acceptance，
+不写运行目录、不额外GPU重放、不把manifest/CI当科学门。新增E-221与实际audit/needs-review索引，canonical
+brief同步16条；账本第五条索引支撑，四条历史未索引行继续列note。冻结实跑页commit3d7a8e2及digest不再改。
+原prepared/failed/scientific登记不覆盖；N1paused/cannot-distinguish/N2d提议不变，不宣goal完成。
+最终登记CI只绑定进度块，接口/依赖/数据/模型/凭据/安全配置无改动；Mimosa无完整安全结论。
+
 ## 2026-10-01 — N1 v2具名一次独立成本补测成功（原科学结论不改）
 
 用户随后明确答「明确授权，刚刚没有看到」确认先前执行时AskUserQuestion具名范围，回执先冻SHA0770b4f8…；
