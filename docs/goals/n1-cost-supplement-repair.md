@@ -2,7 +2,7 @@
 
 <!-- round-node: N1 -->
 
-**状态：executed / artifact-verified，登记CI待核（2026-10-01）：一次P1+30val成功，0.1282633533 GPU-h；独立只读产物门已通过，正在登记。一次授权已用，不再运行；N1 保持 paused，
+**状态：executed / artifact-verified / registration-CI-success（2026-10-01）：一次P1+30val成功，0.1282633533 GPU-h；实际审计登记与逐交付物核对已落盘，待用户/独立目标判定。一次授权已用，不再运行；N1 保持 paused，
 不因补齐成本工程项改写 48/72h 的 `cannot-distinguish`，也不宣告目标完成。**
 
 本文件是主计划 `docs/goals/main-model-v2-campaign.md` 的节点 N1 的目标长文（N1 的第三个轮次：转向审计 →
@@ -143,7 +143,7 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
 
 ## §7 进度块
 
-- **状态**：`executed / artifact-verified`，登记CI待核（2026-10-01）：一次P1+30val成功，独立产物门已通过；账本新增0.1283GPU-h，N1仍paused，不宣告完成。以下准备态记录保留其当时事实。
+- **状态**：`executed / artifact-verified / registration-CI-success`（2026-10-01）：一次P1+30val成功、独立产物门/实际登记CI与逐交付物核对有证据；账本新增0.1283GPU-h，N1仍paused，不宣告完成。以下准备态记录保留其当时事实。
 - **准备期对表（2026-10-01）**：`check_campaign_state.py` `failures=0 notes=6`；账本逐行合计 4.0762/余 19.9238 复核通过；
   v1 失败页/复核 JSON/三个提交/CI `36737308495`（`9d8d2b6`，九步全绿）均在 git 与匿名 API 上核过，见主计划 §8。
 - **扩围（2026-10-01）**：用户决定「默认共驻、用空闲显存」并授权把它写成本轮 D0；旧「一卡独占/等腾卡」表述
@@ -217,5 +217,27 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
   `n1-cost-v2-evaluation-supplement-success`按audit/needs-review单独登记，不改旧准备/失败/主科学记录。
   canonical brief同步16条；主计划新行机器支撑，原四条历史无索引行仍如实列note。最终登记CPU定向
   555passed/24.23s，37阻断0违规，goal0失败0advisory、campaign0失败4历史notes，git whitespace通过；登记CI待核。
-- **下一动作**：核对实际审计索引/账本登记提交的精确CI，再交用户或独立复核审阅；一次范围已用，
-  不再启动GPU、读test、改变cannot-distinguish/N1paused/N2d提议或自行宣布完成。
+- **实际登记CI绑定（2026-10-01）**：索引/账本登记提交`39370892f52d85ce021022e90ad76738f0775dd3`，
+  CI`36865544410` head_sha精确匹配、completed/success九主步骤成功。匿名curl一手
+  [run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36865544410)、
+  [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36865544410/jobs?per_page=100)，访问2026-10-01。
+  响应SHA256：run `a4d0765f8783d63c8bf88ac2e5ab56054f81c1791840d858eb89347c9f7eb9a7`；
+  jobs `492ae65b0ee0b97f89ce244b14127da1e3bad373a51459bbe76d823b86eca143`；回执
+  `outputs/r7_n1_cost_v2_acceptance/registration_verification.json` SHA256
+  `672f94750cd6e26ab16709d897b0bf0900ba5601e968eba21c8fb69b9e75f6f9`。
+  本地555passed/24.23s与远端pytest计数区分（远端日志计数未取得），实验workflow无标签未执行不算实验证据。
+  该CI覆盖实际登记提交；本条只进goal/主计划的进度尾，不递归修改被冻结实跑页/index或冒称尾提交就是该SHA。
+- **prompt-to-artifact收尾核对**：按原objective逐D0–D5实跑84项断言，exit0；不是manifest-only完成声称。
+  D0政策三件套/索引/E-216已先落地；D2逐cell拓扑/余量/UUID/先留拒绝证据与零基线/精确重放反证、干净clone/
+  精确准备CI齐；D3真实授权回执先冻；D1实际P1字节与full snapshot/≤60s齐，P2条件假所以未执行；D4实际
+  30行/四表/attempt/result/cost_views、冻结证据/E-219–E-221、audit索引/canonical brief/账本/回写/精确登记CI齐；
+  D5原科学读法与N1paused/N2d提议未变。运行目录407文件、v1三pins、原paired_comparison hash保持不变。
+  收尾回执`outputs/r7_n1_cost_v2_acceptance/deliverable_audit.json` SHA256
+  `9f234f8d541109ff5ef04a7197c1a6ea28bdf62f96eb20b0a404ed8d036e2d67`，checker SHA256
+  `7e78f996835da06466d4915278f7b031150699295cfb2665872b6ee842129313`。CPU测试/CI/独立产物接受不代替科学或
+  独立目标完成判定；拒绝分支本次未触发，证据为已实跑CPU反证，不伪造guard_refusal。未做GPU二次重放/
+  新训练/test/下载/租卡/main/force/issue关闭/邻居信号或下一节点；接口/依赖/模型/数据/凭据与安全配置无新变更。
+  仍无Mimosa完整安全结论，不声明安全通过；无全程syscall/真实共驻邻居负载性能/未来逐位GPU成本复现证明。
+  CI回写后再实跑goal/campaign/index/政策48passed/0.40s，37阻断与whitespace通过；84项审计回执重验一致。
+- **下一动作（仅提议）**：由用户/独立目标判定审阅本次成本审计和既有N2d提议；本轮执行者停止于此。
+  一次授权已用，余额不等于许可；不再启动GPU、读test、改变cannot-distinguish/N1paused/N2d提议或自行宣布完成。

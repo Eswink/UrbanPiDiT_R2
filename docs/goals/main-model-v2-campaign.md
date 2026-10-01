@@ -220,5 +220,14 @@
   证据页冻结提交`3d7a8e2e52941407cfb882780413b8b99d7e5a3c`、页SHA256`7ce659dfa6e244b754383a8b42bc5ce8e16eacb6b136a24f97bad63cd9e01873`；
   audit记录`n1-cost-v2-evaluation-supplement-success`单独登记，保留旧prepared/failed记录；canonical brief16条。
   最终登记CPU定向555passed/24.23s、37阻断0违规、campaign0失败4历史notes/goal0失败，登记CI待核。
-- **下一动作**：核对实际审计索引/账本登记提交的精确CI，再交用户/独立复核审阅既有N2d提议；
-  一次范围已用，不再启动GPU或任何下一节点、不自宣目标完成。
+- **修复轮实际登记CI绑定（2026-10-01）**：索引/账本登记提交`39370892f52d85ce021022e90ad76738f0775dd3`
+  的CI`36865544410` head_sha精确匹配、completed/success九主步骤全绿；555passed/24.23s是本地CPU计数，
+  远端pytest日志计数未取得。[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36865544410)、
+  [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36865544410/jobs?per_page=100)，匿名curl访问2026-10-01；
+  回执`outputs/r7_n1_cost_v2_acceptance/registration_verification.json` SHA256`672f94750cd6e26ab16709d897b0bf0900ba5601e968eba21c8fb69b9e75f6f9`。
+  逐交付物84项实证审计D0–D5齐有相应证据（P2条件不触发），回执`deliverable_audit.json` SHA256
+  `9f234f8d541109ff5ef04a7197c1a6ea28bdf62f96eb20b0a404ed8d036e2d67`；407运行文件/v1 pins/原科学归档不变。
+  本条进度尾提交与该精确登记CI SHA区分，不递归改证据页/index digest，不新增GPU或新授权，不自宣目标完成。
+  CI回写后定向48passed/0.40s、37阻断/whitespace通过，84项审计回执再次只读验证一致。
+- **下一动作（仅提议）**：由用户/独立目标判定审阅本次成本审计与既有N2d提议；本轮执行者停止于此。
+  一次范围已用，余额不授予实验许可；N1保持paused，不自动进入下一节点或自行宣告目标完成。
