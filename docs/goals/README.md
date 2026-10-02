@@ -51,4 +51,7 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 | [`main-model-v2-pivot-audit.md`](main-model-v2-pivot-audit.md) | N1 转向审计（四块 0 GPU-h）+ 冻结随机 Z 可证伪臂 | 已完成（两 seed 反号 → `cannot-distinguish`，只提议 N2d） |
 | [`n1-cost-supplement-repair.md`](n1-cost-supplement-repair.md) | N1 独立 evaluation 成本补测的失败审阅、v2 重测（逐评估新进程）与 GPU 共驻政策落地 | **prepared（2026-10-01 扩围）**（未执行；D0 落共驻政策、D2 改余量门槛；执行那一刻按决策 0021 取具名授权） |
 | [`n2a-m3-process-supervision.md`](n2a-m3-process-supervision.md) | V2 阶段 A（节点 N2a / #73）：过程监督的尺度修复与「三类时刻」语义（三分离字段 + 有界三臂对照） | **budget_limited（2026-10-02）**；工程/尺度已验证，唯一尝试6训练/7评估后deadline失败，D5完整对照缺失；0.497254GPU-h全额记账，不重试、不推进或关闭issue |
+| [`n3-m4-autoregressive-rollout.md`](n3-m4-autoregressive-rollout.md) | V2 阶段 B（节点 N3 / #74）：真实 2 步可微自回归（`L6+λL12`）+ matched-Generic V2 接线 | **prepared（2026-10-02）**；warm-start 自既有 +6h 父 checkpoint；≤1.0 GPU-h |
+| [`n4-m5-confirmation.md`](n4-m5-confirmation.md) | V2 阶段 C（节点 N4 / #75）：≥3 seed 三臂最小确认闭环 + adaptive 决定 | **prepared（2026-10-02）**；adaptive 默认不启动；≤2.5 GPU-h |
+| [`v2-issue-closeout.md`](v2-issue-closeout.md) | V2 收尾轮（节点 N5）：补 #71/#72 完成判据、登记六条判定并关闭 #70–#75 | **prepared（2026-10-02）**；0 GPU-h；含禁令解除与 `Closes` ff 落 main 的机制 |
 | `docs/R7_GPU_BRINGUP_BRIEF.md` | （已迁移） | R-034 登记为早于约定的例外；现仅为指向本目录的指针，不再维护第二份定义 |

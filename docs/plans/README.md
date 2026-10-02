@@ -44,3 +44,5 @@
 | [0006](0006-v2-campaign-master-plan-and-recheck.md) | R7 V2 的主计划与每轮对表（含 N1 审计轮的目标长文） | 已完成（含 1 处计划外的工具缺陷修复与 3 处契约收紧，见文内） | 2026-09-30 |
 | [0007](0007-n1-cost-supplement-repair-brief.md) | N1 成本补测失败审阅与修复轮长文（prepared） | 已完成（0 GPU-h 审阅 + 修复轮长文；修复执行待新具名授权） | 2026-10-01 |
 | [0008](0008-n1-cost-coresidency-handoff.md) | N1 成本轮的共驻扩围与 goal 交接（prepared） | 已完成（只产出 objective 与承载文档；共驻政策正文与 v2 计量留给执行轮 D0/D2） | 2026-10-01 |
+| [0009](0009-r7-v2-completion-and-closeout.md) | R7 主模型 V2 收尾：做完 M3/M4/M5 并关闭 #70–#75（交接给另一窗口执行） | 已归档（**未执行**：只产出本计划、四份 goal 长文与 objective、两处索引；实验/提交/推送/GPU 留待执行窗口） | 2026-10-02 |
+| [0010](0010-experiment-delegation-and-time-contract.md) | 实验常设下放与时长契约：新决策 0029 取代 0021（D1–D10 施工图 + 新窗口提示词） | 已归档（**未执行**：只产出本计划、索引行与提示词；规则改动/提交/CI 留待新窗口） | 2026-10-02 |
