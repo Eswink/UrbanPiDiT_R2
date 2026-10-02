@@ -87,7 +87,11 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
                                 reasoning_steps: int = 4, final_weight: float = 2.0,
                                 forecast_weight: float = 1.0, process_weight: float = 0.1,
                                 loss_scale: float = 1.0,
-                                amp_dtype: torch.dtype | None = None) -> StreamedBackwardResult:
+                                amp_dtype: torch.dtype | None = None,
+                                process_supervision_context=None,
+                                input_diagnostic_weight: float = 0.0,
+                                future_diagnostic_weight: float = 0.0,
+                                draft_diagnostic_weight: float = 0.0) -> StreamedBackwardResult:
     """Accumulate gradients without zeroing or stepping an optimizer.
 
     Matches detach_between_steps=True (Y0 is still differentiable through round
@@ -103,6 +107,21 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
     device_type = _validate(model, batch, reasoning_steps, amp_dtype)
     fw = _nonnegative(forecast_weight, "forecast_weight")
     pw = _nonnegative(process_weight, "process_weight")
+    diagnostic_weights = {
+        "input_diagnostic_weight": _nonnegative(input_diagnostic_weight, "input_diagnostic_weight"),
+        "future_diagnostic_weight": _nonnegative(future_diagnostic_weight, "future_diagnostic_weight"),
+        "draft_diagnostic_weight": _nonnegative(draft_diagnostic_weight, "draft_diagnostic_weight"),
+    }
+    new_tasks = any(diagnostic_weights.values())
+    prepared_fields = None
+    if new_tasks:
+        if pw > 0 or process_supervision_context is None:
+            raise ValueError("new diagnostic tasks require context and legacy process_weight=0")
+        if not isinstance(model, ProcessForecastCoReasoner) or reasoning_steps < 1:
+            raise ValueError("new diagnostic tasks require a process model with K >= 1")
+        prepared_fields = process_supervision_context.fields_from_batch(
+            batch, training=True,
+            need_future=bool(future_diagnostic_weight or draft_diagnostic_weight))
     scale = _nonnegative(loss_scale, "loss_scale")
     if not math.isfinite(final_weight) or final_weight <= 0 or fw <= 0 or scale <= 0:
         raise ValueError("final_weight, forecast_weight and loss_scale must be positive")
@@ -132,6 +151,7 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
     solver_state = None
     errors = []
     forecast_log, process_log = target.new_zeros(()), target.new_zeros(())
+    diagnostic_log = target.new_zeros(())
     for step in range(reasoning_steps + 1):
         prediction = None
         if step:
@@ -145,7 +165,13 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
         ploss = target.new_zeros(())
         if step and process_target is not None:
             ploss = F.mse_loss(prediction.float(), process_target) / reasoning_steps
-        term = (fw * weights[step] * mse + pw * ploss) * scale
+        diagnostic_loss = target.new_zeros(())
+        if step and new_tasks:
+            from .r7_process_forecast_losses import auxiliary_process_loss_one_step
+            diagnostic_loss = auxiliary_process_loss_one_step(
+                batch, draft, prediction, process_supervision_context=process_supervision_context,
+                prepared_fields=prepared_fields, **diagnostic_weights).total / reasoning_steps
+        term = (fw * weights[step] * mse + pw * ploss + diagnostic_loss) * scale
         if not torch.isfinite(term):
             raise ValueError("nonfinite loss; optimizer must not step")
         if term.requires_grad:
@@ -153,11 +179,12 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
         errors.append(mse.detach())
         forecast_log += weights[step] * mse.detach()
         process_log += ploss.detach()
+        diagnostic_log += diagnostic_loss.detach()
         if step:  # preserve Y0 -> round 1 exactly as the existing truncated path
             state, draft = state.detach(), draft.detach()
             if solver_state is not None:
                 solver_state = solver_state.detach()
-        del term, mse, ploss, prediction
+        del term, mse, ploss, prediction, diagnostic_loss
 
     roots, adjoints = [], []
     for root, leaf in ((base.forecast, initial), (base.context_tokens, context)):
@@ -167,8 +194,8 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
     if roots:
         torch.autograd.backward(roots, adjoints)  # summed VJP; encoder graph consumed once
     return StreamedBackwardResult(
-        fw * forecast_log + pw * process_log, forecast_log, process_log,
-        torch.stack(errors), draft.detach())
+        fw * forecast_log + pw * process_log + diagnostic_log, forecast_log,
+        process_log + diagnostic_log, torch.stack(errors), draft.detach())
 
 
 def train_streamed_update(model, optimizer: torch.optim.Optimizer,

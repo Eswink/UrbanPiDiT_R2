@@ -19,7 +19,8 @@ def _integer(value,name,minimum=1):
     return value
 
 
-def update_group(model,optimizer,cpu_batches,*,kind,device,steps,bf16,process_weight,clip):
+def update_group(model,optimizer,cpu_batches,*,kind,device,steps,bf16,process_weight,clip,
+                 process_supervision_kwargs=None):
     """Move one microbatch at a time; one optimizer step per sample-weighted group."""
     count = sum(len(b['coarse_history']) for b in cpu_batches)
     optimizer.zero_grad(set_to_none=True)
@@ -39,7 +40,8 @@ def update_group(model,optimizer,cpu_batches,*,kind,device,steps,bf16,process_we
                 del prediction,loss
             else:
                 result = backward_streamed_truncated(model,batch,reasoning_steps=steps,
-                    process_weight=process_weight,loss_scale=scale,amp_dtype=torch.bfloat16 if bf16 else None)
+                    process_weight=process_weight,loss_scale=scale,amp_dtype=torch.bfloat16 if bf16 else None,
+                    **(process_supervision_kwargs or {}))
                 value = float(result.total)
                 del result
             total += value*scale

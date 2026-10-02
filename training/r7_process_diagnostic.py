@@ -63,15 +63,18 @@ def normalized_proxy_scale(values, eps: float = DEFAULT_EPS) -> dict:
     if not math.isfinite(eps) or eps <= 0:
         raise ValueError("eps must be positive and finite")
     raw_mean = float(array.mean())
-    raw_std = float(array.std())
+    raw_std = 0.0 if np.ptp(array) == 0.0 else float(array.std())
     floored_std = max(raw_std, float(eps))
     floor_active = raw_std < float(eps)
-    normalized = (array - raw_mean) / floored_std
+    degenerate = raw_std == 0.0
+    normalized = np.zeros_like(array) if degenerate else (array - raw_mean) / floored_std
     normalized_std = float(normalized.std())
     return {
         "count": int(array.size),
         "raw_mean": raw_mean,
         "raw_std": raw_std,
+        "degenerate": degenerate,
+        "active_mask": not degenerate,
         "raw_abs_max": float(np.abs(array).max()),
         "eps": float(eps),
         "normalized_std_used": floored_std,
@@ -106,6 +109,8 @@ def proxy_scale_report(raw_diagnostics, stored_std, names, eps: float = DEFAULT_
         raise ValueError("raw diagnostics must be [T, P]")
     if raw.shape[1] != len(names) or std.shape != (len(names),):
         raise ValueError("proxy names, raw columns and stored std must agree in count")
+    if len(set(names)) != len(names) or not np.isfinite(std).all() or (std <= 0).any():
+        raise ValueError("unique proxy names and finite positive stored std required")
     channels = {}
     for index, name in enumerate(names):
         record = normalized_proxy_scale(raw[:, index], eps=eps)
@@ -129,6 +134,38 @@ def proxy_scale_report(raw_diagnostics, stored_std, names, eps: float = DEFAULT_
         "note": ("read-only audit; nothing here re-normalizes the store, and a "
                  "different normalization would be a separately versioned store"),
     }
+
+
+def proxy_scale_sidecar_report(raw_diagnostics, stored_mean, stored_std, names, metadata):
+    """Compare the frozen store's scaling with the separately published sidecar."""
+    import numpy as np
+    from data.preprocess.r7_process_scale_sidecar import normalize_process_diagnostics
+
+    raw = np.asarray(raw_diagnostics, dtype=np.float64)
+    mean = np.asarray(stored_mean, dtype=np.float64)
+    std = np.asarray(stored_std, dtype=np.float64)
+    report = proxy_scale_report(raw, std, names)
+    if mean.shape != std.shape or not np.isfinite(mean).all():
+        raise ValueError("stored proxy mean must be finite and match the channel width")
+    normalized = normalize_process_diagnostics(raw, metadata, names=names)
+    old = (raw - mean) / std
+    for index, name in enumerate(names):
+        entry = report["channels"][name]
+        entry.update(
+            old_stored_normalized_std=float(old[:, index].std()),
+            physical_unit=metadata["units"][index],
+            physical_unit_scale=metadata["physical_unit_scale"][index],
+            dimensionless_std=metadata["dimensionless_std"][index],
+            relative_floor=metadata["relative_floor"][index],
+            scaled_normalized_std=float(normalized[:, index].std()),
+            degenerate=metadata["degenerate"][index],
+            active_mask=metadata["active_mask"][index],
+        )
+    report.update(format="r7-process-proxy-scale-sidecar-v1",
+                  sidecar_identity=metadata.get("sidecar_identity"),
+                  fit_split="train",
+                  note="scale comparison only; forecast changes are not attributed solely to scaling")
+    return report
 
 
 def _grad_vector(named_parameters, names):
@@ -177,11 +214,14 @@ def gradient_conflict_record(model, batch, *, process_weight, steps, groups):
         process_target = batch["process_targets"].to(
             device=out.process_predictions.device,
             dtype=out.process_predictions.dtype)
-        count = min(process_target.shape[-1], out.process_predictions.shape[-1])
+        if process_target.shape != (out.process_predictions.shape[0],
+                                    out.process_predictions.shape[-1]):
+            raise ValueError("process targets must exactly match the readout width")
+        if not torch.isfinite(process_target).all():
+            raise ValueError("process targets must be finite")
         process_loss = torch.nn.functional.mse_loss(
-            out.process_predictions[..., :count],
-            process_target[..., :count].unsqueeze(1).expand(
-                -1, out.process_predictions.shape[1], -1))
+            out.process_predictions,
+            process_target.unsqueeze(1).expand_as(out.process_predictions))
 
     # Forecast-only gradients.
     model.zero_grad(set_to_none=True)
@@ -313,7 +353,9 @@ def summarise_proxy_effect(proxy_report, names: Sequence[str]) -> dict:
     verdicts = {}
     for name in names:
         record = proxy_report["channels"][name]
-        if not record["usable_label"]:
+        if record.get("degenerate"):
+            verdicts[name] = "degenerate: true zero variance; explicitly masked"
+        elif not record["usable_label"]:
             verdicts[name] = (
                 "unusable: the 1e-6 floor divides by %.0fx the real spread and "
                 "the normalized label's std is %.4f"

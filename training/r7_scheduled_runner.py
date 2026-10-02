@@ -245,6 +245,17 @@ def _publish_checkpoint(folder, update_number, *, model, optimizer, signature, c
     return target
 
 
+def _scheduled_output_paths(output_dir, saved, total_updates):
+    folder = Path(output_dir)
+    metrics_path = folder / "training_report.json"
+    if (folder / "selected.pt").exists() or metrics_path.exists():
+        raise FileExistsError("selected checkpoint or training report already published")
+    if saved and saved["updates"] >= total_updates:
+        raise ValueError("resume endpoint must be greater than saved updates")
+    folder.mkdir(parents=True, exist_ok=bool(saved))
+    return folder, metrics_path
+
+
 def run_scheduled_updates(
     dataset,
     *,
@@ -273,6 +284,8 @@ def run_scheduled_updates(
     resume=None,
     intervention=None,
     deadline=None,
+    process_supervision_context=None,
+    process_supervision_contract=None,
 ):
     """Train to a pre-declared schedule, selecting on validation only.
 
@@ -303,20 +316,16 @@ def run_scheduled_updates(
         early_stopping_patience=early_stopping_patience, minimum_improvement=minimum_improvement,
         validation_lead_hours=validation_lead_hours, step_hours=step_hours,
         validation_dataset=validation_dataset, intervention=intervention)
+    from .r7_process_training_contract import supervision_training_contract
+    supervision, supervision_kwargs = supervision_training_contract(
+        process_supervision_context, process_supervision_contract,
+        kind=kind, process_weight=process_weight, data_identity=str(data_identity))
+    if supervision is not None:
+        contract["process_supervision"] = supervision
     intervention = contract.get("intervention")
     signature = canonical_digest(contract)
     saved = load_checkpoint(resume, expected=signature) if resume else None
-    folder = Path(output_dir)
-    selected_path = folder / "selected.pt"
-    metrics_path = folder / "training_report.json"
-    if selected_path.exists() or metrics_path.exists():
-        raise FileExistsError("selected checkpoint or training report already published")
-    if saved and saved["updates"] >= total_updates:
-        raise ValueError("resume endpoint must be greater than saved updates")
-    if not saved:
-        folder.mkdir(parents=True, exist_ok=False)
-    else:
-        folder.mkdir(parents=True, exist_ok=True)
+    folder, metrics_path = _scheduled_output_paths(output_dir, saved, total_updates)
 
     model, optimizer, updates, epoch, cursor, applied, ignored = _initialize_scheduled_model(
         kind=kind, model_config=model_config, device=device, seed=seed, lr=lr,
@@ -358,7 +367,9 @@ def run_scheduled_updates(
         if deadline is not None:
             _check_deadline(deadline)
         loss = update_group(model, optimizer, batches, kind=kind, device=device, steps=steps,
-                            bf16=bf16, process_weight=process_weight, clip=clip)
+                            bf16=bf16, process_weight=process_weight, clip=clip,
+                            **({"process_supervision_kwargs": supervision_kwargs}
+                               if supervision is not None else {}))
         updates += 1
         losses.append({"update": updates, "epoch": epoch, "loss": loss, "lr": rate,
                        "samples": sum(len(batch["coarse_history"]) for batch in batches)})

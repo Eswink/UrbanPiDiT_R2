@@ -64,13 +64,15 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
                    step_hours=6,max_samples=32,device_name='cpu',normalized=False,reasoning_steps=None,
                    controller_checkpoint=None,min_reasoning_steps=1,force_full_depth=False,
                    policy_selection=None,validation_thresholds=None,boundary_margins=None,
-                   baseline=None,deadline=None):
+                   baseline=None,deadline=None,process_scale_sidecar=None):
     if isinstance(max_samples,bool) or not isinstance(max_samples,int) or max_samples<1:
         raise ValueError('max_samples must be a positive explicit cap')
     if baseline not in (None,'persistence','climatology'):
         raise ValueError("baseline must be None, 'persistence' or 'climatology'")
     if baseline is not None and checkpoint:
         raise ValueError('a parameter-free baseline takes no checkpoint')
+    if process_scale_sidecar is not None and not checkpoint:
+        raise ValueError('a scale sidecar requires its new diagnostic checkpoint')
     if controller_checkpoint and not checkpoint:
         raise ValueError('controller evaluation requires its parent checkpoint')
     if force_full_depth and not controller_checkpoint:
@@ -107,11 +109,15 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
     inference={}
     checkpoint_hash=training_identity=controller_hash=selection_hash=None
     controller_policy=effective_policy=intervention=None
+    process_sidecar_identity=None
     if deadline is not None:
         _check_deadline(deadline)
     if checkpoint:
         saved=load_checkpoint(checkpoint)
         contract=saved['contract']
+        from .r7_process_training_contract import verify_evaluation_sidecar
+        process_sidecar_identity=verify_evaluation_sidecar(contract,process_scale_sidecar,
+            evaluation_store=store,evaluation_root=root)
         training_identity,_=dataset_identity(manifest.parent/'train.jsonl')
         if training_identity!=contract['data_identity']:
             raise ValueError('checkpoint training data/normalization identity mismatch')
@@ -246,6 +252,9 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         'note':'offline local evaluation, no future forcing; monthly-hour climatology is not a WeatherBench2 reproduction'}
     if intervention is not None:
         provenance['intervention']=intervention
+    if process_sidecar_identity is not None:
+        provenance['process_scale_sidecar_identity']=process_sidecar_identity
+        provenance['training_protocol_sha256']=contract['process_supervision']['protocol_sha256']
     if deadline is not None:
         _check_deadline(deadline)
     with (out/'provenance.json').open('x',encoding='utf-8') as f:

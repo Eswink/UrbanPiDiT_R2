@@ -1,6 +1,6 @@
 # main-model-v2-campaign：主模型 V2 的 campaign 主计划与每轮对表
 
-**状态：campaign 级主计划（活文档）。当前节点仍N1；本轮主长lead不可分辨，已paused，只提议N2d停止，不宣告目标完成。**
+**状态：campaign 级主计划（活文档）。用户 2026-10-02 具名触发 M3 后当前节点为 N2a；本轮仅执行 M3，不自动推进下一节点，不宣告目标完成。N1 原长 lead 不可分辨的科学结论保持。**
 
 本文件是「主计划 + 每轮 recheck」机制的**唯一权威**：节点图（§2）、每轮开工前必须走的对表清单（§3）、
 预算账本（§7）与进度块（§8）都在这里。每一轮的目标长文是它的**派生物**，不是平行的第二处真相——
@@ -140,7 +140,7 @@
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N1", "previous_node": "N1", "current_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_goal": "docs/goals/main-model-v2-pivot-audit.md", "previous_round_evidence": "docs/R7_N1_PIVOT_AUDIT.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.2045, "remaining_gpu_h": 19.7955, "status": "paused", "next_node_proposal": "N2d"} -->
+<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-process-supervision.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.2045, "remaining_gpu_h": 19.7955, "status": "active", "next_node_proposal": null} -->
 
 - **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
 - **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
@@ -260,3 +260,9 @@
   新治理/进度未commit/push或运行新CI，不将原精确CI冒称覆盖新文字；预算/节点/科学读法均不变。
 - **下一动作（仅提议）**：交用户/独立目标判定审阅当前授权裁定及既有成本审计证据；不自行宣告目标完成。
   用户已下放实验安排权，但本轮不自动进入下一节点或新增任何GPU运行。
+- **M3 具名启动（2026-10-02，当前新增 0 GPU-h）**：用户本轮明确触发 N2a，仅 P-A/P-B/P-C 和三臂×两 seed×400 updates，
+  ≤1.0 GPU-h；禁止自动进入下一节点或关闭 issue。起点 `5fe2ff4`，上一轮 six-file package 独立提交
+  `e7755ae11d5aeb78038c2363c823c78639c691fa`；CI `36967236450` completed/success 九主步骤全绿，
+  匿名 run/jobs API 访问 2026-10-02（响应临时路径 `/tmp/m3_adr_ci_runs_branch_20261002.json` 和 jobs 同名）。
+  当前节点推进 N2a/active，是本次用户触发而非自动推进；N1 原科学结论、账本与四历史 notes 不改。
+  当前新代码与新目标尚未提交/实跑，不用上述 CI 冒称覆盖它们；具名协议/sidecar 发布/工程门禁先于 GPU。
