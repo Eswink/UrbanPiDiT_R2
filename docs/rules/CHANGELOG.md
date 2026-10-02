@@ -2,6 +2,34 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-02 — 实验、推进与普通决策常设下放（0030；总体方向归用户）
+
+用户原话「推进权和实验权，普通决策权全部下放给你，注意，我只需要负责总体实验的方向！」，
+随后批准本轮仅治理/goal交接。新accepted ADR0030取代0029并完整继承时长/记账/保留边界，
+0029状态改superseded by 0030且正文保留，0025仅追加逐轮用户触发被取代的指针；机械对表不变。
+AGENTS、主campaign、两SKILL、CI细则、索引同步：同一goal会话可自主普通决策与节点推进，
+不逐轮等用户、不把独立审阅当新许可；总体方向与保留资源/数据/破坏性动作交用户，最终goal
+complete仍独立裁定，不自宣。主计划补N5与条件化main/六issue禁令，依0009既有授权，仅证据/
+前置齐、精确工作分支九步CI绿后允许具名Closes非force ff main；本轮不执行关闭。
+
+新计划0011/目标 `v2-autonomous-completion-and-closeout.md` 与索引承载下一窗口N2a补23评估→
+N3可微两步+matchedGeneric→N4三臂确认→N5反证/裁定/有条件关闭。objective单段实测2027字符，
+交付物在objective中可直接核对。新目标首次标N2a/prepared，不改campaign state/current_round_goal。
+旧N2a失败/计划0009/0010/旧N3/N4/closeout和冻结证据都不回写；原1800秒协议/失败与成本保留。
+
+没有改程序源码/测试/检查器/规则编号/冻结阈值与常量/workflow timeout数值/依赖/模型digest/数据/
+归档/凭据/安全配置。账本11行、cap/used/remaining=24.0/4.7018/19.2982与N2a/budget_limited不变。
+0新增GPU-h，无训练/评估/下载/发布、main/issue写入，不把治理工程绿当实验/科学证据。
+
+规划草稿已按实际文件与上限收敛，`tools/check_planner_plan.py` verified=true/0failures；工作态
+`/tmp/r7_0030_plan_20261002.json`不是证据。已实跑37阻断0违规/ADR取代链0/campaign0fail4notes，
+新goal+现行四份共5goal0失败；三组治理测试 **152 passed in 22.22s**，index/brief17records，
+空白与git show --check exit0。目录级18briefs/15历史失败/exit1照报告，不回写旧页。objective2027
+字符/两副本精确一致，主计划379字符；只读hash核991原跟踪文件、两无关文件、state/11账本行和
+历史进度尾均不变。新文件入跟踪后验证与独立复核/精确SHA主CI待后补，不以旧CI代新。
+日志工作态 `/tmp/r7_0030_validation_20261002/`。Mimosa历史scanner_enobufs无完整安全结论，
+本轮未做完整安全审计、不声明项目安全。
+
 ## 2026-10-02 — 实验常设下放与时长契约（决策 0029，取代 0021）
 
 **范围与授权**：用户在计划 0010 §0 已确认实验类动作全下放、不设总 GPU-h 上限、软预算 + 宽松硬

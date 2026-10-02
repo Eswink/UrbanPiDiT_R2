@@ -46,3 +46,4 @@
 | [0008](0008-n1-cost-coresidency-handoff.md) | N1 成本轮的共驻扩围与 goal 交接（prepared） | 已完成（只产出 objective 与承载文档；共驻政策正文与 v2 计量留给执行轮 D0/D2） | 2026-10-01 |
 | [0009](0009-r7-v2-completion-and-closeout.md) | R7 主模型 V2 收尾：做完 M3/M4/M5 并关闭 #70–#75（交接给另一窗口执行） | 已归档（**未执行**：只产出本计划、四份 goal 长文与 objective、两处索引；实验/提交/推送/GPU 留待执行窗口） | 2026-10-02 |
 | [0010](0010-experiment-delegation-and-time-contract.md) | 实验常设下放与时长契约：新决策 0029 取代 0021（D1–D10 施工图 + 执行记录） | 已执行；治理 c4d45cf/CI 36996404191 九步成功，审阅补正与尾核另行交付；无新实验或节点推进 | 2026-10-02 |
+| [0011](0011-autonomous-execution-and-goal-handoff.md) | 实验/普通决策/节点推进常设下放与新窗口 V2 收尾 goal（0030） | 治理与交接已落盘，验证/CI待绑定；新实验未启动 | 2026-10-02 |
