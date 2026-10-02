@@ -2,6 +2,43 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-02 — N2a新验证补全准备（0031；旧失败及冻结出口不改）
+
+当前goal起点caea510，按0030执行总体V2方向。新节点长文 `n2a-m3-validation-complement.md` 写定
+0训练/23缺val、planned1800/hard3600、整轮CPU前置至聚合清理、共驻每spawn UUID/余量；主计划仍N2a，
+current_round_goal指新页、工作态active，原M3失败/1800常量/冻结页及43旧源码/目标pins不变、账本未增。
+ADR0031决定新协议/新输出、旧六训练/旧七val/新23逐文件来源与完整成本，不造旧finalizer成功。
+原#60/descriptive_outcome的any-unresolved暂停保持；不因0030调度权放宽科学停止线或提前N3/关闭。
+
+独立实际身份审计核原109文件前后不变、六selected400与24历史checkpoint CPU内部contract、相关zip/
+source/model/sidecar/七val119格131case，reuseeligible=true/无pin mismatch，完整实验仍不接受。
+成功回执SHA020b0647434db6cf28acd9ac07116672e7ec34ddc7c49dd5dec2506e8f9718bc；首次自写审计
+clock双采样误断言failed另留，SHA5fed3f3365fe19f45039791dabb0db699c8cca549598fb3070b76280b41f659d，
+纠正按归档driver实际采样时序，未改原预算/判据、0GPU新增。真实只读prepare preflight本轮实跑17通道/
+240时次/65×65/train186/val22，报告SHAef4ed74883b5b45694f5a7f7de92cbe47ad42e226b9b3c6546c3ae684478f1ac，
+无--write。历史独立conversion报告/原始单次授权回执未定位；事前版本化第二阶段授权与ADR0010可核，
+本次只消费既有cache，不倒填历史或重新发布数据。原七skill实际已为物理单位，不盲目二次缩放。
+
+当前只完成资格与工程准备；目标/规划/campaign/index CPU门禁93passed/0.48s，37阻断/ADR/brief/
+index/空白通过，起点CI37025828535精确caea510九步success；**这些不覆盖未完成的新驱动工程或GPU补测**。
+本轮新实现与反证尚在编写，protocol未freeze、23val未运行、新全量测试/工程CI/结果登记未取。
+代码规模硬上限、冻结例外、依赖/模型digest/凭据/安全配置均未改变，未做完整安全扫描。
+后续实测测试基线、工程CI、运行与成本/停止裁定追加本条，不把prepared当结果。
+
+**最终工程实现（GPU仍未运行）**：独立protocol/driver/stdlib worker及跨attempt聚合共五源码、两新测试，
+没有改原M3/model；prepare最早CLI入口冻结同boot单调anchor，1800软/3600硬计整轮准备、冻结、间隔、
+CPU身份前后置、GPU、聚合与owned清理。109旧文件opaque pins/80归档成员强核，23val新进程、0训练、
+无retry/skip，只清理直接Popen；聚合前stage与最终attempt明确区分，不先发表success。独立审阅发现
+非法CPUreceipt拒后finally仍写与evaluation祖先symlink写穿旧目录两项缺陷，已写前修复；真实CPU CLI
+old/outside零写与合法后续失败仍留痕、祖先symlink evaluator不可达反证均在最终定向123passed/13.04s内，
+两项限范围只读复核resolved（不是许可或科学证据）。中途fixture未同步anchor参数33errors另保留，未删弱测试。
+R-009 AST实测1210函数/3112断言/133文件，相对1176/2975新增34/137；同步checker/testing/MIGRATION。
+规模报告R019=0/R019b310/R02046/R02144/R02231/R02328，最大新文件543/函数87；只同步marker，不加例外。
+完整CPU实跑2395passed/9skipped/2warnings，233.74s；六GPU条件与三可选真实fixture跳过不算通过，
+两Lightning无Trainer warning保留。37阻断/campaign/两当前goal/index/brief/compile/两侧空白exit0，43旧
+源码/目标及两无关文件hash保持。新精确工程CI、实际protocol冻结/23评估/最终成本封印仍待执行；
+起点CI不覆盖这些改动，未提交运行产物或两无关未跟踪文件。
+
 ## 2026-10-02 — 实验、推进与普通决策常设下放（0030；总体方向归用户）
 
 用户原话「推进权和实验权，普通决策权全部下放给你，注意，我只需要负责总体实验的方向！」，

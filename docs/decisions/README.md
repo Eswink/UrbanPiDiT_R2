@@ -56,3 +56,4 @@
 | [0028](0028-m3-process-sidecar-and-time-contract.md) | M3 派生尺度 sidecar 与三类时刻训练契约 | accepted | 2026-10-02 |
 | [0029](0029-standing-experiment-delegation.md) | 实验常设下放与时长契约（取代 0021 的逐次询问通道） | superseded by 0030 | 2026-10-02 |
 | [0030](0030-autonomous-execution-and-direction-boundary.md) | 实验、节点推进与普通决策常设下放；总体方向归用户（继承 0029，取代 0025 逐轮触发） | accepted | 2026-10-02 |
+| [0031](0031-m3-cross-attempt-validation-provenance.md) | M3独立23项补测与跨尝试逐文件来源；保留原失败、身份强核和冻结暂停出口 | accepted | 2026-10-02 |

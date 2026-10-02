@@ -1,6 +1,6 @@
 # main-model-v2-campaign：主模型 V2 的 campaign 主计划与每轮对表
 
-**状态：campaign 级主计划（活文档）。当前仍 N2a/budget_limited：M3 原一次尝试6训练/7评估，完整实验未通过，失败全额记账且历史不改。决策0030已将既定方向内的实验、普通决策与节点推进常设下放；新补全目标尚未启动，不自宣最终goal完成。N1原科学结论保持。**
+**状态：campaign 级主计划（活文档）。当前 N2a/active：新独立23项val补测在工程准备；原M3一次尝试仍budget_limited/6训练7评估，失败全额记账且历史不改。按0030自主执行；补测后仍核原冻结暂停出口，不自宣最终goal完成。N1原科学结论保持。**
 
 本文件是「主计划 + 每轮 recheck」机制的**唯一权威**：节点图（§2）、每轮开工前必须走的对表清单（§3）、
 预算账本（§7）与进度块（§8）都在这里。每一轮的目标长文是它的**派生物**，不是平行的第二处真相——
@@ -161,7 +161,7 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-process-supervision.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.7018, "remaining_gpu_h": 19.2982, "status": "budget_limited", "next_node_proposal": null, "budget_mode": "accounting-only"} -->
+<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-validation-complement.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.7018, "remaining_gpu_h": 19.2982, "status": "active", "next_node_proposal": null, "budget_mode": "accounting-only"} -->
 
 - **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
 - **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
@@ -340,3 +340,16 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
   独立8文件审阅实质PASS且不作推进许可。991原文件、历史state/账本/进度不变，无GPU/训练/关闭。
   本尾核与术语补正另提交并核自己的CI，不自宣最终goal；下一窗口从新goal的N2a补测协议准备起步，
   后续在既定方向内自主普通决策/实验/推进，不逐轮等用户触发。
+- **0030接续执行开工（2026-10-02，0新增GPU-h）**：起点`caea510f25cf7eb77bd65638773c561e8e92c25c`，
+  两无关未跟踪项保留。指定四目标/计划/0030通读、campaign0fail/4notes、当前goal0fail、rules diff为空。
+  新长文 `n2a-m3-validation-complement.md` 派生N2a，软1800/硬3600秒、0训练/只补23缺val；
+  current_round_goal切新页，旧attempt/旧goal/证据保持失败只读，账本不增。只读归档审计与工程实现已委派。
+  原M3 `descriptive_outcome` 的any-unresolved暂停出口保持，补齐覆盖不先验授权N3；普通推进权不取消冻结停止线。
+  规划主链修正错误指针/种子互配/旧页回改/余额门/complete建议后，JSONverified=true；目标794字符。
+  目标/规划/campaign/index CPU门禁93passed/0.48s，未跑补测或完整新工程CI。
+- **N2a补测最终工程（GPU尚未启动）**：独立原109文件/24checkpoint/六selected400/七val身份审计完成，
+  原失败全额保持；新五源码/两测试落地，归档隔离、同boot整轮anchor与两处写前路径反证齐。
+  最终定向123passed/13.04s，完整CPU2395passed/9skipped/2warnings/233.74s（skip不算通过）。37阻断/
+  campaign/两当前goal/index/brief/compile/空白exit0，43旧源码/目标及两无关文件hash不变；账本仍未增。
+- **下一动作**：N2a工程提交并核工作分支精确SHA九步CI，再冻新协议补23val；登记完整来源/成本与原
+  暂停出口实际结果后才决定N3或冻结停止，不跳步、不关闭issue、不自宣最终goal完成。

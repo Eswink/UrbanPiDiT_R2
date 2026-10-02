@@ -1,0 +1,88 @@
+# n2a-m3-validation-complement：保留失败历史的 M3 独立验证补全
+
+<!-- round-node: N2a -->
+
+**状态：active（2026-10-02）。本轮执行适用决策0030；不是原1800秒attempt的resume。**
+原 `outputs/r7_73_process_supervision/`、失败证据页与原目标保持只读；只有身份审计、工程门禁与新协议冻结后才启动23项补测。
+
+## §0 Objective（单段；实测794字符，≤4000）
+
+> 按 docs/goals/n2a-m3-validation-complement.md 补全主campaign的N2a/M3：D0核起点HEAD、六项对表、六个400-update checkpoint及原code.zip/source/model/sidecar/旧7项val身份；D1用归档代码和全新输出/独立协议补缺23项val，0训练更新，不改原1800秒协议、digest校验或failed终态；D2新来源manifest逐文件区分旧训练/旧7评估/新23评估，报全17变量×6/12/24/48/72h、显式seed配对、单位正确RMSE/skill/ACC与四成本视图，全额保留原失败和补测成本；D3定向与全量pytest、conventions/campaign/当前goal/index/brief/空白实跑，工作分支精确SHA主CI九步成功后运行；D4新证据页、E/index/账本、独立只读审阅及逐要求审计后按冻结出口进入N3。新实验planned_seconds=1800，hard_cap_seconds=3600，整轮含CPU前置/评估/启动间隔/聚合清理；软超继续记overrun，硬截断failed/budget_limited全额记账。按0030自主普通决策/实验/节点，不逐次询问；GPU共驻每spawn核UUID/余量，离线禁网。禁止读封存test、改原数据/归档/旧失败、下载发布/付费独占、main/合并/force/关闭issue、改冻结判据/阈值/端点/案例集、删弱测试或后台续跑；scientific_claim:false与limitations不豁免。身份不符或评估失败停止本attempt并登记，不伪造拼接或拿工程绿代科学接受。不能合法复用时在原方向内另立具名新协议，不无故重训。最终goal由用户/运行时独立裁定，不自行宣布完成。
+
+## §1 现状与由来
+
+- 起点：`caea510f25cf7eb77bd65638773c561e8e92c25c`，分支 `r7/weather-reasoning`；仅 `.zcode/agents/web-researcher-backup.md` 与 `.zcodeignore` 无关未跟踪，保留不提交。
+- 由来：总体目标 `docs/goals/v2-autonomous-completion-and-closeout.md` D1，主campaign当前N2a；0030取代旧逐次实验/推进许可。
+- 原attempt的六训练各400/selected400，7/30val、119/510 RMSE、131/528 case；完整paired/四表未有。原GPU 0.49725426027008024h、whole1805.1085775829852s及1800秒计时缺口不改。
+- 冻结源事实见 `docs/R7_73_PROCESS_SUPERVISION.md` §5–7；完整身份由独立只读审计核实际字节，不从计划或摘要推定。
+- 旧M3长文是原失败历史。本轮不回写其停止条款；主计划 `current_round_goal` 指向本新长文，仍为N2a。
+- 本轮真实源的只读 `prepare_r7_local.py` 已在GPU前实跑：17通道/240时次/65×65，train186/val22，source SHA与原一致；报告 `/tmp/r7_m3_complement_source_readonly_preflight_20261002.json` SHA256 `ef4ed74883b5b45694f5a7f7de92cbe47ad42e226b9b3c6546c3ae684478f1ac`。没有--write、下载或重建。历史M2独立只读conversion报告/单独授权回执仍待有限定位，不能把本次报告冒称历史报告；原written-local-cache记录与原第二阶段授权另核并如实限定。
+
+## §2 交付物清单
+
+| # | 交付物 | 实际证据形态 |
+| --- | --- | --- |
+| D0 | 起点与复用资格 | 实际status/HEAD、六条recheck、source/zip/模型/sidecar/六checkpoint及旧7项的逐文件SHA与契约、selected400报告 |
+| D1 | 缺23项独立val补测 | 独立冻结protocol/digest、新驱动源码归档、新排他输出；每项归档evaluator身份、新进程、UUID/余量与allocator证据，0训练更新 |
+| D2 | 可审计跨attempt汇总 | 来源manifest区分old-training/old-evaluation/supplement；30项、528 case、510 RMSE格、全17变量五lead、同seed配对、RMSE/ACC/物理单位skill及四成本表 |
+| D3 | 工程门禁 | 定向及全量pytest pass/skip实数，37阻断/campaign/brief/index/compile/whitespace，精确工程SHA主CI九步success |
+| D4 | 登记及出口审计 | 新 `docs/R7_73_VALIDATION_COMPLEMENT.md`、E/index/canonical brief、独立复核、全额账本、精确登记CI及prompt-to-artifact核对 |
+
+## §3 判据与证据来源
+
+- M3科学/工程接受条件只引 `docs/goals/n2a-m3-process-supervision.md` §3、`docs/R7_65_PREDIAGNOSTIC.md`、`docs/R7_MAIN_MODEL_V2_DESIGN.md`、决策 `docs/decisions/0028-m3-process-sidecar-and-time-contract.md`。
+- 数据与训练/选择配置全部继承原协议；seed41/42、三臂、K4/400、selected400实际核后引用，val五lead案例22/21/19/15/11。新协议只改变补测编排/时长/来源，不改变case或指标。
+- 新调用按原code.zip的实际evaluator执行，不用当前模型绕旧digest；source SHA、BUILD_COMPLETE、训练contract、fixed inverse和sidecar身份强核。
+- 结果来源可跨attempt逐文件引用，但不能伪造原finalizer/原attempt成功。未测项/无法恢复峰值明确缺失；旧evaluation不以训练峰值代填。
+- 显式seed配对与四成本依据既有#60比较器，是同seed两臂差而非seed41对seed42。M3本身的skill CSV已为物理RMSE；先按原接受器核实际单位，不对已正确M3数字盲目二次缩放。决策0010的旧归一化缺陷只适用于其历史产物，原CSV不改。不同物理单位不直接平均，正ACC不等于MSE skill。
+- 原 `training/r7_m3_results.py:196-205` 的 `descriptive_outcome` 与原协议reporting已冻结：任何unresolved cell要求暂停、不推进。新汇总复用此判定，不因0030的普通推进权而取消；若触线，新attempt完整覆盖但paused，N3/N4/N5必要前置仍未解除。
+- R-006/R-028/R-054/R-009、决策0030及 `docs/rules/ci-and-verification.md` 保持。工程、完整实验覆盖与科学支持分开；两seed不称显著性。
+
+## §4 实施顺序
+
+1. 六项对表、只读归档身份审计、规划JSON契约及两处事实抽查。
+2. 版本化补测驱动/聚合契约及反证；不修改冻结1800常量或原加载身份逻辑。
+3. 全工程门禁与工作分支精确SHA九步CI；再冻结新protocol与源身份。
+4. 单次23项新进程val，只读原store/source/sidecar/六checkpoint；任一失败停止attempt，保留中间证据。
+5. 跨来源30项完整汇总/seed配对/四成本与负面结果；独立只读审阅、登记及出口审计。
+6. 完整覆盖与N2a必要出口有证据后同步上一轮next-action/主计划state/新N3长文，重新campaign对表再推进；质量审阅不是许可。
+
+## §5 预算与停止条件
+
+| 项 | 数值与执行语义 |
+| --- | --- |
+| planned_seconds | 1800，软预算；超出继续并记 `soft_overrun_seconds=max(0,whole-planned)` |
+| hard_cap_seconds | 3600，宽松硬上限；整轮从新protocol prepare最早CLI进入起包含准备身份/源码归档与冻结、prepare至run启动间隔、运行身份重核/归档提取、23评估、imports/启动/聚合/清理；用冻结同机boot单调anchor，需预留本实验子进程清理时间 |
+| GPU-h | 无总上限；连续实际GPU区间全额记账，不只累计成功评估kernel；原失败0.49725426027008024h另列且合计 |
+| 共驻 | 固定一次选定UUID；每spawn只读余量门槛至少2048MiB并覆盖预声明owned峰值安全余量；外部PID只记不发信号 |
+| 失败/skip | 身份不符、余量不足、指标/案例不齐或任一评估失败即停本attempt；skip/cancelled/queued/partial不接受，不自动resume旧失败 |
+| 运行通道 | 本地离线实验，不新建承载GPU实验CI；CPU主CI只验证工程、不冒充GPU实验，故不批量修改workflow时限 |
+
+1800软/3600硬根据已有每项新进程val计量与缺23项规模留足余量，不是科学阈值。旧1800协议不改。总体方向改变、需要付费/租卡、新或多年度下载、数据发布--write、独占、main合并或破坏性操作时停止相关动作取用户决定。已冻结不可分辨/不能归因等停止线仍有效，不靠加预算练到赢。
+
+## §6 与planner草稿的差异
+
+只读planner返回围栏JSON，主链收敛为 `/tmp/r7_n2a_complement_plan_20261002.json`，实际校验 `verified:true/fence_stripped:false/failures:0`。抽查原worker154–195的评估输出与来源、原results196–211的暂停/1800接受条款后，纠正草稿中不存在的文档/比较器指针、种子互配错误、回改冻结证据页、删除preflight证据、余额作为停止闸门及自行complete等建议。新增专用complement模块不动旧M3，结果进新证据页；实际1800软/3600硬已由主链先写定，原暂停线保持。planner不制定科学判据，草稿不是证据。
+
+## §7 明确不做
+
+- 不训练/新增seed臂/改selected checkpoint，不改原协议、旧失败终态、原输出或历史证据页。
+- 不写data/raw/interim/processed与legacy；不读封存test、不以已曝光test选择配置、不下载/发布数据。
+- 不改冻结判据、端点、案例集，不删/弱化测试；不把fixture作天气真值。
+- 不signal邻居、不独占/付费/租卡，不cron/后台续跑；不main/合并/force/关闭issue。
+- 不把覆盖补齐、工程CI或独立审阅当科学成功或最终goal完成。
+
+## §8 进度块
+
+- **状态**：active，工程准备；GPU补测未启动，新增GPU成本0。
+- **六项开工recheck**：①N2a与N1尾下一动作一致；②账本逐行算术24.0/4.7018/19.2982、四历史无索引notes照保留；③N1已登记证据commit可达；④新目标派生总体goal的N2a/D1并引用冻结文档；⑤ `git diff -- docs/rules` 为空，历史M3科学页/协议未改；⑥campaign实际0fail/4notes，无需修机械漂移，先身份审计不启动实验。
+- **验证路线**：只读数据库显示当前provider最近三条goal校验均error/约600秒；这是客户端路线事实，不判本任务失败，也不自判完成。
+- **D0实际独立审计**：`/tmp/r7_m3_complement_audit_20261002_final_s6ciyxh4/results/audit_receipt.json` SHA256 `020b0647434db6cf28acd9ac07116672e7ec34ddc7c49dd5dec2506e8f9718bc`，audit_valid/technical_artifact_reuse_eligible=true，无pin mismatch，完整原实验仍不接受。六selected400及24历史checkpoint CPU身份/contract已核、旧七val119格/131case、相关zip/model/source/sidecar/109文件前后不变。首次自写审计过严clock采样断言failed另存、未改冻结标准；failed receipt SHA `5fed3f3365fe19f45039791dabb0db699c8cca549598fb3070b76280b41f659d`保留，纠正按归档driver两次采样时序，0GPU新增。
+- **数据资格读法**：本次GPU前只读prepare报告已实跑；旧发布written-local-cache可核，full-auto授权声明在事前commit `ecdae0d5bd0c70799f91d0ddfa02bcd04bf76e6f`已版本化、ADR0010将M2纳入第二阶段。有限范围未找到历史单次原始用户回执/独立转换前报告，不据缺文件推无许可，亦不倒填历史报告；本轮只消费既有完成cache、不新发布--write。
+- **具名输出**：`outputs/r7_m3_validation_complement_20261002/`（冻结前核不存在）；旁侧接受回执 `outputs/r7_m3_validation_complement_acceptance_20261002/`保留独立审计/只读preflight/开工pins/逐要求清单，非实验原目录。
+- **新聚合反证实跑**：跨来源聚合及旧M3 driver/receipt CPU合集实际 `114 passed in 17.65s`，日志 `/tmp/r7_m3_complement_aggregate_targeted_20261002.log`；全集合拒绝、原失败保留、物理单位不二次缩放、phase snapshot与最终成本引用、any-unresolved暂停有反证。这仅工程子集，尚未代表完整新驱动/全量/CI或GPU结果。
+- **未做**：23评估、跨attempt30项实际汇总、完整新成本/paired、新结果登记和出口科学读法均未做。
+- **最终驱动与路径复核**：prepare入口同boot单调anchor、归档隔离、写前拒非法receipt与evaluation祖先symlink、完整来源及真实aggregation接口反证已落地；主链最终定向 `123 passed in 13.04s`（0skip），日志 `/tmp/r7_m3_complement_targeted_final_20261002.log`。原两high限范围只读复核均resolved，不当许可。中途编辑fixture签名不齐的33errors保留，已由最终实跑覆盖。
+- **基线/规模实测**：1210测试函数/3112断言/133文件，新增加34函数/137断言；只同步checker与文档。新最大文件543行/函数87行，R019=0/R019b310/R02046/R02144/R02231/R02328，仅机器marker同步，无阈值或例外放宽。
+- **全量工程实跑**：`CUDA_VISIBLE_DEVICES='' .venv/bin/python -B -m pytest -q -p no:cacheprovider` 最终2395passed/9skipped/2warnings，233.74s，日志 `/tmp/r7_m3_complement_full_cpu_20261002.log`。六GPU条件测试/三可选真实fixture跳过，不算通过；两个Lightning无Trainer日志warning照保留。37阻断0违规/campaign0fail4notes、两当前goal0fail、index/brief17records、compile与staged/unstaged空白均exit0。43旧源码/目标及两无关文件hash保持，新具名输出确认尚不存在。
+- **下一动作**：工程提交与工作分支精确SHA九步CI；通过后立即prepare/freeze/run23项，最后按原暂停出口登记，不提前跳节点。
