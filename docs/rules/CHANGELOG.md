@@ -2,6 +2,60 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-02 — 实验常设下放与时长契约（决策 0029，取代 0021）
+
+**范围与授权**：用户在计划 0010 §0 已确认实验类动作全下放、不设总 GPU-h 上限、软预算 + 宽松硬
+上限。新增 accepted 决策 `0029-standing-experiment-delegation.md`，0021 状态改为
+`superseded by 0029` 且正文保留，决策索引双向登记；AGENTS 硬约束两条改为本地实验规模/时长自主，
+保留付费资源、新数据/发布 `--write`、main 合并、force push、破坏性操作原授权边界。
+`ci-and-verification.md` 的 R-029/R-030 与触发授权段同步，新增实验时长契约小节；GPU 细则只同步
+0026/0029 授权指针与历史 N1 参数定位，R-054 不变；`bounded-study-run`、`goal-loop` 两份 SKILL
+同步软/硬端点与常设下放；campaign §3/§5/§7/§8 同步，账本降为记账、state 仅加
+`budget_mode=accounting-only`。本条与计划 0010 的实际结果记录构成执行留痕。
+
+**时长语义**：训练前冻结 `planned_seconds`（软）/`hard_cap_seconds`（宽松硬，默认约 2× 计划，
+逐轮写死）。按整轮墙钟，超软预算不中止而继续等待、记录 `soft_overrun_seconds`；硬截断记
+budget_limited/failed、全额记账，不算科学通过。真实错误与其它冻结停止条件仍可提前停止。
+承载实验的 workflow 必须满足 `timeout-minutes * 60 > hard_cap_seconds` 并留证据收尾余量；
+允许按新实验提高数值，不删时限。M3 整轮超历史 30 min 的 CPU 前置缺口如实引用，不改其终态。
+
+**最小一致性补正**：D7 的「完整训练/多年度数据需另授权」拆为本地训练规模已下放、新数据仍保留
+授权；D9 主计划 §4 的现行执行动作从 0021 同步为 0029，§3 算术说明明确 24 为会计基数。这些均在
+已指定文件内，不重写历史目标或改判据。D8 其它步骤/完成判据按计划保留。
+
+**没有改什么**：任何检查器（`check_conventions.py`、`check_campaign_state.py`、
+`check_goal_brief.py`）、规则编号、workflow 的 `timeout-minutes` 数值、冻结协议常量与其测试、
+历史证据页与归档、R-006/R-028/R-054/R-009 的判据本身均未改；不新增例外、不删除规则或测试。
+账本每行数值/证据指针、cap/used/remaining=24.0/4.7018/19.2982、N2a/budget_limited 与科学结论
+不变。未补 M3 的 23 项评估，未执行训练/评估/数据下载/发布、租卡、main 写入或 issue 关闭；没有
+模型 digest、程序接口、依赖、凭据、安全配置变化。新契约尚未用于新实验，不冒称历史 runner
+自动支持。
+
+**执行与验证**：起点 `6e25c7eef57dd622e68ce3df4af06e7d6c1f261f`；遗留计划/长文独立提交
+`5058610744377e6729f12e49b7066b544a9e56aa` 已推工作分支，对应 CI `36993386517` 精确 SHA、
+completed/success 九主步骤全绿（匿名 API 访问 2026-10-02）。治理改动后实跑计划 §4：
+
+- `.venv/bin/python tools/check_conventions.py`：37 条阻断，0 违规，exit 0；
+  `--rule R-033 --rule R-036`：新 ADR 与取代链均 0 违规，exit 0。
+- `.venv/bin/python tools/check_campaign_state.py`：N2a，0 失败/4 条历史 C-03 notes，exit 0。
+  四条无索引支撑的旧账本行未冒称机器核数；新增 budget_mode 不破坏 C-01..C-06。
+- `.venv/bin/python tools/check_goal_brief.py --brief docs/goals --quiet`：17 briefs、15 failures、
+  exit 1；JSON 输出核实全部来自已登记的五份早期长文（d1-acquisition-and-b0、full-auto-campaign、
+  gpu-bringup-3090、iteration-campaign、open-issue-resolution），**不是目录全绿**，不回溯改写。
+  现行 n2a/n3/n4/v2-issue-closeout 四份长文逐一检查及合并检查均 0 失败、exit 0。
+- `.venv/bin/python -m pytest tests/test_check_conventions.py tests/test_check_campaign_state.py
+  tests/test_check_goal_brief.py -q`：**152 passed in 22.53s**，0 skip、exit 0。
+- `git show --check`、`git diff --check`：exit 0；证据索引/简报额外只读校验 17 records、exit 0。
+  只读 hash/结构审计核 771 个冻结范围文件、9 份保留长文、11 账本行（含合计）、两份无关未跟踪文件
+  均不变；0021 原正文、历史 CHANGELOG、campaign 历史进度尾与原 state 全字段均保留。
+
+日志与审计工作态：`/tmp/r7_0029_validation_20261002/`、
+`/tmp/r7_0029_handoff_ci_20261002/`（不提交）；长期结果登记在计划 0010「实际结果」。
+治理提交 CI 尚待推送后绑定，不能将遗留 CI 当作覆盖新规则的证据。提交不带实验标签，不触发实验
+workflow。Mimosa 提交/推送 hook 报 `scanner_enobufs`，未得到完整安全结论；一份临时验证脚本的
+泛化命令封装被写前扫描拒绝后，改用固定命令实跑、没有绕过扫描或改安全配置。本轮未做完整
+安全审计，不宣称项目安全。
+
 ## 2026-10-02 — M3一次budget-limited执行与只读部分验收（不重试）
 
 工程d6c98cf的CI36973907623九主步骤成功后，按本轮具名书面授权一次执行3arm×seed41/42×400updates/K4，

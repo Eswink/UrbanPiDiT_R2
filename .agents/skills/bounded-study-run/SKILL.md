@@ -13,19 +13,28 @@ description: 当要运行一个受预算约束的 CPU 实验并为其留下可�
 
 **不适用**：
 - 探索性随手试探（还不确定要不要保留的）——先跑，确定了再走本流程；
-- 已在预算是"完整训练/多年度数据"级别的实验——那需要单独授权（见主契约的硬约束）。
+- 完整训练的编排不由本流程覆盖，但本地训练规模本身已按决策 0029 常设下放；新/多年度数据下载
+  与数据发布仍走 `real-data-acquisition` 并逐次取得授权，不能把本地训练自主权扩成取数许可。
 
 ## 授权
 
-本流程不自行开工。触发 CI 实验或跑本地训练/评估前，按决策 0021 取得授权：在要执行的那一刻用
-`AskUserQuestion` 提问（写明范围 / 预算 / 产物与证据 / 失败与 skip 处理），或按用户预先书面的
-具名授权执行。授权范围记入运行记录；授权不豁免 R-006 / R-028 与预算纪律。
+按决策 0029，本地 GPU 运行、训练/评估、触发实验 workflow，以及每次实验的时长与预算分配已
+常设下放，由执行者自主决定，不再逐次询问；范围、预算端点、产物与证据、失败与 skip 处理仍须
+在执行前写进长文/协议并记入运行记录。
+
+保留逐次授权项：GPU 租赁与付费资源、多年度/新数据下载与数据发布 `--write`、`main` 合并、
+force push、破坏性数据操作；本决策不改变这些原有边界与禁令。授权不豁免 R-006（先冻结协议）、
+R-028（离线禁网）、R-054（共驻且不干预邻居）、R-009（不弱化判据）、身份校验、
+`scientific_claim: false` 与 limitations。如实保留 `skip`/`cancelled`/`queued`/`partial`/`failed`，
+它们不算通过；节点推进与目标完成仍只可由用户或独立复核裁定。
 
 ## 前置条件
 
 1. 已确认数据源身份：本地文件路径 + 其 SHA256（真实数据必须能在 `data/download/*_replay.py`
    的 pin 中被核验）。
-2. 已决定预算端点：更新数上限、样本数上限、时间上限。**写下来之后再开始**。
+2. 已决定预算端点：更新数上限、样本数上限、`planned_seconds`（软预算）与 `hard_cap_seconds`
+   （宽松硬上限，默认约 2× 计划，整轮墙钟）。两个时间端点在该轮长文写死并纳入冻结协议，
+   **写下来之后再开始**。
 3. 工作树状态已知：`git status` 无意外改动，`git rev-parse HEAD` 记下。
 4. 环境一致：CI 上跑的话确认 workflow 里装的是 `requirements.txt` + `requirements-r7-data.txt`。
 
@@ -42,9 +51,13 @@ description: 当要运行一个受预算约束的 CPU 实验并为其留下可�
    `BUILD_COMPLETE.json`）。不得联网。
    - 样例：`prepare_local(source, cfg, write=True, store_path=..., manifest_dir=..., max_raw_gib=...)`。
    - 约束依据：R-001、R-004、R-005。
-3. **执行。** 按预算跑训练与评估，循环内检查墙钟截止时间，超时立即抛错（不要等 CI 超时）。
-   - 样例：`r7_continuous_control.py:92-93` 的 1080 秒检查。
-   - 约束依据：R-030。
+3. **执行。** 跑训练与评估，循环内检查整轮墙钟的**硬上限**；超过软预算不中止，继续等待并记录
+   `soft_overrun_seconds = max(0, whole_elapsed_seconds - planned_seconds)`，只允许在硬上限因时长
+   截断。硬截断记 `budget_limited`/`failed`、保留证据、全额记账，不算科学通过；真实失败与其它
+   冻结停止条件仍可提前停止。
+   - 历史样例：`r7_continuous_control.py:92-93` 的 1080 秒检查（不回溯改其冻结语义）。
+   - CI 必须满足 `timeout-minutes * 60 > hard_cap_seconds` 并留收尾余量，不等 GitHub 超时才失败。
+   - 约束依据：R-030、决策 0029；新契约不回溯修改冻结常量或历史结果。
 4. **归档代码身份。** 在 workflow 里把 `code.zip`（`git archive HEAD`）与
    `code_commit.txt`（`git rev-parse HEAD`）写入产物目录，并把产物 upload 为 artifact。
    - 样例：`r7-cpu-study.yml` 的 "Preserve exact source code" 步骤。
@@ -76,7 +89,8 @@ description: 当要运行一个受预算约束的 CPU 实验并为其留下可�
   `socket.create_connection`（R-028）。它是"防意外"，不是沙箱。
 - **artifact 下载用错 run-id**：workflow 里 `download-artifact` 的 `run-id` 是硬编码的。
   改动源数据后必须同步更新 pin，否则会在旧产物上跑出新结论。
-- **超时才发现预算错**：把截止检查放在循环**内部**，不是循环之后。
+- **软预算写成硬上限**：计划没写软/硬两个数字，事后无法区分 overrun 与截断；循环内部只按
+  已冻结的硬上限因时长截断，不能把软预算超出当成失败。
 
 ## 完成判据
 

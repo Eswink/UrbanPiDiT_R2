@@ -76,7 +76,8 @@
 **每轮开工前必须逐条走完，并把这六条的结论写进该轮 §8：**
 
 1. **节点一致性**：本文件 §8 的 `current_node` 与上一轮长文 §8 的「下一动作」必须指向同一节点。
-2. **账本算术**：§7 账本逐行求和 = 已用、24 − 已用 = 余量（容差 1e-3）；每行必须有证据指针。
+2. **账本算术**：§7 账本逐行求和 = 已用、会计基数 `cap_gpu_h` − 已用 = 会计余量（容差 1e-3）；
+   每行必须有证据指针。决策 0029 后账本只记账，历史基数 24 不再是总上限，余量不作为停止闸门。
 3. **上一轮登记**：上一轮长文已在 `docs/R7_EVIDENCE_INDEX.jsonl` 里有一条 `evidence_path` 指向它的记录，
    且该记录的 `evidence_commit` 在 git 里存在；新长文过 `tools/check_goal_brief.py`。
 4. **本轮 objective 派生**：写明它实现的是哪个节点、引用哪些冻结文档；禁止项照抄 §2 的常设清单。
@@ -89,7 +90,7 @@
 它只能证明"没有跑偏到与主计划矛盾"，**不能**证明方向正确。
 
 判据来源：本文件 §2 的冻结文档指针、`docs/rules/ci-and-verification.md`（运行资格与门禁）、
-`docs/decisions/0021-experiment-authorization-channel.md`（实验授权）、
+`docs/decisions/0029-standing-experiment-delegation.md`（实验常设下放与时长契约，取代 0021）、
 `docs/decisions/0023-main-model-first-baseline-freeze.md`（基线冻结与 matched-Generic）、
 `docs/decisions/0025-campaign-master-plan-and-per-round-recheck.md`（本机制本身）。
 
@@ -98,17 +99,22 @@
 1. 读本文件 §8 的 `current_node` 与上一轮 §8 的下一动作 → 跑 `tools/check_campaign_state.py`（§3 第 1–3 条）。
 2. 从当前节点**派生**该轮目标长文 `docs/goals/<slug>.md`（骨架见 `.agents/skills/goal-loop/SKILL.md`），
    过 `check_goal_brief.py`，把 `<!-- round-node: N? -->` 与 §8 一起写好。
-3. 执行该轮（0 GPU-h 的审计先做；需要 GPU 的那一步在执行那一刻按决策 0021 取授权并重读账本）。
+3. 执行该轮（0 GPU-h 的审计先做；需要 GPU 的那一步按决策 0029 常设下放，先冻结该轮软/硬
+   时长与范围、核共驻门槛并重读账本；账本只记账，保留项仍须逐次授权）。
 4. 收尾：证据页 + E 条目 + 索引记录 + CI 绑定 + 更新本文件 §8（当前节点 / 账本 / 下一动作）。
 5. **本轮结束即停**：给出「recheck 结果 + 下一轮提示词」，等用户触发；不做后台续跑、不重开定时器
    （`docs/R7_MANUAL_ITERATION.md:3-6` 的用户决定）。
 
 ## §5 预算与停止条件
 
-- 批次授权：第二批 **≤24 GPU-h**，自主分配（`docs/goals/full-auto-campaign.md:39`）；单次实验 ≤30 min。
-- 节点内自设上限见 §2；执行前必须重读账本（§7），不得沿用其它文档里的旧数字。
-- **停止条件**（满足任一即停并向用户报告）：预算用尽或账本不足；本轮需要新判据；
-  本轮结论为「不可分辨」或「不能归因」（→ 提议 N2d）；需要新数据、租 GPU、合并 main 或任何破坏性操作。
+- 批次授权：**无总 GPU-h 上限**（决策 0029）；账本为记账，不是额度闸门。单次实验在该轮长文与
+  冻结协议中声明 `planned_seconds`（软）/`hard_cap_seconds`（宽松硬上限，默认约 2× 计划）。
+- 节点内预算由执行者自主决定，按整轮墙钟控制；超软预算继续等待并记 `soft_overrun_seconds`，
+  仅硬上限因时长截断，记 `budget_limited`/`failed` 并全额记账。执行前重读账本（§7）作审计，
+  不沿用历史 24 GPU-h/≤30 min 为现行闸门；历史节点数值、冻结协议与证据不回溯改写。
+- **停止条件**（满足任一即停并向用户报告）：本轮需要新判据；
+  本轮结论为「不可分辨」或「不能归因」（→ 提议 N2d）；需要新数据、租 GPU/付费资源、合并 main 或任何破坏性操作。
+  「预算用尽或账本不足」不再单独作为停止条件；节点推进与目标完成仍只由用户或独立复核裁定。
 - 目标状态 `active / paused / budget_limited / complete`（`docs/goals/README.md:22`）；**执行者只可提议，不得自宣完成**。
 
 ## §6 明确不做
@@ -119,7 +125,7 @@
 - 不建立定时任务或后台续跑（用户 2026-09-23 决定，`docs/R7_MANUAL_ITERATION.md:3-6`）；
   harness goal 只作 best-effort（决策 0024），不作为完成判定。
 
-## §7 账本（第二批 ≤24 GPU-h；每行必须有证据指针）
+## §7 账本（记事，非闸门；每行必须有证据指针）
 
 | 轮次 | 实测 GPU-h | 累计 | 证据 |
 | --- | --- | --- | --- |
@@ -135,13 +141,16 @@
 | M3过程监督三臂（budget_limited，6训练/7评估） | 0.4973 | 4.7018 | `docs/R7_73_PROCESS_SUPERVISION.md` + 索引记录 `record:m3-process-supervision-budget-limited`（`gpu_hours = 0.49725426027008024`；失败全额计费，逐行显示舍入） |
 | **合计已用** | **4.7018** | — | 24 − 4.7018 = **余 19.2982 GPU-h** |
 
-说明（如实）：**账本不是从证据索引机械累加的**——索引覆盖其中六行（其余四轮没有索引记录），
+说明（如实）：决策 0029 后账本**只记账、不设总上限**；`cap_gpu_h=24.0` 是历史会计基数，
+`used_gpu_h` 为实际累计消耗，`remaining_gpu_h` 为基数减累计的会计差额，三字段仍供 C-02 算术对表，
+不是执行许可或停止闸门，未来差额为负也不因此停实验。本轮无 GPU 消耗，表内数字与证据指针均不改。
+**账本不是从证据索引机械累加的**——索引覆盖其中六行（其余四轮没有索引记录），
 所以 `check_campaign_state.py` 做的是「逐行算术 + 证据指针存在性 + 有索引者数值一致」，
 没有索引支撑的行会被**列出来**而不是被当成已核。把索引补成全量账本是将来可做的一件事，本轮不做。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-process-supervision.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.7018, "remaining_gpu_h": 19.2982, "status": "budget_limited", "next_node_proposal": null} -->
+<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-process-supervision.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.7018, "remaining_gpu_h": 19.2982, "status": "budget_limited", "next_node_proposal": null, "budget_mode": "accounting-only"} -->
 
 - **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
 - **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
@@ -288,3 +297,13 @@
   登记核验SHA570a2d81…、逐需求最终审计SHAb8785366…，109运行文件/80源/page仍不变。
   工程CI不替代D5缺口，登记仅审计失败，goal不自宣完成；本条尾核与登记SHA区分，不回改冻结页/index。
 - **下一动作**：仅审阅本次失败证据与完整对照缺口；新的具名授权/预算决策前，不补跑、重训、扩围或进入N3。
+- **实验下放治理落地（2026-10-02，0 新增 GPU-h）**：先归档计划 0009/0010 与三份待执行长文，独立提交
+  `5058610744377e6729f12e49b7066b544a9e56aa`，CI `36993386517` 精确 SHA 匹配、completed/success、
+  九主步骤全绿；匿名 run/jobs API 访问日期 2026-10-02。按计划 0010 D1–D10 落地
+  `docs/decisions/0029-standing-experiment-delegation.md`（accepted），0021 标记 `superseded by 0029`，
+  同步 AGENTS、CI/GPU 细则、两份 SKILL 与本主计划。state 只新增 `budget_mode=accounting-only`，
+  cap/used/remaining 保持 24.0/4.7018/19.2982，`current_node=N2a`、`status=budget_limited` 与原 M3
+  失败结论不改。此轮只实施治理，不执行新实验；**新规则下的实验调度留待新窗口**。届时按计划 0009
+  与本主计划准备 N2a 补全、N3、N4、N5 与关闭轮，在每轮执行前写死 planned/hard 并冻结协议；
+  旧 prepared 长文里的 0021/总额度/≤30 min 不是现行授权闸门，须在该轮执行记录中明确适用 0029。
+  除保留项外不再逐次询问；不回溯改旧协议/归档，不自动推进节点、关闭 issue 或宣告目标完成。

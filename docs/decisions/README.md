@@ -46,7 +46,7 @@
 | [0018](0018-web-research-route.md) | 外部检索的唯一出口（web-researcher）与引用纪律 | accepted | 2026-09-28 |
 | [0019](0019-verification-receipt-pilot.md) | 机器可读验证回执先行试点 | accepted | 2026-09-29 |
 | [0020](0020-verification-contract-and-governance-drift.md) | 验证回执身份契约与治理漂移防护 | accepted | 2026-09-29 |
-| [0021](0021-experiment-authorization-channel.md) | 实验授权的会话内询问通道 | accepted | 2026-09-29 |
+| [0021](0021-experiment-authorization-channel.md) | 实验授权的会话内询问通道 | superseded by 0029 | 2026-09-29 |
 | [0022](0022-size-and-naming-hard-caps.md) | 规模硬上限与目录命名：先量后立、例外只许缩小 | accepted | 2026-09-29 |
 | [0023](0023-main-model-first-baseline-freeze.md) | 主模型优先与基线冻结：开发期门禁与发表期门禁分开 | accepted | 2026-09-29 |
 | [0024](0024-goal-verifier-best-effort-and-standard-recovery.md) | goal 自动完成校验按 best-effort：保留 harness 驱动，收尾不依赖自动结项 | accepted | 2026-09-30 |
@@ -54,3 +54,4 @@
 | [0026](0026-shared-gpu-coresidency-policy.md) | 本机 GPU 默认共驻与只读余量取卡政策 | accepted | 2026-10-01 |
 | [0027](0027-n1-cost-acceptance-boundaries.md) | N1 成本审计的共驻验收与历史身份读取例外 | accepted | 2026-10-02 |
 | [0028](0028-m3-process-sidecar-and-time-contract.md) | M3 派生尺度 sidecar 与三类时刻训练契约 | accepted | 2026-10-02 |
+| [0029](0029-standing-experiment-delegation.md) | 实验常设下放与时长契约（取代 0021 的逐次询问通道） | accepted | 2026-10-02 |

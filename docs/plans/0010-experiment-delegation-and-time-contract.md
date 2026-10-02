@@ -1,7 +1,8 @@
 # 0010 — 实验常设下放与时长契约：新决策 0029 取代 0021
 
-**状态：已批准（2026-10-02）。本文件是执行前的计划归档（R-032），不是执行记录。**
-本次会话按用户要求**只产出本计划与索引行**：D1–D10 的规则改动、提交、推送、CI 全部留待用户指定的新窗口。
+**状态：已批准（2026-10-02）；本轮 D1–D10 治理施工已落盘，最终提交/CI 正在绑定。**
+以下 §0–§7 是原执行前计划归档（R-032），保留当时事实；「实际结果（计划归档会话）」记的是原会话。
+本轮执行证据与差异见文末「执行记录（2026-10-02）」，不要把旧「未执行」描述当作当前进度。
 
 ## §0 授权依据（用户 2026-10-02 于计划模式内以选项确认）
 
@@ -224,7 +225,7 @@ R-006/R-028/R-054/R-009 的判据本身）；验证命令与结果（见 §4）�
 收尾：按 AGENTS.md「完成任务时必须报告」九项报告；并写明此后 campaign 实验（N2a 补全 → N3 → N4 → N5 → 关闭轮）按 docs/plans/0009 与主计划在新规则下自主调度，除保留项外不再逐次询问用户。
 ```
 
-## 实际结果
+## 实际结果（计划归档会话，保留原记录）
 
 - **完成情况**：**未执行**（按用户指示）。本次会话只产出：本计划文件、`docs/plans/README.md` 索引行，
   以及本文件 §7 的交接提示词。D1–D10 的规则改动、提交、推送、CI、GPU 均未触碰。
@@ -238,3 +239,74 @@ R-006/R-028/R-054/R-009 的判据本身）；验证命令与结果（见 §4）�
   未提交、未推送、未跑 CI（本会话无写远端动作）。
 - **遗留**：D1–D10 全部待执行；工作区遗留（本文件 + 索引行 + 4 份 goal 长文）尚未提交；
   执行窗口按 §6 第 0 条先处理提交，再按 §3 逐项落地。
+
+## 执行记录（2026-10-02）
+
+### 起点、授权与顺序
+
+- 用户本轮明确要求执行本计划，沿用 §0 的三项已定决定，不重新询问。
+  实际起点 `6e25c7eef57dd622e68ce3df4af06e7d6c1f261f`、分支 `r7/weather-reasoning` 与计划一致。
+- §6 第 0 条先落实：只暂存审阅过的两个索引、计划 0009/0010、n3/n4/closeout 三份未跟踪长文，
+  共 7 文件独立提交 `5058610744377e6729f12e49b7066b544a9e56aa` 并推工作分支。
+  CI `36993386517` 对精确 SHA completed/success、九主步骤均 success 后，才开始 D1。
+  `.zcode/agents/web-researcher-backup.md` 与 `.zcodeignore` 是无关遗留，未改、未暂存。
+- 本轮只实施治理、0 新增 GPU-h，不训练/评估、不触发实验 workflow、不改节点或关闭 issue。
+  goal 自动完成校验最近一条只读记录为 error（600002ms）；按决策 0024 best-effort，不依赖它结项。
+  独立只读内容审阅与逐条实证审计用于交叉核对，不替代用户/独立目标裁定。
+
+### Prompt-to-artifact 交付对表
+
+| 要求 | 当前产物与证据 | 判定边界 |
+| --- | --- | --- |
+| D1 | `docs/decisions/0029-standing-experiment-delegation.md`，2026-10-02/accepted，Context/Decision/Consequences，五项决定与代价/备选 | 常设下放、保留项、整轮软/硬时长、无总上限、不可豁免/不回溯齐全；ADR 检查 exit 0 |
+| D2 | `docs/decisions/0021-experiment-authorization-channel.md` 状态 `superseded by 0029`、追加反向指针 | 原正文逐字保留，只改状态与追加指针 |
+| D3 | `docs/decisions/README.md` 的 0021/0029 两行 | 0021 取代状态与 0029 accepted/日期对应 |
+| D4 | `AGENTS.md` 硬约束两条 | 本地实验规模/时长下放；共驻与诚实性原文未改 |
+| D5 | `docs/rules/ci-and-verification.md` 的 R-029/R-030、触发授权、新时长小节 | planned/hard/overrun、整轮墙钟与严格 CI 外层余量；例外/Q-010 不改 |
+| D6 | `docs/rules/gpu-resources.md` 首段与 N1 参数授权定位 | 0026/0029 指针同步；R-054 本体与 N1 数值不改 |
+| D7 | `.agents/skills/bounded-study-run/SKILL.md` 授权/前置/执行/常见失败 | 写死软/硬端点、只因硬上限时长截断；新数据/write 保留授权 |
+| D8 | `.agents/skills/goal-loop/SKILL.md` 前置条件 2 与旧额度误用失败项 | 无总上限、逐轮 planned/hard；其它步骤与完成判据保留 |
+| D9 | `docs/goals/main-model-v2-campaign.md` §3/§5/§7/§8，另同步 §4 现行指针 | 仅新增 budget_mode；原 state/账本/历史进度与 N2a/budget_limited 未改 |
+| D10 | `docs/rules/CHANGELOG.md` 顶部决策 0029 条目 | 范围、没有改、实跑命令与结果如实登记；提交 CI 待补绑定 |
+| §6 顺序 | 遗留提交 `5058610` + CI `36993386517` 九步 | 在 D1 前已绑定成功，不混提交 |
+| §4 第 1–6 项 | 下表实跑日志；771 冻结文件/9 保留长文/11 账本行/原 state 的只读 hash/结构核验 | 已实跑；goal 目录历史 exit 1 不冒称全绿 |
+| §4 第 7 项 | 治理提交、工作分支推送与精确 SHA 的 CI 待绑定 | 不用遗留 CI 代替，最终记录另附 |
+
+### 实际验证（2026-10-02）
+
+| 实跑命令 | 结果 |
+| --- | --- |
+| `.venv/bin/python tools/check_conventions.py` | 37 条阻断、0 违规，exit 0 |
+| `.venv/bin/python tools/check_conventions.py --rule R-033 --rule R-036` | ADR 结构/状态/代价与取代链 0 违规，exit 0 |
+| `.venv/bin/python tools/check_campaign_state.py` | node=N2a、0 failures/4 历史 C-03 notes，exit 0 |
+| `.venv/bin/python tools/check_goal_brief.py --brief docs/goals --quiet` | 17 briefs、15 failures、exit 1；JSON 核实全部来自 §4 第 4 项所列五份历史长文，非待办 |
+| 现行 n2a/n3/n4/closeout 四份逐一 `check_goal_brief.py --brief ...`，以及四个 `--brief` 合并检查 | 全部 0 failures/0 advisories，exit 0 |
+| `.venv/bin/python -m pytest tests/test_check_conventions.py tests/test_check_campaign_state.py tests/test_check_goal_brief.py -q` | 152 passed in 22.53s，0 skip，exit 0 |
+| `git show --check`、`git diff --check` | 均 exit 0 |
+| `tools/verify_r7_evidence_index.py --index docs/R7_EVIDENCE_INDEX.jsonl --root . --check-brief docs/R7_CANDIDATE_BRIEF.md` | 17 records，exit 0；原索引/简报未改 |
+| 只读基线 hash/结构审计 | 771 冻结范围路径、9 份保留长文、两无关文件均不变；11 账本行原样，原 state 全字段原样，仅加 budget_mode；历史 campaign 尾、0021 正文与旧 CHANGELOG 均保留 |
+
+工作态日志在 `/tmp/r7_0029_validation_20261002/`；基线在 `/tmp/r7_0029_baseline.json`。
+这些不提交，长期可复核路径与实测结果登记在本节/CHANGELOG，检查器与测试源码不变，可在新克隆重跑。
+遗留 CI 直接来源：
+[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36993386517)、
+[jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36993386517/jobs?per_page=100)，
+匿名 curl 访问 2026-10-02；精确 SHA/九步逐项摘要和响应 SHA256 存
+`/tmp/r7_0029_handoff_ci_20261002/verification.json`。未取远端 pytest 日志计数，不把本地计数称远端。
+
+### 差异、未做与影响
+
+- **与计划的差异**：在指定文件内作三处必要一致性补正：D7「完整训练/多年度数据另授权」拆开；
+  D9 §4 现行授权指针换为 0029；§3 算术说明明确 24 仅为会计基数。只读审阅指出前两处若留旧文会
+  抵消新规则；没有扩大 D1–D10 的工程改动范围。计划/索引追加执行结果，而不是覆盖旧归档记录。
+- **没有改**：检查器与规则编号、workflow 数值、冻结协议/测试、R-006/R-028/R-054/R-009 判据、
+  历史证据/outputs/数据/模型/依赖/凭据/安全配置；账本值、当前节点与原科学结论。没有放宽身份校验，
+  没补 M3 的 23 项缺评估，没有新训练、实验重放、取数/发布、租卡、main 写入或 issue 关闭。
+- **安全边界**：Mimosa commit/push hook 未得完整结论（scanner_enobufs），未运行完整安全审计，
+  不声明项目安全；临时验证脚本泛化命令封装被写前扫描拒绝后改为固定命令实跑，未绕过扫描或改配置。
+- **兼容性**：治理授权从 0021 转为 0029；历史 runner/冻结常量并未自动实现新时长语义。未来新实验须
+  在该轮长文和协议写死 planned/hard，并核 CI 外层余量，不能按旧 ≤30 min 或总账本数字重新设授权闸门。
+  旧 prepared n3/n4 长文和计划 0009 原文保留为历史/准备依据，开工前需明确 0029 的适用。
+- **下一项（留待新窗口）**：按计划 0009 与主计划准备 N2a 补全 → N3 → N4 → N5 → 关闭轮，
+  除保留项外不再逐次询问实验/时长授权；仍按冻结判据、失败记录、节点与完成裁定边界执行。
+  本轮不运行这些实验，不自行宣布当前 goal 完成。

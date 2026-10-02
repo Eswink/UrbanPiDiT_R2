@@ -27,10 +27,12 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
    `docs/goals/full-auto-campaign.md:33-46`（可自主项与仍禁止项）、
    `docs/goals/open-issue-resolution.md:179-198`（自迭代边界）；
    `docs/goals/iteration-campaign.md:19` 明写"授权按 goal 显式授予"。
-2. **预算上限与余量必须写出数字**：第一阶段 4 GPU-h、单次 ≤30 min
-   （`docs/goals/iteration-campaign.md:43-49`）；第二阶段 ≤24 GPU-h、新产物 ≤100 GiB /
-   decoded ≤256 GiB（`docs/goals/full-auto-campaign.md:39-40`）。本轮自设上限必须**小于**余量，
-   并在长文里写出余量来源。
+2. **逐轮时长与记账必须写出数字**：按决策 0029，campaign 无总 GPU-h 上限；逐轮自设
+   `planned_seconds`（软）与 `hard_cap_seconds`（宽松硬上限，默认约 2× 计划，按整轮墙钟），
+   在长文写死并于实验前纳入冻结协议。超软预算不中止，记录 `soft_overrun_seconds`；硬截断记
+   `budget_limited`/`failed` 并全额记账。账本的 cap/used/remaining 是会计字段，不再是授权闸门。
+   旧 4/24 GPU-h、单次 ≤30 min 等数字仅作为历史引用保留在各自文件里，不据此重建现行上限；
+   数据与付费资源等保留授权边界不变。
 3. **判据是已冻结的文档指针**，不得在本目标里新写阈值；`docs/rules/` 与已冻结的证据文档才是判据的写定地。
 4. **起点事实**：`git rev-parse HEAD`、相关产物路径、未决项、判据所在文件。
 5. 先想清 **谁判定完成**：harness 可用时是独立 verifier；不可用时见步骤 6。
@@ -102,7 +104,8 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
   决策进 `docs/decisions/`（R-033）、目标进 `docs/goals/`（不编号）——三条线各归其位。
 - **objective 塞进全部细节**：超 4000 或变成多段，粘贴即失败；细节属于长文。
 - **判据落在文件里而 verifier 读不到**：等于判据不存在；objective 里必须有能当场核对的条目。
-- **预算自设超过既有授权**，或把"已用额度"当成新额度，或误用已被取代的旧上限。
+- **把历史上限或已被取代的旧额度当成现行闸门**：决策 0029 后无总 GPU-h 上限，逐轮软/硬
+  时长仍须先写清并冻结；记账字段不是许可，常设下放也不包含付费资源或新数据授权。
 - **在手工循环里假装有 verifier**：自己宣布 `complete`。状态机是
   `active / paused / budget_limited / complete`，执行者只能提议，不能宣布。
 - **依赖自动续跑**：本仓明确"无后台续跑、不重开定时器"；一轮结束就是结束。
