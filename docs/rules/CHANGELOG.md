@@ -2,6 +2,21 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-02 — M3一次budget-limited执行与只读部分验收（不重试）
+
+工程d6c98cf的CI36973907623九主步骤成功后，按本轮具名书面授权一次执行3arm×seed41/42×400updates/K4，
+protocol404cf32b…先冻，codezip18595abc…80相关源，不展开legacy/test清单。6train完成、7/30eval后第八项
+seed41/input_aux/+24h父deadline timeout，仅自己的Popen terminate/reap，后续无spawn/重试/finalize。
+GPU1790.1153369722888s=0.49725426027008024h全额计费；whole1805.1085775829852s超过30min文字5.1086s，
+截止只约束GPU阶段留下CPU前置时间缺口，如实记预算门未完全兑现，不事后改cap或掩盖整轮值。
+
+D1–D4工程已证，D5完整paired/510RMSE/四cost交付缺失；119已测RMSE格全17变量保留，无forecast有效性判定。
+独立stdlib7.54s核109运行文件前后不变、九pins/80source+commit/14spawn/6train7val身份计费齐，receipt73afca69…
+明确incomplete-audit-valid/full_experiment_accepted=false/D5false/budget_within_caps=false。不把审计exit0当完整PASS。
+证据页R7_73_PROCESS_SUPERVISION、E-223–E-226、决策0028、索引audit/blocked与失败账本登记；
+显示4.7018/余19.2982，N2a budget_limited、不推进或关闭issue，不自宣完成。新checkpoint依赖sidecar的兼容
+代价与MetPy未执行等限制照记；模型digest/依赖/旧store/历史checkpoint/凭据/安全配置不变，无GPU补测。
+
 ## 2026-10-02 — M3 尺度 sidecar、三类时刻监督与一次有界运行器（工程准备）
 
 本轮用户具名触发仅 N2a/#73；不沿用旧总括计划自动进入 N3/N4 或关闭 issue。新增 train-only 物理单位

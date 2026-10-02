@@ -420,11 +420,20 @@
 | --- | --- | --- | --- | --- |
 | E-222 | **真实用户授权并下放两项边界的决策权，执行者采用共驻验收与仅本次历史身份读取例外**：用户直接回复「均显示授权，并且允许下方决策权给你，所有实验均可安排」。在此授权下，本次按已执行且已具名授权的shared-headroom/余量≥2048MiB/UUID/不干预邻居修订版验收，不再以旧独占措辞阻塞；历史原code.zip全953成员/git身份比较读取无关real_smoke/test.jsonl（4420B）字节仅接受为本次具名审计例外，读取事实不删，不声称读取前已有本例外授权或全部test清单从未读取，不扩展到未来读取/M2封存test评估或选择。用户没有逐字选择选项，具体裁定由获授权执行者作出；原未答等待记录保留但当前两项不再未决。实验安排权沿用具名协议/预算/冻结判据/节点停止门，当前复用既有P1+30val证据，不新增GPU、训练、case、臂/seed/阈值，不改原cannot-distinguish/N1paused/N2d提议。既有407运行文件、授权/失败/证据/index与账本不回改；这是验收口径记录，不是科学或目标完成判定 | 本会话2026-10-02真实用户原话；`docs/decisions/0027-n1-cost-acceptance-boundaries.md`；新侧回执`outputs/r7_n1_cost_v2_acceptance_resolution_20261002/acceptance_resolution.json`及`original_evidence_seal.json`；历史未答回执仍保留 | 单点（一次真实用户授权与据此作出的两项裁定） | 已确认 |
 
+## 第十九遍（2026-10-02）：M3尺度/时刻工程与一次budget-limited尝试
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-223 | **train-only物理单位sidecar实际发布，水汽尺度恢复但不作forecast归因**：实际train186窗口/188帧，raw RMS有量纲scale后无量纲mean/std与逐通道相对floor；floor不作除数，退化显式mask。8proxy全active，两水汽旧normalized std0.0099155/0.0142934修后约1；版本化metadata/BUILD_COMPLETE/source/data/train pins齐，旧store/checkpoint不改 | `outputs/r7_m3_scale_sidecar/scale_metadata.json` SHA256d7c2837e…、identity4fed1c78…；实际train审计SHA2566588b7bc…；`docs/R7_73_PROCESS_SUPERVISION.md` §2 | 单点（一次实际train统计/新派生发布） | 已确认 |
+| E-224 | **三类时刻与固定inverse契约实际接入streamed，CPU通过不是科学验收**：input/future/draft分字段、UTC ns同validtime，train future-only/poison forward+halting/no-target/analytic/FP32-BF16/shape/name/NaN/degenerate反证；fixed train mean/std/order snapshot+digest绑定实际outer data/store。工程d6c98cf的CI36973907623九主步骤成功，本机2272passed9skipped、精确clone2267passed14skipped；skip不算通过。新9文件增111函数284断言，hardcap/判据/模型digest不变 | `training/r7_process_forecast_losses.py`、`r7_process_supervision.py`、`r7_process_training_contract.py`与九新增test；CI核验SHA9c121bbe…，一手run/jobs API访问2026-10-02；证据页§3–5，决策0028 | 全体（本轮声明的工程契约与CPU反证） | 已确认 |
+| E-225 | **一次M3失败只完成6train/7val，完整对照与四cost缺失，不重试**：protocol404cf32b…先冻，codezip18595abc…80相关源，3arm/seed41/42/400updates/K4，同初始化byte配对；六train均selected400，7/30val119/510RMSE格131/528case。第八seed41/input_aux/+24h父deadline timeout，仅own Popen terminate/reap后无spawn；failedchild日志空/result缺。GPU1790.1153369722888s=0.49725426027008024h全额计费，whole1805.1085775829852s超30min文字5.1086s，deadline只约束GPU阶段，整轮预算门未完全兑现。无完整paired/merged/四table，不能判forecast效果；N2a budget_limited，显示账本4.7018/余19.2982 | `outputs/r7_73_process_supervision/attempt.json` SHA525545bc…、execution SHA1c5f86f0…、首失败timing与六train/七val原CSV；partial_all_variable_rmse.csv119行SHA73bf6be2…；证据页§6 | 单点（一次具名真实失败尝试及停止/计费） | 已确认 |
+| E-226 | **独立只读审计接受部分失败事实，不接受D5完整实验**：stdlib7.54s核109运行文件前后hash/stat/集合不变，九初始pins/80源zip+commit/授权/CPUprofile/14spawn顺序/UUID余量/ownPID/连续计费/6train7val覆盖单位时刻签名齐；checkpoint/source只opaque hash，无网络/CUDA/张量评估。receipt audit_valid=true/status=incomplete-audit-valid，full_experiment_accepted=false/D5false/budget_within_caps=false；未补缺失输出或重放，不作goal完成或科学保证 | `outputs/r7_m3_acceptance/independent_m3_73_receipt.json` SHA25673afca69…、hash sidecar31f9b4cd…、四归档checker源SHA在receipt；证据页§7；索引record:m3-process-supervision-budget-limited | 全体（本次109产物、身份/进程/部分覆盖审计） | 已确认 |
+
 ## 统计
 
-- 台账条目：**222** 条（E-001 – E-222；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3 + 第十七遍3 + 第十八遍1）。
-- 按覆盖度（2026-10-02按行重数）：全体/全体扫描 **149** 条、抽样 **20** 条、单点 **53** 条。
+- 台账条目：**226** 条（E-001 – E-226；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3 + 第十七遍3 + 第十八遍1 + 第十九遍4）。
+- 按覆盖度（2026-10-02按行重数）：全体/全体扫描 **151** 条、抽样 **20** 条、单点 **55** 条。
   保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
-- 按置信度（2026-10-02按行重数）：已确认 **221** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+- 按置信度（2026-10-02按行重数）：已确认 **225** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
   不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013；E-215 记明其推测成分（失败字节未取证）。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。

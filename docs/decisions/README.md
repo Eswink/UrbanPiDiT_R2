@@ -53,3 +53,4 @@
 | [0025](0025-campaign-master-plan-and-per-round-recheck.md) | campaign 主计划与每轮对表（机器可查部分交给 CI） | accepted | 2026-09-30 |
 | [0026](0026-shared-gpu-coresidency-policy.md) | 本机 GPU 默认共驻与只读余量取卡政策 | accepted | 2026-10-01 |
 | [0027](0027-n1-cost-acceptance-boundaries.md) | N1 成本审计的共驻验收与历史身份读取例外 | accepted | 2026-10-02 |
+| [0028](0028-m3-process-sidecar-and-time-contract.md) | M3 派生尺度 sidecar 与三类时刻训练契约 | accepted | 2026-10-02 |
