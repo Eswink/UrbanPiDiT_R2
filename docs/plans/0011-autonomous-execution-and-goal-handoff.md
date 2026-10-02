@@ -1,6 +1,6 @@
 # 0011 — 自主执行授权扩围与主模型 V2 新窗口 goal 交接
 
-**状态：已批准（2026-10-02），本轮仅实施治理与交接，不执行实验。**
+**状态：治理与交接已实施（2026-10-02），提交 b961b3b/CI37024597813 九步成功；本轮不执行实验。最终记录与术语补正另行提交。**
 用户授权原话：「推进权和实验权，普通决策权全部下放给你，注意，我只需要负责总体实验的方向！」
 本计划按批准范围落地0030与新goal，不把计划或prepared长文当已完成实验。
 
@@ -69,8 +69,33 @@ N5时间/地理/现役机制反证、六issue裁定与有条件关闭。运行�
   **152 passed in 22.22s**；index/brief17records、空白与git show --check均exit0。目录级18briefs/
   15历史失败/exit1未增加失败，不冒称目录全绿。原991个跟踪文件/两无关文件hash不变，state全部
   字段/11账本行/历史进度尾保留；2027字符objective两份副本精确一致，主计划objective379字符。
-  新文件入git跟踪后的测试/独立复核与精确提交CI后补，不引用旧CI替代。日志工作态
-  `/tmp/r7_0030_validation_20261002/`，不提交。
+  新文件入跟踪后复跑 **152 passed in 22.19s**、37阻断/ADR/对表/空白exit0。独立只读8文件审阅
+  实质PASS，确认普通推进不被独立审阅收回、失败/身份/关闭边界未绕，未作科学或goal完成裁定。
+  唯一非阻断措辞残留（goal-loop“独立复核”）统一为“用户/运行时独立完成校验”，不改变推进许可。
+  精确提交CI绑定见下节，不引用旧CI替代。日志工作态 `/tmp/r7_0030_validation_20261002/`，不提交。
 - **未做**：N2a评估补全、N3/N4代码及实验、N5补反证/六裁定/关闭均未做；无GPU、下载/发布、
   main写入、模型digest、接口/依赖/凭据/安全配置变化，不宣称科学/安全或最终goal完成。
 - **下一项**：新窗口直接粘新goal §0，首先实测HEAD/对表/身份，准备并冻结N2a新补测协议后自主执行。
+
+### 精确提交与交付审计
+
+- 治理/交接14文件提交 `b961b3b3084a47ccee8a3bdf2b22b46887055a0e` 已推工作分支，
+  [CI37024597813](https://github.com/Eswink/UrbanPiDiT_R2/actions/runs/37024597813) head_sha精确匹配，
+  completed/success、九主步骤全部success（含campaign、index与全unit/integration/wheel测试）；
+  未获取远端pytest日志数字，本地152不冒称远端。无实验标签/Closes关键字，不触发实验或关闭。
+- 一手来源匿名curl访问2026-10-02：
+  [run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/37024597813)、
+  [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/37024597813/jobs?per_page=100)。
+  run响应SHA256 `f8fa4bc1bd229c60c844a0808edf26afd63d45cb141cf4ee0be48d272312e1f6`、
+  jobs响应SHA256 `47c7afefe8b9161de2e2c1d5d2ef351c4ce42a0b36fd3ff600d48cd901735f7b`；
+  `/tmp/r7_0030_governance_ci_20261002/verification.json` SHA256
+  `e36d82cd48d130831f180fd1a0fac316e603c678c1f308a9b9f3a4d9e473a14c`。
+- 主链逐要求/负面范围/实际日志/精确CI交叉核对1129项、0缺项（其中991项为原跟踪文件不变性）；
+  工作态 `/tmp/r7_0030_deliverable_audit_20261002.json` SHA256
+  `f726748164f80a95ab1aaee05a9f30536244e43bc0d79ebfee43059661485044`。
+  审计不代替科学门禁或runtime完成校验，不能只因manifest齐或测试绿裁定未来实验。
+- 本CI尾核、术语补正与实际进度另作后续小提交并核其自己的精确CI，最终结果在收尾报告给出，
+  不递归追加提交。Mimosa commit hook报scanner_enobufs，未得完整安全结论，不宣称项目安全。
+  旧历史/失败/state/账本/数据/归档/检查器/测试/工作流数值仍不改。
+- 正式新窗口 `/goal` 的内容为新长文§0的2027字符段，§9副本相同；本轮仅交付该prepared目标，
+  N2a补测至N5关闭全部未启动，执行者未自行修改任何最终goal状态为complete。

@@ -26,9 +26,14 @@ N3可微两步+matchedGeneric→N4三臂确认→N5反证/裁定/有条件关闭
 新goal+现行四份共5goal0失败；三组治理测试 **152 passed in 22.22s**，index/brief17records，
 空白与git show --check exit0。目录级18briefs/15历史失败/exit1照报告，不回写旧页。objective2027
 字符/两副本精确一致，主计划379字符；只读hash核991原跟踪文件、两无关文件、state/11账本行和
-历史进度尾均不变。新文件入跟踪后验证与独立复核/精确SHA主CI待后补，不以旧CI代新。
-日志工作态 `/tmp/r7_0030_validation_20261002/`。Mimosa历史scanner_enobufs无完整安全结论，
-本轮未做完整安全审计、不声明项目安全。
+历史进度尾均不变。新文件入跟踪后152passed/22.19s、37阻断/ADR/对表/空白exit0；独立只读
+8文件审阅实质PASS，无必修缺口，goal-loop最终完成用词按建议统一为用户/运行时校验（不复活
+推进许可）。提交 `b961b3b3084a47ccee8a3bdf2b22b46887055a0e` 已推分支，CI37024597813
+精确SHA completed/success九主步骤成功；匿名run/jobs API访问2026-10-02、响应/回执hash见计划0011，
+不冒称取得远端pytest计数。1129项内容/负面范围/实跑/精确CI审计0缺项，991项为文件不变性，
+不代科学或goal裁定。本尾核/术语补正另提交，最终SHA自身CI仍单独核，不以旧绿覆盖。
+日志工作态 `/tmp/r7_0030_validation_20261002/`。Mimosa commit hook仍报scanner_enobufs无完整
+安全结论，本轮未做完整安全审计、不声明项目安全。
 
 ## 2026-10-02 — 实验常设下放与时长契约（决策 0029，取代 0021）
 
