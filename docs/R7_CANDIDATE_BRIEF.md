@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 16; human-review candidates: 1
+Records: 17; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -21,6 +21,34 @@ Records: 16; human-review candidates: 1
 - CI run: `36276587108`
 - Excluded from runnable candidates: Candidate for human review only; follow-up still requires a new frozen protocol and explicit authorization.
 - Recorded metrics (not recomputed): gate_met=false, gpu_hours=1.157, lead_hours=[6, 12, 24, 48, 72], seeds=3, test_read=false
+
+## m3-process-supervision-budget-limited
+
+- Outcome class: `audit`; candidate state: `blocked`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_73_PROCESS_SUPERVISION.md` (SHA256 `3eb2ea3472b6595c146ab6b5fe51180d5e72d9cd5852b91c2afd7bfbc145cb53`)
+- Evidence commit: `ed1a03414fe2bccd7911beffcc69da6358ba1f17`; experiment commit: `d6c98cf1c33eca5885772c473805af3ef0ad62ba`
+- Protocol SHA256: `404cf32b8ee8f6c3ff192d46c1de6765abe4ae3fa72967469af800a774fde15d`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: M3 train-only dimensioned scaling and three timed supervision sources are engineered and CPU/CI verified. The one authorized real round completed all six400-update trainings but only seven of thirty evaluations before the continuous deadline killed the eighth owned worker. Partial119 RMSE cells and costs are independently audit-valid, not an accepted full three-arm experiment; no forecast contrast verdict, retry, automatic advancement or goal completion.
+- Limitations:
+  - Offline stdlib audit of frozen records/bytes, not a rerun of training, evaluation, initialization or backward.
+  - CPU pairing, parameters, FLOPs and gradient norms are checked as pinned recorded evidence, not independently remeasured.
+  - Zarr compressed fields/chunks and checkpoint payloads are not decoded; raw train statistics and checkpoint internal contracts are not reexecuted.
+  - Selected checkpoint bytes/report signatures are checked; pinned worker code checks payload contracts. No independent OS/GPU attestation is claimed.
+  - ACC values are validated for coverage/status/identity/skill consistency, not reconstructed from forecast tensors.
+  - FLOPs omit supported-counter-excluded elementwise and normalization arithmetic and are not streamed-training FLOPs.
+  - One winter segment, two seeds, validation only: descriptive signs are not significance, convergence, causality or generalization.
+  - Source is opaquely hashed; no sealed test manifest/name contents or held-out fields are opened.
+  - Code/data/protocol-pinned reproducibility and recorded bitwise initial pairing only; GPU result bitwise reproducibility is not established.
+  - Engineering success is separate from D5 full coverage; no self-goal completion, next-node progression or issue closure.
+  - Only7/30evaluations and119/510RMSE cells completed; future_draft_aux and all seed42 forecast scoring remain missing.
+  - The execution-phase cap held at1790.1153s, but1805.1086s whole wall exceeded30minutes because pre-execution CPU identity checks were outside the hard deadline. No cap/criterion/archive was revised.
+  - MetPy was not installed/run; analytic and NumPy oracle tests do not claim MetPy execution.
+  - Terminal merged/paired/four cost tables were not generated; CPU parameters/FLOPs and sixtraining/seveneval raw costs cannot be called accepted full cost delivery.
+  - No new full security scan conclusion; credentials and security configuration unchanged.
+- CI run: `36973907623`
+- Excluded from runnable candidates: Blocked on23 missing evaluations, complete two-seed comparisons and terminal four cost views. Whole wall1805.1086s exceeded the frozen30min wording. One-shot authorization is consumed; budget remainder is not permission to complete/retry.
+- Recorded metrics (not recomputed): arms=3, attempt_sha256=525545bc6900f05c0d11f27c2b12bd5db9af39fa3740d52220e7e156009c60ef, attempt_status=failed, automatic_retry=false, budget_limited=true, campaign_remaining_gpu_hours_exact=19.29828558477297, campaign_status=budget_limited, campaign_used_gpu_hours_exact=4.701714415227032, case_evaluations_completed=131, current_node=N2a, engineering_exact_clone_passed=2267, engineering_exact_clone_skipped=14, engineering_full_local_passed=2272, engineering_full_local_skipped=9, engineering_verified=true, evaluations_completed=7, evaluations_missing=23, evaluations_planned=30, execution_attempt_sha256=1c5f86f0ec527b628bbdd21f709d2d17e34cee886aec71d47ade3514d69d50d1, full_experiment_accepted=false, gpu_hours=0.49725426027008024, gpu_hours_cap=1.0, gpu_phase_seconds=1790.1153369722888, independent_audit_status=incomplete-audit-valid, independent_receipt_sha256=73afca69d42de3ae8d837b19916f1fc9070cc61bd111782a604682aa00adfe45, independent_run_files_unchanged=109, paired_comparison_complete=false, reasoning_steps=4, reproducibility_level=config-reproducible training; bitwise initialization paired only; independent persisted-artifact verification, not GPU replay, rmse_cells_completed=119, rmse_cells_planned=510, seeds=[41, 42], sidecar_active_channels=8, sidecar_identity=4fed1c78e4c4c09a41d95457649925b02d0c8ebf89aa47c2ac8dc6496734912d, sidecar_train_frames=188, terminal_four_cost_views_complete=false, test_read=false, thresholds_added=0, training_runs_completed=6, training_runs_planned=6, updates_per_arm=400, whole_wall_cap_seconds=1800.0, whole_wall_seconds=1805.1085775829852, whole_wall_within_cap=false
 
 ## n1-cost-v2-coresidency-preparation
 

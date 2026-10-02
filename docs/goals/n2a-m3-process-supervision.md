@@ -2,9 +2,9 @@
 
 <!-- round-node: N2a -->
 
-**状态：active（2026-10-02）。用户本轮具名触发仅 M3/N2a；实现与 CPU 验证正在推进，GPU 尚未启动。
-本轮范围、≤1.0 GPU-h 与禁止项以 §0 当前 objective 为准，不沿用计划的总括授权自动进入 N3/N4 或关闭 issue。
-执行那一刻按决策 0021 记录具名范围，先跑 `tools/check_campaign_state.py` 对表，再按 §4 执行。**
+**状态：budget_limited（2026-10-02）。D1–D4工程/尺度已验证；一次GPU尝试6训练/7评估后截止失败。
+D5完整30评估/paired/四成本缺失，不能接受完整实验或宣告goal完成。只读审计接受部分失败事实。
+本轮范围与禁止项以 §0 为准；不重试、不自动进入N3/N4或关闭issue，失败全额成本已登记。**
 
 本文件是主计划 `docs/goals/main-model-v2-campaign.md` 的节点 **N2a** 的目标长文。节点定义、账本、
 对表清单都在主计划里；本文件只写「这一轮怎么做」。开工第一件事是按主计划 §3 对表（退出必须为 0），
@@ -106,7 +106,8 @@
 
 ## §7 进度块
 
-- **状态**：`active`（2026-10-02）：用户具名触发本文件 §0；本轮只推进 N2a，不关闭 issue、不自动进入 N3。
+- **状态**：`budget_limited`（2026-10-02）：一次尝试评估截止失败，D5不完整；用户具名范围已用。
+  本轮只保留N2a，不关闭issue、不自动进入N3、不宣告目标完成。
 - **开工 recheck**：起点 `5fe2ff4ffba76f791296069bf9c72a216b0dbbe0`；campaign 0 failures / 4 历史 ledger notes。
   账本已用 4.2045 / 余 19.7955 GPU-h，四条旧账本没有索引支撑如实保留；本轮 cap ≤1.0 GPU-h。
   上一轮登记 commit 可达，冻结 design/prediagnostic 无改动；既有 rules diff 仅 ADR0027/E-222 的已记录裁定。
@@ -152,11 +153,38 @@
   R-009现在1176/2975（新增111函数/284断言）；尺寸机器标记0/245/46/41/28/26，硬上限/例外不变。
   实际train尺度审计 `outputs/r7_m3_acceptance/actual_train_scale_audit.json` SHA256
   `6588b7bc9b36b2b487a2baeb17bc01f3910af7ad853a3ba5c63dcff4a1ee34a0`，8通道全报告，不改旧store。
-- **下一动作**：绑定本轮精确工程 SHA CI；随后 CPU prepare 冻结协议与代码，再按已有具名
-  书面授权执行一次 D5，失败即停且不重试。
+- **精确工程版本与准备（2026-10-02）**：工程提交 `d6c98cf1c33eca5885772c473805af3ef0ad62ba`，
+  CI `36973907623` head_sha精确匹配、completed/success九主步骤全绿；匿名一手run/jobs API访问本日，
+  `outputs/r7_m3_acceptance/engineering_ci_verification.json` SHA256
+  `9c121bbecf638ecccc7747a6d2b29effceec1715e762487cb7e85272e5ad6a85`。精确干净clone2267passed/
+  14skipped/2warnings、211.99s；首次clone因跨文件系统hardlink失败、未测，另新目录no-hardlinks成功。
+  真实CPU prepare已成功且无optimizer step/CUDA调用：protocol canonical
+  `404cf32b8ee8f6c3ff192d46c1de6765abe4ae3fa72967469af800a774fde15d`，code.zip SHA256
+  `18595abce5acfa9e6f3252342f04eace470a06f48c3eea97c6ba463e3ea02d95`（80相关活跃源/config，
+  不展开legacy/test清单）；全初始化两seed逐臂byte配对；CPU三臂各2968259参数，grad ownership已记录。
+- **具名一次执行**：使用既有书面授权回执 SHA256
+  `a61364394c97484fdd7bc773c02099930b3096395b4dc96b753ba63cc6e0ba83`，只绑定GPU1物理UUID
+  `GPU-9d1624af-9d77-aa7c-0620-b6cb778f4ced`；启动前/每spawn只读余量门槛，1800s连续截止。
+  六train+30新进程val的唯一尝试已终态failed/budget_limited；不重试、不自宣完成、不自动推进。
+- **真实终态与缺口**：6/6train各400/selected400，四次val检查齐；只完成seed41/aux_off全五lead与
+  seed41/input_aux的6/12h，共7/30eval、119/510RMSE格、131/528case；第八项input_aux/+24h父deadline
+  timeout，仅terminate自有Popen并确认reap，child无result且log空，不伪造child内部原因。以后无spawn。
+  merged/paired/seed_result/终态四costtable缺失，不能判断三臂forecast效果，负变量保留全部已测17通道。
+  partial抄表`outputs/r7_m3_acceptance/partial_all_variable_rmse.csv` SHA73bf6be2…不是完整结果。
+- **成本与时间边界**：GPU连续1790.1153369722888s=0.49725426027008024h全额计费；whole1805.1085775829852s，
+  超单次整轮30分钟文字5.1086s（CPU前置身份校验不在GPU阶段截止内），如实记录budget门未完全兑现，不改cap。
+  attempt SHA525545bc…、execution SHA1c5f86f0…；campaign账本新增失败0.4973、显示4.7018/余19.2982，
+  精确累计4.701714415227032/余19.29828558477297；余额不是重试授权。
+- **独立终态审计**：stdlib7.54s核109运行文件before/after不变、九初始pins/80codezip+commit来源/sidecar/授权/CPU
+  profile、14spawn顺序/余量/ownPID与计费、6train/7val实际单位案例齐；checkpoint只hash不解码、无CUDA/网络。
+  `independent_m3_73_receipt.json` SHA256`73afca69d42de3ae8d837b19916f1fc9070cc61bd111782a604682aa00adfe45`，
+  status=incomplete-audit-valid/full_experiment_accepted=false/D5.full_coverage=false/budget_within_caps=false。
+  新证据页`docs/R7_73_PROCESS_SUPERVISION.md`明确D1–D4已取、D5缺、D6仅失败登记；登记CI另绑定进度尾。
+- **下一动作**：只审阅已保存的失败证据与D5缺口，按本轮停止条件停在N2a/budget_limited；
+  没有新的具名授权与预算决策，不补跑、重训、扩围或进入N3。
 
 ## §8 下一动作（仅提议）
 
-M3 完成后**只提议**进入 N3（M4 两步可微自回归，`docs/goals/n3-m4-autoregressive-rollout.md`），
-不自行宣告 M3 成功或自动跳步；若 M3 结论为 negative/mixed，按 #73 完成条如实登记并继续（#73 不阻塞
-M4 的 loss 接口）。
+本次M3为budget_limited/完整评估未完成，不提出进入N3的执行许可。只审阅已保存的工程与失败成本
+证据；D5缺口仍在，不能把部分运行判为negative/mixed或#73完成。未来即使完整轮negative/mixed也应
+如实登记；本次不补跑、不自动跳步、不自行宣告M3成功。

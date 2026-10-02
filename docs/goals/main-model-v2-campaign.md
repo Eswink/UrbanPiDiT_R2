@@ -1,6 +1,6 @@
 # main-model-v2-campaign：主模型 V2 的 campaign 主计划与每轮对表
 
-**状态：campaign 级主计划（活文档）。用户 2026-10-02 具名触发 M3 后当前节点为 N2a；本轮仅执行 M3，不自动推进下一节点，不宣告目标完成。N1 原长 lead 不可分辨的科学结论保持。**
+**状态：campaign 级主计划（活文档）。当前N2a/budget_limited：M3一次尝试完成6训练但仅7/30评估，完整实验未通过；失败全额记账，不重试、不自动推进或关闭issue、不宣告目标完成。N1原科学结论保持。**
 
 本文件是「主计划 + 每轮 recheck」机制的**唯一权威**：节点图（§2）、每轮开工前必须走的对表清单（§3）、
 预算账本（§7）与进度块（§8）都在这里。每一轮的目标长文是它的**派生物**，不是平行的第二处真相——
@@ -132,15 +132,16 @@
 | N1冻结随机Z审计（三臂 × 两种子） | 0.3590 | 4.0702 | `docs/R7_N1_PIVOT_AUDIT.md` + 索引记录 `record:n1-pivot-audit-frozen-z-unresolved`（`gpu_hours = 0.3590401737619605`；账本四位小数舍入，差≤1e-4） |
 | N1独立evaluation成本补测（failed，1/30） | 0.0060 | 4.0762 | `docs/R7_N1_COST_SUPPLEMENT_ATTEMPT.md` + 索引记录 `record:n1-evaluation-cost-supplement-failed`（`gpu_hours = 0.005956627869357666`；失败全额计费，四位显示舍入） |
 | N1 v2独立evaluation成本补测（success，30/30，含P1） | 0.1283 | 4.2045 | `docs/R7_N1_COST_SUPPLEMENT_V2.md` + 索引记录 `record:n1-cost-v2-evaluation-supplement-success`（`gpu_hours = 0.12826335332563354`；含P1与全部启动/间隔/清理，四位显示舍入） |
-| **合计已用** | **4.2045** | — | 24 − 4.2045 = **余 19.7955 GPU-h** |
+| M3过程监督三臂（budget_limited，6训练/7评估） | 0.4973 | 4.7018 | `docs/R7_73_PROCESS_SUPERVISION.md` + 索引记录 `record:m3-process-supervision-budget-limited`（`gpu_hours = 0.49725426027008024`；失败全额计费，逐行显示舍入） |
+| **合计已用** | **4.7018** | — | 24 − 4.7018 = **余 19.2982 GPU-h** |
 
-说明（如实）：**账本不是从证据索引机械累加的**——索引覆盖其中五行（其余四轮没有索引记录），
+说明（如实）：**账本不是从证据索引机械累加的**——索引覆盖其中六行（其余四轮没有索引记录），
 所以 `check_campaign_state.py` 做的是「逐行算术 + 证据指针存在性 + 有索引者数值一致」，
 没有索引支撑的行会被**列出来**而不是被当成已核。把索引补成全量账本是将来可做的一件事，本轮不做。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-process-supervision.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.2045, "remaining_gpu_h": 19.7955, "status": "active", "next_node_proposal": null} -->
+<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-process-supervision.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.7018, "remaining_gpu_h": 19.2982, "status": "budget_limited", "next_node_proposal": null} -->
 
 - **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
 - **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
@@ -265,4 +266,20 @@
   `e7755ae11d5aeb78038c2363c823c78639c691fa`；CI `36967236450` completed/success 九主步骤全绿，
   匿名 run/jobs API 访问 2026-10-02（响应临时路径 `/tmp/m3_adr_ci_runs_branch_20261002.json` 和 jobs 同名）。
   当前节点推进 N2a/active，是本次用户触发而非自动推进；N1 原科学结论、账本与四历史 notes 不改。
-  当前新代码与新目标尚未提交/实跑，不用上述 CI 冒称覆盖它们；具名协议/sidecar 发布/工程门禁先于 GPU。
+  当时新代码与新目标尚未提交/实跑，不用上述 CI 冒称覆盖它们；具名协议/sidecar 发布/工程门禁先于 GPU。
+- **M3 工程门禁与一次执行启动（2026-10-02）**：工程提交 `d6c98cf1c33eca5885772c473805af3ef0ad62ba`
+  的CI `36973907623` completed/success九主步骤全绿；本机2272passed/9skipped、精确clone2267passed/
+  14skipped，skip不算通过。尺度sidecar identity4fed1c78…已排他发布，真实train186/188帧8proxy全active；
+  三类时刻与固定train inverse入contract，model/source/data不改。CPU prepare冻结protocol404cf32b…、
+  codezip18595abc…80相关源；按用户本轮具名书面授权启动3arm×2seed×400/K4，GPU1 UUID绑定、共驻门槛、
+  1800s连续计费截止、失败即停不重试。终态尚未取得，账本暂未增，不拿工程CI代替GPU或科学验收。
+  本条是活文档进度，未进被冻结实验code.zip，不改原证据；保持N2a，不自动进入N3或关闭issue。
+- **M3一次尝试终态（2026-10-02）**：failed/budget_limited/partial，6train各400/selected400，7/30eval、
+  119/510RMSE与131/528case；第八项seed41/input_aux/+24h父deadline timeout，自有child已terminate/reap。
+  不再spawn/重试/生成完整paired/终态四成本，D5未达。GPU连续1790.1153369722888s=0.49725426027008024h，
+  whole1805.1085775829852s超30min文字5.1086s，截止只约束GPU阶段留下CPU前置时间缺口，如实记预算门未完全兑现。
+  新失败ledger0.4973，逐行显示4.7018/余19.2982；精确4.701714415227032/余19.29828558477297，余额不授权retry。
+  独立stdlib审计7.54s核109files前后不变/9pins/80source+commit/6train7val/14launch/cost，receipt73afca69…
+  为incomplete-audit-valid/full_experiment_accepted=false/D5false/budget_within_caps=false。证据页R7_73_PROCESS_SUPERVISION，
+  实際登记E/index/CI另记尾；N2a转budget_limited，不推进N3、不关闭issue或自宣goal完成。
+- **下一动作**：仅审阅本次失败证据与完整对照缺口；新的具名授权/预算决策前，不补跑、重训、扩围或进入N3。
