@@ -282,4 +282,9 @@
   独立stdlib审计7.54s核109files前后不变/9pins/80source+commit/6train7val/14launch/cost，receipt73afca69…
   为incomplete-audit-valid/full_experiment_accepted=false/D5false/budget_within_caps=false。证据页R7_73_PROCESS_SUPERVISION，
   实際登记E/index/CI另记尾；N2a转budget_limited，不推进N3、不关闭issue或自宣goal完成。
+- **M3实际失败登记CI**：冻结页ed1a034/pageSHA3eb2ea34…，E-223–E-226/0028/索引audit-blocked与
+  canonical brief17条/失败账本登记提交`055ee9f475d18c71fb3d03f5648463e1da560fda`；CI36978855723
+  head_sha精确匹配completed/success九主步骤绿，本地445passed/70.52s（远端计数未取）。一手API访问2026-10-02，
+  登记核验SHA570a2d81…、逐需求最终审计SHAb8785366…，109运行文件/80源/page仍不变。
+  工程CI不替代D5缺口，登记仅审计失败，goal不自宣完成；本条尾核与登记SHA区分，不回改冻结页/index。
 - **下一动作**：仅审阅本次失败证据与完整对照缺口；新的具名授权/预算决策前，不补跑、重训、扩围或进入N3。

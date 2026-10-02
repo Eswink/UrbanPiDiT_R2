@@ -180,6 +180,16 @@ D5完整30评估/paired/四成本缺失，不能接受完整实验或宣告goal�
   `independent_m3_73_receipt.json` SHA256`73afca69d42de3ae8d837b19916f1fc9070cc61bd111782a604682aa00adfe45`，
   status=incomplete-audit-valid/full_experiment_accepted=false/D5.full_coverage=false/budget_within_caps=false。
   新证据页`docs/R7_73_PROCESS_SUPERVISION.md`明确D1–D4已取、D5缺、D6仅失败登记；登记CI另绑定进度尾。
+- **实际失败登记CI**：冻结证据页提交`ed1a03414fe2bccd7911beffcc69da6358ba1f17`，page SHA256
+  `3eb2ea3472b6595c146ab6b5fe51180d5e72d9cd5852b91c2afd7bfbc145cb53`；E-223–E-226、决策0028与
+  audit/blocked记录`m3-process-supervision-budget-limited`、canonical brief17条及失败账本登记提交
+  `055ee9f475d18c71fb3d03f5648463e1da560fda`。CI`36978855723` head_sha精确匹配，completed/success
+  九主步骤绿；本地登记定向445passed/70.52s，远端pytest计数未取得，不能混称。匿名一手run/jobs API
+  访问2026-10-02；`registration_ci_verification.json` SHA256
+  `570a2d81d7ac1642ec426c208c744e02435436f6956dc3564ce2daf54aa72867`。
+  最終逐需求交付审计`deliverable_audit_final.json` SHA256
+  `b87853664a97e43e7e554d0ce925cf1b2255966a92c61f492e21ad8113ddb8d6`，D1–D4工程取证、D5不接受、D6仅失败登记。
+  登记后109运行文件/80源pins/证据page再次只读重核未变；此CI进度尾不递归改冻结页/index或扩展GPU授权。
 - **下一动作**：只审阅已保存的失败证据与D5缺口，按本轮停止条件停在N2a/budget_limited；
   没有新的具名授权与预算决策，不补跑、重训、扩围或进入N3。
 
