@@ -1,6 +1,6 @@
 # 0010 — 实验常设下放与时长契约：新决策 0029 取代 0021
 
-**状态：已批准（2026-10-02）；本轮 D1–D10 治理施工已落盘，最终提交/CI 正在绑定。**
+**状态：已执行（2026-10-02）；D1–D10 已落地，治理提交 c4d45cf/CI 36996404191 九步成功；审阅补正与 CI 尾核另行提交。目标是否完成仍由用户或独立复核裁定。**
 以下 §0–§7 是原执行前计划归档（R-032），保留当时事实；「实际结果（计划归档会话）」记的是原会话。
 本轮执行证据与差异见文末「执行记录（2026-10-02）」，不要把旧「未执行」描述当作当前进度。
 
@@ -267,10 +267,10 @@ R-006/R-028/R-054/R-009 的判据本身）；验证命令与结果（见 §4）�
 | D7 | `.agents/skills/bounded-study-run/SKILL.md` 授权/前置/执行/常见失败 | 写死软/硬端点、只因硬上限时长截断；新数据/write 保留授权 |
 | D8 | `.agents/skills/goal-loop/SKILL.md` 前置条件 2 与旧额度误用失败项 | 无总上限、逐轮 planned/hard；其它步骤与完成判据保留 |
 | D9 | `docs/goals/main-model-v2-campaign.md` §3/§5/§7/§8，另同步 §4 现行指针 | 仅新增 budget_mode；原 state/账本/历史进度与 N2a/budget_limited 未改 |
-| D10 | `docs/rules/CHANGELOG.md` 顶部决策 0029 条目 | 范围、没有改、实跑命令与结果如实登记；提交 CI 待补绑定 |
+| D10 | `docs/rules/CHANGELOG.md` 顶部决策 0029 条目 | 范围、没有改、实跑命令与结果如实登记；c4d45cf/CI 36996404191 已绑定 |
 | §6 顺序 | 遗留提交 `5058610` + CI `36993386517` 九步 | 在 D1 前已绑定成功，不混提交 |
 | §4 第 1–6 项 | 下表实跑日志；771 冻结文件/9 保留长文/11 账本行/原 state 的只读 hash/结构核验 | 已实跑；goal 目录历史 exit 1 不冒称全绿 |
-| §4 第 7 项 | 治理提交、工作分支推送与精确 SHA 的 CI 待绑定 | 不用遗留 CI 代替，最终记录另附 |
+| §4 第 7 项 | 治理提交 `c4d45cfb807cd953e3701219db50276dd4131f1e` 已推工作分支，CI `36996404191` completed/success 九主步骤 | 精确 SHA 已核，不用遗留 CI 代替；审阅补正与尾核提交另核自己的 CI |
 
 ### 实际验证（2026-10-02）
 
@@ -298,7 +298,10 @@ R-006/R-028/R-054/R-009 的判据本身）；验证命令与结果（见 §4）�
 
 - **与计划的差异**：在指定文件内作三处必要一致性补正：D7「完整训练/多年度数据另授权」拆开；
   D9 §4 现行授权指针换为 0029；§3 算术说明明确 24 仅为会计基数。只读审阅指出前两处若留旧文会
-  抵消新规则；没有扩大 D1–D10 的工程改动范围。计划/索引追加执行结果，而不是覆盖旧归档记录。
+  抵消新规则；没有扩大 D1–D10 的工程改动范围。独立审阅又指出 D8 旧结构示例没有软/硬两端点，
+  可能被当作现行预算模板；保留原例文，只在其上方追加「仅为 G-01..G-08 结构示例，新实验按前置
+  条件 2」的适用声明，避免复制旧余量/超预算闸门。其它步骤与完成判据仍未改。计划/索引追加执行
+  结果，而不是覆盖旧归档记录。
 - **没有改**：检查器与规则编号、workflow 数值、冻结协议/测试、R-006/R-028/R-054/R-009 判据、
   历史证据/outputs/数据/模型/依赖/凭据/安全配置；账本值、当前节点与原科学结论。没有放宽身份校验，
   没补 M3 的 23 项缺评估，没有新训练、实验重放、取数/发布、租卡、main 写入或 issue 关闭。
@@ -310,3 +313,33 @@ R-006/R-028/R-054/R-009 的判据本身）；验证命令与结果（见 §4）�
 - **下一项（留待新窗口）**：按计划 0009 与主计划准备 N2a 补全 → N3 → N4 → N5 → 关闭轮，
   除保留项外不再逐次询问实验/时长授权；仍按冻结判据、失败记录、节点与完成裁定边界执行。
   本轮不运行这些实验，不自行宣布当前 goal 完成。
+
+### 精确治理 CI 与收尾审计
+
+- 治理提交 `c4d45cfb807cd953e3701219db50276dd4131f1e` 已推 `r7/weather-reasoning`，
+  [CI 36996404191](https://github.com/Eswink/UrbanPiDiT_R2/actions/runs/36996404191) 对精确 SHA
+  completed/success。九主步骤逐一核为 success：Set up job、checkout、setup-python、Install dependencies、
+  Check repository conventions、Check campaign state、Check evidence index and candidate brief、
+  Compile active modules and check whitespace、Run unit/integration/installed-wheel tests。
+  三个 post/Complete job 收尾步骤亦 success；未取远端日志/pytest 数字。
+- 一手来源：
+  [run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36996404191)、
+  [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/36996404191/jobs?per_page=100)，
+  匿名 curl 访问 2026-10-02；最终 run 响应 SHA256
+  `486a1868f7d23be06978168d809b920cd585c786fdbf40b3b3e56ef4bc0aa5e4`，jobs 响应 SHA256
+  `761e19f3cd3d29ee18d978421b108d6ec73209660b538c4572a2b945a471c146`。
+  逐步核验回执 `/tmp/r7_0029_governance_ci_20261002/verification.json` SHA256
+  `1728edb2005fd660d409c48f437bbc611f9e5654f32573b7bca91f320fc6d5c0`。
+- 新决策与全部治理路径已跟踪；提交范围精确 12 个治理/执行记录文件，无程序源码/测试/workflow
+  改动。提交均 `docs(r7)`、不带实验标签；不主动触发实验。遗留提交先成功，治理提交后成功，
+  不因 concurrency 取消而误记通过。
+- 独立只读审阅核 D1–D10 实质要求均覆盖，唯一 D8 旧示例误用风险已按上节限定，未发现其它必修缺口。
+  补正后再次实跑 **152 passed in 22.14s**，37 阻断/对表/空白 exit 0；暂存后先前复跑为
+  152 passed in 22.59s。工程检查只覆盖机械项，不承担全部治理语义或科学判断。
+- 逐条 prompt-to-artifact 核查 176 项、0 缺项（ADR 五决定/各同步落点/实跑日志/精确 CI/负面范围），
+  回执 `/tmp/r7_0029_deliverable_audit_20261002.json` SHA256
+  `1692f49b8a91c5f9e0a7b926ee5e6233f47bb321ecb2de7a44715857e31c70fd`。
+  基线 hash/原 state/历史正文等不变性已核；不是只依赖测试绿或 manifest 完整作结论。
+- 本段、CHANGELOG CI 尾核与 D8 示例限定是在 c4d45cf **之后**补入，将另作小提交并等自己的
+  精确 SHA CI；不冒称 c4d45cf 的绿覆盖这些追加文字。最终提交 CI 结果在收尾报告直接给出，不为
+  自引用递归追加提交。本轮执行者不修改 goal 状态为 complete、不裁定节点推进或科学成功。
