@@ -2,8 +2,10 @@
 
 <!-- round-node: N1 -->
 
-**状态：executed / artifact-verified / registration-CI-success（2026-10-01）：一次P1+30val成功，0.1282633533 GPU-h；实际审计登记与逐交付物核对已落盘，待用户/独立目标判定。一次授权已用，不再运行；N1 保持 paused，
-不因补齐成本工程项改写 48/72h 的 `cannot-distinguish`，也不宣告目标完成。**
+**状态：executed / artifact-verified / registration-CI-success / acceptance-boundaries-resolved（2026-10-02）：
+一次P1+30val成功，0.1282633533 GPU-h；用户已明确授权并下放两项边界裁定权，执行者采用共驻验收与仅本次
+历史smoke身份读取例外（决策0027），此前等待记录保留。实际审计登记与逐交付物核对已有证据，最终目标状态
+仍由用户/独立目标判定；不重复本轮GPU。N1 保持 paused，不改写 48/72h 的 `cannot-distinguish`，不宣告目标完成。**
 
 本文件是主计划 `docs/goals/main-model-v2-campaign.md` 的节点 N1 的目标长文（N1 的第三个轮次：转向审计 →
 补测失败 → 本轮修复与共驻扩围）。节点、账本、对表清单都在主计划里；本文件只写「这一轮怎么做」。开工第一件事
@@ -12,6 +14,11 @@
 ## §0 Objective（可粘贴；实测 1024 字符）
 
 > 本轮目标：执行 docs/goals/n1-cost-supplement-repair.md 的扩围轮——先在本机 GPU 上落地「默认共驻、用空闲显存跑实验」的取卡政策，再跑完 N1 的剩余成本验收。0 GPU-h 部分：D0 政策三件套（决策 0026 + docs/rules/ 细则 + AGENTS.md 一行：默认共驻、启动前只读余量门槛、禁止对非本实验进程发送任何信号、不实现冻结或终止自动化、独占须先取具名授权，并同步决策/规则索引、CHANGELOG 与本轮 E 条目）；D2 v2 计量实现（每次评估一个全新子进程、守卫由「他人进程即拒」改为「余量门槛」、拒绝时先落 guard_refusal.json、30 行契约与精确重放不变，先过定向测试与工程 CI）；D1 原因探针（纯 torch 最小复现，记录 allocated/reserved 字节与 memory_snapshot，≤60s GPU；纯 torch 无残渣则加一次复用进程的字节记录 P2）。GPU 部分：D3 执行那一刻按决策 0021 取具名授权（范围＝探针 + 原 6 checkpoint × 5 val 时效共 30 次评估；≤0.25 GPU-h、整轮 ≤1200s、共驻、失败即停全额计费不重试）；D4 执行并登记（attempt/result/四张终态成本表/cost_views、证据页 docs/R7_N1_COST_SUPPLEMENT_V2.md + E 条目 + 索引记录 outcome_class: audit + 账本行 + 本长文与主计划回写 + CI 绑定）；D5 只提议：成本补齐不改写原 48/72h 的 cannot-distinguish 与 N2d 提议。判据与边界见 docs/goals/n1-cost-supplement-repair.md §3–§6，节点与账本见主计划。禁止：改已冻结判据或零基线要求、重跑或覆盖 v1 失败目录、新增训练更新/臂/seed、读 test、下载数据、租 GPU、改 main、force push、关闭 #70–#75、自动推进节点、对非本实验进程发任何信号。预算 ≤0.25 GPU-h（账本结余 19.9238 之内）；停止条件为两卡余量始终不足、探针无法归因、预算用尽、需要新判据或新数据或租 GPU 或合并 main，或任一评估失败。不要自行宣布目标完成。
+
+**当前验收边界（2026-10-02，决策0027）**：用户真实后续回复已授权并下放两项裁定权；本目标按原已授权的
+共驻修订版验收，仅将历史无关real_smoke/test.jsonl归档/git字节身份读取接受为本次审计例外。旧objective的
+「一卡独占」不再作为本次验收要求；「读test」的其余禁令保留，不授权新读取或M2 test评估/选择。原objective与
+实跑/未答事实均保留，不回改协议、零基线、精确重放、科学判据、成本上限或原科学结论。
 
 ## §1 现状（2026-10-01）
 
@@ -239,5 +246,51 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
   新训练/test/下载/租卡/main/force/issue关闭/邻居信号或下一节点；接口/依赖/模型/数据/凭据与安全配置无新变更。
   仍无Mimosa完整安全结论，不声明安全通过；无全程syscall/真实共驻邻居负载性能/未来逐位GPU成本复现证明。
   CI回写后再实跑goal/campaign/index/政策48passed/0.40s，37阻断与whitespace通过；84项审计回执重验一致。
-- **下一动作（仅提议）**：由用户/独立目标判定审阅本次成本审计和既有N2d提议；本轮执行者停止于此。
-  一次授权已用，余额不等于许可；不再启动GPU、读test、改变cannot-distinguish/N1paused/N2d提议或自行宣布完成。
+- **重复旧目标后的只读收尾复核（2026-10-01，起点5fe2ff4，新增0 GPU-h）**：原始用户消息与执行时具名问题
+  已核：用户先提交共驻扩围目标，19:30提问当时未答，20:03明确回复「明确授权，刚刚没有看到」，先于20:05回执
+  和20:06GPU启动。来源session `sess_b94ef9b7-4991-45a9-9c2c-ca49fc6afd22`，答复part
+  `part_muphk3t7_ae40c032-f016-4d5d-9758-73d10c11f729`；只读数据库核对与精确问题范围另存新侧目录。
+  后来旧objective的「一卡独占」不回写历史共驻授权，也不产生追加运行许可。本次没有GPU/evaluator重跑。
+- **本次实跑与CI范围**：193项计量/探针/政策CPU反证通过（最终归档3.00s），84项prompt-to-artifact重验exit0、
+  输出逐byte等于原回执；另一个独立命名的相关产物校验实跑5226项exit0，核81输入/六checkpoint/118活跃源/八计量源、
+  31个子进程（P1+30eval）、全部零baseline、full snapshot字节/digest、逐案例/三类CSV、四表和全额预算。
+  运行407文件与v1三pins不变。准备/登记/交付CI归档响应精确核齐b227020/36855190840、3937089/36865544410、
+  5fe2ff4/36867579327，九主步骤均success；访问日期仍为原2026-10-01，本次未联网、未触发workflow，远端计数未取得。
+- **历史校验器读取边界的限定（不回改旧回执）**：原8592项checker全953成员与git blob逐byte核对会展开无关
+  `data/manifests/real_smoke/test.jsonl`（4420B，历史UCI真实站点工程smoke，不是本轮ERA5 M2封存test）；因此此前
+  「没有test manifest读取」若泛指所有真实test清单则过宽。没有由此发现M2 test被用于本轮评估/选择的证据，也没有
+  全历史syscall trace可证明任意进程从未触碰test。本次未展开任何test清单、不重跑原8592；新5226项相关契约校验
+  只hash不透明源/checkpoint/整zip、读取118相关活跃源码，不把不同范围冒称原953成员或8592重验。snapshot frames
+  为空，不是allocation-history trace，归因仍仅工作区族。没有弱化零基线、30行或精确重放判据。
+- **补充复核留痕**：新侧目录`outputs/r7_n1_cost_v2_readonly_followup_5fe2ff4/`保存原始授权来源摘录、CPU日志、
+  CI归档响应核对、84项stdout、新5226项checker/回执与407前后封印；补充回执`followup_verification.json`。
+  新checker SHA256`6cbd3480f6ff40c5a71cd8c3613023ae6d0980d795f645bd0a6076bd32bb0e34`，stdout SHA256
+  `343ae5f8386cad89e94852f1e17e7e2f0631404a0ddba3887659a5912912903e`。37阻断/goal/index/campaign仍0失败（四旧账本notes），
+  只追加活goal/主计划进度尾，不改冻结实跑页/index/运行目录/账本或节点；本次追加文本尚未提交或取得新CI，
+  不能冒称被5fe2ff4的CI覆盖。追加进度后goal/campaign/index/政策48项CPU测试通过（0.27s），门禁与空白检查仍通过。
+  接口/依赖/模型/数据/凭据和安全配置无新变化，不声明安全通过或目标完成。
+- **当前objective验收边界待裁定（2026-10-01）**：独立目标校验指出当前仍含「一卡独占」和「不读test」字面条款，
+  历史已授权共驻执行与无关real_smoke/test.jsonl身份字节读取不能由工程通过替代裁定。已用AskUserQuestion分别询问
+  是否按已授权共驻修订版验收、是否接受历史smoke清单身份读取为仅本次审计例外或认定为禁令违反；**未收到回答**。
+  不是拒绝，也不是接受，不假定设备条款变更或test例外。等待记录为新侧目录
+  `acceptance_boundary_questions_unanswered.json`；原执行/授权/失败/证据/index/账本不回改，新增0 GPU-h。
+- **真实用户授权与下放决策后的两项裁定（2026-10-02，0新增GPU-h）**：用户直接回复
+  「均显示授权，并且允许下方决策权给你，所有实验均可安排」。不是自动继续通知，也不是将此前未答当许可。
+  用户没有逐字选择选项；执行者在其明确下放决策权下作出两项选择：①本次按已授权shared-headroom共驻修订版
+  验收，不将历史执行冒称独占，不追加独占重跑；②只接受已经发生的无关real_smoke/test.jsonl归档/git字节身份
+  比较为本次具名审计例外，保留实际读取事实，不声称读取前已有本例外许可或所有test未读，不授权未来/M2 test
+  读取、评估或选择。此前未答记录保留其当时事实，当前两项验收边界已由授权下裁定解决，不再等待用户选项。
+- **裁定登记与边界**：决策`docs/decisions/0027-n1-cost-acceptance-boundaries.md`、决策索引、CHANGELOG与E-222齐，
+  新回执`outputs/r7_n1_cost_v2_acceptance_resolution_20261002/acceptance_resolution.json` SHA256
+  `46ac8ba78a30f05898e18f4fa9276743d92c627767574eb8d1cf6389f3ef10eb`。原授权/失败/v2运行407文件/冻结证据页/
+  索引/科学比较器与账本不改；原待答回执sha0cee6846…不覆盖。总括实验安排权已接收，后续执行仍以具名协议/预算/
+  产物/失败规则记录并满足决策0021/0025/0026，不自动推进节点或豁免冻结科学判据、数据/main/租卡等既有边界。
+  当前没有新GPU/evaluator/test/训练/下载/邻居信号；原30val成本0.1282633533h和N1paused/cannot-distinguish不变。
+- **裁定登记最终验证（2026-10-02）**：相关治理/goal/campaign/index/计量/探针/共驻CPU合集359passed/23.11s；
+  R-033/R-036及全部37阻断0违规，goal0失败0advisory、campaign0失败4历史notes、index/brief16条通过、git空白通过。
+  407运行文件和12原证据封印逐SHA保持；E-001–E-222无缺号/重号，覆盖与置信度统计已核。首次临时统计解析误假定
+  旧E表按数值排序，修正核验解析适配既有分组行和带括号置信度后通过，未改契约迎合脚本。最终核验回执
+  `outputs/r7_n1_cost_v2_acceptance_resolution_20261002/final_verification.json`绑定真实授权/两项裁定、D1–D5和原证据。
+  新裁定及进度登记尚未commit/push，未运行新CI；原准备/登记/交付CI的精确SHA仅覆盖原对应提交，不冒称覆盖本次文字。
+- **下一动作（仅提议）**：将真实授权、两项裁定及已有D1–D5产物证据交由用户/独立目标判定审阅；执行者不自行
+  宣告目标完成。成本验收口径已登记，但N2d仍只提议，未自动进入下一节点，也未选择任何额外GPU实验。

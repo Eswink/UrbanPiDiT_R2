@@ -229,5 +229,34 @@
   `9f234f8d541109ff5ef04a7197c1a6ea28bdf62f96eb20b0a404ed8d036e2d67`；407运行文件/v1 pins/原科学归档不变。
   本条进度尾提交与该精确登记CI SHA区分，不递归改证据页/index digest，不新增GPU或新授权，不自宣目标完成。
   CI回写后定向48passed/0.40s、37阻断/whitespace通过，84项审计回执再次只读验证一致。
-- **下一动作（仅提议）**：由用户/独立目标判定审阅本次成本审计与既有N2d提议；本轮执行者停止于此。
-  一次范围已用，余额不授予实验许可；N1保持paused，不自动进入下一节点或自行宣告目标完成。
+- **旧目标再次触发后的只读核对（2026-10-01，起点5fe2ff4，0新增GPU-h）**：原始用户共驻扩围目标、执行时
+  具名提问、随后20:03明确授权、20:05回执和20:06启动顺序已核，历史一次范围已用，不把重复的旧独占目标当新许可。
+  本次193CPU反证passed（最终归档3.00s），84项交付物重验与另一个5226项相关产物校验exit0；81输入、六checkpoint、
+  118活跃源/八计量源、31子进程与30零baseline、snapshot/三类CSV/四表/预算均核，407运行文件与v1三pins未变。
+  准备/登记/交付CI归档精确SHA与九主步骤核齐，交付5fe2ff4的run36867579327 success；本次未联网或触发workflow。
+- **校验范围限定**：原8592项历史checker全953-member/git blob读取会展开无关real_smoke/test.jsonl（历史UCI
+  真实站点工程smoke，非本轮M2封存test）。不将此前「test manifest未读」泛化为所有test清单的完整证明；本次未展开
+  任何test清单、不重跑原8592，独立命名5226项只核相关契约与不透明源/zip hashes。不据此推断M2 test用于评估，
+  也不声称全历史syscall/未来逐位GPU成本证明；full snapshot不含allocation-history frames，v1具体残渣仍不能回填。
+  新侧回执`outputs/r7_n1_cost_v2_readonly_followup_5fe2ff4/followup_verification.json`及精确checker/output SHA见修复长文。
+  只追加两活文档进度尾，冻结证据/index/运行目录、账本4.2045/余19.7955、N1paused/cannot-distinguish/N2d提议均不改。
+  37阻断、goal/index/campaign仍0失败（四历史notes），追加后相关48项CPU测试通过（0.27s）；本次进度尾未提交/未跑新CI，
+  原精确交付CI不冒称覆盖新增文字。
+- **验收边界等待（2026-10-01，0新增GPU-h）**：当前objective仍写「一卡独占」及「不读test」，独立目标校验
+  未认可已授权共驻与历史无关smoke清单身份读取足以自行解除两字面边界。AskUserQuestion两题请用户明确共驻修订版
+  是否用于验收、历史real_smoke/test.jsonl字节读取是否为禁令违反或仅本次具名审计例外；**未收到回答**，不是拒绝/
+  接受，不能推定例外。等待回执`outputs/r7_n1_cost_v2_readonly_followup_5fe2ff4/acceptance_boundary_questions_unanswered.json`。
+  原证据、授权、账本与科学读法不改，不新增GPU或test读取，也不为通过而改冻结判据。
+- **用户明确授权/下放决策后裁定（2026-10-02，0新增GPU-h）**：用户直接回复「均显示授权，并且允许下方决策权
+  给你，所有实验均可安排」。执行者据此选择按已授权shared-headroom共驻修订版验收，并仅接受已发生的无关
+  real_smoke/test.jsonl归档/git身份字节读取为本次具名审计例外。用户授权与执行者具体选择分别记明，不把自动通知/
+  未答回包当确认，不伪称历史独占或读取前已有例外许可；原未答记录保留，当前两项验收不再待裁定。
+  决策0027/E-222/索引/CHANGELOG及新侧回执`outputs/r7_n1_cost_v2_acceptance_resolution_20261002/acceptance_resolution.json`
+  SHA256`46ac8ba78a30f05898e18f4fa9276743d92c627767574eb8d1cf6389f3ef10eb`已登记。原407运行文件、授权/失败/冻结证据/
+  evidence index、账本4.2045/余19.7955不改；不新增GPU重跑/test读取或放宽判据。本轮没有因总括实验安排权
+  自动选择新实验，后续仍要具名协议/预算/失败规则及节点/停止门；N1paused/cannot-distinguish/N2d仅提议不变。
+- **裁定登记验证（2026-10-02）**：相关CPU合集359passed/23.11s，全部37阻断/ADR/goal/campaign/index/空白通过，
+  campaign四历史notes仍如实保留；407运行文件及12原证据SHA未变。新侧`final_verification.json`绑定两项裁定及D1–D5。
+  新治理/进度未commit/push或运行新CI，不将原精确CI冒称覆盖新文字；预算/节点/科学读法均不变。
+- **下一动作（仅提议）**：交用户/独立目标判定审阅当前授权裁定及既有成本审计证据；不自行宣告目标完成。
+  用户已下放实验安排权，但本轮不自动进入下一节点或新增任何GPU运行。

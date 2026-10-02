@@ -52,3 +52,4 @@
 | [0024](0024-goal-verifier-best-effort-and-standard-recovery.md) | goal 自动完成校验按 best-effort：保留 harness 驱动，收尾不依赖自动结项 | accepted | 2026-09-30 |
 | [0025](0025-campaign-master-plan-and-per-round-recheck.md) | campaign 主计划与每轮对表（机器可查部分交给 CI） | accepted | 2026-09-30 |
 | [0026](0026-shared-gpu-coresidency-policy.md) | 本机 GPU 默认共驻与只读余量取卡政策 | accepted | 2026-10-01 |
+| [0027](0027-n1-cost-acceptance-boundaries.md) | N1 成本审计的共驻验收与历史身份读取例外 | accepted | 2026-10-02 |
