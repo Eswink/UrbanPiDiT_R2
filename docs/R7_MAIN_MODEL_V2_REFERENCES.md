@@ -1,6 +1,6 @@
 # R7 主模型 V2 外部参考台账（External Reference Ledger）
 
-- **访问日期**：2026-09-29（全部条目）
+- **访问日期**：原条目为2026-09-29；2026-10-03一手源码补核见§12、§13。
 - **取数通道**：委派 `web-researcher` 子智能体（R-049）；GitHub 数值取自 `api.github.com` 的
   HEAD 端点，论文取自 `arxiv.org`。**检索摘要不作为证据**：本文件区分「已核对」与「未核对」，
   未固定的 commit 一律写 `TO BE PINNED BEFORE IMPLEMENTATION`，**不伪造 SHA**。
@@ -58,7 +58,7 @@
 | Repository | https://github.com/google-deepmind/deepmind-research/tree/master/perceiver |
 | Paper | Perceiver https://arxiv.org/abs/2103.03206 ；Perceiver IO https://arxiv.org/abs/2107.14795 |
 | Access date | 2026-09-29 |
-| Commit/tag | **TO BE PINNED BEFORE IMPLEMENTATION**（deepmind-research 的 HEAD 未取到——API 并发限制） |
+| Commit/tag | `9176a9f23ced8e3d6024718d757be8d67cfb6927`（2026-10-03固定clone、HEAD及原文补核，详见§13；原API失败保留） |
 | License | Apache-2.0（仓库 LICENSE，已核对）；README 另注明数据与参数为 CC-BY-4.0 |
 | Exact source file | `perceiver/perceiver.py`（输出 query 读取潜变量）、`perceiver/position_encoding.py`（Fourier 位置编码）、`perceiver/io_processors.py`（位置与输入/输出 query 绑定） |
 | Concept borrowed | **输出 query 从少量潜变量读出密集输出**——这就是 RW-A 已实现的东西（`model/process_readout_r7.py`），也是 RW-B 读取端的形状依据；位置编码用固定基而不是可学每位置表 |
@@ -75,7 +75,7 @@
 | Access date | 2026-09-29 |
 | Commit/tag | `2888e15a51fa41140771d3f498ed8023cff098d1`（master HEAD，2025-08-24；已核对） |
 | License | BSD-3-Clause |
-| Exact source file | `core/update.py`（局部门控更新单元；README 未逐字点名该路径——**二手确认**）、`core/raft.py`、`train.py`（序列监督）、`train.py` 的 sequence_loss |
+| Exact source file | `core/update.py`、`core/raft.py`、`train.py`（2026-10-03实际固定clone并读对应原文段落，§13记录hash与边界；取代原二手确认） |
 | Concept borrowed | ① 局部门控递归更新单元（ConvGRU 式）的成熟配方；② 对多次精化结果逐步监督的加权序列损失 |
 | What we implement ourselves | Z 的更新单元用可微 torch 张量、在 patch 网格上做 3×3 深度可分离卷积 + pointwise；门控是**逐位置标量**并断言梯度非零；序列监督复用我们已有的 deep supervision 权重（`training/r7_recursive_losses.py`） |
 | What we deliberately do NOT copy | **不复制光流任务、4D correlation volume、warp 操作、mask/阈值策略**；不复制其迭代次数与学习率配方 |
@@ -186,7 +186,68 @@
   **直接核实后确认它是 IOI 竞赛编程论文，与天气无关**——该线索已纠正并弃用。
   （记这条是因为它正说明「检索摘要不能当证据」。）
 
-## 12. 维护规则
+## 12. GraphCast：自回归训练的前瞻机制参考（2026-10-03）
+
+本条经web-researcher定位后，主链**实际git clone、固定commit并读一手文件**，摘要不作证据。
+引用只针对原版tag的机制，不把上游大规模结果或12步训练搬成本项目收益。
+
+| 字段 | 内容 |
+| --- | --- |
+| Repository / source URL | https://github.com/google-deepmind/weathernext/tree/858301cde5de5c728f8172f782dafba1ea07ac2e （以此已clone地址为准，不依赖旧仓重定向推测） |
+| Access date / tag / commit | 2026-10-03 / v0.1 / `858301cde5de5c728f8172f782dafba1ea07ac2e` |
+| License | Apache-2.0，clone中的LICENSE SHA256 `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`；不下载权重或其它非代码材料 |
+| Exact source | `graphcast/autoregressive.py`，SHA256 `07c51d7602679221f1d04f8aa0883e3a4f6a3abf8ee453af1baf20ecd6c5ce3c`；辅助graphcast.py `6aeb9cfa2490b0e2dbfa70f255594914ee1765d5e20c3e66ca912b80bc66e953`、losses.py `d4d4d3b0852ac140c13ca4786f3f4b5d90f9e5cc596db098ee7c7004295920a9` |
+| Isolated local source | `outputs/reference_sources/graphcast/858301cde5de5c728f8172f782dafba1ea07ac2e/`；读取参考，不import或运行上游安装/训练 |
+| Concept borrowed | autoregressive.py:261–286单步loss接各时刻target，`next_frame = xarray.merge([predictions, forcings])`后`_update_inputs`拼预测历史；:288–309可选hk.remat后hk.scan，平均per-time loss。读取文件未见detach/stop_gradient；重算不是物理梯度截断 |
+| Actual implementation / port | 本仓自行写PyTorch精确两步history反馈与full-BPTT；保留L6+.5L12已预声明，**没有逐行移植**JAX源码、forcing或loss权重。通过解析梯度/poison/time/resume反证接受实现而非上游论文替代 |
+| Deliberately not copied | 无JAX/Haiku依赖、GraphCast架构/全球mesh/训练数据/权重/上游脚本；不照抄12步课程、长unroll与大规模超参，不做外部baseline竞赛 |
+| Relevance / boundary | 支持“预测历史继续作输入、标签只监督、物理展开可回传”的实施先例；不是本区域模型的forecast改善证据 |
+
+取回回执 `outputs/r7_v2_remaining_acceptance_20261003/reference_source_receipt.json`固定文件hash与
+未执行上游事实。检索员对Science正文403/上游新main结构等线索不纳入本条已确认结论；本条
+只依据已固定原版源码，未核上游性能、发表版全文或当前main等价实现。
+
+## 13. Perceiver / RAFT：直接query与迭代反馈的一手补核（2026-10-03）
+
+检索员定位后，主链实际SSH clone到隔离目录、detached checkout、核HEAD/clean status、读原文及许可。
+两轮HTTPS的GnuTLS -110失败原日志保留，未改安全或git配置；后续SSH成功不改写先前失败。
+完整取回回执为 `outputs/r7_v2_remaining_acceptance_20261003/reference_query_source_receipt.json`。
+
+### Perceiver
+
+- URL：https://github.com/google-deepmind/deepmind-research/tree/9176a9f23ced8e3d6024718d757be8d67cfb6927/perceiver
+  ；访问日2026-10-03；commit `9176a9f23ced8e3d6024718d757be8d67cfb6927`。
+- 隔离源码：`outputs/reference_sources/perceiver/9176a9f23ced8e3d6024718d757be8d67cfb6927/`。
+  code许可Apache-2.0，LICENSE SHA256 `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`；
+  README:96–98另声明included data/parameters为CC-BY-4.0，不读取这些材料作实验输入。
+- `perceiver/perceiver.py` SHA256 `b68017bf5fd20f0de77b2068a2fee2548eb0b6f24c938bf21fcf35f56aa7b6ef`。
+  实际读:521–622：BasicDecoder的default-off `concat_preprocessed_input`将已处理输入与位置通道
+  concat后形成query；:777–815：FlowDecoder的query直接返回inputs。
+- **实际借鉴**仅为“query可携带局部当前内容且仍读小latent”的机制先例。本仓0034独立选择
+  `LN(C_i + E(Y_k)_i) + pos_i`，不是上游concat公式，也不是“同形移植”；沿用已有draft encoder，
+  Generic/Process同开关、无新增参数。固定P/C/pos的局部因果与梯度反证而非文献摘要接受该实现。
+- **未搬**JAX/Haiku、latent规模、上游架构/数据/权重/训练脚本/成绩；没有upstream import或安装执行。
+  位置编码/io_processors只固定文件hash，不把固定hash冒充逐行审计。
+
+### RAFT
+
+- URL：https://github.com/princeton-vl/RAFT/tree/2888e15a51fa41140771d3f498ed8023cff098d1
+  ；访问日2026-10-03；commit `2888e15a51fa41140771d3f498ed8023cff098d1`。
+- 隔离源码：`outputs/reference_sources/raft/2888e15a51fa41140771d3f498ed8023cff098d1/`；BSD-3-Clause，
+  LICENSE SHA256 `399af7e243d625e8dea2b3f81fec676ea19bacf7d9ce8cfd4ce15530d8a66173`。
+- 实际读 `core/raft.py`:121–142（SHA256 `e7280b82d0e224eff760ae8de5e8ea68923a7928c1e34920378b6f3a039a8633`）：
+  每次先`coords1.detach()`，当前flow进入相关查询及update，随后加delta；
+  `core/update.py`:89–136（SHA256 `7302f91ffc24c85cf739a25feb17d9d1e537f7344a2ddc331daf8ab9db6c3f74`）
+  以flow/corr构motion features并进局部GRU；`train.py`:50–72
+  （SHA256 `2e14d06c1a8507c2930ef6f566fbd6fb57c7a2a45e110ccf09a2cfbbf177625b`）以gamma加权中间预测。
+- **实际借鉴**限局部迭代状态/门控和多draft监督的机制，本仓既有patch solver与归一化deep supervision
+  自行实现；不移植光流correlation/warp/mask/gamma/lr/权重或上游脚本。特别是上游显式detach
+  **不支持**本仓物理full-BPTT决定，不把其任务结果当本区域天气技巧。
+
+本条为来源/机制核证，不是天气实验进展或SOTA依据。0034的default-off兼容与direct query判据另有
+实际合成CPU证据；B保留旧母体query flag off，C若用修复则必须在独立协议里明确package contrast。
+
+## 14. 维护规则
 
 - 每条在**实施引用之前**必须把 `Commit/tag` 从 `TO BE PINNED BEFORE IMPLEMENTATION` 换成实测 SHA，
   并核对 License 是否允许我们的使用方式。

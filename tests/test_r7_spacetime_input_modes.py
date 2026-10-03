@@ -399,11 +399,15 @@ def test_the_three_modes_carry_the_same_parameters_and_forward_flops():
 def test_the_declared_inputs_do_not_depend_on_the_mode():
     """D2: the whitelist is the field set, and no mode narrows or widens it."""
     from model.r7_halting import DECLARED_MODEL_INPUTS, forecast_inputs
+    from model.spacetime_conditioning_r7 import CALENDAR_INPUT_FIELDS
 
     batch = fixed_fields_batch()
-    assert set(forecast_inputs(batch)) == set(DECLARED_MODEL_INPUTS)
-    assert set(DECLARED_MODEL_INPUTS) == {"coarse_history", "lead_time_hours",
-                                          *SPACETIME_INPUT_FIELDS}
+    expected = {"coarse_history", "lead_time_hours", *SPACETIME_INPUT_FIELDS}
+    assert set(forecast_inputs(batch)) == expected
+    assert set(DECLARED_MODEL_INPUTS) == expected | set(CALENDAR_INPUT_FIELDS)
+    with_calendar = dict(batch, init_calendar_year=torch.full_like(batch["init_day_of_year"], 2016))
+    assert set(forecast_inputs(with_calendar)) == set(DECLARED_MODEL_INPUTS)
+    assert "init_year" not in forecast_inputs(dict(with_calendar, init_year=torch.tensor(2001)))
 
 
 def test_the_fields_path_is_bitwise_identical_to_the_frozen_revision(tmp_path):

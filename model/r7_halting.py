@@ -8,7 +8,7 @@ from typing import Mapping, TYPE_CHECKING
 import torch
 from torch import nn
 from .recursive_weather_r7 import solver_conditioning
-from .spacetime_conditioning_r7 import SPACETIME_INPUT_FIELDS
+from .spacetime_conditioning_r7 import CALENDAR_INPUT_FIELDS, SPACETIME_INPUT_FIELDS
 
 if TYPE_CHECKING:
     from .process_forecast_r7 import ProcessForecastCoReasoner
@@ -20,7 +20,7 @@ def positive_int(value: int, name: str) -> int:
     return value
 
 
-DECLARED_MODEL_INPUTS = ("coarse_history", "lead_time_hours") + SPACETIME_INPUT_FIELDS
+DECLARED_MODEL_INPUTS = ("coarse_history", "lead_time_hours") + SPACETIME_INPUT_FIELDS + CALENDAR_INPUT_FIELDS
 
 
 def forecast_inputs(batch: Mapping[str, torch.Tensor]) -> dict[str, torch.Tensor]:

@@ -57,3 +57,6 @@
 | [0029](0029-standing-experiment-delegation.md) | 实验常设下放与时长契约（取代 0021 的逐次询问通道） | superseded by 0030 | 2026-10-02 |
 | [0030](0030-autonomous-execution-and-direction-boundary.md) | 实验、节点推进与普通决策常设下放；总体方向归用户（继承 0029，取代 0025 逐轮触发） | accepted | 2026-10-02 |
 | [0031](0031-m3-cross-attempt-validation-provenance.md) | M3独立23项补测与跨尝试逐文件来源；保留原失败、身份强核和冻结暂停出口 | accepted | 2026-10-02 |
+| [0032](0032-independent-autoregressive-exposure-route.md) | 用户前瞻选择：终结M3辅助监督假设，独立自回归暴露主线接续B/C/D/E；旧出口不改 | accepted | 2026-10-03 |
+| [0033](0033-explicit-calendar-year-conditioning.md) | 显式已知init_calendar_year修Gregorian年界；旧字段/平均年周期路径逐位兼容 | accepted | 2026-10-03 |
+| [0034](0034-explicit-draft-query-feedback.md) | 显式default-off局部draft query补齐设计；旧父保留、完整Generic配对与直接因果反证 | accepted | 2026-10-03 |

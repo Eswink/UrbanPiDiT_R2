@@ -187,12 +187,15 @@ def test_the_default_read_is_the_pooled_projection():
     assert isinstance(reasoner.correction_head, CoarseForecastHead)
 
 
-def test_the_reader_is_only_offered_by_the_process_model():
-    """RW-A changes the process arm's reader; the generic baseline is untouched."""
+def test_the_generic_default_still_has_no_positional_reader_or_process_semantics():
+    """Matched V2 offers opt-in capacity; the historical Generic stays off."""
     generic = make_model("generic", {name: value for name, value in BASE.items()
                                      if name not in ("anchored_processes", "free_processes")},
                          )
     assert not hasattr(generic, "process_conditioning")
-    assert not hasattr(generic, "positional_process_readout")
+    assert generic.positional_process_readout is False
+    assert not any(name == "process_reader" for name, _ in generic.named_modules())
+    assert not any(name.startswith("process_reader.") for name in generic.state_dict())
+    assert not hasattr(generic, "process_readout")
     reasoner = make_model("process", dict(BASE))
     assert isinstance(reasoner, ProcessForecastCoReasoner)

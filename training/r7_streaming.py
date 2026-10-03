@@ -11,7 +11,7 @@ from torch.nn import functional as F
 from model.process_forecast_r7 import ProcessForecastCoReasoner
 from model.process_step_r7 import ProcessStepInput, ProcessStepOutput, process_reasoning_step
 from model.recursive_weather_r7 import (GenericRecursiveWeatherForecaster,
-    declared_source_roles, recurrent_key, solver_conditioning)
+    GenericStepInput, generic_reasoning_step)
 from model.r7_halting import forecast_inputs
 from .r7_halting import per_sample_latitude_mse
 
@@ -61,26 +61,19 @@ def _recursive_step(model, state, context, draft, token_hw, *,
                     solver_state=None, step_index: int = 0, anchor=None):
     """One recurrent step, through the models' own single implementations.
 
-    The process branch calls ``process_reasoning_step``; the generic branch keeps
-    its own recurrence but assembles the cell key through the same helper, so the
-    concatenation (and any declared source roles) can only be written once.
+    Each branch calls its fixed-forward step; the generic adapter only converts
+    output field names and never computes diagnostics. Readers and local solver
+    states therefore cannot be omitted or drift from the fixed path.
     """
     if isinstance(model, ProcessForecastCoReasoner):
         return process_reasoning_step(
             model, ProcessStepInput(state, context, draft), token_hw,
             solver_state=solver_state, step_index=step_index, anchor=anchor)
-    tokens, hw = model.draft_encoder(draft)
-    if tuple(hw) != tuple(token_hw):
-        raise ValueError("draft/context token grids differ")
-    role_context, role_draft = declared_source_roles(model)
-    state = model._cell(state, recurrent_key(
-        context, tokens, role_context=role_context, role_draft=role_draft))
-    summary = model.latent_to_context(state.mean(1))
-    conditioned = solver_conditioning(context, summary, tokens,
-        spatial_feedback=model.spatial_solver_feedback)
-    draft, correction = model.correction_head(
-        conditioned, token_hw, draft.shape[-2:], draft)
-    return ProcessStepOutput(state, draft, correction, None, None)
+    result = generic_reasoning_step(
+        model, GenericStepInput(state, context, draft), token_hw,
+        solver_state=solver_state, step_index=step_index, anchor=anchor)
+    return ProcessStepOutput(result.latent, result.draft, result.correction,
+                             None, result.solver_state)
 
 
 def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,

@@ -2,6 +2,38 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-03 — N3独立主线工程冻结与0033/0034反证修复
+
+保留M3旧failed/paused与0032新路线，新增完整匹配Generic、严格母体权重导入、精确185窗口、
+真实可微两步原deep supervision、三区域物理指标/零训练baseline、完整时钟/成本与新adaptive门禁。
+0033可选Gregorian year不读旧init_year；0034 default-off直连query使用LN(C+draft)+pos，无新增参数。
+独立复核确认并修实际heads/dropout语义错配、roles/noFeedback、累计K列表、无aux sidecar、baseline
+kind与worker主动截止归因缺陷，不改旧loader/digest/冻结端点。完整首轮10failed/2614passed/9skipped
+原日志保留；不把定向或结构检查冒称最终fullsuite、CI或科学增益。
+
+R-009最终跟踪AST实测1408函数/3794断言/146文件，相对N2a新增198/682；只同步checker/testing/MIGRATION。
+规模marker同步R019=0/R019b532/R02047/R02156/R02252/R02336，所有新增文件≤600/函数≤200，
+没有新增冻结例外或改阈值。两个新测试原草稿禁词路径合规重命名，字节/覆盖不变；测试无删除弱化。
+新一手GraphCast/Perceiver/RAFT固定clone/许可/hash与未移植边界记引用台账；未上游import/安装训练。
+最终完整CPU3107passed/9skipped/2warnings，767.02s/exit0；六CUDA与三optional真实fixture跳过
+不算通过，两Lightning无Trainer warning保留。测试过程中只有driver末EOF空行删去，bytes proof与
+最终runner/driver160passed/47.81s接受，未改功能/断言。完整stdout/380源hash与回执
+fa69da8c…0782d保存；query234/results81/driver77分别为各自定向工程证据，不拼科学样本。
+本条尚无新GPU实验、费用、结果index、精确新CI、issue关闭或main推进；默认共驻/保留权限不变。
+用户安全配置及两无关未跟踪项未进入暂存；无新天气下载/数据发布/依赖/凭据变化。
+
+## 2026-10-03 — 0032用户前瞻选择独立autoregressive-exposure路线
+
+用户明确结束已交付M3辅助监督假设，保留原failed与完整补测any-unresolved/paused/advancefalse。
+新0032及 `docs/goals/v2-remaining-stages-exploration.md` 派生B/N3、C/N4、D/E/N5，不回写旧证据、
+协议或科学判据，不再将该辅助假设暂停作为后续独立任务总前置。主计划state/上一轮next-action
+同步N3；账本不增加，四历史无索引notes保留。方向内实验/预算/普通工程/节点按0030连续自主，
+负面只停相关假设，不机械追加seed、算力或unroll；精确CI/证据齐备才按原具名范围关闭六issue。
+
+初轮B planned5400/hard10800秒，C planned10800/hard21600秒，包含整轮准备至清理；协议将在
+任何实验更新前独立排他冻结。当前只路线/工程准备，无新实验结果或GPU消耗，未关闭/写main。
+旧M3/RW-B/N1负面与未决不改，测试/身份/安全/共驻和保留权限不豁免。
+
 ## 2026-10-03 — 用户关闭 Mimosa 后恢复 M3 的 D6 登记（不改科学出口）
 
 用户先回复「我对其进行明确授权」，再说明「我已经关闭了Mimosa，可以继续进行」。只读核用户与

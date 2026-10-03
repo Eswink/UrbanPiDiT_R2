@@ -42,19 +42,27 @@ from .layers.sdpa import SDPAttention
 
 
 class PositionalProcessReadout(nn.Module):
-    """One query per output position reads every process token (N x M)."""
+    """One query per output position reads every process token (N x M).
+
+    Opt-in draft_query_feedback uses the aligned existing draft encoding inside
+    the same query normalization. Off is the original context-only expression;
+    neither mode adds a parameter, state key or random draw (ADR 0034).
+    """
 
     def __init__(self, dim: int, heads: int = 4, dropout: float = 0.0,
-                 pooled_readout_query: bool = False):
+                 pooled_readout_query: bool = False, draft_query_feedback: bool = False):
         super().__init__()
-        if type(pooled_readout_query) is not bool:
-            raise ValueError("pooled_readout_query must be boolean")
+        for value, name in ((pooled_readout_query, 'pooled_readout_query'),
+                            (draft_query_feedback, 'draft_query_feedback')):
+            if type(value) is not bool:
+                raise ValueError(f'{name} must be boolean')
         dim = int(dim)
         if dim % 4:
             raise ValueError("positional readout needs dim divisible by 4 (two axes x sin/cos)")
         self.dim = dim
         self.heads = int(heads)
         self.pooled_readout_query = pooled_readout_query
+        self.draft_query_feedback = draft_query_feedback
         self.query_norm = nn.LayerNorm(dim)
         self.process_norm = nn.LayerNorm(dim)
         self.attention = SDPAttention(dim, self.heads, dropout, cross=True)
@@ -82,7 +90,7 @@ class PositionalProcessReadout(nn.Module):
                          dim=0).reshape(self.dim, rows * columns).transpose(0, 1).to(dtype)
 
     def forward(self, process: torch.Tensor, context: torch.Tensor,
-                token_hw: tuple[int, int]) -> torch.Tensor:
+                token_hw: tuple[int, int], *, draft_tokens: torch.Tensor | None = None) -> torch.Tensor:
         if process.ndim != 3 or context.ndim != 3:
             raise ValueError("process readout needs [B,M,D] process tokens and [B,N,D] context")
         if process.shape[0] != context.shape[0] or process.shape[2] != self.dim \
@@ -92,7 +100,17 @@ class PositionalProcessReadout(nn.Module):
         if process.shape[1] < 1 or context.shape[1] != positions:
             raise ValueError(f"context has {context.shape[1]} positions but token_hw "
                              f"{tuple(token_hw)} implies {positions}")
-        query = self.query_norm(context)
+        if self.draft_query_feedback:
+            if not torch.is_tensor(draft_tokens) or draft_tokens.shape != context.shape:
+                raise ValueError('draft_query_feedback requires aligned [B,N,D] draft_tokens')
+            if draft_tokens.device != context.device:
+                raise ValueError('draft_tokens/context devices differ')
+            if draft_tokens.dtype != context.dtype:
+                raise ValueError('draft_tokens/context dtypes differ')
+            # One normalization of the sum, not separately normalized sources.
+            query = self.query_norm(context + draft_tokens)
+        else:
+            query = self.query_norm(context)
         if self.pooled_readout_query:
             # Pooled *before* the position encoding is added: averaging the
             # encoded queries would mix the encoding's own mean into the control

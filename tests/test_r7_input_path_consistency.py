@@ -26,7 +26,7 @@ from data.r7_evaluation import ZarrRolloutDataset
 from model.r7_halting import (DECLARED_MODEL_INPUTS, AdaptiveProcessForecaster,
     forecast_inputs)
 from model.r7_rollout import autoregressive_rollout, rollout_model_input
-from model.spacetime_conditioning_r7 import SPACETIME_INPUT_FIELDS
+from model.spacetime_conditioning_r7 import CALENDAR_INPUT_FIELDS, SPACETIME_INPUT_FIELDS
 from training.r7_evaluate import evaluate_local
 from training.r7_experiment import dataset_identity, make_model, seed_everything
 from training.r7_inference_profile import profile_forward
@@ -36,6 +36,7 @@ from training.r7_streaming import backward_streamed_truncated
 from test_r7_storage_safety import build
 
 EXPECTED = frozenset({"coarse_history", "lead_time_hours", *SPACETIME_INPUT_FIELDS})
+WITH_CALENDAR = EXPECTED | frozenset(CALENDAR_INPUT_FIELDS)
 LEAKAGE = frozenset({"atmos_target", "atmos_baseline", "rollout_targets", "process_targets",
                      "sample_id", "init_time", "valid_times", "init_year", "grid_spacing_deg"})
 PROCESS_CONFIG = {"in_channels": 1, "out_channels": 1, "history_steps": 2, "dim": 16,
@@ -75,7 +76,10 @@ def test_the_whitelist_is_the_declared_set_and_carries_no_target():
             **{name: torch.zeros(1) for name in LEAKAGE}}
     whitelisted = forecast_inputs(full)
     assert set(whitelisted) == EXPECTED
-    assert set(whitelisted) == set(DECLARED_MODEL_INPUTS)
+    assert set(whitelisted) | set(CALENDAR_INPUT_FIELDS) == set(DECLARED_MODEL_INPUTS)
+    with_calendar = forecast_inputs(dict(full, init_calendar_year=torch.tensor(2016.0)))
+    assert set(with_calendar) == set(DECLARED_MODEL_INPUTS) == WITH_CALENDAR
+    assert not set(with_calendar) & LEAKAGE
     assert not set(whitelisted) & LEAKAGE
     with pytest.raises(KeyError):
         forecast_inputs({"lead_time_hours": torch.zeros(1)})  # history is not optional
@@ -132,7 +136,7 @@ def test_every_path_hands_the_model_the_same_field_set(tmp_path):
 
     assert identity  # the run above is bound to the store's identity
     for name, sets in observed.items():
-        assert sets == {EXPECTED}, f"{name} handed the model {sets}"
+        assert sets == {WITH_CALENDAR}, f"{name} handed the model {sets}"
 
 
 def test_the_evaluation_path_carries_the_declared_fields(tmp_path, monkeypatch):
@@ -159,7 +163,7 @@ def test_the_evaluation_path_carries_the_declared_fields(tmp_path, monkeypatch):
     monkeypatch.setattr(evaluate_module, "make_model", watched)
     evaluate_local(data["val"], output_dir=tmp_path / "eval", checkpoint=checkpoint,
                    lead_hours=(6,), max_samples=1, device_name="cpu")
-    assert observed == {EXPECTED}, f"evaluation handed the model {observed}"
+    assert observed == {WITH_CALENDAR}, f"evaluation handed the model {observed}"
 
 
 class Recording(dict):

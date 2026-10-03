@@ -84,6 +84,8 @@ def process_reasoning_step(
     process, context, draft = tensors.process, tensors.context, tensors.draft
     feedback = model.use_forecast_feedback if use_forecast_feedback is None else bool(
         use_forecast_feedback)
+    if model.draft_query_feedback and not feedback:
+        raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
     draft_tokens = None
     if feedback:
         draft_tokens, draft_hw = model.draft_encoder(draft)
@@ -91,9 +93,13 @@ def process_reasoning_step(
             raise ValueError(f"draft token grid {draft_hw} != context grid {token_hw}")
     role_context, role_draft = declared_source_roles(model)
     process = model._reason(process, recurrent_key(
-        context, draft_tokens, role_context=role_context, role_draft=role_draft))
+        context, draft_tokens, role_context=role_context,
+        role_draft=role_draft if draft_tokens is not None else None))
     prediction = model._process_prediction(process)
-    summary = model.process_conditioning(process, context, token_hw)
+    if model.draft_query_feedback:
+        summary = model.process_conditioning(process, context, token_hw, draft_tokens=draft_tokens)
+    else:
+        summary = model.process_conditioning(process, context, token_hw)
     conditioned = solver_conditioning(context, summary, draft_tokens,
         spatial_feedback=model.spatial_solver_feedback and feedback)
     if not model.local_solver_state:

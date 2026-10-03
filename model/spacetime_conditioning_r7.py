@@ -20,13 +20,14 @@ Two deliberate design choices:
   physically obvious one.
 
 The phase is a pure function of ``init_day_of_year``, ``init_utc_hour`` and the
-requested lead (``init_utc_hour + lead``, wrapped by the harmonics themselves).
-This module imports no clock source, and a missing field raises instead of
-falling back to the wall clock or to a placeholder.
+requested lead. An explicit optional ``init_calendar_year`` selects Gregorian
+valid-date/year-length arithmetic; without it the archived 365.25-day harmonics
+are unchanged. This module imports no clock source, guesses no calendar year,
+and missing required fields raise rather than becoming placeholders.
 
-``SPACETIME_INPUT_FIELDS`` is the one declaration of which fields that is; the
-whitelist in ``model/r7_halting.py`` and the rollout in ``model/r7_rollout.py``
-both import it, so a path cannot quietly carry a different set.
+``SPACETIME_INPUT_FIELDS`` declares the required fields; ``CALENDAR_INPUT_FIELDS``
+declares optional known calendar metadata. The whitelist and rollout import both,
+so no path can quietly choose another input set. Legacy ``init_year`` stays unread.
 
 ``field_mode`` adds the two control arms a capacity attribution needs, *inside*
 this module and after the fields have been validated - the dataset, the rollout
@@ -57,6 +58,9 @@ from .coarse_forecast import resolve_lead_hours
 from .layers.patch_grid import pad_patch_grid
 
 SPACETIME_INPUT_FIELDS = ("latitude", "longitude", "init_utc_hour", "init_day_of_year")
+# Optional, explicitly known calendar metadata. init_year remains undeclared;
+# absence preserves the archived 365.25-day harmonic, never a guessed year.
+CALENDAR_INPUT_FIELDS = ("init_calendar_year",)
 FIELD_MODES = ("fields", "constant", "shuffled")
 PHASE_FEATURES = 4
 POSITION_FEATURES = 4
@@ -239,27 +243,96 @@ def position_features(
     return torch.cat([torch.sin(radians), torch.cos(radians)], dim=1).reshape(4, rows * columns).transpose(0, 1)
 
 
+def _calendar_year_days(year: torch.Tensor) -> torch.Tensor:
+    leap = (year.remainder(4) == 0) & ((year.remainder(100) != 0) | (year.remainder(400) == 0))
+    return 365 + leap.to(torch.int64)
+
+
+def advance_calendar_time(
+    init_calendar_year: torch.Tensor,
+    init_day_of_year: torch.Tensor,
+    init_utc_hour: torch.Tensor,
+    lead_hours: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Exact Gregorian (year, ordinal day, UTC hour) from explicitly known fields.
+
+    Integer day arithmetic and the 400/100/4/1-year decomposition avoid any clock
+    or host calendar library. All samples advance independently, including year
+    boundaries, century exceptions and fractional-hour leads. Invalid metadata
+    raises; init_year and a missing calendar year are never interpreted here.
+    """
+    if not torch.is_tensor(lead_hours) or not lead_hours.is_floating_point():
+        raise TypeError("calendar lead_hours must be a floating tensor")
+    lead = lead_hours.reshape(-1).to(torch.float64)
+    values = [_per_sample(value, name, lead.numel()).to(device=lead.device, dtype=torch.float64)
+              for value, name in ((init_calendar_year, "init_calendar_year"),
+                                  (init_day_of_year, "init_day_of_year"),
+                                  (init_utc_hour, "init_utc_hour"))]
+    year, day, hour = values
+    for name, value in zip(("init_calendar_year", "init_day_of_year", "init_utc_hour",
+                            "lead_time_hours"), (*values, lead)):
+        if not torch.isfinite(value).all():
+            raise ValueError(f"{name} must be finite")
+    if bool(((year != year.floor()) | (year < 1) | (year > 9999)).any()):
+        raise ValueError("init_calendar_year must be an integer in [1, 9999]")
+    year = year.to(torch.int64)
+    if bool(((day != day.floor()) | (day < 1) | (day > _calendar_year_days(year))).any()):
+        raise ValueError("init_day_of_year must be an integer valid for init_calendar_year")
+    if bool(((hour < 0) | (hour >= HOURS_PER_DAY)).any()):
+        raise ValueError("init_utc_hour must be in [0, 24)")
+    previous = year - 1
+    start = (365 * previous + previous // 4 - previous // 100 + previous // 400)
+    elapsed_hours = hour + lead
+    carry = torch.floor(elapsed_hours / HOURS_PER_DAY)
+    ordinal = start.to(torch.float64) + day - 1 + carry
+    if bool(((ordinal < 0) | (ordinal >= 3_652_059)).any()):
+        raise ValueError("calendar valid time must remain in years [1, 9999]")
+    ordinal = ordinal.to(torch.int64)
+    centuries400 = ordinal // 146097
+    remainder = ordinal.remainder(146097)
+    centuries = (remainder // 36524).clamp(max=3)
+    remainder = remainder - centuries * 36524
+    quadrennia = remainder // 1461
+    remainder = remainder - quadrennia * 1461
+    years = (remainder // 365).clamp(max=3)
+    valid_year = 400 * centuries400 + 100 * centuries + 4 * quadrennia + years + 1
+    valid_day = remainder - 365 * years + 1
+    valid_hour = (elapsed_hours - carry * HOURS_PER_DAY).to(lead_hours.dtype)
+    return valid_year, valid_day, valid_hour
+
+
 def phase_features(
     init_utc_hour: torch.Tensor,
     init_day_of_year: torch.Tensor,
     lead_hours: torch.Tensor,
+    *,
+    init_calendar_year: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """``[B, 4]`` sin/cos annual and diurnal harmonics of the *valid* time.
 
     The valid time is ``init + lead`` for both terms: a 24 h lead lands on the
     next day at the same hour and the harmonics repeat, and a 6 h lead moves the
     annual phase by a quarter of a day, so nothing here is computed from the
-    initialization time alone and nothing is read from a clock. The wrap across
-    midnight and across the year end is the harmonics' own periodicity rather
-    than a modular-arithmetic special case.
+    initialization time alone and nothing is read from a clock. Without explicit
+    calendar metadata the archived 365.25-day approximation is retained byte for
+    byte. With init_calendar_year, UTC is advanced to an actual Gregorian valid
+    date and the annual denominator is that valid year's length.
     """
     hour = init_utc_hour.reshape(-1).to(lead_hours.dtype)
     day = init_day_of_year.reshape(-1).to(lead_hours.dtype)
     if hour.shape != lead_hours.shape or day.shape != lead_hours.shape:
         raise ValueError("phase inputs must be one value per sample")
-    valid_hour = hour + lead_hours
-    annual = math.tau * (day - 1.0 + valid_hour / HOURS_PER_DAY) / DAYS_PER_YEAR
-    diurnal = math.tau * valid_hour / HOURS_PER_DAY
+    if init_calendar_year is not None:
+        valid_year, valid_day, valid_hour = advance_calendar_time(
+            init_calendar_year, init_day_of_year, init_utc_hour, lead_hours)
+        annual = math.tau * (valid_day.to(lead_hours.dtype) - 1.0
+                            + valid_hour / HOURS_PER_DAY) / _calendar_year_days(valid_year)
+        diurnal = math.tau * valid_hour / HOURS_PER_DAY
+    else:
+        # Operation-for-operation archived behavior; do not retrofit old results.
+        valid_hour = hour + lead_hours
+        annual = math.tau * (day - 1.0 + valid_hour / HOURS_PER_DAY) / DAYS_PER_YEAR
+        diurnal = math.tau * valid_hour / HOURS_PER_DAY
     return torch.stack([torch.sin(annual), torch.cos(annual),
                         torch.sin(diurnal), torch.cos(diurnal)], dim=-1)
 
@@ -288,18 +361,30 @@ class SpacetimeConditioning(nn.Module):
         rows, columns = history.shape[-2:]
         latitude, longitude, hour, day = require_spacetime_fields(
             batch, history_shape=(rows, columns), batch_size=history.shape[0])
-        latitude, longitude, hour, day = apply_field_mode(
-            self.field_mode, latitude, longitude, hour, day,
-            batch_size=history.shape[0])
         hours = resolve_lead_hours(batch.get("lead_time_hours"), batch=history.shape[0],
                                    device=history.device, dtype=torch.float32,
                                    default_hours=self.default_lead_hours)
+        calendar_year = None
+        if "init_calendar_year" in batch:
+            calendar_year = _per_sample(batch["init_calendar_year"], "init_calendar_year",
+                                        history.shape[0])
+            # Validate original metadata even when a control arm will discard it.
+            advance_calendar_time(calendar_year, day, hour, torch.zeros_like(hours).reshape(-1))
+            if self.field_mode == "shuffled":
+                calendar_year = torch.roll(calendar_year, 1, dims=0)
+            elif self.field_mode == "constant":
+                # Explicit capacity control, not a missing-metadata fallback:
+                # discard the calendar too and retain the archived constant input.
+                calendar_year = None
+        latitude, longitude, hour, day = apply_field_mode(
+            self.field_mode, latitude, longitude, hour, day,
+            batch_size=history.shape[0])
         position = position_features(
             latitude.detach().to(torch.float32), longitude.detach().to(torch.float32),
             token_hw=token_hw, patch_size=self.patch_size,
             periodic_width=self.periodic_width)
         phase = phase_features(hour.to(torch.float32), day.to(torch.float32),
-                               hours.reshape(-1))
+                               hours.reshape(-1), init_calendar_year=calendar_year)
         features = torch.cat([
             position.unsqueeze(0).expand(history.shape[0], -1, -1),
             phase.unsqueeze(1).expand(-1, position.shape[0], -1),

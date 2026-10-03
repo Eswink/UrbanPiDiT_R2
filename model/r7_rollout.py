@@ -8,7 +8,9 @@ import torch
 from torch import nn
 
 from .r7_halting import positive_int
-from .spacetime_conditioning_r7 import SPACETIME_INPUT_FIELDS
+from .spacetime_conditioning_r7 import (
+    CALENDAR_INPUT_FIELDS, SPACETIME_INPUT_FIELDS, advance_calendar_time, require_spacetime_fields,
+)
 
 
 def conditions_on_accumulated_lead(model: nn.Module) -> bool:
@@ -20,6 +22,8 @@ def conditions_on_accumulated_lead(model: nn.Module) -> bool:
     single transition lead they were trained with, so the rollout asks the model
     which convention it was configured for instead of assuming one. The answer
     comes from the same declared switch the model's own forward branches on.
+    Explicit calendar metadata supersedes accumulated lead: the rollout advances
+    its known initialization date and keeps every physical transition's lead fixed.
     """
     forecaster = getattr(model, "forecaster", model)
     return bool(getattr(forecaster, "spacetime_inputs", False))
@@ -80,12 +84,13 @@ def autoregressive_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], 
     input dynamic channels are rejected: missing future channels cannot be
     silently filled from observations. Model mode is not changed implicitly.
     Pooled models condition on the SINGLE transition lead, not cumulative
-    horizon, because that is what they were trained with; a model configured for
-    the initialization-time phase fields gets the accumulated lead instead, so
-    its phase advances with the valid time.
+    horizon. The archived space-time route without calendar metadata retains its
+    accumulated-lead convention. With explicit init_calendar_year, each transition
+    advances known year/day/hour and keeps lead fixed at step_hours; phase therefore
+    matches the Gregorian valid date without feeding a 72h lead to a 6h transition.
 
-    Declared initialization-time fields are carried through unchanged; fields the
-    model does not declare (targets, baselines, metadata) never reach it.
+    Grid coordinates are unchanged. Caller calendar tensors are never mutated;
+    targets, baselines and undeclared metadata never reach the model.
     """
     positive_int(step_hours, "step_hours")
     positive_int(history_interval_hours, "history_interval_hours")
@@ -107,16 +112,26 @@ def autoregressive_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], 
     # Clone once to protect callers even if an inference implementation mutates input.
     history = history.detach().clone()
     b, _, c, h, w = history.shape
-    declared = {name: batch[name] for name in SPACETIME_INPUT_FIELDS if name in batch}
+    declared = {name: batch[name] for name in SPACETIME_INPUT_FIELDS + CALENDAR_INPUT_FIELDS
+                if name in batch}
     accumulated_lead = conditions_on_accumulated_lead(model)
+    calendar = None
+    if accumulated_lead and "init_calendar_year" in declared:
+        _, _, hour, day = require_spacetime_fields(batch, history_shape=(h, w), batch_size=b)
+        calendar = advance_calendar_time(declared["init_calendar_year"], day, hour,
+                                         history.new_zeros(b, dtype=torch.float64))
     cumulative = torch.zeros(b, dtype=torch.long, device=history.device)
     fields, work = [], []
     for transition in range(1, horizons[-1] // step_hours + 1):
         # Deliberate input whitelist. Original targets/metadata never reach model.
         step = {"coarse_history": history}
         step.update(declared)
+        if calendar is not None:
+            year, day, hour = calendar
+            step.update(init_calendar_year=year, init_day_of_year=day, init_utc_hour=hour)
         step["lead_time_hours"] = history.new_full(
-            (b,), float(transition * step_hours if accumulated_lead else step_hours))
+            (b,), float(transition * step_hours
+                        if accumulated_lead and calendar is None else step_hours))
         out = model(step, **kwargs)
         forecast = out.forecast
         if forecast.shape != (b, c, h, w) or forecast.device != history.device:
@@ -137,4 +152,8 @@ def autoregressive_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], 
             fields.append(forecast.detach().clone())
             work.append(cumulative.clone())
         history = torch.cat([history[:, 1:], forecast[:, None].to(history.dtype)], dim=1)
+        if calendar is not None:
+            calendar = advance_calendar_time(calendar[0], calendar[1], calendar[2],
+                                             history.new_full((b,), float(step_hours),
+                                                              dtype=torch.float64))
     return RolloutOutput(torch.stack(fields, 1), horizons, torch.stack(work, 1), transition)

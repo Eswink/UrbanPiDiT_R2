@@ -25,7 +25,7 @@ from data.r7_evaluation import ZarrRolloutDataset
 from data.r7_zarr_dataset import ZarrAtmosWindowDataset
 from model.process_forecast_r7 import ProcessForecastCoReasoner
 from model.r7_halting import forecast_inputs
-from model.spacetime_conditioning_r7 import (SPACETIME_INPUT_FIELDS, SpacetimeConditioning,
+from model.spacetime_conditioning_r7 import (CALENDAR_INPUT_FIELDS, SPACETIME_INPUT_FIELDS, SpacetimeConditioning,
     phase_features, position_features)
 from training.r7_experiment import make_model, seed_everything
 from test_r7_storage_safety import build
@@ -75,6 +75,7 @@ def test_the_training_reader_exports_the_init_time_of_the_window(tmp_path):
     assert float(sample["init_utc_hour"]) == stamp.hour
     assert float(sample["init_day_of_year"]) == stamp.dayofyear
     assert float(sample["init_year"]) == stamp.year
+    assert float(sample["init_calendar_year"]) == stamp.year
     history = sample["coarse_history"]
     assert sample["latitude"].shape == (history.shape[-2],)
     assert sample["longitude"].shape == (history.shape[-1],)
@@ -89,7 +90,8 @@ def test_the_rollout_reader_agrees_with_the_training_reader(tmp_path):
     assert float(rollout["init_utc_hour"]) == stamp.hour
     assert float(rollout["init_day_of_year"]) == stamp.dayofyear
     assert float(rollout["init_year"]) == stamp.year
-    expected = {"coarse_history", "lead_time_hours"} | set(SPACETIME_INPUT_FIELDS)
+    assert float(rollout["init_calendar_year"]) == stamp.year
+    expected = {"coarse_history", "lead_time_hours"} | set(SPACETIME_INPUT_FIELDS) | set(CALENDAR_INPUT_FIELDS)
     assert set(forecast_inputs(training)) == expected
     assert set(forecast_inputs(rollout)) == expected
 

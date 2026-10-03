@@ -59,4 +59,5 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 | [`v2-issue-closeout.md`](v2-issue-closeout.md) | V2 收尾轮（节点 N5）：补 #71/#72 完成判据、登记六条判定并关闭 #70–#75 | **prepared（2026-10-02）**；0 GPU-h；含禁令解除与 `Closes` ff 落 main 的机制 |
 | [`v2-autonomous-completion-and-closeout.md`](v2-autonomous-completion-and-closeout.md) | 0030 新授权下的 N2a 补全 → N3 → N4 → N5/有条件关闭 | paused；N2a已补全但原any-unresolved出口触发，N3/N4/N5前置BLOCKED；最终goal未裁定完成 |
 | [`n2a-m3-validation-complement.md`](n2a-m3-validation-complement.md) | N2a独立23项val补测与跨attempt来源/全额成本汇总 | **N2a规定交付完成，科学paused**；尺度/三时刻/反证及23新val/30总覆盖、D6/index18/账本齐，B/C精确CI九步成功；negative/mixed如实验收，原失败/归档与any-unresolved暂停不改；全权授权接续与验收见计划0013 |
+| [`v2-remaining-stages-exploration.md`](v2-remaining-stages-exploration.md) | 0032独立autoregressive-exposure主线，接续B/C/D/E与必要主线探索 | active；M3辅助监督终结且保留原paused出口；新协议实跑与充分证据后才有条件关闭#70–#75 |
 | `docs/R7_GPU_BRINGUP_BRIEF.md` | （已迁移） | R-034 登记为早于约定的例外；现仅为指向本目录的指针，不再维护第二份定义 |

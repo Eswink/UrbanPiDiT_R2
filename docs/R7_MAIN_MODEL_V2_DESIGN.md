@@ -183,6 +183,24 @@ forward FLOPs 14,162,671,488（含 RW-A）；B3 容量档 18.12M 是 6.47×，�
   `model/r7_halting.py:123-140` 目前是等价的三份拷贝。V2 的落地要求把它们收敛到**一个共享 step 函数**，
   并由等价性测试断言 fixed / streamed / adaptive 三条路径数值一致（#72 明文要求）。
 
+## 8.1 前瞻日历接口修正（2026-10-03，ADR0033）
+
+#71直接年界探针发现仅day/hour与365.25周期不能精确表达Gregorian跨年。新增可选已知输入
+`init_calendar_year`，由初始化UTC日期计算；原`init_year`继续不进入forecast白名单。新字段存在
+时严格核合法年/日/小时，并在每个物理+6h推进准确year/day/hour，内部K保持同valid time；
+缺新字段保留历史365.25运算逐位路径，不能把旧产物冒称Gregorian正确。无系统clock、未来观测
+或target输入；这是新增显式接口，不回改任何旧证据、协议或科学判据。生产者/白名单/rollout与
+反证同步，新实验声明calendar route并记录新model digest，旧checkpoint仅按显式导入或归档重放。
+
+## 8.2 前瞻query实现缺口与修正（2026-10-03，ADR0034）
+
+§3的Q(C_i,E(Y_k)_i,pos_i)是冻结设计，不等于旧RW-A已经完整实现。独立代码核验确认活跃旧reader
+仅LN(C)+pos；draft经P更新间接改变K/V和现役read→Z的因果测试，不能替代direct draft→query。
+新增default-off `draft_query_feedback` 开启时复用既有层作LN(C+E(Y_k))+pos，无新参数；需positional
+reader与forecast feedback，两模型/共享step同步且直接固定P/C/pos反证。旧默认路径保持原表达式，
+B合法aux_off父明确关闭；C修正候选另在protocol/model-spec/初始化映射预声明。修复工程不代表
+预报增益，不回改旧RW-A/RW-B结果或声称已证明过程语义；开启后属于新的source/model身份。
+
 ## 9. 术语表（避免同词异义）
 
 | 词 | 在这里的意思 | 不是 |

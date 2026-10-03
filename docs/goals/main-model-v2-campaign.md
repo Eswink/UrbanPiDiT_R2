@@ -1,6 +1,6 @@
 # main-model-v2-campaign：主模型 V2 的 campaign 主计划与每轮对表
 
-**状态：campaign 级主计划（活文档）。当前 N2a/paused：新独立23项val已完成、跨来源30项齐，原any-unresolved出口触发；N3/N4/N5前置未解除。原M3一次尝试仍budget_limited/6训练7评估，失败全额保留，补测成本独立登记中。不自宣最终goal完成；N1原科学结论保持。**
+**状态：campaign级主计划（活文档）。当前N3/active：用户0032明确终结已交付的M3辅助监督假设，独立autoregressive-exposure路线接续B/C/D/E。N2a原failed与完整补测any-unresolved/paused/advance=false全部保留，不伪称旧出口放行；新路线不再以该辅助假设暂停作总前置。不自宣最终goal完成或科学增益。**
 
 本文件是「主计划 + 每轮 recheck」机制的**唯一权威**：节点图（§2）、每轮开工前必须走的对表清单（§3）、
 预算账本（§7）与进度块（§8）都在这里。每一轮的目标长文是它的**派生物**，不是平行的第二处真相——
@@ -9,7 +9,7 @@
 
 ## §0 Objective（主计划路由；实测 379 字符）
 
-> 按 docs/goals/main-model-v2-campaign.md 与 docs/goals/v2-autonomous-completion-and-closeout.md 在用户既定主模型V2方向内自主执行N2a补全、N3两步rollout/matched-Generic、N4确认、N5证据与有条件关闭。实验、时长预算、普通决策和节点推进按决策0030常设下放，不逐轮等用户；每节点先对表、冻结协议、登记证据和全额成本，按既有前置/出口再推进。账本只记账，无总GPU-h闸门；实验按整轮planned/hard两段控制。保留失败、负面结论、数据/身份/共驻/付费与破坏性边界，方向改变交用户决定。当前原尝试仍N2a/budget_limited；新任务尚未启动。工程、实验与科学结论分开，关闭issue不等于成功，不自行宣布最终goal完成。
+> 按 docs/goals/main-model-v2-campaign.md 与 docs/goals/v2-remaining-stages-exploration.md 在0030/0032用户既定路线内连续执行N3可微两步/matched-Generic与必要探索、N4三臂三seed确认、N5反证/充分证据结题及有条件关闭。M3辅助监督假设终结，原failed、完整补测any-unresolved/paused/advance=false及成本保留；新独立autoregressive-exposure路线不以该暂停作总前置。每节点前后对表、先冻结protocol与整轮planned/hard、登记代码/数据/产物digest和精确CI，普通排障/预算/节点自主不逐轮问。账本只记账，无总GPU-h闸门，软超继续记overrun，硬截断或真实错误停本attempt，修复另立协议新输出。不读封存test、不改旧判据/归档、共驻不信号邻居，保留付费/新数据/发布/独占/main合并/破坏性权限。负面只终结对应假设，独立任务继续；科学增益/工程完成/实验结题/关闭分报，不自宣SOTA或最终goal完成。
 
 ## §1 现状（带 file:line，2026-09-30 核对）
 
@@ -66,7 +66,7 @@
 | N2b | 目标对齐修正（训练目标 vs 报告时效） | 计划 0004 `:325`、#64 curriculum 证据 | 必须先有 N1 的目标审计结论；改动要预注册、不得新增阈值与端点 | 届时重定 | 目标对齐后的重测 |
 | N2c | 数据/评估支撑修正（val 跨度、窗口数、气候态） | 决策 0008/0010、`docs/R7_B2_MULTISEED.md` | 只改评估与数据支撑，不改判据；任何扩大数据需用户授权 | 0–0.2 GPU-h | 可分辨性结论 |
 | N2d | 停止（在当前数据与算力下不可分辨） | `docs/goals/main-model-v2-rw-b-subtraction.md` §5 停止条件 3 | 审计给出「不可分辨」的量化读法 | 0 | 如实记录并停 |
-| N3 | M4（#74 两步可微自回归与 matched-Generic） | issue #74、计划 0009、决策 0023/0030 | N2a完整证据/出口登记后自主进入，不需用户再许可；两轴/可微/同结构对照/配对父checkpoint等冻结验收不变 | 执行前自主写定 planned/hard | M4实现与有界对照，科学读法如实登记 |
+| N3 | M4（#74 两步可微自回归与 matched-Generic） | issue #74、计划0009、决策0023/0030/0032、新remaining-stages目标 | N2a交付已登记且用户另选独立exposure主线；旧辅助paused不作总前置，两轴/可微/同结构/合法同父验收不变 | B初轮planned5400/hard10800秒，协议先冻结 | M4实现、两seed两臂与equal-compute控制；负面终结此假设，不自动扩unroll |
 | N4 | M5（#75，三臂最小确认闭环与有条件 adaptive） | issue #75、计划 0009、决策 0023/0030 | 确认轮须已有 matched-Generic、冻结评估与可运行候选；adaptive **默认不启动**，仅冻结有效前沿门满足后另立协议 | 执行前自主写定 planned/hard | 完整确认与如实正/混合/负结论、adaptive 决定 |
 | N5 | #71/#72 追加反证、六 issue 裁定与有条件关闭 | 计划 0009、决策 0030、新接续目标 D4 | N2a/N3/N4 的工程/实验记录和必要控制齐备，逐 issue 证据支持 verdict；不因关闭需要放宽验收 | 0 GPU-h | 登记 DONE/NEGATIVE/BLOCKED，证据齐备者按具名范围关闭；最终 goal 完成另裁定 |
 
@@ -121,10 +121,11 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 - 节点内预算由执行者自主决定，按整轮墙钟控制；超软预算继续等待并记 `soft_overrun_seconds`，
   仅硬上限因时长截断，记 `budget_limited`/`failed` 并全额记账。执行前重读账本（§7）作审计，
   不沿用历史 24 GPU-h/≤30 min 为现行闸门；历史节点数值、冻结协议与证据不回溯改写。
-- **停止条件**（满足任一即停并向用户报告）：本轮需要新判据；
-  本轮结论为「不可分辨」或「不能归因」（→ 提议 N2d）；需要新数据、租 GPU/付费资源、合并 main 或任何破坏性操作。
-  「预算用尽或账本不足」不再单独作为停止条件；节点推进与普通决策按 0030 自主，
-  总体方向及保留授权边界交用户，最终 goal 完成仍独立裁定。
+- **停止条件**（0032前瞻路线）：真实错误、身份/资源/集合不满足停止对应attempt并全额留证；
+  不可分辨、不能归因或负面终结对应假设，不机械加seed/算力/unroll，独立B/C/D/E任务继续。
+  新探索须有可反驳不同机制、最小探针与独立预登记，不回改旧判据。需要新数据、付费/租GPU、
+  发布--write、独占、main合并或破坏性操作只停相关动作交用户；main分歧不强推或自行合并。
+  账本不足不是停止条件；普通排障与节点0030自主，最终goal完成仍独立裁定。
 - 目标状态 `active / paused / budget_limited / complete`；执行者可更新节点/工作进度并按证据推进，
   **不得自行将最终 goal 标 complete 或宣告科学成功**。
 
@@ -165,7 +166,18 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-validation-complement.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.8808, "remaining_gpu_h": 19.1192, "status": "paused", "next_node_proposal": null, "budget_mode": "accounting-only"} -->
+<!-- campaign-state: {"current_node": "N3", "previous_node": "N2a", "current_round_goal": "docs/goals/v2-remaining-stages-exploration.md", "previous_round_goal": "docs/goals/n2a-m3-validation-complement.md", "previous_round_evidence": "docs/R7_73_VALIDATION_COMPLEMENT.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.8808, "remaining_gpu_h": 19.1192, "status": "active", "next_node_proposal": null, "budget_mode": "accounting-only", "route_decision": "0032"} -->
+
+- **N3当前工程窗口（2026-10-03；非预报结果）**：matched Generic、旧身份显式权重导入、exact185窗口与
+  原initial/allK深监督的可微两步接线已落；source只读preflight通过，无新数据/发布。独立归档父两seed×
+  两合成网格final/all5drafts严格位等价，109产物hash重核无差；首次完整CPU2614pass/10fail/9skip不算通过。
+  输入/Generic/calendar定向169pass；模型语义/strict query/roles禁反馈、累计K与零训练基线/硬截止分类
+  已活跃修复且有独立直接反证。final模型0cc9c16e…a223e旧父桥接109pins再验，query234/driver77/
+  results81/最终runner-driver160各自通过。完整CPU3107pass/9skip/2warning，767.02s；六CUDA与三
+  optional fixture跳过不算通过，EOF空行唯一变化有bytes proof与160项再验。计划0014记录实际限制。
+  C前瞻primary/0容忍/adaptive门在R7_V2_CONFIRMATION_PREREGISTRATION写定，尚无C协议或天气结果。
+  精确CI、真实FP32/BF16工程探针、B6训练30val和C9训练135val及六issue关闭均未做；0新增GPU-h，
+  原M3失败/paused/advancefalse及四历史账本notes不变，不能以本条工程进度代科学通过。
 
 - **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
 - **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
@@ -425,3 +437,11 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
   保留，machine state/current_node/status与账本不改，N3–N5/main/关闭不执行，整个goal不自裁complete。
   MetPy意向/额外真实17chCPU端到端/更强analytic/三seed不事后升N2a完成硬门；未做与弱覆盖保留。
   新计划验收矩阵见 `docs/plans/0013-n2a-delivery-acceptance-and-delegation.md`，本次文字自身CI另核。
+- **独立主线接续（2026-10-03，起点edcc335）**：用户明确终结M3辅助监督假设，保留其旧出口，
+  选择aux_off或合法RW-A母体进入独立autoregressive-exposure路线；0032/新remaining-stages长文
+  记录授权、交付、来源和停止条件，current=N3/previous=N2a。旧科学页、协议、失败、全部paused
+  与advancefalse不改；旧§8历史文字按其写入时点保留，不据此再次制造总前置。
+  初次campaign0fail4notes，新B5400软/10800硬、新C10800软/21600硬整轮预声明，0新增GPU-h。
+  父身份、代码接线及D4反证独立委派，尚无新实验结果或精确新CI，不把文档准备当研究进展。
+- **下一动作**：执行新目标N3工程与独立B实验，合法核aux_off K4/RW-A K3身份，matched-Generic/
+  真可微两步与反证后实跑；登记后自主N4确认、N5充分证据关闭，不逐轮等普通决策。

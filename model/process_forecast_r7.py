@@ -81,6 +81,7 @@ class ProcessForecastCoReasoner(nn.Module):
         local_solver_state:bool=False,
         solver_state_recurrence:bool=True,
         solver_gate_proposal:bool=True,
+        draft_query_feedback:bool=False,
     ):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
@@ -90,13 +91,18 @@ class ProcessForecastCoReasoner(nn.Module):
                            (source_role_markers,'source_role_markers'),
                            (local_solver_state,'local_solver_state'),
                            (solver_state_recurrence,'solver_state_recurrence'),
-                           (solver_gate_proposal,'solver_gate_proposal')):
+                           (solver_gate_proposal,'solver_gate_proposal'),
+                           (draft_query_feedback,'draft_query_feedback')):
             if type(value) is not bool:
                 raise ValueError(f"{name} must be boolean")
         if pooled_readout_query and not positional_process_readout:
             raise ValueError("pooled_readout_query only exists inside the positional "
                              "process readout; turning it on without "
                              "positional_process_readout would be a silently ignored switch")
+        if draft_query_feedback and not positional_process_readout:
+            raise ValueError('draft_query_feedback requires positional_process_readout=True')
+        if draft_query_feedback and not use_forecast_feedback:
+            raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
         # RW-B's working state is updated from the per-position process read R_k
         # and from the encoded draft; without either of those two inputs the
         # recurrence would not be the one the design contract froze, so the
@@ -131,6 +137,7 @@ class ProcessForecastCoReasoner(nn.Module):
                 "spacetime_inputs=True; with the pathway off it would be silently ignored")
         self.positional_process_readout=positional_process_readout
         self.pooled_readout_query=pooled_readout_query
+        self.draft_query_feedback=draft_query_feedback
         self.source_role_markers=source_role_markers
         self.local_solver_state=local_solver_state
         self.solver_state_recurrence=solver_state_recurrence
@@ -203,7 +210,8 @@ class ProcessForecastCoReasoner(nn.Module):
         if self.positional_process_readout:
             with isolated_stream():
                 self.process_reader=PositionalProcessReadout(
-                    dim,heads,dropout,pooled_readout_query=self.pooled_readout_query)
+                    dim,heads,dropout,pooled_readout_query=self.pooled_readout_query,
+                    draft_query_feedback=self.draft_query_feedback)
         # Both RW-B pathways are built last and under a rewound stream as well, so
         # "off" is the previous implementation and not merely something close to it.
         if self.source_role_markers:
@@ -224,6 +232,8 @@ class ProcessForecastCoReasoner(nn.Module):
         process:torch.Tensor,
         context:torch.Tensor,
         token_hw:tuple[int,int],
+        *,
+        draft_tokens:Optional[torch.Tensor]=None,
     )->torch.Tensor:
         """The solver-facing read of the process state, at every output position.
 
@@ -233,6 +243,8 @@ class ProcessForecastCoReasoner(nn.Module):
         result is *added* to the solver context by ``solver_conditioning``.
         """
         if self.positional_process_readout:
+            if self.draft_query_feedback:
+                return self.process_reader(process,context,token_hw,draft_tokens=draft_tokens)
             return self.process_reader(process,context,token_hw)
         return self.process_to_context(process.mean(dim=1))
 
@@ -295,6 +307,9 @@ class ProcessForecastCoReasoner(nn.Module):
             if use_forecast_feedback is None
             else bool(use_forecast_feedback)
         )
+
+        if self.draft_query_feedback and not feedback_flag:
+            raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
 
         process=self.process_queries.expand(B,-1,-1)
         solver_state=None

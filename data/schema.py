@@ -85,7 +85,7 @@ def validate_forecast_sample(
 
     # #71 initialization-time fields. Validated here so a malformed sample fails
     # at the data boundary, not inside the model's phase arithmetic.
-    for name in ('init_utc_hour','init_day_of_year','init_year'):
+    for name in ('init_utc_hour','init_day_of_year','init_year','init_calendar_year'):
         if name not in sample:
             continue
         value=sample[name]
@@ -99,3 +99,7 @@ def validate_forecast_sample(
         raise ValueError('init_utc_hour 必须在 [0,24) 内')
     if 'init_day_of_year' in sample and bool(((sample['init_day_of_year']<1)|(sample['init_day_of_year']>366)).any()):
         raise ValueError('init_day_of_year 必须在 [1,366] 内')
+    if 'init_calendar_year' in sample:
+        year=sample['init_calendar_year']
+        if bool(((year<1)|(year>9999)|(year!=year.round())).any()):
+            raise ValueError('init_calendar_year 必须是 [1,9999] 内的整数年份')

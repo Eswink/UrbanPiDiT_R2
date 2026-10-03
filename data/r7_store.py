@@ -45,6 +45,7 @@ def init_time_fields(stamp_ns):
         'init_utc_hour': float(remainder // HOUR_NS),
         'init_day_of_year': float((date - start) / np.timedelta64(1, 'D')) + 1.0,
         'init_year': float(date.astype('datetime64[Y]').astype(np.int64)) + 1970.0,
+        'init_calendar_year': float(date.astype('datetime64[Y]').astype(np.int64)) + 1970.0,
     }
 
 
