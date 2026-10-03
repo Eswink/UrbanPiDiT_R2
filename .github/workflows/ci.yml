@@ -58,4 +58,31 @@ jobs:
           # audit/*.log, which is captured tool output rather than authored text.
           git show --check --format= HEAD
       - name: Run unit, integration and installed-wheel tests
-        run: pytest -q
+        run: |
+          set +e
+          pytest -q --junitxml="$RUNNER_TEMP/r7-pytest.xml"
+          test_status=$?
+          set -e
+          if [ "$test_status" -ne 0 ]; then
+            python - "$RUNNER_TEMP/r7-pytest.xml" <<'PY' || true
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          def escaped(value):
+              return value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          try:
+              root = ET.parse(Path(sys.argv[1])).getroot()
+              failed = []
+              for case in root.iter('testcase'):
+                  for kind in ('failure', 'error'):
+                      for issue in case.findall(kind):
+                          node = case.get('classname', '') + '::' + case.get('name', '')
+                          failed.append(node + '\n' + (issue.text or issue.get('message', kind)))
+              for message in failed[:50]:
+                  print('::error title=pytest failure::' + escaped(message[:8000]))
+              print(f'pytest JUnit recorded {len(failed)} failures/errors; exit status remains authoritative.')
+          except Exception as exc:
+              print('::warning title=pytest diagnostics unavailable::' + escaped(str(exc)))
+          PY
+          fi
+          exit "$test_status"

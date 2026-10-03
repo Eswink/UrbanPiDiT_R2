@@ -478,3 +478,14 @@
 - 按置信度（2026-10-03按行重数）：已确认 **241** 条（含E-032仅确认文档声明、未实跑复现）、推测1条、未知0条；旧值「已确认197」是历史漂移。
   不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013；E-215 记明其推测成分（失败字节未取证）。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。
+
+## 第二十五遍（2026-10-03）：真正原K3参照与官方UTC元数据独立受限接受
+
+原E-001–E-242及其242条统计快照原字节保留；以下只追加已发生的独立接受，不改原结果、判据或失败。
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-243 | **真正原#72/K3十验证与新独立元数据补全接受**：selected400/seed41–42，0训练/10eval/176case/1530行/170full cells；原success/finalized:true与complete-not-accepted不改。新closure接受全部136库存/24opaque inputs与全部数值，仅accepted-reference-evidence-metadata-complement-only；719.8785105217248秒/900软1800硬/overrun0/0GPU。实际原轮176.6783818155527秒/1800软3600硬/overrun0，连续0.04818810004533993GPU-h只记一次。旧365.25/accumulated lead/interior_2不是Gregorian或architecture-matched paired C；616b只是source_base，source_commit:null，held1615795与精确七runtime/sourcebridge pins作准，未伪造历史commit或独立tensor重数 | 冻结页`docs/R7_72_ORIGINAL_K3_REFERENCE.md`实际containing commit `61db2725f6fda6abf986d94b7dbd0c6dd0bf12a4`，Git blob字节SHA256 `c77f510fff619cee4e105dd14e98a94ec14e91347587d07bb284fa92cf3c614b`；record:n3-original-k3-reference-metadata-complement；`/tmp/r7_original_k3_actual_audit_wjar1kjk/closure_receipt.json` SHA256 `226121c83175db96d7598f67e81ce0b6a9d1127384fb1e9d9f4643e5f0b85cd7`；raw-copy map `502bdfe1ef8012d93918093e67dd041433c7452ced0a46e78b430951c01b9c00` | 全体（引用独立审计声明的完整元数据库存/数值范围，登记只核页与回执身份，非新GPU重跑） | 已确认 |
+| E-244 | **官方corrected B-only UTC完整输出与新独立受限接受，旧whole-package拒绝保留**：canonical9a82c135…c5e8，实际20400行/400组/empty0，独立248绑定文件/80784源行/全部20400公式与400identity，仅accepted-official-utc-metadata-evidence-only。旧owner NOT ACCEPTED/required full-log-prefix mismatch不追认，原B failed/finalizedfalse、B01FAIL、首UTC失败、negative_or_mixed/l6及所有negative/undefined保留。CLI147.193569秒；owner最终949.854352/900软1800硬/over49.854352，独立最终1340.701317/900软1800硬/over440.701317；GPU0，不重计原B/precision。精确523c819/run37155293949/job111297340351 completed/failure：step9失败、post17 skipped、全部12必要步骤未通过；两新record CI=null，旧绿范围分开，未新包precision/C/M1/adaptive，不作科学/goal/关闭PASS | 冻结页`docs/R7_74_UTC_STATISTICS.md`实际containing commit `61db2725f6fda6abf986d94b7dbd0c6dd0bf12a4`，Git blob字节SHA256 `b4fd436993648d34544d260c6140f2043abd061d00c079dded9bcea4b4e52d4e`；record:n3-b-utc-statistics-metadata-complement；qualified receipt SHA256 `594a11816066c28998586343f18ba29d91ac30b3aa512b030d7dea3d1ef3f611`/seal `cecf4b1e999c3744a609630c4308b3fe3ed53a8ad18edb2501c5b2417d3e7aa3`，actual qualified路径见页§4；copy map `3047f6c054112211ad166a30f0c0d97e0b54405d78d399c527e8669f911e5dab`；CI拒绝回执 `a2e054d5903f4f48a55eb046780de803efcebdc5d9e6629c617e2f0def05ab5f` | 全体（引用官方UTC独立标量审计与已确认CI终态，非天气/tensor oracle） | 已确认 |
+
+追加后按行重数：**244条（E-001–E-244）**；覆盖全体/全体扫描164、抽样21、单点59；已确认243、推测1、未知0。此前统计块是追加前242条快照，不回写旧事实；本登记`scientific_claim:false`，不是新安全扫描或科学结论。

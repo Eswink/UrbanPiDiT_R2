@@ -1,15 +1,15 @@
 # main-model-v2-campaign：主模型 V2 的 campaign 主计划与每轮对表
 
-**状态：campaign级主计划（活文档）。当前N3/active：用户0032明确终结已交付的M3辅助监督假设，独立autoregressive-exposure路线接续B/C/D/E。N2a原failed与完整补测any-unresolved/paused/advance=false全部保留，不伪称旧出口放行；新路线不再以该辅助假设暂停作总前置。不自宣最终goal完成或科学增益。**
+**状态：campaign级主计划（活文档）。当前N4/active：实际N3/B02冻结出口negative_or_mixed/l6已登记，独立L6三臂确认路由到新current目标；当前仅前置排障，C未prepare/未run、新包precision未run。用户0032终结已交付的M3辅助监督假设，独立路线连续接续。N2a原failed与完整补测any-unresolved/paused/advance=false全部保留，不伪称旧出口放行；新路线不再以该辅助假设暂停作总前置。不自宣最终goal完成或科学增益。**
 
 本文件是「主计划 + 每轮 recheck」机制的**唯一权威**：节点图（§2）、每轮开工前必须走的对表清单（§3）、
 预算账本（§7）与进度块（§8）都在这里。每一轮的目标长文是它的**派生物**，不是平行的第二处真相——
 `docs/R7_TASK_QUEUE.md` 对 V2（#70–#75）这条线**不再维护**（它停更于 2026-09-28，CI 数字已过期），
 保留原位只作历史。机器可查部分由 `tools/check_campaign_state.py` 执行（决策 0025）。
 
-## §0 Objective（主计划路由；实测 379 字符）
+## §0 Objective（主计划路由；实测 929 字符）
 
-> 按 docs/goals/main-model-v2-campaign.md 与 docs/goals/v2-remaining-stages-exploration.md 在0030/0032用户既定路线内连续执行N3可微两步/matched-Generic与必要探索、N4三臂三seed确认、N5反证/充分证据结题及有条件关闭。M3辅助监督假设终结，原failed、完整补测any-unresolved/paused/advance=false及成本保留；新独立autoregressive-exposure路线不以该暂停作总前置。每节点前后对表、先冻结protocol与整轮planned/hard、登记代码/数据/产物digest和精确CI，普通排障/预算/节点自主不逐轮问。账本只记账，无总GPU-h闸门，软超继续记overrun，硬截断或真实错误停本attempt，修复另立协议新输出。不读封存test、不改旧判据/归档、共驻不信号邻居，保留付费/新数据/发布/独占/main合并/破坏性权限。负面只终结对应假设，独立任务继续；科学增益/工程完成/实验结题/关闭分报，不自宣SOTA或最终goal完成。
+> 按 docs/goals/main-model-v2-campaign.md 与 docs/goals/v2-l6-confirmation-current.md 在0030/0032既定方向内连续推进实际N4，不逐次询问普通决策。D1保留N3/B02 negative_or_mixed/l6及原B failed/B01FAIL、K3 complete-not-accepted、UTC旧owner整包拒绝；核新包精确CI全部12必要步骤与独立新precision，实际523c819/37155293949 step9 FAILED不能称green，未齐不启动C。D2独立冻结C协议/源码/数据/同seed scratch anchor与整轮10800软21600硬，old_ours/process/matched_generic×41/42/43各400 L6/Ktrain4/selected400，共9train135同checkpoint K1/2/4eval，全17变量五lead三区域/negative/undefined/四成本；C尚未prepare或run。D3实际全144job独立接受后才评价原冻结四项adaptive门，当前unevaluated不是failed。D4 C独立接受后复用old_ours41/42的10个K4score，仅4fresh scratch M1-only400L6train/20K4eval，5400软10800硬，不混query/source-position/roles/RW-A。D5每节点对表、身份digest、实际验证、一次GPU成本与未做全部登记，M3 any-unresolved/paused/advancefalse不回写、四历史notes保留；账本只记账无总GPU-h上限，软超继续记overrun、硬截断或真实错误停attempt，新修复新协议新输出。默认共驻不信号邻居、实验禁网、test不读、不改旧判据/结果/测试/用户配置，不增加solver家族/seed或adaptive练到赢；本轮不执行main/关闭或其它保留动作，不宣SOTA、科学PASS；不要自行宣布目标完成。
 
 ## §1 现状（带 file:line，2026-09-30 核对）
 
@@ -154,7 +154,8 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 | M3独立val补全（23/23，完整但科学paused） | 0.1790 | 4.8808 | `docs/R7_73_VALIDATION_COMPLEMENT.md` + 索引记录 `record:m3-validation-complement-complete-paused`（`gpu_hours = 0.17899193391850632`；只记新补测成本，原失败独立行保留，逐行显示舍入） |
 | N3可微两步FP32/BF16精度探针（success，8实际updates） | 0.0471 | 4.9279 | `docs/R7_V2_PRECISION_ACCEPTANCE.md` + 索引记录 `record:n3-v2-precision-gpu-acceptance`（`gpu_hours = 0.04711594580465721`；continuous首spawn至末owned reap，独立工程结果不作科学支持） |
 | B同父两步训练（6train/30eval成功，聚合failed） | 0.8526 | 5.7805 | `docs/R7_74_AUTOREGRESSIVE_ATTEMPT.md` + 索引记录 `record:n3-autoregressive-attempt-failed`（`gpu_hours = 0.8526056814201487`；原failed全额连续计费，不以全worker成功冒称聚合通过） |
-| **合计已用** | **5.7805** | — | 24 − 5.7805 = **余 18.2195 GPU-h** |
+| 真正原#72 K3参照（0train/10eval，metadata补全受限接受） | 0.0482 | 5.8287 | `docs/R7_72_ORIGINAL_K3_REFERENCE.md` + 索引记录 `record:n3-original-k3-reference-metadata-complement`（`gpu_hours = 0.04818810004533993`；独立audit/UTC登记0GPU，原B/precision不重记） |
+| **合计已用** | **5.8287** | — | 24 − 5.8287 = **余 18.1713 GPU-h** |
 
 说明（如实）：决策 0029 后账本**只记账、不设总上限**；`cap_gpu_h=24.0` 是历史会计基数，
 `used_gpu_h` 为实际累计消耗，`remaining_gpu_h` 为基数减累计的会计差额，三字段仍供 C-02 算术对表，
@@ -166,9 +167,11 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 所以 `check_campaign_state.py` 做的是「逐行算术 + 证据指针存在性 + 有索引者数值一致」，
 没有索引支撑的行会被**列出来**而不是被当成已核。把索引补成全量账本是将来可做的一件事，本轮不做。
 
+本次K3只加一次：旧逐行显示累计5.7805 + 新行显示0.0482 = **5.8287**，会计余**18.1713**；state沿用逐行显示口径。精确actual累计5.780427976370344 + 0.04818810004533993 = **5.828616076415684**，精确会计差**18.171383923584315**，若只对精确总四舍五入是5.8286，不与旧逐行舍入口径混用。原B0.8526056814201487与旧precision0.04711594580465721早已各计一次；B02/UTC/K3独立审阅/本登记0GPU，不增加虚构成本或GPU-h许可上限。四历史无索引notes保持。
+
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N3", "previous_node": "N2a", "current_round_goal": "docs/goals/v2-remaining-stages-exploration.md", "previous_round_goal": "docs/goals/n2a-m3-validation-complement.md", "previous_round_evidence": "docs/R7_73_VALIDATION_COMPLEMENT.md", "cap_gpu_h": 24.0, "used_gpu_h": 5.7805, "remaining_gpu_h": 18.2195, "status": "active", "next_node_proposal": null, "budget_mode": "accounting-only", "route_decision": "0032"} -->
+<!-- campaign-state: {"current_node": "N4", "previous_node": "N3", "current_round_goal": "docs/goals/v2-l6-confirmation-current.md", "previous_round_goal": "docs/goals/v2-remaining-stages-exploration.md", "previous_round_evidence": "docs/R7_74_STATISTICS_COMPLEMENT.md", "cap_gpu_h": 24.0, "used_gpu_h": 5.8287, "remaining_gpu_h": 18.1713, "status": "active", "next_node_proposal": null, "budget_mode": "accounting-only", "route_decision": "0032"} -->
 
 - **N3当前工程窗口（2026-10-03；非预报结果）**：matched Generic、旧身份显式权重导入、exact185窗口与
   原initial/allK深监督的可微两步接线已落；source只读preflight通过，无新数据/发布。独立归档父两seed×
@@ -455,3 +458,19 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 - **稳定工程终态（2026-10-03）**：原五fieldset失败以仅补可选history metadata修复，完整三模块96passed且156assert/35functions未减少；显式known module/七CLI wheel1passed。最终完整CPU/wheel3467passed/9skipped/3warnings、903.06秒，整轮905.674715秒/1800软3600硬/overrun0、source_changed[]；protocol `3703be5ccf2eaf7788742f7e0c108117793060b1510194301cca3be1fd31388b`、stdout `f0d2e99bdfedfb9ebcea6dbe48fa2988a3ede837fa19ebf2514d3055b8e0fc86`。skip六CUDA/三optional fixture均不算通过，原失败及BF16 fixed/streamed gap保留；261活跃模块compile、37阻断、campaign、两goal、空白通过。index wrapper误传参数失败后新独立CLI21record canonical通过，不弱化checker；基线1574/4299、166治理pass、checker1925行不增600/200例外。B补页已单独冻结1615795、index21追加旧前缀不变，精确本次工程CI仍未取得。
 - **新受限实跑待独立终裁**：genuine#72 K3原selected400两seed实际10/10评估、1530区域行/170全域cells、0训练；protocol `8c42e5031e88c04f4c9514236d31bb4bc89da5b1fb96aa86bb9700ab63d8bdbc`，whole176.678382秒、continuous GPU173.477160秒=0.0481881000453h/overrun0。原candidate complete-not-accepted及旧365.25时钟保持，独立全库存补充审阅进行中；本条不提前加入已登记账本。CorrectedB-only UTC protocol `9a82c1357750b41b9a930879543757dfe6ca537228ea862b2f5ba5d6bc57c5e8` 实际20400行/400组/empty0，CLI147.193569秒，含全部公式自核、历史log-prefix核证与最后closure949.854352秒/900软1800硬/软超49.854352；receipt `f1c301ac604d3d69530fb9734f1d56126c6881b93c3063f2da2d0c9169435383`，独立不同审阅未结束，不改旧failed/B科学negative_or_mixed/l6。
 - **当前具体动作**：提交实测源码并核精确工程CI，完成K3/UTC独立接受和登记/账本、新包GPU精度，绑定实际前置后以B冻结L6实跑C9train/135eval、必要M1单输入因素与UTC、adaptive四门。六issue尚未结题或关闭，main refs未动，不自判科学收益或最终goal完成。
+
+### 当前实际 N4 路由补记（2026-10-03；上列历史进度不回写）
+
+- N3实际出口为B02 `negative_or_mixed / selected_mode:l6`，索引原record:n3-b-statistics-complement-negative/evidence1615795/页SHA7ea1不改；只终结rollout假设。当前state=N4/previous=N3，previous_round_goal为真实remaining-stages N3 marker，previous_round_evidence为B02页；current独立新长文 `docs/goals/v2-l6-confirmation-current.md`，不把旧prepared N4当实际。
+- 真正K3 independent final closure `226121c83175db96d7598f67e81ce0b6a9d1127384fb1e9d9f4643e5f0b85cd7` 限reference-evidence-metadata-complement-only，136库存/1530行/170full/24opaque inputs；原complete-not-accepted与success/finalized:true、旧365.25/accumulated/interior_2保留。10eval/176case原轮176.6783818155527秒、1800软3600硬/overrun0，0.04818810004533993GPU-h只加新账本一次；独立719.8785105217248秒/900软1800硬/overrun0/GPU0。
+- Corrected官方UTC20400行/400组/empty0，新qualified receipt `594a11816066c28998586343f18ba29d91ac30b3aa512b030d7dea3d1ef3f611` / seal `cecf4b1e999c3744a609630c4308b3fe3ed53a8ad18edb2501c5b2417d3e7aa3` 接受official metadata only，248文件/80784源行/全部公式identity。Owner旧whole-package NOT ACCEPTED/required full-log-prefix mismatch不追认；CLI147.193569秒、owner最终949.854352/over49.854352、independent最终1340.701317/over440.701317，各900软1800硬、0GPU。持久qualified实际路径与raw-copy map502bdfe1…b9c00/addendum3047f6c0…e5dab见冻结UTC页，不重复复制或GPU。
+- 两新audit/not-candidate records正式本地append，21→23；旧75027字节SHA `016256699820a9b6ca2903e60e1eaeaab6d62f77c317423c6150893f3c5bb160` 不变。两evidence_commit精确 `61db2725f6fda6abf986d94b7dbd0c6dd0bf12a4`，final页SHA K3 `c77f510fff619cee4e105dd14e98a94ec14e91347587d07bb284fa92cf3c614b` / UTC `b4fd436993648d34544d260c6140f2043abd061d00c079dded9bcea4b4e52d4e`，不倒用补记前hash。E-243/E-244追加、brief精确canonical；runtime source-base616b/heldHEAD1615795与exact companion/four-file pins分层，不伪造历史commit。
+- **真实新CI未通过**：parent523c819/run37155293949/attempt1/job111297340351已confirmed completed/failure，step9 tests failed、post17 skipped，全部12必要步骤未通过；回执a2e054d5…5ab5f accepted:false。两新record CI=null，旧工程/登记绿仅覆盖原精确范围；冻结页原pending时点不作终态，本地完整绿不冒remote green。
+- **独立本地诊断仍不等于remote修复**：主链初轮17failed/220passed/1warning、153.34秒pytest/157.486秒whole为basetemp嵌入evidence root导致nested-old-output harness缺陷，未改guard，不归因远端。纠正独立clean523/Python3.12精确clone实际3462passed/14skipped/6warnings、917.94秒pytest、whole926.8922247411683秒/1800软3600硬/overrun0/RC0/sourcechanged[]/ownedreaped；protocol `1475fd57bfc678932c80cdf892cdb9cf43b58eddac5668d0a93c03339d62677f`、source tree `5b6699bb78249d6251770c5d5b78e582b9ba341b55183bf001700ff11b475956`，回执 `/tmp/r7_clean_full_523_cpu_20261003_gn645i1v/attempt.json`。14skip为6CUDA+8缺M2/D1/optional fixtures，不算通过；6warning三junit record_property+duplicatezip+两Lightning保留。独立temp Python3.11.15/torch2.14.1+cpu full运行中无接受终态，未改本仓.venv/源码，不据本地反证推断远端具体失败原因。
+- **真实未做/门禁**：新包精确CI成功与独立GPUprecision未得；C未prepare/protocol未冻/9train135eval全144未run。严格新package/source/data/初始化/工程门保持；adaptive unevaluated非failed gate，原preregistration不改。M1原#71历史allProcess不替完整单输入因素；C独立接受后仅复用old_ours41/42的10K4score，必要4fresh scratch M1-only400L6train/20K4eval、185窗/cohorts22/21/19/15/11、5400软10800硬另冻，不混RW-A/query/source-position/roles。临时M1 owner1816.622756秒硬超/engineering_accepted:false保持，独立审阅未终态；不作为C科学前置。
+- 本次仅登记/路由，0新增GPU、无source/tests/冻结结果/用户配置/Git index/commit变动；M3原any-unresolved/paused/advancefalse与Bfailed/B01FAIL不改，四历史notes保留。工程37阻断/campaign/三goal/index23canonical/空白与相关CPU实测以 `/tmp/r7_governance_registration_audit_20261003_NRQYhoBF/verification_receipt.json` 为准，软900硬1800早入口全程。未commit/push、新精确CI未得，无科学PASS/SOTA/issue关闭/最终goal完成。
+- 下一动作：N4完成实际失败归因与新包精确CI12必要步骤success、独立新precision后才冻结C协议；本登记不启动GPU，不要求普通逐次许可，不停止已授权独立任务。
+
+- 最后登记工程实测：37阻断0失败；campaign N4/0失败/4历史notes；current/remaining/master三个goal0失败0建议；index23/canonical brief与git diff --check均exit0；五相关治理CPU模块 **213 passed/33.15秒**，socket先禁网、CUDA hidden、无skip，actual AST仍1574测试函数/4299assert。回执 `/tmp/r7_governance_registration_audit_20261003_NRQYhoBF/verification_receipt.json` 记录whole软900/硬1800、实际软超，不把工程PASS当remoteCI、科学或最终goal通过。
+- 主链独立Py3.11.15/torch2.14.1+cpu的精确523 full已实跑 **3462passed/14skipped/0fail/0error、pytest906.85秒/child+reap909.57秒/attempt whole909.92秒、exit0、425sourcepins前后不变**，tree `cb81953cebc6bc032ac619cfa144c0da28101656`；六warnings经主链实际读取为三record_property+duplicatezip+两Lightning；attempt whole采用909.92秒权威值，不拿pytest或child时间代替。主链stdlib JUnit对比两环境skip identities精确同14，14skip为6CUDA+缺M2/D1及optional真实fixtures，与独立clean3.12同缺项，不能算passed/依赖错误或合成回退。此本地绿仍不能归因或追认实际remote523失败，新包precision/C仍未run。
+- 主链另改 `.github/workflows/ci.yml` 仅step9失败诊断（保持原pytest全量选择/原exitstatus，RUNNER_TEMP junit及有限escaped annotations）；这是外部Main非owned变动，非本登记agent改source/model/tests，不能称remote bug已修。最晚通报workflow SHA `aacaca7ababd01e071a48fd70a7ae04151c0a52951bad8382707eba43bbf7e5a`、独立review尚待；初PATH python缺失counterproof失败127保留，随后诊断反证独立通过是工程范围，不是新CI。当前remote cause未复现/未确认。

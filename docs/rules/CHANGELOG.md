@@ -2,6 +2,26 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-03 — 实际 CI 失败留存与匿名可读测试诊断
+
+工程 `523c819b8d42a3f43163eb53509f76136d8038f4` 的 run37155293949 / job111297340351
+实为 completed/failure：1–8 success、9 tests failure、post17 skipped、18/19 success。
+官方 jobs/check/HTML 的匿名读数与网络 timeout 分开留存；回执 SHA256
+`a2e054d5903f4f48a55eb046780de803efcebdc5d9e6629c617e2f0def05ab5f`，远端 failing node/计数未取得，
+不把本地通过追认成该 CI green。初次 clean-subset 的17failed/220passed实际是 basetemp 嵌入
+protocol-owning父目录的诊断工具缺陷，保护逻辑正确，原日志保留且未改 guard。新 sibling 路由的
+干净523/Python3.12全量3462passed/14skipped/6warnings、917.94s / whole926.892225s通过；
+六CUDA及八缺本地M2/D1/optional fixture的skip不算通过，三JUnit record_property及三原warning保留。
+独立按CI安装配方重建的Python3.11.15/torch2.14.1+cpu也完成3462passed/14skipped、0failure/0error；
+这是本地配方复现，不是未知远端依赖版本的逐位证明，也没有证据支持猜测性生产修复。
+
+只改 `.github/workflows/ci.yml` 既有测试步骤，保留一次完整 `pytest -q`、全部断言/案例及其原退出码，
+追加 RUNNER_TEMP JUnit 文件和失败时最多50条、每条8000字符的转义注释；诊断解析或解释器失败不
+覆盖pytest退出码。未新增step、依赖、workflow标签、时间上限或测试选择；12必要step身份仍按实际CI核。
+初次PATH缺Python的诊断fixture失败保留；独立新fixture验证failure=1、missing-XML=1、success=0与
+百分号/换行转义，仅接受诊断工程，不宣称远端失败已归因或新CI通过。无模型/数据/测试行为、
+用户配置/安全hook/凭据变化；隔离临时CI环境的下载不改项目 `.venv` 或 requirements，GPU未启动。
+
 ## 2026-10-03 — 完整suite失败保留，UTC标签/inventory/wheel最终基线同步
 
 真实完整suite为5failed/3412passed/9skipped/3warnings、877.18s/whole879.7935s，source_changed=[]；
