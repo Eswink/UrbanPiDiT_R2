@@ -152,7 +152,9 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 | N1 v2独立evaluation成本补测（success，30/30，含P1） | 0.1283 | 4.2045 | `docs/R7_N1_COST_SUPPLEMENT_V2.md` + 索引记录 `record:n1-cost-v2-evaluation-supplement-success`（`gpu_hours = 0.12826335332563354`；含P1与全部启动/间隔/清理，四位显示舍入） |
 | M3过程监督三臂（budget_limited，6训练/7评估） | 0.4973 | 4.7018 | `docs/R7_73_PROCESS_SUPERVISION.md` + 索引记录 `record:m3-process-supervision-budget-limited`（`gpu_hours = 0.49725426027008024`；失败全额计费，逐行显示舍入） |
 | M3独立val补全（23/23，完整但科学paused） | 0.1790 | 4.8808 | `docs/R7_73_VALIDATION_COMPLEMENT.md` + 索引记录 `record:m3-validation-complement-complete-paused`（`gpu_hours = 0.17899193391850632`；只记新补测成本，原失败独立行保留，逐行显示舍入） |
-| **合计已用** | **4.8808** | — | 24 − 4.8808 = **余 19.1192 GPU-h** |
+| N3可微两步FP32/BF16精度探针（success，8实际updates） | 0.0471 | 4.9279 | `docs/R7_V2_PRECISION_ACCEPTANCE.md` + 索引记录 `record:n3-v2-precision-gpu-acceptance`（`gpu_hours = 0.04711594580465721`；continuous首spawn至末owned reap，独立工程结果不作科学支持） |
+| B同父两步训练（6train/30eval成功，聚合failed） | 0.8526 | 5.7805 | `docs/R7_74_AUTOREGRESSIVE_ATTEMPT.md` + 索引记录 `record:n3-autoregressive-attempt-failed`（`gpu_hours = 0.8526056814201487`；原failed全额连续计费，不以全worker成功冒称聚合通过） |
+| **合计已用** | **5.7805** | — | 24 − 5.7805 = **余 18.2195 GPU-h** |
 
 说明（如实）：决策 0029 后账本**只记账、不设总上限**；`cap_gpu_h=24.0` 是历史会计基数，
 `used_gpu_h` 为实际累计消耗，`remaining_gpu_h` 为基数减累计的会计差额，三字段仍供 C-02 算术对表，
@@ -166,7 +168,7 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N3", "previous_node": "N2a", "current_round_goal": "docs/goals/v2-remaining-stages-exploration.md", "previous_round_goal": "docs/goals/n2a-m3-validation-complement.md", "previous_round_evidence": "docs/R7_73_VALIDATION_COMPLEMENT.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.8808, "remaining_gpu_h": 19.1192, "status": "active", "next_node_proposal": null, "budget_mode": "accounting-only", "route_decision": "0032"} -->
+<!-- campaign-state: {"current_node": "N3", "previous_node": "N2a", "current_round_goal": "docs/goals/v2-remaining-stages-exploration.md", "previous_round_goal": "docs/goals/n2a-m3-validation-complement.md", "previous_round_evidence": "docs/R7_73_VALIDATION_COMPLEMENT.md", "cap_gpu_h": 24.0, "used_gpu_h": 5.7805, "remaining_gpu_h": 18.2195, "status": "active", "next_node_proposal": null, "budget_mode": "accounting-only", "route_decision": "0032"} -->
 
 - **N3当前工程窗口（2026-10-03；非预报结果）**：matched Generic、旧身份显式权重导入、exact185窗口与
   原initial/allK深监督的可微两步接线已落；source只读preflight通过，无新数据/发布。独立归档父两seed×
@@ -443,5 +445,7 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
   与advancefalse不改；旧§8历史文字按其写入时点保留，不据此再次制造总前置。
   初次campaign0fail4notes，新B5400软/10800硬、新C10800软/21600硬整轮预声明，0新增GPU-h。
   父身份、代码接线及D4反证独立委派，尚无新实验结果或精确新CI，不把文档准备当研究进展。
-- **下一动作**：执行新目标N3工程与独立B实验，合法核aux_off K4/RW-A K3身份，matched-Generic/
-  真可微两步与反证后实跑；登记后自主N4确认、N5充分证据关闭，不逐轮等普通决策。
+- **N3真实执行与原失败登记（2026-10-03）**：616b029精确主CI37133487340九principal及三post成功；真实旧包FP32/BF16小探针共8updates成功，连续0.04711594580465721 GPU-h。B六训练1600updates和三十val均success，但训练objective的binary64重构拒FP32导出损失，原attempt failed/finalizedfalse，连续0.8526056814201487 GPU-h/whole3200.912431293167s/overrun0；400两步loss按真实FP32乘加严格一致。原361pins/全成本独立核验，只接受原失败事实与成本，不宣称天气比较已接受。
+- **A冻结与正式索引追加**：42ecb890ce8f8f1d2925f8841a74859b2decd8f7只冻结precision与B失败两证据页；实际Git blob字节SHA982bd632…a1f30/0f25cba3…a0cdc。正式index18→20仅追加两record、旧49755-byte前缀SHA3e0b83aa…8c0f不变，brief canonical；两账本行绑定record，0.8997216272248059新GPU-h不重复计。精确累计5.780427976370344、显示5.7805/会计余18.2195，无总许可上限。登记提交与其精确CI尚待，不以616工程绿冒登记绿。
+- **独立反证修复进行中**：0035活跃known/source接口集成后220定向通过，但独立118pass/3fail/2deselected揭露B3活跃子集anchor未切片、合法20分钟offset浮点表示误拒，以及旧与新RW-B均存在BF16 fixed/streamed cast-cache梯度兼容差异。原FAIL审阅/40.84s软超/未达1800硬限保留；两真实缺陷修活跃实现，BF16不放宽断言，C仍FP32 fullBPTT。统计补全38pass之后另有三个独立闸门反例（提前失败未封印、source双seal身份不充分、最后hash越硬限），旧FAIL不改、真实统计尚未消费；修后新独立CPU600/1200，不重B GPU。
+- **当前具体动作**：完成统计补全闸门修复与独立窄复验后实际零GPU重聚合/选择/登记；两活跃模型缺陷复验、稳定新版fullsuite/精确CI后实跑原K3参照、新包精度、独立C9train/135eval及adaptive。UTC仅真实逐case充分统计派生。六issue尚未结题或关闭，main refs未动，不自判科学收益或最终goal完成。

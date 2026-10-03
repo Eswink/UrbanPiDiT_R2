@@ -128,6 +128,19 @@ r7_store:16–48及scheduled transfer后，纠正草稿把solver/reader误当可
 - **工程实际进度（2026-10-03）**：matched Generic完整577参数映射、显式导入、exact185窗口、真实grad-enabled两步与原initial/allK深监督、calendar修正、单lead/K评估和薄驱动初版已实测；主链首次全量2614pass/10fail/9skip，不能当通过。输入/Generic/calendar复跑169pass。独立归档父四合成case final/all5drafts严格torch.equal，109产物hash主链再核无差，回执SHA56acdc7e…c5a794；这不是天气结果。
 - **独立核验缺口已修复**：actual嵌套heads/dropout合约、roles/noFeedback、direct draft query、累计K列表、零训练baseline、baseline两kind、worker主动硬截止归因均有实际反证。0034默认关query234定向passed，四default case前后output/grad/weights/RNG相同；独立小探针也确认fixedP/C/pos局部影响与branch-cut失败、L12全部reader梯度、roles/语义拒绝。最终model digest0cc9c16e…a223e的旧父四合成case再次严格逐位相同，109pins核齐。driver77、results81、主链runner/driver160实际passed各自保留；不是预报结果。C前瞻primary/0退化与adaptive完整门已写 `docs/R7_V2_CONFIRMATION_PREREGISTRATION.md`，仍待独立protocol冻结。
 - **最终完整CPU**：3107passed/9skipped/2warnings，767.02s，0fail；六CUDA与三未跟踪optional真实fixture跳过不算通过，两Lightning警告保留。full期间仅去driver测试末空行，bytes proof及最终160项复跑接受；380源快照/完整stdout/receipt已留存，37阻断/两goal/campaign/index18/compile/空白pass。不是预报结果或CI。
-- **未做**：新精确工程CI、真实FP32/BF16/GPU工程探针、B/C训练评估与完整登记、六issue结题/关闭；不将并行委派或更多文档当完成。
-- **下一动作**：N3完成模型/数据/可微loss/导入接线与反证后，按本目标独立B协议执行；结果登记后
-  自主同步N4三臂确认，再N5有条件关闭，不等普通授权，不回写N2a科学出口。
+- **精确CI/真实probe**：工程616b029dce569b92bd08295737981512180a1ad3、CI37133487340九principal+三post全部success。独立precisionattempt01 protocol0829da02…5f4ba实际FP32/BF16各4updates、weights/optimizer/RNG/losses resume严格相等，L12-only第一步与reader梯度finite>0、poison/calendar通过；allocator0/0、连续0.04711594580465721GPU-h/whole242.4378195s/0overrun。新证据页R7_V2_PRECISION_ACCEPTANCE保持工程边界，独立产物复核在收尾，不是预报收益。
+- **B实际执行（2026-10-03）**：协议9f76e6e3…5e62b02、616b029/source5de6b16d/codezipd3d10a74，
+  六训练1600updates与三十val全部success，但聚合training objective校验失败，attempt failed/finalizedfalse；
+  不恢复原attempt，不重复GPU。连续3069.380453112535s=0.8526056814201487GPU-h，全轮3200.912431293167s，
+  overrun0/非budget-limited，全成本保留。361原文件pins已封印；400两步loss按FP32逐运算重构严格一致，
+  原binary64校验拒绝99/88条，0036前瞻修正与独立CPU统计补全600soft/1200hard，不放宽物理指标容差。
+- **原验收补齐工作态**：0035/0015的known-context/source-position仅隔离活跃复制树实施；原B期间
+  runtime与HEAD未变。known owner工程attempt01实现耗时超1800硬上限，pytest尚未spawn，明确budget-limited
+  非通过；新验证协议独立，不回改旧预算。原#72参照确为K3，不冒称M3 K4；28model成员一致的M3归档
+  合法strict-loader源码桥已只读核，独立0train10eval专用工程准备中，旧calendar差异必须披露。
+- **独立机械闸门实际失败**：统计补全38项合成测试通过，但独立反证确认提前validation失败未封印、原attempt/execution未直接绑定原protocol/stage、最后hash跨硬限仍finalized三缺陷；旧审阅门FAIL，未消费真实B统计，修复另冻新审阅。known/source定向220通过之后，独立反证另发现活跃batch未切片anchor及合法20分钟offset舍入误拒，真实修复中。旧与新RW-B的BF16 fixed/streamed提案梯度差异保留为兼容性限制，不放宽断言，不冒称新包全部通过。
+- **原失败/精度证据正式本地追加**：A=42ecb890ce8f8f1d2925f8841a74859b2decd8f7两冻结页Git blob实际强hash；index18→20单增precision engineering-positive/needs-review与B failed audit/blocked两record，旧18条字节不变。canonical brief/账本record refs齐，14索引定向0.08s通过；工程CI只绑定616b/37133487340，登记提交/其精确CI仍待。此登记不接受尚未重聚合的天气比较。
+- **未做**：B完整统计接受及其派生结果登记、原K3参照实跑、补齐工程全量/新CI、C三臂训练评估、UTC分组实际
+  统计、adaptive裁定、六issue结题/关闭；不将并行委派或更多文档当完成。
+- **当前具体动作**：保留B failed并实修FP32元数据重构、独立零GPU统计补全和产物复核；0035补齐
+  定向/fullsuite/精确CI及原K3参考就绪后冻结独立C，再N5实证关闭，不等普通许可，不回写N2a科学出口。
