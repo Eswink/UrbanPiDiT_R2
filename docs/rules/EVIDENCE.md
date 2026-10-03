@@ -429,11 +429,35 @@
 | E-225 | **一次M3失败只完成6train/7val，完整对照与四cost缺失，不重试**：protocol404cf32b…先冻，codezip18595abc…80相关源，3arm/seed41/42/400updates/K4，同初始化byte配对；六train均selected400，7/30val119/510RMSE格131/528case。第八seed41/input_aux/+24h父deadline timeout，仅own Popen terminate/reap后无spawn；failedchild日志空/result缺。GPU1790.1153369722888s=0.49725426027008024h全额计费，whole1805.1085775829852s超30min文字5.1086s，deadline只约束GPU阶段，整轮预算门未完全兑现。无完整paired/merged/四table，不能判forecast效果；N2a budget_limited，显示账本4.7018/余19.2982 | `outputs/r7_73_process_supervision/attempt.json` SHA525545bc…、execution SHA1c5f86f0…、首失败timing与六train/七val原CSV；partial_all_variable_rmse.csv119行SHA73bf6be2…；证据页§6 | 单点（一次具名真实失败尝试及停止/计费） | 已确认 |
 | E-226 | **独立只读审计接受部分失败事实，不接受D5完整实验**：stdlib7.54s核109运行文件前后hash/stat/集合不变，九初始pins/80源zip+commit/授权/CPUprofile/14spawn顺序/UUID余量/ownPID/连续计费/6train7val覆盖单位时刻签名齐；checkpoint/source只opaque hash，无网络/CUDA/张量评估。receipt audit_valid=true/status=incomplete-audit-valid，full_experiment_accepted=false/D5false/budget_within_caps=false；未补缺失输出或重放，不作goal完成或科学保证 | `outputs/r7_m3_acceptance/independent_m3_73_receipt.json` SHA25673afca69…、hash sidecar31f9b4cd…、四归档checker源SHA在receipt；证据页§7；索引record:m3-process-supervision-budget-limited | 全体（本次109产物、身份/进程/部分覆盖审计） | 已确认 |
 
+## 第二十遍（2026-10-02）：独立M3验证补全、冻结暂停与登记阻塞
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-227 | **原六selected400/七val技术身份可合法复用，真实源当前只读前置已实跑**：24历史checkpoint CPU contract/固定inverse与原zip/source/model/sidecar强核，109文件前后不变，technical_artifact_reuse_eligible=true；不把原failed接受为完整成功。当前prepare preflight17通道/240时次/65×65/train186/val22，无--write/下载/重建；历史单次原始授权回执/独立conversion前报告未定位，事前版本化第二阶段授权可核、不倒填。独立补测工程011ab4c的CI37036869969精确九步success，123定向/2395完整CPU通过，9skip不计通过 | 新证据页§1–2；旁侧audit_receipt SHA020b0647…、preflight SHAef4ed748…、engineering_ci_verification SHA12c4e33c…；原失败证据页保持 | 单点（本次复用资格与当前数据前置） | 已确认 |
+| E-228 | **23新val完成，完整跨来源配对触发原unresolved暂停**：新protocol74d05ab3…09dd5、driverzip e44ef233…bb43，原80源码归档隔离evaluator而非新driver模型；0训练，新23/原7=30val/510RMSE/528case（旧131/新397）、255aggregate/三pair各85。同seed strict sign三pair改善/恶化/unresolved为19/45/21、21/36/28、3/44/38；T2M两辅助对off两seed五lead均恶化，238skill正/272负，177格ACC正但skill非正。attempt完整但paused，advancefalse，N3/N4/N5前置未解除；两seed不作显著性 | 新证据页§3–4；paired SHA5e845bad…、source_manifest SHAdc2c2750…、RMSE/ACC全表；归档比较器metadata精确重放SHA9ef4d22c…，无第二次GPU重放 | 全体（30评估/全变量时效与完整配对） | 已确认 |
+| E-229 | **全额最终成本与13表只读封印齐，工程接受不取消科学暂停**：23GPU/两CPU owned正常退出，fresh三基线0与每spawn UUID/free2390MiB门槛核齐。新GPU644.3709621066228s=0.17899193391850632h、whole700.5363800507039s含prepare/冻结/间隔/CPU/GPU/聚合清理，stage694.8902271008119s只快照、overrun0；原failed0.49725426027008024h/whole1805.1086保持，合计M3 0.6762461941885866h/2505.644957633689s。独立stdlib67380检查/4.3066s，276新/109旧文件hash前后不变，逐文件三来源/四指标/per-case/13表/配对/实际最终时钟齐；stagefalse/pending不回写，final成本仅旁侧实hash封印 | final_round_seal SHA0810665b…97a72、independent_final_verification SHA576a72b2…2ab79；六审计源码及日志旁侧归档；新证据页§5–8 | 全体（实际新旧产物/进程/来源/表与成本契约） | 已确认 |
+| E-230 | **证据commit被安全闸门阻断，未绕过只读归档或伪造登记**：Mimosa L3 PreToolUse报告legacy_v531_full内12high/1low、覆盖不完整，整条证据commit命令未执行，HEAD仍011ab4c；报告仅作为hook事实，漏洞未独立复现，不宣称安全。新证据页/E/本地账本保存未提交，新增0.1790/总4.8808/余19.1192；canonical index仍17条，新record旁侧pending且evidence_commit/登记CI=null。六issue匿名实查open，无Closes/main/force/merge；安全闸门与只读归档边界需用户决定 | registration_commit_blocked.json、final_issue_state SHA2ec43745…；新证据页§7–8/两目标进度；安全hook实际deny | 单点（一次提交阻塞与如实处理） | 已确认 |
+
+## 第二十一遍（2026-10-03）：M3登记安全阻塞有限分诊（不授予放行）
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-231 | **原始安全事件可重复只读定位，三个事件不是同一次完整审计**：指定会话SQLite part表rowid61410/61413的工程commit/push原警告为scanner_enobufs兼容放行，rowid61950原error为12high/1low强制拒绝且覆盖不完整；原hook文本SHA7990c81b…03b34。Stop另有run-ID报告required2/scanned0/failed2/ETIMEDOUT/partial，零发现不算安全。仅保存错误/警告/hook位置，不保存完整命令、prompt或输出；low位置及L3完整报告未取得 | `docs/R7_SECURITY_SCAN_TRIAGE.md`本轮追加；诊断 `original_gate_events.json` SHA256 f3f569a8…34f12a、`stop_review_projection.json` SHAb7986ecc…db456b；SQLite mode=ro/query_only=ON/table+row+callID交叉绑定 | 单点（指定三工具事件与独立Stop报告） | 已确认 |
+| E-232 | **12处high有限静态分诊完成，但没有自动误报闭环或解闸接口**：九源码当前SHA与12位置核齐；SQL可见唯一具名调用全常量、两metrics路径固定，但其他CLI/YAML alias/logging与归档UI有可控目录静态链，部署/鉴权/权限未核。当前Mimosa1.0.3公开文档有全局模式/关闭控制，却无已证实L3按finding归档例外或非降级可靠性修复契约；未执行载荷/扫描/旧代码，不改政策或将检索当runtime不可达证明。按批准硬停点维持BLOCKED，未重试commit/push | 分诊`finding_static_triage.json` SHA59b60eee…8e6726、`supported_contract_v2.json` SHAb788b11e…84d8（一基引用修正，原回执保留）；`docs/R7_SECURITY_SCAN_TRIAGE.md`及计划0012；随包README SHAfee93794…b63fa | 抽样（12报告位置/有限调用链及公开接口） | 已确认 |
+| E-233 | **接续身份核验与CPU反证不改实验或科学暂停**：366跟踪归档、109原/276新seal文件hash与集合、43冻结科学pins重核无差异；新证据页hash28f62529…6c33e/index17/账本/N2a-paused保持。CPU同集合第一次仓内tmp反证24failed/508passed，Git把fixture识别为未跟踪导致容忍；只改仓外tmp后532passed/38.34s/0skip，未改测试断言。0GPU、无新实验/完整深扫/commit/push/CI/main/关闭；诊断治理本地保存不等于正式证据登记 | 新诊断`starting_identity.json` SHA9d062228…8a1f2、`repository_baseline.json` SHA75469782…44d0；两真实pytest日志；本轮计划0012实际结果，原acceptance/seal不回写 | 全体（本轮声明的身份集合与532CPU测试） | 已确认 |
+
+## 第二十二遍（2026-10-03）：用户关闭工具后的 D6 有限登记恢复
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-234 | **真实用户自行关闭Mimosa后允许继续D6，不冒称官方处置或安全通过**：用户先答「我对其进行明确授权」，再说明「我已经关闭了Mimosa，可以继续进行」；只读核用户及仓库本地enabledPlugins同名项false。执行者未编辑安全配置，用户本地差异不提交，不外发支持工单、不升级/深扫/修补载荷；原12high1low及覆盖不足保留。范围只为证据/index/账本/工作分支正常git/SSH/CI，原any-unresolved/N2a-paused及N3/N4/N5/main/关闭边界不变 | 本次真实用户两句话；仓外 `starting_identity.json`，`docs/R7_SECURITY_SCAN_TRIAGE.md`本次接续与计划0012差异块；用户`.zcode/config.json`未暂存差异仅只读核 | 单点（一次真实用户授权与本地工具状态） | 已确认 |
+| E-235 | **证据页真实单独冻结并绑定正式audit记录，原失败/实验文件不改**：A=`1de3a672d859b42efa7a5fac3293c2832df4a6ee`仅补测页，实际blob SHA25617c44625…89b4a85；index17→18仅append新audit/blocked/scientific_claim=false记录，旧17条原文与历史pending草稿不变，brief canonical。补测GPU0.17899193391850632h独立记账/record引用，不重记原failed成本；恢复前old109/new276/366归档/43科学pins无差异。完整CPU2395passed9skipped2warnings230.96s，跳过非通过；420定向0skip与3399只读产物核查不代MetPy/GPU重放/真实17通道CPU端到端或安全审计。精确登记CI在后续活进度单独绑定，未先验标通过 | 仓外 `evidence_freeze_commit.json`、`index_append_receipt.json`/完整CPU日志SHA2ec07416…534dab；正式record:m3-validation-complement-complete-paused；补测页§8/计划0012接续 | 全体（本次声明的证据身份/index追加/CPU与文件集合） | 已确认 |
+
 ## 统计
 
-- 台账条目：**226** 条（E-001 – E-226；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3 + 第十七遍3 + 第十八遍1 + 第十九遍4）。
-- 按覆盖度（2026-10-02按行重数）：全体/全体扫描 **151** 条、抽样 **20** 条、单点 **55** 条。
+- 台账条目：**235** 条（E-001 – E-235；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3 + 第十七遍3 + 第十八遍1 + 第十九遍4 + 第二十遍4 + 第二十一遍3 + 第二十二遍2）。
+- 按覆盖度（2026-10-03按行重数）：全体/全体扫描 **155** 条、抽样 **21** 条、单点 **59** 条。
   保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
-- 按置信度（2026-10-02按行重数）：已确认 **225** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+- 按置信度（2026-10-03按行重数）：已确认 **234** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
   不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013；E-215 记明其推测成分（失败字节未取证）。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。

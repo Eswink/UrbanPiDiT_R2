@@ -2,7 +2,7 @@
 
 <!-- round-node: N2a -->
 
-**状态：active（2026-10-02）。本轮执行适用决策0030；不是原1800秒attempt的resume。**
+**状态：paused（2026-10-02）。23项补测已完成且覆盖完整，原any-unresolved出口触发；执行适用0030，不是原1800秒attempt的resume。**
 原 `outputs/r7_73_process_supervision/`、失败证据页与原目标保持只读；只有身份审计、工程门禁与新协议冻结后才启动23项补测。
 
 ## §0 Objective（单段；实测794字符，≤4000）
@@ -74,15 +74,27 @@
 
 ## §8 进度块
 
-- **状态**：active，工程准备；GPU补测未启动，新增GPU成本0。
+- **状态**：paused，23项补测与完整跨来源汇总已运行，原any-unresolved停止出口触发；补测0.17899193391850632GPU-h已全额记账，最终封印已核；用户关闭Mimosa后D6证据/index登记恢复，精确登记CI待核。
 - **六项开工recheck**：①N2a与N1尾下一动作一致；②账本逐行算术24.0/4.7018/19.2982、四历史无索引notes照保留；③N1已登记证据commit可达；④新目标派生总体goal的N2a/D1并引用冻结文档；⑤ `git diff -- docs/rules` 为空，历史M3科学页/协议未改；⑥campaign实际0fail/4notes，无需修机械漂移，先身份审计不启动实验。
 - **验证路线**：只读数据库显示当前provider最近三条goal校验均error/约600秒；这是客户端路线事实，不判本任务失败，也不自判完成。
 - **D0实际独立审计**：`/tmp/r7_m3_complement_audit_20261002_final_s6ciyxh4/results/audit_receipt.json` SHA256 `020b0647434db6cf28acd9ac07116672e7ec34ddc7c49dd5dec2506e8f9718bc`，audit_valid/technical_artifact_reuse_eligible=true，无pin mismatch，完整原实验仍不接受。六selected400及24历史checkpoint CPU身份/contract已核、旧七val119格/131case、相关zip/model/source/sidecar/109文件前后不变。首次自写审计过严clock采样断言failed另存、未改冻结标准；failed receipt SHA `5fed3f3365fe19f45039791dabb0db699c8cca549598fb3070b76280b41f659d`保留，纠正按归档driver两次采样时序，0GPU新增。
 - **数据资格读法**：本次GPU前只读prepare报告已实跑；旧发布written-local-cache可核，full-auto授权声明在事前commit `ecdae0d5bd0c70799f91d0ddfa02bcd04bf76e6f`已版本化、ADR0010将M2纳入第二阶段。有限范围未找到历史单次原始用户回执/独立转换前报告，不据缺文件推无许可，亦不倒填历史报告；本轮只消费既有完成cache、不新发布--write。
 - **具名输出**：`outputs/r7_m3_validation_complement_20261002/`（冻结前核不存在）；旁侧接受回执 `outputs/r7_m3_validation_complement_acceptance_20261002/`保留独立审计/只读preflight/开工pins/逐要求清单，非实验原目录。
 - **新聚合反证实跑**：跨来源聚合及旧M3 driver/receipt CPU合集实际 `114 passed in 17.65s`，日志 `/tmp/r7_m3_complement_aggregate_targeted_20261002.log`；全集合拒绝、原失败保留、物理单位不二次缩放、phase snapshot与最终成本引用、any-unresolved暂停有反证。这仅工程子集，尚未代表完整新驱动/全量/CI或GPU结果。
-- **未做**：23评估、跨attempt30项实际汇总、完整新成本/paired、新结果登记和出口科学读法均未做。
+- **版本化收尾阻塞**：新证据页commit/索引登记/精确登记CI被安全闸门阻断；实际文件/成本证据已保存，未伪造commit或以旧CI覆盖。旧失败不回改，不能继续实验。
 - **最终驱动与路径复核**：prepare入口同boot单调anchor、归档隔离、写前拒非法receipt与evaluation祖先symlink、完整来源及真实aggregation接口反证已落地；主链最终定向 `123 passed in 13.04s`（0skip），日志 `/tmp/r7_m3_complement_targeted_final_20261002.log`。原两high限范围只读复核均resolved，不当许可。中途编辑fixture签名不齐的33errors保留，已由最终实跑覆盖。
 - **基线/规模实测**：1210测试函数/3112断言/133文件，新增加34函数/137断言；只同步checker与文档。新最大文件543行/函数87行，R019=0/R019b310/R02046/R02144/R02231/R02328，仅机器marker同步，无阈值或例外放宽。
 - **全量工程实跑**：`CUDA_VISIBLE_DEVICES='' .venv/bin/python -B -m pytest -q -p no:cacheprovider` 最终2395passed/9skipped/2warnings，233.74s，日志 `/tmp/r7_m3_complement_full_cpu_20261002.log`。六GPU条件测试/三可选真实fixture跳过，不算通过；两个Lightning无Trainer日志warning照保留。37阻断0违规/campaign0fail4notes、两当前goal0fail、index/brief17records、compile与staged/unstaged空白均exit0。43旧源码/目标及两无关文件hash保持，新具名输出确认尚不存在。
-- **下一动作**：工程提交与工作分支精确SHA九步CI；通过后立即prepare/freeze/run23项，最后按原暂停出口登记，不提前跳节点。
+- **精确工程CI**：`011ab4cdc3b4fa9f6671a22962a2cf3227998c66` 的run37036869969/job110937121161 completed/success九步齐，匿名API访问2026-10-02；接受回执SHA256 `12c4e33c1af986b20387779d38134ff6fe9b1989bb666e3e4e28a3abdf81e5cb`。工程绿后仅一次prepare/run，未resume或重训。
+- **实际协议/运行**：独立canonical `74d05ab36a5c15451893e20f9cadcaecdac62170717af61a3e7524af57509dd5`；新zip `e44ef233b0455c38279549d22c1d864d604400933cc5a61210d3591df37abb43`（81源），归档原80成员隔离执行。prepare4.993492s，从其入口含全部间隔、CPU前后置与聚合清理；23新eval/23不同PID均success，三基线全零。原六训练/七eval+新23=30eval/510RMSE/528case，255汇总/三pair各85齐。
+- **冻结出口实测**：future−off=19改善/45恶化/21unresolved；input−off=21/36/28；future−input=3/44/38。any-unresolved为true，attempt=`paused`/finalized/coveragecomplete，非partial/非budget_limited，advance_next_node=false。同归档比较器metadata精确重放一致，回执SHA256 `9ef4d22ca91fe3b7d34f3ef6795a6017e09e8a83c809282af018999c928729a9`；没有GPU第二次重放。
+- **实际全额成本**：新连续GPU644.3709621066228s=0.17899193391850632h，最终整轮700.5363800507039s，soft_overrun=0；聚合前stage694.8902271008119s不冒称最终whole。原失败0.49725426027008024h/whole1805.1085775829852s保持，M3两attempt共0.6762461941885866h/2505.644957633689s。old109及43旧源码/目标hash再次不变。
+- **最终封印实跑**：stdlib独立67380项检查/4.3066s，exit0/accepted-engineering；276新文件与109原文件hash/集合前后不变，代码/input/三来源/30项四指标/per-case/配对/13表/所有进程退出/prepare连续时钟核齐。旁侧seal SHA256 `0810665b861a3f2206b53556a6878b179e68f2923e560e11c7ef906af6797a72`、verification SHA256 `576a72b26efd4148ddc9a6ffc59347c8e3bddb0b979968f6f9fcd5167ca2ab79`；stage pending保持原样，final receipt实际hash与成本只在旁侧补齐。工程接受不取消scientific_paused，不当许可或goal判定。
+- **报告复核与登记阻塞**：有限独立复核关键指标/配对/旧109hash/成本/精确工程CI/六open一致，纠正011新driver与旧归档evaluator身份混称。新证据页 `docs/R7_73_VALIDATION_COMPLEMENT.md` 已保存未提交；Mimosa L3 PreToolUse对单独证据commit拒绝，报告只读legacy中12high/1low且覆盖不完整，整条提交命令未执行。未改归档/安全hook或绕过；HEAD保持011ab4c，新索引仍未登记/CI未取。旁侧阻塞回执保留，新record只pending草稿，不填伪造evidence_commit。
+- **本地全额账本**：0.1790新行、总4.8808/余19.1192，精确总4.880706349145538/余19.11929365085446；新行因commit阻塞暂无index，campaign第五note如实保留。旧四历史行不改，不把显示余额当许可。
+- **阻塞终态实跑**：最新完整CPU2395passed/9skipped/2warnings/223.13s，定向221passed/17.50s；37阻断/两当前goal/index17条/compile/两侧空白通过，campaign0fail5notes，新未登记成本行note明确。实际新276/原109/开工43与两无关文件hash再核不变；原科学CSV与安全配置未改。七文档已本地暂存未commit，HEAD/origin工作分支均011ab4c，main仍dafd22e。
+- **下一项受阻的具体动作**：安全闸门与只读归档边界需用户裁定后才可冻结证据commit/正式索引及精确登记CI；N3/N4/N5另因原冻结暂停出口BLOCKED，不启动或关闭，最终goal不自判完成。
+- **安全阻塞分诊（2026-10-03，0新增GPU-h）**：按获批计划0012只做本地诊断，SQLite只读核三原始工具记录，工程commit/push的scanner_enobufs、后续12high/1low拒绝和Stop的ETIMEDOUT分别保存，不混为完整扫描。12处high的九源码hash/有限输入调用链核齐，low位置仍未知，不执行归档或认定全误报；随包文档未提供已证实的L3归档风险例外或非降级可靠性修复接口，因此按硬停点保持BLOCKED，没有重试commit/push、改hook/ignore/归档或外发。新包 `outputs/r7_m3_registration_diagnostic_20261003T024214Z/`；分诊见 `docs/R7_SECURITY_SCAN_TRIAGE.md`，原109/新276 seal集合与43科学pins重核一致。相关CPU同集合532passed/38.34s/0skip；首次仓内临时fixture导致24failed/508passed，改为仓外临时目录后重跑，未改测试断言。未进入A/B/C登记，不新增完整pytest/CI冒称通过；canonical17/五notes、账本与科学paused不变。当前具体工程依赖是官方支持的规则/可靠性纠正及实际门禁放行；若只能改政策须另有明确授权和正式接口，文字风险接受不等于放行。
+- **用户恢复D6（2026-10-03，0新增GPU-h）**：用户先答「我对其进行明确授权」，再说明「我已经关闭了Mimosa，可以继续进行」。只读核用户及仓库本地开关false，执行者未编辑安全配置，用户配置差异/两无关untracked不提交；不再外发支持工单。此次仅正常证据/index/账本/工作分支git/SSH/CI，原官方处置未取得、未跑新L3/深扫/升级，不伪称安全通过或漏洞修复；历史12high1low/覆盖不完整拒绝保留。若仍拒绝就停，不换路。科学paused/advancefalse与N3/N4/N5/main/关闭边界不改。
+- **证据A与本地索引真实绑定**：正常提交A=`1de3a672d859b42efa7a5fac3293c2832df4a6ee`仅新补测页，blob SHA256`17c446253af0e6df838cf60ef02800b7d64c6cce0490b981ddfc5e22789b4a85`；正式单增record:m3-validation-complement-complete-paused，audit/blocked/scientific_claim=false，index18与canonical brief同步，旧17条原文及历史pending草稿不变。账本只增加record指针，不新增成本或修旧失败；当前B提交/精确CI待实际执行，不冒称旧工程CI覆盖。
+- **恢复登记完整CPU实跑**：2395passed/9skipped/2warnings、230.96s，exit0；六CUDA条件与三可选真实fixture跳过非通过，两Lightning无Trainer警告保留。此前本会话定向420passed/53.87s/0skip与3399只读产物核查通过，不合并为独立科学样本；MetPy、GPU重放与完整真实17通道CPU端到端未执行。恢复前原109/新276/366归档/43科学pins核齐，新独立回执/日志在 `/tmp/r7_m3_registration_resume_u8t215bd/`，不重跑旧seal、不写旧/新运行目录。

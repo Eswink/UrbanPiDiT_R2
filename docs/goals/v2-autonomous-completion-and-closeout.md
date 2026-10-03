@@ -2,7 +2,7 @@
 
 <!-- round-node: N2a -->
 
-**状态：active（2026-10-02）。本会话已核起点caea510，按0030从N2a新补测协议/工程准备开始执行；实验与后续节点未先验完成。**
+**状态：paused（2026-10-02）。N2a新23项val补测及完整汇总已实跑，原any-unresolved出口触发，N3/N4/N5前置未解除；最终goal未裁定完成。**
 它承接主计划末尾的决策 0030 授权扩围，与计划 0009 的科学任务相同，但不沿用旧逐轮许可/预算闸门。
 主计划是唯一权威；本文件是总体 goal，首次执行节点为 N2a。进入后续节点时先登记前一节点证据和
 next-action，再一致更新主计划/current_round_goal/round-node；可由本文件派生独立新版节点长文，
@@ -124,7 +124,7 @@ next-action，再一致更新主计划/current_round_goal/round-node；可由本
 
 ## §8 进度块
 
-- **状态**：active；起点`caea510f25cf7eb77bd65638773c561e8e92c25c`，当前N2a工程准备，补测未启动。
+- **状态**：paused；起点`caea510f25cf7eb77bd65638773c561e8e92c25c`，当前N2a补测已完成，原any-unresolved出口触发，不推进N3/N4/N5。
 - **已完成**：status/HEAD与四份指定目标/计划/0030已核；campaign0失败/4历史notes，当前goal结构0失败；
   两GPU只读余量充足，无邻居信号。无关未跟踪两文件保持不提交。
 - **新节点长文**：`docs/goals/n2a-m3-validation-complement.md`，软1800/硬3600秒，整轮计时、0训练/23缺val；
@@ -135,9 +135,19 @@ next-action，再一致更新主计划/current_round_goal/round-node；可由本
   两项写路径缺陷修复后限范围复核resolved；AST基线1210函数/3112断言，只同步规模marker，不放宽阈值。
 - **完整CPU工程验证**：2395passed/9skipped/2warnings，233.74s；跳过不算通过。37阻断/campaign/两当前
   goal/index/brief/compile/空白均通过；43旧源码/目标与两无关文件hash保持。精确新工程CI尚待核。
-- **未做**：D1–D6的GPU补测/完整实际汇总、精确工程CI及结果登记、N3/N4/N5实现实验关闭仍未做。
-- **下一动作**：全量工程门禁与工作分支精确SHA九步CI后冻结新协议并立即23项补测；完整N2a出口登记后
-  才推进，若原any-unresolved暂停线触发则停止相关后续，不以准备或工程CI冒称实验/科学证据。
+- **实际N2a运行**：工程011ab4c的CI37036869969精确九步success后，仅一次新prepare/run；canonical74d05ab3…09dd5，0训练，缺23val全success。跨来源30eval/510RMSE/528case与三pair各85齐，新GPU0.17899193391850632h、whole700.5363800507039s/overrun0；原109文件/失败成本不变。
+- **实际停止出口**：三pair改善/恶化/unresolved为19/45/21、21/36/28、3/44/38，any-unresolved暂停；attempt paused且覆盖完整，不是failed/partial或forecast成功。N3/N4/N5必要出口未解除，不进入后续实验/关闭。
+- **最终封印**：独立stdlib67380检查/4.3066s/exit0，276新+109旧文件hash前后不变，全覆盖/三来源/单位/进程/配对/四成本/最终整轮核齐。seal0810665b…97a72/verification576a72b2…2ab79仅accepted-engineering，科学暂停与advancefalse不变。
+- **版本化收尾阻塞**：新证据页已保存，本地账本全额新0.1790/总4.8808/余19.1192；但证据commit被Mimosa L3拒绝（只读legacy12high/1low，覆盖不完整），整条提交命令未执行/HEAD011ab4c。未改归档/安全配置或绕过，新audit只旁侧pending草稿，canonical index仍17条，精确登记CI未取得。
+- **未做**：N2a正式证据提交/索引及精确登记CI；N3 matchedGeneric/rollout、N4确认/adaptive、N5追加反证/正式验收/Closes/main均未执行。六issue实查open。
+- **最新终态验证**：完整CPU2395passed/9skipped/2warnings/223.13s、定向221passed/17.50s；37阻断/两当前goal/index17/compile/空白通过，campaign0fail5notes。原109/新276/开工43pins不变；七文档本地暂存未提交、HEAD仍011ab4c，main未动。逐要求20项审计确认已执行与未做，不把审计本身当完成判据。
+- **下一项受阻的具体动作**：安全闸门与归档只读冲突须用户裁定后才能证据commit/正式登记CI；科学any-unresolved出口亦未解除。当前只保存与审计已运行N2a及停止事实，不改变冻结出口、绕安全闸门或自行宣布最终goal完成。
+
+- **登记阻塞诊断接续（2026-10-03，0新增GPU-h）**：获批计划0012已完成本地原事件投影与12处有限静态分诊，工程scanner_enobufs/high拒绝/Stop超时区分；原109/新276seal与43科学pins重核一致，未改安全hook、ignore、归档或外发。官方安装包没有已证实可用的非降级L3处置接口，按硬停点保留BLOCKED，没有重试commit/push、A/B/C登记或新CI。CPU532passed/38.34s/0skip，首次仓内tmp反证24failed/508passed保留，只改仓外tmp后同集合通过，未改测试/阈值。诊断包 `outputs/r7_m3_registration_diagnostic_20261003T024214Z/`，正文 `docs/R7_SECURITY_SCAN_TRIAGE.md`；canonical17、账本与N2a/paused不变。下一具体工程依赖是官方支持纠正及实际门禁放行；若需安全政策范围例外必须另有明确授权和接口，不能将本轮诊断批准当例外。N3/N4/N5、issue关闭与最终goal完成仍未做，issue状态未重新联网查询。
+
+- **用户关闭工具后仅D6恢复（2026-10-03）**：用户先答「我对其进行明确授权」，随后说明「我已经关闭了Mimosa，可以继续进行」。只读核本地插件开关false，执行者未改安全配置且用户差异不提交，不外发支持工单、不升级或新深扫；无官方处置/L3安全通过结论，历史拒绝与覆盖不足保持。最新继续限定为D6，不复活总体goal自动N3/N4/N5推进或关闭。
+- **本地正式证据绑定**：补测页A=`1de3a672d859b42efa7a5fac3293c2832df4a6ee`/blob SHA256`17c446253af0e6df838cf60ef02800b7d64c6cce0490b981ddfc5e22789b4a85`已冻结；index17→18单增audit/blocked，canonical brief同步、账本新行只增record。原失败/原109/新276/366归档/43科学pins不变，0新增GPU；本次完整CPU2395passed/9skipped/2warnings230.96s，skip非通过。B提交/精确登记CI仍待绑定，不能以旧工程CI覆盖；N2a/paused、any-unresolved与最终goal未自裁保持。
+- **当前未做与边界**：D6精确CI等待实际工程运行，不等待支持工单选择；N3 matchedGeneric/可微rollout、N4确认/adaptive、N5追加反证/正式验收/Closes/main仍未做，不借恢复D6推进。仓外新回执 `/tmp/r7_m3_registration_resume_u8t215bd/`。
 
 ## §9 Objective 副本（与 §0 相同，便于交接）
 

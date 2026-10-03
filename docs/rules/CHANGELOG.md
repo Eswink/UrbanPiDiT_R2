@@ -2,6 +2,57 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-03 — 用户关闭 Mimosa 后恢复 M3 的 D6 登记（不改科学出口）
+
+用户先回复「我对其进行明确授权」，再说明「我已经关闭了Mimosa，可以继续进行」。只读核用户与
+仓库本地插件开关false；执行者未改安全配置，用户`.zcode/config.json`的未暂存差异不进入提交。
+这取代此前仅本地诊断的执行边界，允许有限D6证据/index/账本与正常工作分支git/SSH/CI，不是
+官方finding处置、L3扫描通过或漏洞修复；没有新深扫、插件升级、ignore、载荷修补或支持工单外发。
+原拒绝/12high1low/覆盖不足/ENOBUFS/ETIMEDOUT及计划0012的原硬停出口完整保留。
+
+补测证据页单独冻结A=`1de3a672d859b42efa7a5fac3293c2832df4a6ee`，实际blob SHA256
+`17c446253af0e6df838cf60ef02800b7d64c6cce0490b981ddfc5e22789b4a85`。index单增audit/blocked
+`m3-validation-complement-complete-paused`，旧17条原文不变、canonical brief18条/1历史候选；
+新账本行只增加record指针、GPU-h不重记，四历史无索引notes不回填。当前B提交/推送/精确CI仍待
+实做，本条不以旧工程CI代覆盖；完成后的实际CI只追加活进度/计划，不递归改冻结证据与索引。
+
+新完整CPU实际2395passed/9skipped/2warnings、230.96s，六CUDA条件与三真实fixture跳过不算通过；
+两Lightning无Trainer警告保留。此前420定向/53.87s/0skip与3399只读产物检查分别保留，不合并科学
+样本。恢复前原109/新276/366跟踪归档/43科学pins不变，新回执在仓外独立目录，未重跑原seal。
+E-234–E-235记录真实授权/关闭状态与证据绑定。无源码/接口/digest/依赖/原数据/凭据改变，0新增
+GPU-h、无训练/评估/封存test解码/新下载/发布/main/关闭；N2a/paused、any-unresolved及最终goal
+未自裁保持。科学下一方向需既有冻结出口内的独立裁定，本次不推进N3/N4/N5。
+
+恢复后Mimosa增量Write扫描仍真实拒绝仓外核验草稿中的动态subprocess模式；候选未写入。
+只按反馈去掉全部子进程/动态命令后纯只读版本正常Write成功、18项核对/359活跃Python语法通过，
+没有改配置或绕扫描。用户关闭开关不代表全部扫描链停用，成功commit也不等于L3通过。登记定向
+本次实跑532passed/37.67s/0skip，campaign0fail4notes/index18与机械门禁齐；精确CI仍待实际绑定。
+
+## 2026-10-03 — M3证据登记安全阻塞分诊（0012；保持工程BLOCKED与科学暂停）
+
+获批范围仅本地诊断/文档/验证和满足安全前置后的条件登记，不含豁免、插件更新、外发或研究方向变更。
+planner草稿的不存在路径/SHA长度/错误状态/dry-run建议未采用；主链修正版合同实跑verified=true/0失败，
+计划0012和独立排他诊断 `outputs/r7_m3_registration_diagnostic_20261003T024214Z/` 保存实际状态。
+SQLite mode=ro/query_only投影三原始工具事件，工程scanner_enobufs兼容放行、后续12high/1low强制拒绝、
+Stop两failed/零scanned/ETIMEDOUT分别留痕；不保存完整命令/prompt/输出，不把inconclusive写PASS。
+
+12处high有限静态输入/调用链和九源hash核齐；SQL可见常量调用与两固定metrics输出仅作反证，
+其他CLI/YAML/logging/归档UI路径来源未证明部署/权限安全。历史“运行时不可达”补充有限regex/wheel/
+静态搜索限制，不回改历史扫描事实。当前安装文档未证实L3按finding历史归档例外或非降级纠正接口，
+公开全局开关/模式不使用、ignore采用未知；按批准硬停点保持BLOCKED，不重复提交或换路绕gate。
+没有安全规则阈值/配置变化、载荷解密修补、供应商公开反馈/上传、deep扫描/GLM/安装更新。
+
+本轮重核366跟踪归档/109旧/276新seal文件集合和43科学pins无差异；原证据页28f62529…6c33e、
+index17/brief/账本/N2a-paused不改。CPU定向首次tmp在仓内使conventions反证fixture被Git识别为
+未跟踪内容而容忍：24failed/508passed/40.80s，失败日志保存；只改tmp至仓外后同532集合全部passed，
+38.34s/0skip，未改测试/断言/检查器。治理检查与最终不变性回执另记计划0012实际结果。
+
+新分诊/计划/E-231–E-233和当前活进度仅本地保存；未进入A/B/C证据登记、不再commit/push或取得新CI，
+原七暂存文档保持，治理新文件待提交。不将旧CI37036869969冒称覆盖本轮改动。0新增GPU-h，无新训练/
+评估/数组读取/数据下载或发布，模型接口/digest/依赖/凭据不变；N3/N4/N5及关闭未做，issue未重新联网查询，
+科学any-unresolved和最终goal未完成保持。下一工程依赖是官方支持纠正与真实门禁放行；若只能改安全
+范围需另有明确政策授权及正式接口，文字风险接受不是机器放行。
+
 ## 2026-10-02 — N2a新验证补全准备（0031；旧失败及冻结出口不改）
 
 当前goal起点caea510，按0030执行总体V2方向。新节点长文 `n2a-m3-validation-complement.md` 写定
@@ -38,6 +89,30 @@ R-009 AST实测1210函数/3112断言/133文件，相对1176/2975新增34/137；�
 两Lightning无Trainer warning保留。37阻断/campaign/两当前goal/index/brief/compile/两侧空白exit0，43旧
 源码/目标及两无关文件hash保持。新精确工程CI、实际protocol冻结/23评估/最终成本封印仍待执行；
 起点CI不覆盖这些改动，未提交运行产物或两无关未跟踪文件。
+
+**实际执行及冻结停止**：工程/执行011ab4cdc3b4fa9f6671a22962a2cf3227998c66推工作分支，
+CI37036869969精确九步success后，一次新prepare/run23val；canonical74d05ab3…09dd5、zip e44ef233…bb43。
+0训练更新，原六训练/七val+新23覆盖30eval/510RMSE/528case，三pair各85/255aggregate；25自有进程
+正常退出、23GPU进程零baseline/UUID2390MiB门槛各通过。原109文件/43旧源码目标再次hash不变。
+新GPU644.3709621066228s=0.17899193391850632h，finalwhole700.5363800507039s包含prepare到聚合清理，
+stage694.8902271008119s不冒称final，overrun0；原失败0.49725426027008024h与whole1805.1086保持全额。
+三pair改善/恶化/unresolved=19/45/21、21/36/28、3/44/38；原descriptive_outcome暂停，attempt完整但paused，
+不改科学出口以推进N3/N4/N5。归档比较器metadata精确重放一致，0GPU无第二次forecast评估。六issue匿名
+2026-10-02核仍open，无Closes/main；工程与覆盖齐不当科学成功。
+
+**最终封印及登记阻塞**：stdlib独立67380检查/4.3066s实际exit0，276新/109旧文件hash前后不变，
+三来源/四指标/per-case/配对/13表/25owned退出/真实时钟核齐；旁侧seal0810665b…97a72、
+verification576a72b2…2ab79仅accepted-engineering。有限报告复核纠正首处011新driver与旧归档evaluator
+身份混称：旧base d6c98cf、working_tree_modified=true，以原zip/80成员bytes为准，不等于clean commit。
+补测后定向221passed/17.50s，初文件名错误0tests/exit4另保留，正确名称重跑通过。
+证据页已保存 `docs/R7_73_VALIDATION_COMPLEMENT.md`，但单独commit命令被Mimosa L3前置闸门拒绝，
+且整条命令未执行；HEAD保持011ab4c。闸门报告legacy_v531_full中12high/1low、覆盖不完整；
+高危报告未独立复现，不宣称项目安全。归档只读和不绕hook保持，未修改安全配置、归档或换路提交。
+新本地账本全额0.1790，总4.8808/余19.1192；因证据commit不存在，canonical index仍17条，
+新记录仅旁侧草稿、不伪造evidence_commit/登记CI。安全闸门与只读归档边界需用户裁定，不自主豁免。
+阻塞终态再跑完整CPU2395passed/9skipped/2warnings/223.13s；37阻断/两goal/index17/compile/空白exit0，
+campaign0fail5notes，原109/新276/开工43pins及两无关文件不变。七份文档本地暂存，未重试commit、
+未push后续记录，HEAD保持011ab4c/main dafd22e；20项prompt-to-artifact如实区分补全、暂停与未做。
 
 ## 2026-10-02 — 实验、推进与普通决策常设下放（0030；总体方向归用户）
 

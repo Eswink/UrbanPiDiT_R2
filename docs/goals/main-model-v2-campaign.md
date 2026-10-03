@@ -1,6 +1,6 @@
 # main-model-v2-campaign：主模型 V2 的 campaign 主计划与每轮对表
 
-**状态：campaign 级主计划（活文档）。当前 N2a/active：新独立23项val补测在工程准备；原M3一次尝试仍budget_limited/6训练7评估，失败全额记账且历史不改。按0030自主执行；补测后仍核原冻结暂停出口，不自宣最终goal完成。N1原科学结论保持。**
+**状态：campaign 级主计划（活文档）。当前 N2a/paused：新独立23项val已完成、跨来源30项齐，原any-unresolved出口触发；N3/N4/N5前置未解除。原M3一次尝试仍budget_limited/6训练7评估，失败全额保留，补测成本独立登记中。不自宣最终goal完成；N1原科学结论保持。**
 
 本文件是「主计划 + 每轮 recheck」机制的**唯一权威**：节点图（§2）、每轮开工前必须走的对表清单（§3）、
 预算账本（§7）与进度块（§8）都在这里。每一轮的目标长文是它的**派生物**，不是平行的第二处真相——
@@ -150,18 +150,22 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 | N1独立evaluation成本补测（failed，1/30） | 0.0060 | 4.0762 | `docs/R7_N1_COST_SUPPLEMENT_ATTEMPT.md` + 索引记录 `record:n1-evaluation-cost-supplement-failed`（`gpu_hours = 0.005956627869357666`；失败全额计费，四位显示舍入） |
 | N1 v2独立evaluation成本补测（success，30/30，含P1） | 0.1283 | 4.2045 | `docs/R7_N1_COST_SUPPLEMENT_V2.md` + 索引记录 `record:n1-cost-v2-evaluation-supplement-success`（`gpu_hours = 0.12826335332563354`；含P1与全部启动/间隔/清理，四位显示舍入） |
 | M3过程监督三臂（budget_limited，6训练/7评估） | 0.4973 | 4.7018 | `docs/R7_73_PROCESS_SUPERVISION.md` + 索引记录 `record:m3-process-supervision-budget-limited`（`gpu_hours = 0.49725426027008024`；失败全额计费，逐行显示舍入） |
-| **合计已用** | **4.7018** | — | 24 − 4.7018 = **余 19.2982 GPU-h** |
+| M3独立val补全（23/23，完整但科学paused） | 0.1790 | 4.8808 | `docs/R7_73_VALIDATION_COMPLEMENT.md` + 索引记录 `record:m3-validation-complement-complete-paused`（`gpu_hours = 0.17899193391850632`；只记新补测成本，原失败独立行保留，逐行显示舍入） |
+| **合计已用** | **4.8808** | — | 24 − 4.8808 = **余 19.1192 GPU-h** |
 
 说明（如实）：决策 0029 后账本**只记账、不设总上限**；`cap_gpu_h=24.0` 是历史会计基数，
 `used_gpu_h` 为实际累计消耗，`remaining_gpu_h` 为基数减累计的会计差额，三字段仍供 C-02 算术对表，
-不是执行许可或停止闸门，未来差额为负也不因此停实验。本轮无 GPU 消耗，表内数字与证据指针均不改。
-**账本不是从证据索引机械累加的**——索引覆盖其中六行（其余四轮没有索引记录），
+不是执行许可或停止闸门，未来差额为负也不因此停实验。新补测0.17899193391850632h全额记账，
+显示新行0.1790/总4.8808/余19.1192；精确总4.880706349145538/余19.11929365085446，沿用逐行舍入。
+旧历史行不改。用户关闭Mimosa后证据A已真实冻结，新补测index记录与账本record指针齐；
+登记B的实际提交/精确CI另在§8追加，不把成功提交当安全扫描通过。
+**账本不是从证据索引机械累加的**——索引覆盖其中七行（四历史行仍暂未有索引记录），
 所以 `check_campaign_state.py` 做的是「逐行算术 + 证据指针存在性 + 有索引者数值一致」，
 没有索引支撑的行会被**列出来**而不是被当成已核。把索引补成全量账本是将来可做的一件事，本轮不做。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-validation-complement.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.7018, "remaining_gpu_h": 19.2982, "status": "active", "next_node_proposal": null, "budget_mode": "accounting-only"} -->
+<!-- campaign-state: {"current_node": "N2a", "previous_node": "N1", "current_round_goal": "docs/goals/n2a-m3-validation-complement.md", "previous_round_goal": "docs/goals/n1-cost-supplement-repair.md", "previous_round_evidence": "docs/R7_N1_COST_SUPPLEMENT_V2.md", "cap_gpu_h": 24.0, "used_gpu_h": 4.8808, "remaining_gpu_h": 19.1192, "status": "paused", "next_node_proposal": null, "budget_mode": "accounting-only"} -->
 
 - **状态**：`paused`（2026-09-30 N1主48/72h均unresolved，停止条件3已触发；节点保持N1待审阅）
 - **已执行**：N1四块零GPU审计、D3机械复算、一次具名授权D2（6run各400/30val评估）、证据页/E-207–E-212；
@@ -351,5 +355,47 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
   原失败全额保持；新五源码/两测试落地，归档隔离、同boot整轮anchor与两处写前路径反证齐。
   最终定向123passed/13.04s，完整CPU2395passed/9skipped/2warnings/233.74s（skip不算通过）。37阻断/
   campaign/两当前goal/index/brief/compile/空白exit0，43旧源码/目标及两无关文件hash不变；账本仍未增。
-- **下一动作**：N2a工程提交并核工作分支精确SHA九步CI，再冻新协议补23val；登记完整来源/成本与原
-  暂停出口实际结果后才决定N3或冻结停止，不跳步、不关闭issue、不自宣最终goal完成。
+- **N2a实际补全（2026-10-02）**：工程/执行`011ab4cdc3b4fa9f6671a22962a2cf3227998c66`的
+  CI37036869969精确九步success后，只一次prepare/run23val；canonical74d05ab3…09dd5、新zip e44ef233…bb43。
+  0训练更新，原六训练/七val+新23=30eval/510RMSE/528case，三pair85/255aggregate齐；所有新eval成功、
+  23独立零基线进程，25owned进程正常退出。新GPU644.3709621066228s=0.17899193391850632h，
+  whole700.5363800507039s含prepare4.9935/间隔/CPU前后置/聚合清理，overrun0；原失败成本与109字节不改。
+- **N2a冻结出口实际触发**：future−off=19/45/21、input−off=21/36/28、future−input=3/44/38
+  （改善/恶化/unresolved）；原any-unresolved暂停，attempt paused/完整覆盖，非partial/budget_limited。
+  归档比较器metadata精确重放一致，未二次GPU重跑。不改冻结出口，N3/N4/N5前置BLOCKED；六issue匿名
+  访问2026-10-02仍open，无Closes/main。账本新成本与索引正在登记，不以stage快照代最终whole。
+- **最终封印与报告复核**：stdlib独立67380检查/4.3066s实际exit0，276新/109旧rawhash前后不变、
+  source/protocol/code/三来源/四指标/per-case/13表/所有owned退出/真实连续时钟核齐；旁侧seal
+  0810665b…97a72/verification576a72b2…2ab79 accepted-engineering，原科学暂停不变。有限报告复核关键
+  数值一致，首处driver011与原归档evaluator身份区分已修。补测后定向221passed/17.50s，0skip。
+- **版本化登记BLOCKED**：单独证据commit的PreToolUse被Mimosa L3拒绝，报告只读legacy12high/1low、
+  覆盖不完整；整条提交命令未执行、HEAD保持011ab4c，未改归档/安全hook或绕过。证据页/E/目标与
+  全额账本本地保存，新增行0.1790/总4.8808/余19.1192；新index尚无可达evidence_commit，故canonical
+  17条保持、新record仅旁侧pending草稿、登记CI未取得，新增第五note不冒称机器核数。
+- **阻塞终态验证**：最新完整CPU2395passed/9skipped/2warnings/223.13s，定向221passed/17.50s；
+  37阻断/两当前goal/index17/compile/空白exit0，campaign0fail5notes（新账本未登记note保留）。
+  原109/新276/43开工pins及两无关文件hash再核不变，七文档本地暂存未commit；HEAD与origin工作分支
+  仍011ab4c、main仍dafd22e，不用工程CI冒称覆盖新证据/账本。
+- **下一项受阻的具体动作**：安全闸门与只读归档冲突须用户裁定后才可冻结证据commit/正式index与
+  精确登记CI。N2a另因原科学出口暂停，N3/N4/N5前置BLOCKED；不额外seed/训练/阈值改动闯关，
+  不关闭issue或自行宣布最终goal完成。
+- **安全登记阻塞分诊（2026-10-03，0新增GPU-h）**：按获批计划0012保存原始拒绝/警告的SQLite只读投影，
+  三类事件不混：工程scanner_enobufs、证据commit12high/1low强制拒绝、Stop两failed/零scanned的ETIMEDOUT。
+  12处归档报告有限静态输入/调用链与九源码hash齐，常量反证不自动判误报；没有执行归档或全项目深扫。
+  366跟踪归档/109旧/276新seal/43科学pins重核无差异，安全配置未改；相关CPU532passed/38.34s/0skip，
+  首次仓内tmp使conventions反证24failed/508passed，日志保留，只改tmp到仓外后同集合通过。
+  官方安装包未提供已证实L3归档例外或非降级纠正接口，按硬停点保持BLOCKED，不重试commit/push、
+  不改ignore/插件或外发；诊断 `outputs/r7_m3_registration_diagnostic_20261003T024214Z/`，分诊正文
+  `docs/R7_SECURITY_SCAN_TRIAGE.md`。未进入A/B/C，canonical17/五notes及账本不变；精确登记CI仍无。
+  当前工程依赖是官方支持处置并实际门禁放行；政策范围变化需另有明确授权和接口，科学暂停仍独立。
+- **用户关闭Mimosa后的D6恢复（2026-10-03，0新增GPU-h）**：用户先答「我对其进行明确授权」，再说明
+  「我已经关闭了Mimosa，可以继续进行」。只读核用户与仓库本地插件开关false，执行者未改安全设置，
+  本地配置差异不提交。没有官方finding处置/L3 clearance、新深扫、升级或支持工单外发；原拒绝与
+  覆盖缺口保留，不再把此前官方支持前置当作当前用户关闭工具后的登记条件。只继续正常D6/git/SSH/CI，
+  仍拒绝即停不换路，不训练/评估/推进/main/关闭，N2a/paused与冻结出口不变。
+- **真实证据冻结与本地正式登记**：A=`1de3a672d859b42efa7a5fac3293c2832df4a6ee`只含补测证据页，
+  blob SHA256`17c446253af0e6df838cf60ef02800b7d64c6cce0490b981ddfc5e22789b4a85`；index单增
+  `m3-validation-complement-complete-paused` audit/blocked记录，旧17条原文不变、canonical brief18。
+  账本新补测行增加record数值绑定，不重复GPU-h，四历史notes保留；完整CPU2395passed/9skipped/
+  2warnings、230.96s，skip非通过。原109/新276/366归档/43科学pins恢复前不变；B提交/精确登记CI待
+  实际绑定，不以37036869969代替。本次回执仓外 `/tmp/r7_m3_registration_resume_u8t215bd/`。

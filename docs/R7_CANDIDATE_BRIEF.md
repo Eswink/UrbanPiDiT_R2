@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 17; human-review candidates: 1
+Records: 18; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -49,6 +49,29 @@ Records: 17; human-review candidates: 1
 - CI run: `36973907623`
 - Excluded from runnable candidates: Blocked on23 missing evaluations, complete two-seed comparisons and terminal four cost views. Whole wall1805.1086s exceeded the frozen30min wording. One-shot authorization is consumed; budget remainder is not permission to complete/retry.
 - Recorded metrics (not recomputed): arms=3, attempt_sha256=525545bc6900f05c0d11f27c2b12bd5db9af39fa3740d52220e7e156009c60ef, attempt_status=failed, automatic_retry=false, budget_limited=true, campaign_remaining_gpu_hours_exact=19.29828558477297, campaign_status=budget_limited, campaign_used_gpu_hours_exact=4.701714415227032, case_evaluations_completed=131, current_node=N2a, engineering_exact_clone_passed=2267, engineering_exact_clone_skipped=14, engineering_full_local_passed=2272, engineering_full_local_skipped=9, engineering_verified=true, evaluations_completed=7, evaluations_missing=23, evaluations_planned=30, execution_attempt_sha256=1c5f86f0ec527b628bbdd21f709d2d17e34cee886aec71d47ade3514d69d50d1, full_experiment_accepted=false, gpu_hours=0.49725426027008024, gpu_hours_cap=1.0, gpu_phase_seconds=1790.1153369722888, independent_audit_status=incomplete-audit-valid, independent_receipt_sha256=73afca69d42de3ae8d837b19916f1fc9070cc61bd111782a604682aa00adfe45, independent_run_files_unchanged=109, paired_comparison_complete=false, reasoning_steps=4, reproducibility_level=config-reproducible training; bitwise initialization paired only; independent persisted-artifact verification, not GPU replay, rmse_cells_completed=119, rmse_cells_planned=510, seeds=[41, 42], sidecar_active_channels=8, sidecar_identity=4fed1c78e4c4c09a41d95457649925b02d0c8ebf89aa47c2ac8dc6496734912d, sidecar_train_frames=188, terminal_four_cost_views_complete=false, test_read=false, thresholds_added=0, training_runs_completed=6, training_runs_planned=6, updates_per_arm=400, whole_wall_cap_seconds=1800.0, whole_wall_seconds=1805.1085775829852, whole_wall_within_cap=false
+
+## m3-validation-complement-complete-paused
+
+- Outcome class: `audit`; candidate state: `blocked`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_73_VALIDATION_COMPLEMENT.md` (SHA256 `17c446253af0e6df838cf60ef02800b7d64c6cce0490b981ddfc5e22789b4a85`)
+- Evidence commit: `1de3a672d859b42efa7a5fac3293c2832df4a6ee`; experiment commit: `011ab4cdc3b4fa9f6671a22962a2cf3227998c66`
+- Protocol SHA256: `74d05ab36a5c15451893e20f9cadcaecdac62170717af61a3e7524af57509dd5`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: Independent zero-training supplementation completed all missing23 archived-code validation evaluations. Original6 training+7 evaluation sources are unchanged; full30 evaluations/510RMSE/528case/3pairs85 cells and four cost views are independently engineering accepted. Frozen unresolved exit triggered scientific pause.
+- Limitations:
+  - Two seeds on one winter segment; not significance, convergence, generalization or causal process contribution.
+  - Driver base011ab4c differs from original archived forecast evaluator base d6c98cf; old zip80 byte identity governs, not a clean old commit claim.
+  - Original failed attempt and all full costs remain unchanged.
+  - Metadata comparator replay exact, not a second GPU forecast evaluation or bitwise GPU reproducibility claim.
+  - Stage artifact manifest/cost pending unchanged; final round sealed only by actual sidecar receipt.
+  - Parameters/FLOPs and training throughput quote original measured evidence; no new training/CPU profile measurement.
+  - Independent stdlib verification reads opaque checkpoint/source and CSV/per-case metadata, not arrays or complete runtime syscall attestation.
+  - No new data publication, download, credentials, main push or issue closure. The user disabled Mimosa; the executor did not edit security settings and the local configuration change is excluded from registration commits.
+  - Mimosa hook reports12high/1low in read-only legacy with incomplete coverage; no independent exploit or full project security clearance.
+  - Current targeted CPU recheck and metadata/hash audit do not cover MetPy, a new GPU replay or a full real-17-channel CPU train-to-evaluate integration. Sensitive BF16 arithmetic tests do not establish unquantized-FP32 equivalence.
+- CI run: `37036869969`
+- Excluded from runnable candidates: Complete audit artifacts, not a runnable candidate or scientific success. N3/N4/N5 remain blocked by the original any-unresolved exit. D6 proceeds after the user disabled Mimosa; no official finding disposition or L3 security clearance is claimed.
+- Recorded metrics (not recomputed): L3_security_clearance=false, advance_next_node=false, aggregate_rows=255, all_new_baselines_zero=true, attempt_status=paused, campaign_status=paused, case_evaluations=528, cells_per_pair=85, current_node=N2a, engineering_full_cpu_passed=2395, engineering_full_cpu_skipped=9, evaluations=30, evidence_commit_available=true, executor_changed_security_configuration=false, final_round_sealed=true, four_cost_views_complete=true, gpu_hours=0.17899193391850632, gpu_phase_seconds=644.3709621066228, hard_cap_seconds=3600, independent_seal_sha256=0810665b861a3f2206b53556a6878b179e68f2923e560e11c7ef906af6797a72, independent_verification_sha256=576a72b26efd4148ddc9a6ffc59347c8e3bddb0b979968f6f9fcd5167ca2ab79, new_attempt_sha256=401b270fdfe378dfd19e4cc29e7cb9309e2349aaf689ef862ca7b05b5a380e5e, new_distinct_worker_pids=23, new_evaluations=23, new_files_sealed=276, official_disposition_received=false, original_evaluations=7, original_failed_preserved=true, original_files_unchanged=109, original_gpu_hours=0.49725426027008024, pair_totals={"future_draft_aux - aux_off": {"improved": 19, "unresolved": 21, "worsened": 45}, "future_draft_aux - input_aux": {"improved": 3, "unresolved": 38, "worsened": 44}, "input_aux - aux_off": {"improved": 21, "unresolved": 28, "worsened": 36}}, paired_comparison_sha256=5e845badb28086a32ef016167b3efc48114fe303780fd3d13898b2fa035c2d68, planned_seconds=1800, postrun_targeted_passed=221, postrun_targeted_skipped=0, registration_ci_available_at_index_write=false, registration_full_cpu_log_sha256=2ec0741610d13c681dc27c9ff68e818975ee1ca9d56f379aabfb7eff0c534dab, registration_full_cpu_passed=2395, registration_full_cpu_seconds=230.96, registration_full_cpu_skipped=9, registration_full_cpu_warnings=2, registration_status_at_index_write=evidence-frozen-index-recorded-ci-pending, reproducibility_level=code/data/protocol-pinned; original training config-reproducible; exact metadata comparator replay only, rmse_cells=510, scientific_halt=true, soft_overrun_seconds=0.0, test_read=false, total_m3_gpu_hours=0.6762461941885866, training_runs_reused=6, training_updates=0, user_disabled_mimosa=true, whole_wall_seconds=700.5363800507039
 
 ## n1-cost-v2-coresidency-preparation
 
