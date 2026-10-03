@@ -48,3 +48,4 @@
 | [0010](0010-experiment-delegation-and-time-contract.md) | 实验常设下放与时长契约：新决策 0029 取代 0021（D1–D10 施工图 + 执行记录） | 已执行；治理 c4d45cf/CI 36996404191 九步成功，审阅补正与尾核另行交付；无新实验或节点推进 | 2026-10-02 |
 | [0011](0011-autonomous-execution-and-goal-handoff.md) | 实验/普通决策/节点推进常设下放与新窗口 V2 收尾 goal（0030） | 已实施；b961b3b/CI37024597813九步成功，正式objective2027字符；新实验未启动 | 2026-10-02 |
 | [0012](0012-r7-m3-evidence-registration-unblock.md) | M3 证据登记的安全闸门分诊与条件化收尾 | 原分诊BLOCKED保留；用户关闭Mimosa后有限D6已登记，A/index18/账本齐，B=da4939e/CI37108664102九步成功；完整CPU2395通过9跳过，非安全/科学通过，N2a暂停不变 | 2026-10-03 |
+| [0013](0013-n2a-delivery-acceptance-and-delegation.md) | N2a规定交付验收与全部授权下放接续 | 规定交付验收矩阵与全权授权已落实；本次46CPU/37阻断及18身份核对通过，精确新CI待绑定；科学paused/原failed不改，0新增GPU-h | 2026-10-03 |

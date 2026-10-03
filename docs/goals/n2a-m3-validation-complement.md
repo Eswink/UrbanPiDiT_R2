@@ -2,7 +2,8 @@
 
 <!-- round-node: N2a -->
 
-**状态：paused（2026-10-02）。23项补测已完成且覆盖完整，原any-unresolved出口触发；执行适用0030，不是原1800秒attempt的resume。**
+**交付状态：N2a规定工程/实验/登记已完成；科学状态：paused（any-unresolved出口触发）。**
+23项补测及30总覆盖、D6均已齐，适用0030；不是原1800秒attempt的resume，也不将交付完成等同科学成功、N3放行或最终goal complete。
 原 `outputs/r7_73_process_supervision/`、失败证据页与原目标保持只读；只有身份审计、工程门禁与新协议冻结后才启动23项补测。
 
 ## §0 Objective（单段；实测794字符，≤4000）
@@ -101,3 +102,6 @@
 - **D6正式登记及精确CI（2026-10-03）**：B=`da4939e613eb1a0b39f6303142ffd7aa6ab8657c`已正常git/SSH推工作分支，run37108664102/job111162098631的head_sha精确匹配、completed/success，九主步骤全部成功；[run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/37108664102)、[jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/37108664102/jobs?per_page=100)匿名curl访问2026-10-03。run响应SHA256`c1e8892c3fab72cbfb7fef69702193e15c1b52b0e14774b1cb15c1a17b7832be`、jobs响应SHA256`127447175ec123d5a97aacb549a4f8cadce97fb61f9ff7774cbfc00e3d3f782b`、核验回执SHA256`b9184dc513cddea1d9c8748b09e98b2720194668ead9ed64a396007055e161bb`。远端pytest日志/计数未取得，本地2395/9/2不冒称远端计数；旧工程CI仅原作用域，正式登记CI在此绑定而不回写冻结页/index。
 - **登记出口与逐要求审计**：532定向passed/37.67s/0skip；37阻断0违规、campaign0fail4历史notes、两goal0失败、index18/brief与两侧空白通过。纯只读18checks/359活跃Python AST与E235统计核齐，原109/新276/366归档/43科学pins、用户配置与两无关文件不变；12文档独立只读复核无必修，不当安全/科学/goal校验。31项原prompt-to-artifact更新只解除D6工程缺失，保留原failed/whole超cap及所有weakcoverage，审计17checks全过，回执SHA256`7ec1a3a03966da8af2f6fcb3b473b2efb61722252ef9f2e9a0a16301ac27134a`。
 - **安全与收尾边界**：用户开关false之外，Write增量扫描仍拒绝仓外动态subprocess核验草稿，草稿未写入；按反馈去掉所有子进程后的纯只读版本正常Write成功，不改安全设置或换通道，成功提交不当L3通过。只完成D6，不外发支持工单、不新GPU/MetPy/真实17通道端到端/下载/test解码、不推进N3/N4/N5或main/关闭。C仅活进度与计划实际结果尾，另核自身CI并在外部最终回执交付，不递归改A/index。下一研究动作停在独立审阅已登记negative/mixed/any-unresolved及总体方向裁定；本次不自宣最终goal完成。
+- **N2a规定交付验收（2026-10-03，计划0013）**：原目标D1–D6和本页D0–D4逐项已有证据，结构正确+negative/mixed原本允许验收；节点工程/实验/登记已完成，当前科学paused不表示又缺训练/23val/D6。原单次failed/budget_limited/whole超旧cap仍不改，新独立complete-paused不伪造原finalizer成功；index18/audit-blocked保持，三seed/MetPy意向/e2e和更强analytic只按原范围分清未做，不事后造完成硬门。
+- **全权授权与自主选择**：用户原话「N2a是否已经已经完成，如果未完成，则计划完成，并且明确所有授权全部下放给你。」完整记入计划0013；作为0030接续确认，N2a完成/收尾所需执行、工程修复、实验安排、预算、验证和普通决策自主承担，不逐项询问。执行者据规定交付已经齐，选择0新增GPU-h的六文档验收收尾，不是缩减用户授权或等待授权；不改冻结事实/判据，不借此推进N3–N5、main/关闭或自行设置最终goalcomplete。
+- **暂停界限与版本**：N2a交付完成、原failed、新complete-paused、any-unresolved/advancefalse及账本四历史notes同时保留。收尾C=`20230567eb4272b9fd70a73e0f6e5dc8af34ed63`的CI37109369425/job111164135531精确九步success，已有仓外回执SHA256`2a451777c4d4a2791fd0adfbd9201380427df2b1ec18ea2ec9517d0aa152f1dc`核到；历史A/B/Cpending字段是写入时点，不回写冻结页/index或误造新缺项。本次文档自己的精确CI另核，不能用旧绿覆盖。

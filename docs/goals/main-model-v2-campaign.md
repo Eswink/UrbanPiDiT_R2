@@ -62,7 +62,7 @@
 | --- | --- | --- | --- | --- | --- |
 | N0 | M2-B / RW-B 实现与有界对照 | `docs/goals/main-model-v2-rw-b-round.md`、`docs/R7_72_RW_B_PILOT.md` | 已执行：登记主端点 negative，非证伪 | 已用 0.8356 | **已终结**（negative，两轮复现） |
 | N1 | 转向审计 + 一条可证伪臂 | `docs/goals/main-model-v2-rw-b-subtraction.md:206-208`、`docs/plans/0004-r7-main-model-v2.md:323-325` | 0 GPU-h 审计四块；臂：Z 换冻结随机张量，与 RW-B 配对（沿用 #60 比较器、depth 0、逐 seed 同号三态）；两种结局的读法在长文 §3 预先写定 | ≤0.45 GPU-h | 四方向证据强度排序 + 下一节点提议（N2a–N2d 之一） |
-| N2a | M3（#73 尺度修复 + 三类时刻语义）的新补全 | issue #73、计划 0009、决策 0028/0030 | 已由用户具名进入且工程已证；后续自主新补测，原失败保留；门禁仍为M3尺度/三时刻与完整有界对照，不能用原partial代替 | 执行前自主写定 planned/hard | M3完整覆盖与如实结论 |
+| N2a | M3（#73 尺度修复 + 三类时刻语义）的新补全 | issue #73、计划 0009、决策 0028/0030/0031 | **规定交付已完成**：尺度/三时刻/反证、30项完整覆盖与登记齐；原单次失败保留，negative/mixed允许验收，不新增事后完成门 | 已实耗0.6762461941885866 GPU-h | **交付完成，科学paused**：any-unresolved出口保留，不能等同forecast成功或N3放行 |
 | N2b | 目标对齐修正（训练目标 vs 报告时效） | 计划 0004 `:325`、#64 curriculum 证据 | 必须先有 N1 的目标审计结论；改动要预注册、不得新增阈值与端点 | 届时重定 | 目标对齐后的重测 |
 | N2c | 数据/评估支撑修正（val 跨度、窗口数、气候态） | 决策 0008/0010、`docs/R7_B2_MULTISEED.md` | 只改评估与数据支撑，不改判据；任何扩大数据需用户授权 | 0–0.2 GPU-h | 可分辨性结论 |
 | N2d | 停止（在当前数据与算力下不可分辨） | `docs/goals/main-model-v2-rw-b-subtraction.md` §5 停止条件 3 | 审计给出「不可分辨」的量化读法 | 0 | 如实记录并停 |
@@ -414,3 +414,14 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 - **当前研究出口**：D6登记工程阻塞解除，不取消any-unresolved/N2a-paused，N3/N4/N5依赖仍BLOCKED。
   不加算力闯关、不关闭issue或自行宣布goal完成；下一研究动作仅独立审阅negative/mixed证据与总体
   方向，当前不执行新节点、GPU、数据或关闭。
+- **N2a交付验收与全权委托接续（2026-10-03，计划0013）**：用户问「N2a是否已经已经完成，如果未完成，
+  则计划完成，并且明确所有授权全部下放给你。」规定D1–D6及补测D0–D4已有真实交付；原目标允许
+  negative/mixed结构正确验收，因此不再列缺23val/D6或要求辅助臂取得正增益。A/B/C及精确B/C九步CI
+  已存在；C=`20230567eb4272b9fd70a73e0f6e5dc8af34ed63`/CI37109369425的仓外回执SHA256
+  `2a451777c4d4a2791fd0adfbd9201380427df2b1ec18ea2ec9517d0aa152f1dc`，不以旧时点pending文字推新缺失。
+  全部授权下放作为0030接续确认，本请求所需执行/修复/实验安排/预算/验证/普通决策自主承担，
+  不逐项问。执行者据已齐事实选择0新增GPU-h六文档验收留痕，不是因授权不足而停。
+  **交付完成≠科学成功≠可推进**：原failed/whole超cap、complete-paused、any-unresolved/advancefalse均
+  保留，machine state/current_node/status与账本不改，N3–N5/main/关闭不执行，整个goal不自裁complete。
+  MetPy意向/额外真实17chCPU端到端/更强analytic/三seed不事后升N2a完成硬门；未做与弱覆盖保留。
+  新计划验收矩阵见 `docs/plans/0013-n2a-delivery-acceptance-and-delegation.md`，本次文字自身CI另核。
