@@ -54,7 +54,8 @@ def _batch(hw=(5, 7), size=2):
             "longitude": torch.linspace(-120, 100, hw[1]),
             "init_utc_hour": torch.tensor([18.0, 12.0])[:size],
             "init_day_of_year": torch.tensor([59.0, 365.0])[:size],
-            "init_calendar_year": torch.tensor([2024, 2023])[:size]}
+            "init_calendar_year": torch.tensor([2024, 2023])[:size],
+            "history_offsets_hours": torch.tensor([[-6., 0.], [-6., 0.]])[:size]}
 
 
 def _generic(switches=None, seed=31, **extra):
@@ -334,11 +335,12 @@ def test_known_input_whitelist_and_target_diagnostic_baseline_poison_do_not_chan
 
 @pytest.mark.parametrize("field", DECLARED_MODEL_INPUTS)
 def test_every_declared_known_input_is_shared_and_affects_the_context(field):
-    generic, process = _pair(RW_A)
+    generic, process = _pair(RW_A, known_context_inputs=True)
     inputs = forecast_inputs(_batch())
     changed = dict(inputs)
     shift = -1 if field == 'init_day_of_year' else (1 if field == 'init_calendar_year' else 0.5)
-    changed[field] = inputs[field] + shift
+    changed[field] = (torch.tensor([[-12., 0.], [-6., 0.]])
+                      if field == 'history_offsets_hours' else inputs[field] + shift)
     with torch.no_grad():
         reference = generic.eval()(inputs)
         actual = generic(changed)

@@ -12,6 +12,7 @@ from .r7_v2_protocol import (
     local_path, read_json, safe_output, sha256_file, train_output_dir, validate_protocol,
     worker_result_path, write_json, write_path,
 )
+from .r7_v2_inventory import EXCLUDED_RECURSIVE_OR_FUTURE, pin_inventory, verify_inventory
 from .r7_v2_tables import (
     STATISTICS, aggregate_metrics, case_key, close, integer, number, paired_comparisons,
     candidate_selection, publish_tables, validate_metrics,
@@ -320,10 +321,8 @@ def _verify_training(entry, protocol, job, output):
     for loss in report["losses"]:
         number(loss["loss"], nonnegative=True); number(loss["l6"], nonnegative=True)
         number(loss["gradient_norm"], nonnegative=True)
-        if config["mode"] == "two_step":
-            close(loss["loss"], number(loss["l6"]) + controls["lambda12"] * number(loss["l12"], nonnegative=True), "training objective")
-        elif loss["l12"] is not None:
-            raise ValueError("L6 training must not consume a future L12 loss")
+        from .r7_v2_objective_receipt import verify_training_objective
+        verify_training_objective(loss, mode=config["mode"], controls=controls, contract=contract)
     number(report["elapsed_seconds"], nonnegative=True)
     return report
 
@@ -413,8 +412,17 @@ def validate_full_set(output, protocol):
     return training, evaluations, records
 
 
+def require_publication_intact(output):
+    output = safe_output(output)
+    marker = output / "publication_failure.json"
+    if marker.exists() or marker.is_symlink():
+        raise ValueError("authoritative publication failure; acceptance refused")
+    return output
+
+
 def verify_execution(output, protocol, execution):
     """Continuous first-spawn→last-reap cost is never a sum of successful workers."""
+    output = require_publication_intact(output)
     jobs = protocol["jobs"]
     if (execution["status"] != "results-complete" or execution["finalized"] is not False
             or execution["scientific_claim"] is not False or not execution["limitations"]
@@ -468,6 +476,7 @@ def verify_execution(output, protocol, execution):
         previous_reap = reaped
         observed = max(observed, receipt["peak_reserved_bytes"] / 2 ** 20)
         paths.extend([receipt_path, timing_path, local_path(Path(output) / "workers" / (job_key(job) + ".log"))])
+    require_publication_intact(output)
     return paths
 
 
@@ -574,11 +583,13 @@ def finalize(output, protocol, execution):
         paths.extend([local_path(entry["checkpoint"]), local_path(entry["training_report"])])
     for entry in evaluations.values():
         paths.extend(Path(entry["evaluation_dir"]) / name for name in entry["artifact_sha256"])
-    pins = {str(write_path(path, output).relative_to(output)): sha256_file(path) for path in paths}
+    pins = pin_inventory(output, paths)
     manifest = {"scientific_claim": False, "limitations": outcome["limitations"], "test_read": False,
                 "status": "stage-sealed", "protocol_sha256": protocol["protocol_sha256"], "identity": identity,
                 "files_sha256": pins, "files_digest": digest(pins),
-                "excluded_recursive_or_future": ["artifact_manifest.json", "attempt.json", "execution_attempt.json"],
+                "excluded_recursive_or_future": list(EXCLUDED_RECURSIVE_OR_FUTURE),
                 "final_whole_cost_status": "pending-driver-final-seal", "final_whole_cost_reference": protocol["whole_round_cost_reference"]}
     write_json(output / "artifact_manifest.json", manifest, output=output)
+    verify_inventory(output, pins)
+    require_publication_intact(output)
     return outcome

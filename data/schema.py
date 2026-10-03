@@ -99,6 +99,12 @@ def validate_forecast_sample(
         raise ValueError('init_utc_hour 必须在 [0,24) 内')
     if 'init_day_of_year' in sample and bool(((sample['init_day_of_year']<1)|(sample['init_day_of_year']>366)).any()):
         raise ValueError('init_day_of_year 必须在 [1,366] 内')
+    if 'history_offsets_hours' in sample:
+        from model.known_context_r7 import require_history_offsets
+        require_history_offsets(sample['history_offsets_hours'],
+            batch_size=history.shape[0] if batched else 1,
+            history_steps=history.shape[1] if batched else history.shape[0],
+            device=history.device, batched=batched)
     if 'init_calendar_year' in sample:
         year=sample['init_calendar_year']
         if bool(((year<1)|(year>9999)|(year!=year.round())).any()):

@@ -331,6 +331,7 @@ def training_receipt(output, protocol, job):
                     warmup_updates=controls["warmup"], weight_decay=controls["weight_decay"],
                     batch_size=controls["batch_size"], clip=controls["clip"], bf16=controls["bf16"],
                     checkpoint_every=controls["checkpoint_every"], output_dir=str(folder), device_type="cuda")
+    contract["autoregression"].update(objective="deep_supervised_latitude_area_mse", loss_space="normalized", internal_deep_supervision=True)
     report = {"scientific_claim": False, "limitations": ["fixture only"], "test_read": False, "contract": contract,
               "signature": digest(contract), "updates_this_run": updates, "total_updates": updates, "selected_update": updates,
               "resumed_from_updates": 0, "selection_split": None, "selected_checkpoint": str(checkpoint),
@@ -566,3 +567,21 @@ def test_real_evaluate_helper_schema_is_accepted_on_tmp_synthetic_store(tmp_path
     assert len(verified) == 51 and all(row["n_initializations"] == 21 for row in verified)
     assert all(item["cumulative_reasoning_steps"] == [4] for item in report["initializations"])
     assert any(row["bad_case_counts"]["worse_than_climatology"] for row in verified)
+
+
+@pytest.mark.parametrize("marker_kind", ["regular", "broken_symlink"])
+def test_authoritative_publication_failure_refuses_execution_and_finalization(full_b, marker_kind):
+    output, protocol, execution = full_b
+    marker = output / "publication_failure.json"
+    if marker_kind == "regular":
+        marker.write_text("not trusted JSON; presence is authoritative", encoding="utf-8")
+    else:
+        marker.symlink_to(output / "missing_failure_payload.json")
+    before = marker.read_bytes() if marker.is_file() else str(marker.readlink())
+    for consume in (verify_execution, finalize):
+        with pytest.raises(ValueError, match="publication failure"):
+            consume(output, protocol, execution)
+    assert not (output / "stage_result.json").exists()
+    assert (marker.read_bytes() if marker.is_file() else str(marker.readlink())) == before
+    if marker.is_symlink():
+        marker.unlink()

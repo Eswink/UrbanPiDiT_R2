@@ -2,6 +2,76 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-03 — 完整suite失败保留，UTC标签/inventory/wheel最终基线同步
+
+真实完整suite为5failed/3412passed/9skipped/3warnings、877.18s/whole879.7935s，source_changed=[]；
+原失败日志保留，不能把后续定向通过改写为原fullsuite成功。三旧fixture只补正确history offsets与
+HISTORY_FIELDS等式，35函数/156断言不变，96完整模块passed/66.47s；installed-wheel显式核7个CLI
+modules与known_context成员/origin，新增2断言，1passed/24.55s，不替代最终全suite/CI。
+UTC真实首轮tiny climatology标签0与重算−2.22e−16错配失败原样保留；仅按序列化float/None核标签，
+原容差不动，原28及新增反证合计28passed/112.62s。C future inventory确认startup/19 intermediate遗漏，
+新增独立helper与反证，保留selected required paths、完整owned-root扫描及posthash；同源owner最终118passed/0skip
+（24新+69results+25seal），373.25s/whole1004.682s、软超404.682s未到1200硬限，receipt SHA256
+`bca4c3ab60c7f8018c9ef6e93ac88868ce9c9176773457faecb356bee205faeb`。独立复审与actual C仍未完成，
+不改变science或旧B source。B补全页已单独commit1615795d70117af608787ad6de15d2e5640b901c，
+新index/canonical brief为21条，旧20条验证记录仍按其原时点保留；B负面及0新增GPU不变。
+
+Main FINAL SOURCE STABLE并重新暂存后，实际R-009为1574函数/4299断言，159个test_*.py加conftest.py
+共160个Python文件；全部tracked与checker全扫描相同，较1550/4272净增24函数/27断言。
+尺寸marker为R019=0/R019b969/R02049/R02164/R02257/R02338；只同步同五文件，checker既有注释
+缩2行1927→1925，除两baseline外AST/所有函数体不变；600/200、容忍与精确例外清单不变。
+无测试删除弱化、接口/原数据/依赖/安全配置/凭据修改；本次不提交/推送、不做GPU或科学裁定。
+独立简短治理协议排他先冻后导入，planned180/hard360秒，CUDA隐藏/4线程/进程内socket禁网，
+`/tmp/r7_governance_resync_20261003_v5Ndn3/protocol.json` SHA256
+`694443186f8be93f66b373b66cf840c5266ed69203c3b6dee573ae6ed3295d8e`。四治理文件实际166passed/32.89s、
+0skip；37阻断0违规、AST/LOC/尺寸marker核齐；campaign0fail/4历史notes、两goal0fail/0advisory、
+index/canonical brief21records、两侧diff-check均0，431pins验证期间无漂移。验证整轮243.523s、
+软超63.523s继续且未触及360硬限，receipt SHA256
+`591222570e4a92af94188c3293f606a11d51c4d7d31afacfaf119f4077485b88`；本段后补文字的最终身份另封，
+不把本轮治理通过冒称原失败fullsuite/待跑新fullsuite、精确CI或actual C通过。
+
+## 2026-10-03 — known-context/source-position、FP32元数据与日志pin工程同步
+
+以 `adb28667759e8d1aabd3bc0bf7bc07f7b2bbd591` 为起点，0035/0036及
+`docs/R7_V2_KNOWN_CONTEXT_ACCEPTANCE.md` 记录新known-context历史offset/地方平太阳时、
+source-key固定位置与Generic同信息契约；默认关闭兼容、producer/白名单及物理两步接口同步。
+active batch anchor仅按selected切片；合法20分钟cadence只按原dtype半ULP传播误差核regularity，
+不放宽已冻科学容忍。独立46项窄复验及主链249passed/51.03s只接受这些工程修复与有限FP32范围。
+原独立118passed/3failed/2deselected、各实现/fixture/解释器失败日志及BF16 fixed/streamed
+cast-cache梯度缺口保留；cache关闭诊断不把原BF16 assertion改为通过，不自称整包接受。
+
+0036前瞻按训练实际FP32乘法/加法逐次舍入核损失元数据，400条实际两步loss严格重构相等；
+原B failed/finalized=false、361原pins、旧protocol/zip/checkpoint及全额成本不改，累计仍
+5.780427976370344 GPU-h。新CPU统计attempt01执行51.719s，但独立inventory发现遗漏worker.log，
+整包拒接受；修复worker日志pin与owned-reap后hash复核，59定向+3独立工程gate通过。
+新attempt02已exit0但完整产物独立接受尚待核齐，不把CPU补全冒称B重跑或旧失败成功。
+
+另有新包probe/active-anchor定向46passed/15.24s（43+3），results/driver/statistics/objective
+220passed/385.57s、driver93passed及workerlog修复59passed/4.28s，均不是fullsuite或科学样本。
+K3归档参照、UTC充分统计与精度probe实现/反证进入活跃跟踪集合；K3 glob/names/path/namespace
+机械收尾保留原断言并增namespace恢复反证，原namespace失败日志保留。UTC v3原2passed/112s
+之后wrapper身份失败另封，修后重试不覆盖旧日志；本条不把尚未实核最终回执写成PASS。
+
+全部所有者最终暂存及两处R-019语义保持格式修复后，checker实际AST为1550函数/4272断言，
+157个test_*.py加conftest.py共158个Python文件；tracked与全扫描相同，相对1408/3794净增142/478。
+尺寸marker为R019=0/R019b967/R02049/R02164/R02256/R02338；checker既有基线注释压短，
+1929→1927物理行，只改两常量及已有注释，其余AST/全部函数体/容忍/精确例外保持；600/200上限不动。
+四规则页同步实测数字，不删弱测试、不新增冻结例外，也不以计数替代实际验证。
+
+本次独立治理验证协议在任何checker/pytest导入前以排他方式冻结于
+`/tmp/r7_governance_sync_20261003_VHG8K5/protocol.json`，planned600/hard1200秒，
+protocol SHA256 `8a8e889128e5a230c6a0cfe429db5b8635dd10a79624d73ab56d91a5d0759ab1`。
+使用字面 `.venv/bin/python`、CUDA隐藏、4线程、进程内socket禁网。完整checker自测与campaign/goal/index
+四文件实际166passed/32.97s、0skip；37阻断0违规、尺寸标记精确一致，campaign N3为0fail/4历史notes，
+两现行goal为0fail/0advisory、index与canonical brief20records、两侧diff-check均exit0。667源pins前后无漂移，
+checker AST仅两基线值改变/所有函数体不变；验证整轮505.869s、软超0，receipt SHA256
+`5f8201b78cfd892053205b847b29a90e19325b2bb7eec78fa2a273e1b224ebd6`。本段后补的文字身份另封final回执，
+不把验证前CHANGELOG hash冒称最终文字；原始stdout与protocol/source zip全保留。
+新增治理工作0 GPU-h；新包真实FP32/BF16、K3真实GPU、C9训练/135评估、adaptive科学
+裁定、稳定全suite/installed-wheel与精确新CI均未完成，六issue关闭/main推进/最终goal完成未做。
+旧精确CI不覆盖未提交新源码；旧checkpoint仍按各自归档身份重放。无真实数据下载/发布/改写、
+依赖安装、凭据/安全配置、GPU独占或邻居信号变化；本轮仅五个授权文件维护，不提交/推送。
+
 ## 2026-10-03 — N3独立主线工程冻结与0033/0034反证修复
 
 保留M3旧failed/paused与0032新路线，新增完整匹配Generic、严格母体权重导入、精确185窗口、

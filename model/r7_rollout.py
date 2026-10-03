@@ -8,6 +8,7 @@ import torch
 from torch import nn
 
 from .r7_halting import positive_int
+from .known_context_r7 import HISTORY_CONTEXT_FIELDS, require_history_offsets, uses_known_context
 from .spacetime_conditioning_r7 import (
     CALENDAR_INPUT_FIELDS, SPACETIME_INPUT_FIELDS, advance_calendar_time, require_spacetime_fields,
 )
@@ -67,6 +68,8 @@ def rollout_model_input(sample: Mapping[str, torch.Tensor], *, lead_hours: float
     if history.ndim != 4:
         raise ValueError("an unbatched [T,C,H,W] history is required for one window")
     batch["coarse_history"] = history.unsqueeze(0)
+    if "history_offsets_hours" in batch and torch.is_tensor(batch["history_offsets_hours"]):
+        batch["history_offsets_hours"] = batch["history_offsets_hours"].unsqueeze(0)
     batch["lead_time_hours"] = history.new_full((1,), float(lead_hours))
     if device is not None:
         batch = {name: value.to(device) for name, value in batch.items()}
@@ -113,7 +116,12 @@ def autoregressive_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], 
     history = history.detach().clone()
     b, _, c, h, w = history.shape
     declared = {name: batch[name] for name in SPACETIME_INPUT_FIELDS + CALENDAR_INPUT_FIELDS
-                if name in batch}
+                + HISTORY_CONTEXT_FIELDS if name in batch}
+    if uses_known_context(model):
+        if "history_offsets_hours" not in declared:
+            raise KeyError("known_context_inputs requires history_offsets_hours for physical rollout")
+        require_history_offsets(declared["history_offsets_hours"], batch_size=b,
+            history_steps=history.shape[1], device=history.device, cadence_hours=step_hours)
     accumulated_lead = conditions_on_accumulated_lead(model)
     calendar = None
     if accumulated_lead and "init_calendar_year" in declared:

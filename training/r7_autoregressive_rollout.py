@@ -18,6 +18,7 @@ from torch import nn
 
 from model.r7_halting import forecast_inputs, positive_int
 from model.spacetime_conditioning_r7 import advance_calendar_time, require_spacetime_fields
+from model.known_context_r7 import require_history_offsets, uses_known_context
 from .r7_halting import per_sample_latitude_mse
 from .r7_recursive_losses import deep_supervised_forecast_mse
 
@@ -98,6 +99,11 @@ def _training_inputs(model, batch, reasoning_steps):
         if (lead != STEP_HOURS).any():
             raise ValueError("both transition lead embeddings must be fixed at 6 hours")
     inputs["lead_time_hours"] = history.new_full((history.shape[0],), float(STEP_HOURS), dtype=torch.float32)
+    if uses_known_context(model):
+        if "history_offsets_hours" not in inputs:
+            raise KeyError("known_context_inputs requires history_offsets_hours for training rollout")
+        require_history_offsets(inputs["history_offsets_hours"], batch_size=history.shape[0],
+            history_steps=history.shape[1], device=history.device, cadence_hours=STEP_HOURS)
     if getattr(model, "spacetime_inputs", False):
         require_spacetime_fields(inputs, history_shape=history.shape[-2:], batch_size=history.shape[0])
     return inputs

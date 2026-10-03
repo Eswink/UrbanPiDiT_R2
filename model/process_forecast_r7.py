@@ -82,6 +82,8 @@ class ProcessForecastCoReasoner(nn.Module):
         solver_state_recurrence:bool=True,
         solver_gate_proposal:bool=True,
         draft_query_feedback:bool=False,
+        source_position_markers:bool=False,
+        known_context_inputs:bool=False,
     ):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
@@ -92,9 +94,15 @@ class ProcessForecastCoReasoner(nn.Module):
                            (local_solver_state,'local_solver_state'),
                            (solver_state_recurrence,'solver_state_recurrence'),
                            (solver_gate_proposal,'solver_gate_proposal'),
-                           (draft_query_feedback,'draft_query_feedback')):
+                           (draft_query_feedback,'draft_query_feedback'),
+                           (source_position_markers,'source_position_markers'),
+                           (known_context_inputs,'known_context_inputs')):
             if type(value) is not bool:
                 raise ValueError(f"{name} must be boolean")
+        if source_position_markers and not positional_process_readout:
+            raise ValueError('source_position_markers requires positional_process_readout=True')
+        if known_context_inputs and not spacetime_inputs:
+            raise ValueError('known_context_inputs requires spacetime_inputs=True')
         if pooled_readout_query and not positional_process_readout:
             raise ValueError("pooled_readout_query only exists inside the positional "
                              "process readout; turning it on without "
@@ -126,6 +134,8 @@ class ProcessForecastCoReasoner(nn.Module):
                     f"{name}=False only exists inside local_solver_state; turning it off "
                     "with local_solver_state=False would be a silently ignored switch")
         self.spatial_solver_feedback=spatial_solver_feedback
+        self.source_position_markers=source_position_markers
+        self.known_context_inputs=known_context_inputs
         self.spacetime_inputs=spacetime_inputs
         # The capacity-control arms of the round-three study keep the space-time
         # module and change only what it is shown; a control mode with the pathway
@@ -177,6 +187,7 @@ class ProcessForecastCoReasoner(nn.Module):
             default_lead_hours=default_lead_hours,
             spacetime_inputs=spacetime_inputs,
             spacetime_field_mode=self.spacetime_field_mode,
+            known_context_inputs=self.known_context_inputs,
         )
 
         self.process_queries=nn.Parameter(

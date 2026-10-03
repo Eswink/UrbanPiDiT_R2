@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset
 from model.r7_rollout import validate_horizons
 from .r7_store import (HOUR_NS, init_time_fields, validate_store, normalization,
-    split_time_labels)
+    split_time_labels, history_offsets_hours_from_ns)
 
 
 class ZarrRolloutDataset(Dataset):
@@ -78,6 +78,8 @@ class ZarrRolloutDataset(Dataset):
             'rollout_targets':torch.from_numpy(frames[len(history):]),
             'latitude':torch.from_numpy(self.latitude.copy()),'longitude':torch.from_numpy(self.longitude.copy()),
             'lead_time_hours':torch.tensor(float(self.step_hours)),
+            'history_offsets_hours':torch.from_numpy(history_offsets_hours_from_ns(
+                np.asarray([self.times[i].value for i in history], dtype=np.int64))),
             'init_time':self.times[history[-1]].isoformat(),
             'valid_times':[self.times[i].isoformat() for i in targets],
             # The same derivation the training reader uses, so the two producers

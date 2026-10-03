@@ -25,6 +25,7 @@ from data.r7_evaluation import ZarrRolloutDataset
 from data.r7_zarr_dataset import ZarrAtmosWindowDataset
 from model.process_forecast_r7 import ProcessForecastCoReasoner
 from model.r7_halting import forecast_inputs
+from model.known_context_r7 import HISTORY_CONTEXT_FIELDS
 from model.spacetime_conditioning_r7 import (CALENDAR_INPUT_FIELDS, SPACETIME_INPUT_FIELDS, SpacetimeConditioning,
     phase_features, position_features)
 from training.r7_experiment import make_model, seed_everything
@@ -91,7 +92,8 @@ def test_the_rollout_reader_agrees_with_the_training_reader(tmp_path):
     assert float(rollout["init_day_of_year"]) == stamp.dayofyear
     assert float(rollout["init_year"]) == stamp.year
     assert float(rollout["init_calendar_year"]) == stamp.year
-    expected = {"coarse_history", "lead_time_hours"} | set(SPACETIME_INPUT_FIELDS) | set(CALENDAR_INPUT_FIELDS)
+    expected = ({"coarse_history", "lead_time_hours"} | set(SPACETIME_INPUT_FIELDS)
+                | set(CALENDAR_INPUT_FIELDS) | set(HISTORY_CONTEXT_FIELDS))
     assert set(forecast_inputs(training)) == expected
     assert set(forecast_inputs(rollout)) == expected
 

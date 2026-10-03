@@ -47,6 +47,35 @@ def declared_source_roles(model):
     return model.role_context, model.role_draft
 
 
+def reasoning_source_key(model, context, draft_tokens, token_hw):
+    """P/latent source key: position once, then role.
+
+    Off delegates to the original expression without computing a position basis.
+    Marked copies live only in this key: context, draft encoding and recurrent
+    carry remain untouched for the reader, solver and next internal step.
+    """
+    role_context, role_draft = declared_source_roles(model)
+    if not model.source_position_markers:
+        return recurrent_key(context, draft_tokens, role_context=role_context,
+            role_draft=role_draft if draft_tokens is not None else None)
+    if context.ndim != 3 or context.shape[-1] != model.dim:
+        raise ValueError('source_position_markers needs [B,N,D] context')
+    rows, columns = int(token_hw[0]), int(token_hw[1])
+    if rows < 1 or columns < 1 or rows * columns != context.shape[1]:
+        raise ValueError('source_position_markers token grid must match context')
+    if draft_tokens is not None:
+        if draft_tokens.shape != context.shape:
+            raise ValueError('source_position_markers requires aligned draft/context shapes')
+        if draft_tokens.device != context.device or draft_tokens.dtype != context.dtype:
+            raise ValueError('source_position_markers draft/context device and dtype must match')
+    position = model.process_reader.position_encoding(
+        token_hw, device=context.device, dtype=context.dtype).unsqueeze(0)
+    marked_context = context + position
+    marked_draft = None if draft_tokens is None else draft_tokens + position
+    return recurrent_key(marked_context, marked_draft, role_context=role_context,
+        role_draft=role_draft if draft_tokens is not None else None)
+
+
 def solver_conditioning(context, summary, draft_tokens=None, *, spatial_feedback=False):
     """Optional aligned draft evidence for S(C, P, E(Y)); no added parameters.
 
@@ -166,10 +195,7 @@ def generic_reasoning_step(model, tensors: GenericStepInput,
         draft_tokens, draft_hw = model.draft_encoder(draft)
         if tuple(draft_hw) != tuple(token_hw):
             raise ValueError(f'draft token grid {draft_hw} != context grid {token_hw}')
-    role_context, role_draft = declared_source_roles(model)
-    latent = model._cell(latent, recurrent_key(
-        context, draft_tokens, role_context=role_context,
-        role_draft=role_draft if draft_tokens is not None else None))
+    latent = model._cell(latent, reasoning_source_key(model, context, draft_tokens, token_hw))
     if model.draft_query_feedback:
         summary = model.latent_conditioning(latent, context, token_hw, draft_tokens=draft_tokens)
     else:
@@ -242,7 +268,8 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                  source_role_markers:bool=False,positional_process_readout:bool=False,
                  pooled_readout_query:bool=False,local_solver_state:bool=False,
                  solver_state_recurrence:bool=False,solver_gate_proposal:bool=False,
-                 use_forecast_feedback:bool=True,draft_query_feedback:bool=False):
+                 use_forecast_feedback:bool=True,draft_query_feedback:bool=False,
+                 source_position_markers:bool=False,known_context_inputs:bool=False):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
                            (spacetime_inputs,'spacetime_inputs'),
@@ -253,9 +280,15 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                            (solver_state_recurrence,'solver_state_recurrence'),
                            (solver_gate_proposal,'solver_gate_proposal'),
                            (use_forecast_feedback,'use_forecast_feedback'),
-                           (draft_query_feedback,'draft_query_feedback')):
+                           (draft_query_feedback,'draft_query_feedback'),
+                           (source_position_markers,'source_position_markers'),
+                           (known_context_inputs,'known_context_inputs')):
             if type(value) is not bool:
                 raise ValueError(f"{name} must be boolean")
+        if source_position_markers and not positional_process_readout:
+            raise ValueError('source_position_markers requires positional_process_readout=True')
+        if known_context_inputs and not spacetime_inputs:
+            raise ValueError('known_context_inputs requires spacetime_inputs=True')
         if pooled_readout_query and not positional_process_readout:
             raise ValueError('pooled_readout_query requires positional_process_readout=True')
         if draft_query_feedback and not positional_process_readout:
@@ -274,6 +307,8 @@ class GenericRecursiveWeatherForecaster(nn.Module):
             raise ValueError('latent_tokens must be >= 1')
         self.spatial_solver_feedback=spatial_solver_feedback
         self.source_role_markers=source_role_markers
+        self.source_position_markers=source_position_markers
+        self.known_context_inputs=known_context_inputs
         self.positional_process_readout=positional_process_readout
         self.pooled_readout_query=pooled_readout_query
         self.draft_query_feedback=draft_query_feedback
@@ -297,7 +332,8 @@ class GenericRecursiveWeatherForecaster(nn.Module):
         self.activation_checkpointing=bool(activation_checkpointing)
         self.backbone=NativeAtmosForecaster(in_channels,history_steps,self.out_channels,dim,patch_size,
             depth,heads,window_size,dropout,activation_checkpointing,periodic_width,default_lead_hours,
-            spacetime_inputs=spacetime_inputs,spacetime_field_mode=self.spacetime_field_mode)
+            spacetime_inputs=spacetime_inputs,spacetime_field_mode=self.spacetime_field_mode,
+            known_context_inputs=self.known_context_inputs)
         self.latent=nn.Parameter(torch.randn(1,int(latent_tokens),dim)*.02)
         self.draft_encoder=DraftTokenEncoder(self.out_channels,dim,patch_size)
         self.cell=GenericRecursiveCell(dim,heads,mlp_ratio=3.,dropout=dropout)

@@ -60,3 +60,5 @@
 | [0032](0032-independent-autoregressive-exposure-route.md) | 用户前瞻选择：终结M3辅助监督假设，独立自回归暴露主线接续B/C/D/E；旧出口不改 | accepted | 2026-10-03 |
 | [0033](0033-explicit-calendar-year-conditioning.md) | 显式已知init_calendar_year修Gregorian年界；旧字段/平均年周期路径逐位兼容 | accepted | 2026-10-03 |
 | [0034](0034-explicit-draft-query-feedback.md) | 显式default-off局部draft query补齐设计；旧父保留、完整Generic配对与直接因果反证 | accepted | 2026-10-03 |
+| [0035](0035-complete-known-context-contract.md) | 原local solar/history offsets/source位置契约显式补齐，B先封印、新C独立公平包级确认 | accepted | 2026-10-03 |
+| [0036](0036-fp32-loss-audit-and-statistics-complement.md) | 实际FP32目标逐运算核验；保留B聚合failed，仅独立零GPU统计补全 | accepted | 2026-10-03 |

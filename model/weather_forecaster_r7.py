@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from .coarse_encoder import CoarseEncoder
 from .coarse_forecast import CoarseForecastHead,LeadTimeEmbedding
+from .known_context_r7 import KnownContextConditioning
 from .spacetime_conditioning_r7 import (SpacetimeConditioning, isolated_stream,
     require_field_mode)
 
@@ -29,8 +30,13 @@ class NativeAtmosForecaster(nn.Module):
                  dim:int=128,patch_size:int=2,depth:int=4,heads:int=4,window_size:int=8,
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
                  default_lead_hours:float=6.,spacetime_inputs:bool=False,
-                 spacetime_field_mode:str='fields'):
+                 spacetime_field_mode:str='fields',known_context_inputs:bool=False):
         super().__init__()
+        if type(known_context_inputs) is not bool:
+            raise ValueError('known_context_inputs must be boolean')
+        if known_context_inputs and not spacetime_inputs:
+            raise ValueError('known_context_inputs requires spacetime_inputs=True')
+        self.known_context_inputs=known_context_inputs
         if type(spacetime_inputs) is not bool:
             raise ValueError('spacetime_inputs 必须是布尔开关')
         self.spacetime_inputs=spacetime_inputs
@@ -64,6 +70,11 @@ class NativeAtmosForecaster(nn.Module):
                     dim,patch_size,periodic_width=periodic_width,
                     default_lead_hours=self.default_lead_hours,
                     field_mode=self.spacetime_field_mode)
+        if self.known_context_inputs:
+            with isolated_stream():
+                self.known_context=KnownContextConditioning(
+                    dim,self.history_steps,patch_size,periodic_width=periodic_width,
+                    field_mode=self.spacetime_field_mode)
 
     def forward(self,batch:Mapping[str,torch.Tensor])->R7ForecastOutput:
         history=batch['coarse_history']
@@ -76,6 +87,9 @@ class NativeAtmosForecaster(nn.Module):
         context=tokens+lead[:,None,:]
         if self.spacetime_inputs:
             context=context+self.spacetime(
+                batch,history=history,token_hw=token_hw).to(tokens.dtype)
+        if self.known_context_inputs:
+            context=context+self.known_context(
                 batch,history=history,token_hw=token_hw).to(tokens.dtype)
         base=batch.get('atmos_baseline')
         if base is None:

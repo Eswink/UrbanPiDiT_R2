@@ -44,6 +44,7 @@ def batch(channels=1):
             "longitude": torch.tensor([115., 115.25, 115.5, 115.75]),
             "lead_time_hours": torch.tensor([6.]), "init_utc_hour": torch.tensor([18.]),
             "init_day_of_year": torch.tensor([366.]), "init_calendar_year": torch.tensor([2016.]),
+            "history_offsets_hours": torch.tensor([[-6., 0.]]),
             "init_year": torch.tensor([1234.]), "process_targets": torch.tensor([[9999.]]),
             "untrusted_metadata": "not a model input"}
 

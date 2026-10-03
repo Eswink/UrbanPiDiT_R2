@@ -400,12 +400,14 @@ def test_the_declared_inputs_do_not_depend_on_the_mode():
     """D2: the whitelist is the field set, and no mode narrows or widens it."""
     from model.r7_halting import DECLARED_MODEL_INPUTS, forecast_inputs
     from model.spacetime_conditioning_r7 import CALENDAR_INPUT_FIELDS
+    from model.known_context_r7 import HISTORY_CONTEXT_FIELDS
 
     batch = fixed_fields_batch()
     expected = {"coarse_history", "lead_time_hours", *SPACETIME_INPUT_FIELDS}
     assert set(forecast_inputs(batch)) == expected
-    assert set(DECLARED_MODEL_INPUTS) == expected | set(CALENDAR_INPUT_FIELDS)
-    with_calendar = dict(batch, init_calendar_year=torch.full_like(batch["init_day_of_year"], 2016))
+    assert set(DECLARED_MODEL_INPUTS) == expected | set(CALENDAR_INPUT_FIELDS) | set(HISTORY_CONTEXT_FIELDS)
+    with_calendar = dict(batch, init_calendar_year=torch.full_like(batch["init_day_of_year"], 2016),
+                         history_offsets_hours=torch.tensor([[-6., 0.]]).expand(BATCH_SIZE, -1))
     assert set(forecast_inputs(with_calendar)) == set(DECLARED_MODEL_INPUTS)
     assert "init_year" not in forecast_inputs(dict(with_calendar, init_year=torch.tensor(2001)))
 

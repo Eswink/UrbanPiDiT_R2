@@ -5,7 +5,7 @@ import torch
 from torch.nn import functional as F
 from torch.utils.data import Dataset
 
-from .r7_store import HOUR_NS, init_time_fields
+from .r7_store import HOUR_NS, init_time_fields, history_offsets_hours_from_ns
 
 # 2016-01-01T00:00Z, the segment every R7 engineering store starts from. The
 # synthetic fixture must not invent a *different* calendar convention from the
@@ -73,6 +73,9 @@ class SyntheticAtmosDataset(Dataset):
             'coarse_history':history.float(),
             'atmos_target':target.float(),
             'lead_time_hours':torch.tensor(self.lead,dtype=torch.float32),
+            'history_offsets_hours':torch.from_numpy(history_offsets_hours_from_ns(
+                np.asarray([init_ns - (self.history_steps - 1 - slot) * 6 * HOUR_NS
+                            for slot in range(self.history_steps)], dtype=np.int64))),
             'latitude':latitude.float(),
             'longitude':longitude.float(),
             'grid_spacing_deg':torch.tensor(self.grid,dtype=torch.float32),

@@ -2,11 +2,13 @@
 
 范围：`tests/**`、`pytest.ini`。
 
-现状基线（实测，2026-10-03 N3 独立主线工程准备；未执行本轮GPU）：**1408 个测试函数、3794 个断言**（checker 的
-R-009 口径：`tests/**` 下每个 `test_*` 函数与每条 `assert`）；同次全量AST复算146个文件，
-相对N2a的1210/3112新增198函数/682断言，无删除或弱化。覆盖母体身份、完整匹配、物理full-BPTT、
-日历/query分支反证、语义合约、baseline/成本/门禁及写前拒绝。旧失败日志保留，不通过计数替代实际测试。
-其中 1408/3794 是 R-009 使用的稳定基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
+现状基线（最终重新暂存后实测，2026-10-03 UTC标签/完整inventory与wheel工程）：**1574 个测试函数、4299 个断言**。
+按 checker R-009 的 `iter_py`/AST 口径计入 `tests/**` 下全部 `test_*` 同步/异步函数（含嵌套函数）与每条 `assert`；
+159 个 `test_*.py` 加 `conftest.py` 共160个Python文件，跟踪集合与checker全扫描计数完全一致。
+相对上一轮1550/4272净增24函数/27断言；新增UTC标签与inventory反证，wheel多2断言，三旧fixture156断言不变。
+覆盖known/source、active-anchor/cadence、FP32元数据/log pin及K3/UTC/probe，并补完整owned-root inventory与标签反证。
+原fullsuite 5failed/3412passed/9skipped/3warnings及BF16 fixed/streamed梯度缺口保留；计数不等于pytest实例或科学接受。
+其中 1574/4299 是 R-009 使用的稳定基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
 的 `TEST_FUNCTION_BASELINE` / `ASSERT_BASELINE`** 并在 CHANGELOG 说明原因。本页与
 `docs/rules/MIGRATION.md` 引用的数字现在由 `tests/test_check_conventions.py` **直接对 checker 的常量**
 断言（此前钉的是字面量 "827/2046"，改基线就会让测试变红而文档仍写着旧值）。测试文件数与参数化计数是当前观测值，

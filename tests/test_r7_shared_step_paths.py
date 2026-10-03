@@ -120,12 +120,10 @@ def test_the_adaptive_active_subset_reproduces_full_depth_when_nothing_stops():
 
 
 def test_the_role_markers_only_change_what_the_cell_reads():
-    """The design contract's own criterion, with the counterproof next to it.
+    """Roles bind content to a source, not to an order within the source.
 
-    Reversing the draft tokens permutes the cell's key set, and attention reads the
-    keys as a set, so without markers the cell's answer is unchanged up to the
-    floating-point order of the softmax sum. With markers the two halves are
-    distinguishable, and the same permutation moves the answer.
+    Same-half reversal preserves the key set with fixed roles too. Swapping the
+    two sources preserves the unmarked content set but changes its role binding.
     """
     torch.manual_seed(41)
     cell = GenericRecursiveCell(16, 2, mlp_ratio=3.0, dropout=0.0).eval()
@@ -133,18 +131,33 @@ def test_the_role_markers_only_change_what_the_cell_reads():
     draft = torch.randn(2, 24, 16)
     reversed_draft = torch.flip(draft, dims=[1])
     query = torch.randn(2, 4, 16)
+    role_context, role_draft = torch.randn(1, 1, 16), torch.randn(1, 1, 16)
     with torch.no_grad():
         plain = cell(query, recurrent_key(context, draft))
         permuted = cell(query, recurrent_key(context, reversed_draft))
-        marked = cell(query, recurrent_key(context, draft, role_context=torch.randn(1, 1, 16),
-                                           role_draft=torch.randn(1, 1, 16)))
+        source_swapped = cell(query, recurrent_key(draft, context))
+        marked = cell(query, recurrent_key(context, draft, role_context=role_context,
+                                           role_draft=role_draft))
+        marked_reversed = cell(query, recurrent_key(context, reversed_draft,
+            role_context=role_context, role_draft=role_draft))
         marked_permuted = cell(query, recurrent_key(
-            context, reversed_draft, role_context=torch.randn(1, 1, 16),
-            role_draft=torch.randn(1, 1, 16)))
+            draft, context, role_context=role_context, role_draft=role_draft))
+        same_role = cell(query, recurrent_key(context, draft,
+            role_context=role_context, role_draft=role_context))
+        same_role_swapped = cell(query, recurrent_key(draft, context,
+            role_context=role_context, role_draft=role_context))
+    assert torch.allclose(plain, source_swapped, atol=1e-5), (
+        "without roles source swapping preserves the same content set")
+    assert torch.allclose(marked, marked_reversed, atol=1e-5), (
+        "a fixed source role cannot distinguish order within its own key set")
     assert torch.allclose(plain, permuted, atol=1e-5), (
         "without markers the cell should not notice the key order at all")
     assert not torch.allclose(marked, marked_permuted, atol=1e-5), (
         "the role vectors did not reach the cell's key")
+    import pytest
+    with pytest.raises(AssertionError):
+        assert not torch.allclose(same_role, same_role_swapped, atol=1e-5), (
+            "the role vectors did not reach the cell's key")
 
 
 def test_the_role_vectors_reach_the_forward_path():

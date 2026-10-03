@@ -27,6 +27,7 @@ from model.r7_halting import (DECLARED_MODEL_INPUTS, AdaptiveProcessForecaster,
     forecast_inputs)
 from model.r7_rollout import autoregressive_rollout, rollout_model_input
 from model.spacetime_conditioning_r7 import CALENDAR_INPUT_FIELDS, SPACETIME_INPUT_FIELDS
+from model.known_context_r7 import HISTORY_CONTEXT_FIELDS
 from training.r7_evaluate import evaluate_local
 from training.r7_experiment import dataset_identity, make_model, seed_everything
 from training.r7_inference_profile import profile_forward
@@ -36,7 +37,7 @@ from training.r7_streaming import backward_streamed_truncated
 from test_r7_storage_safety import build
 
 EXPECTED = frozenset({"coarse_history", "lead_time_hours", *SPACETIME_INPUT_FIELDS})
-WITH_CALENDAR = EXPECTED | frozenset(CALENDAR_INPUT_FIELDS)
+WITH_CALENDAR = EXPECTED | frozenset(CALENDAR_INPUT_FIELDS) | frozenset(HISTORY_CONTEXT_FIELDS)
 LEAKAGE = frozenset({"atmos_target", "atmos_baseline", "rollout_targets", "process_targets",
                      "sample_id", "init_time", "valid_times", "init_year", "grid_spacing_deg"})
 PROCESS_CONFIG = {"in_channels": 1, "out_channels": 1, "history_steps": 2, "dim": 16,
@@ -76,8 +77,9 @@ def test_the_whitelist_is_the_declared_set_and_carries_no_target():
             **{name: torch.zeros(1) for name in LEAKAGE}}
     whitelisted = forecast_inputs(full)
     assert set(whitelisted) == EXPECTED
-    assert set(whitelisted) | set(CALENDAR_INPUT_FIELDS) == set(DECLARED_MODEL_INPUTS)
-    with_calendar = forecast_inputs(dict(full, init_calendar_year=torch.tensor(2016.0)))
+    assert set(whitelisted) | set(CALENDAR_INPUT_FIELDS) | set(HISTORY_CONTEXT_FIELDS) == set(DECLARED_MODEL_INPUTS)
+    with_calendar = forecast_inputs(dict(full, init_calendar_year=torch.tensor(2016.0),
+                                        history_offsets_hours=torch.tensor([[-6., 0.]])))
     assert set(with_calendar) == set(DECLARED_MODEL_INPUTS) == WITH_CALENDAR
     assert not set(with_calendar) & LEAKAGE
     assert not set(whitelisted) & LEAKAGE

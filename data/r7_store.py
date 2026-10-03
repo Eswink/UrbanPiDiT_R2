@@ -49,6 +49,24 @@ def init_time_fields(stamp_ns):
     }
 
 
+def history_offsets_hours_from_ns(history_ns):
+    """Signed UTC differences from validated integer history stamps; no store writes.
+
+    Subtract Python integers before conversion to float hours so epoch-sized
+    nanoseconds never lose precision and int64 subtraction cannot overflow.
+    """
+    stamps = np.asarray(history_ns)
+    if stamps.ndim != 1 or stamps.size < 1 or stamps.dtype != np.dtype('int64'):
+        raise ValueError('history timestamps must be nonempty int64 [T] nanoseconds')
+    final = int(stamps[-1])
+    differences = [int(stamp) - final for stamp in stamps]
+    if stamps.size > 1:
+        cadence = [int(stamps[i + 1]) - int(stamps[i]) for i in range(stamps.size - 1)]
+        if cadence[0] <= 0 or any(value != cadence[0] for value in cadence):
+            raise ValueError('history timestamps must have regular positive cadence')
+    return np.asarray([difference / HOUR_NS for difference in differences], dtype=np.float64)
+
+
 def split_time_labels(root):
     """Per-timestep split ownership under the store's own declared semantics.
 

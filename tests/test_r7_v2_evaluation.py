@@ -332,8 +332,8 @@ def test_poison_future_keys_never_read_by_model_input_or_autoregressive_forward(
     sample = Poison(coarse_history=torch.ones(2, 17, 6, 7), latitude=torch.linspace(40, 30, 6),
                     longitude=torch.linspace(100, 106, 7), init_utc_hour=torch.tensor(0.),
                     init_day_of_year=torch.tensor(1.), init_year=torch.tensor(2019.),
-                    init_calendar_year=torch.tensor(2019.), rollout_targets=object(), atmos_target=object(),
-                    process_targets=object(), future_boundary=object())
+                    init_calendar_year=torch.tensor(2019.), history_offsets_hours=torch.tensor([-6., 0.]),
+                    rollout_targets=object(), atmos_target=object(), process_targets=object(), future_boundary=object())
     inputs = rollout_model_input(sample, device=torch.device("cpu"))
     model = TinyRecursive().eval()
     trajectory = autoregressive_rollout(model, inputs, lead_hours=(12,), inference_kwargs={"reasoning_steps": 2})

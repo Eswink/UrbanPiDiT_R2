@@ -453,11 +453,28 @@
 | E-234 | **真实用户自行关闭Mimosa后允许继续D6，不冒称官方处置或安全通过**：用户先答「我对其进行明确授权」，再说明「我已经关闭了Mimosa，可以继续进行」；只读核用户及仓库本地enabledPlugins同名项false。执行者未编辑安全配置，用户本地差异不提交，不外发支持工单、不升级/深扫/修补载荷；原12high1low及覆盖不足保留。范围只为证据/index/账本/工作分支正常git/SSH/CI，原any-unresolved/N2a-paused及N3/N4/N5/main/关闭边界不变 | 本次真实用户两句话；仓外 `starting_identity.json`，`docs/R7_SECURITY_SCAN_TRIAGE.md`本次接续与计划0012差异块；用户`.zcode/config.json`未暂存差异仅只读核 | 单点（一次真实用户授权与本地工具状态） | 已确认 |
 | E-235 | **证据页真实单独冻结并绑定正式audit记录，原失败/实验文件不改**：A=`1de3a672d859b42efa7a5fac3293c2832df4a6ee`仅补测页，实际blob SHA25617c44625…89b4a85；index17→18仅append新audit/blocked/scientific_claim=false记录，旧17条原文与历史pending草稿不变，brief canonical。补测GPU0.17899193391850632h独立记账/record引用，不重记原failed成本；恢复前old109/new276/366归档/43科学pins无差异。完整CPU2395passed9skipped2warnings230.96s，跳过非通过；420定向0skip与3399只读产物核查不代MetPy/GPU重放/真实17通道CPU端到端或安全审计。精确登记CI在后续活进度单独绑定，未先验标通过 | 仓外 `evidence_freeze_commit.json`、`index_append_receipt.json`/完整CPU日志SHA2ec07416…534dab；正式record:m3-validation-complement-complete-paused；补测页§8/计划0012接续 | 全体（本次声明的证据身份/index追加/CPU与文件集合） | 已确认 |
 
+## 第二十三遍（2026-10-03）：独立B计算、精度接受与失败闸门反证
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-236 | **真实FP32/BF16可微两步小探针接受，不作天气收益**：工程616b029/主CI37133487340精确九principal及三post成功；真实17通道65×65、batch2、K4，两个train窗口，两precision各uninterrupted2与intentional_resume2，共8更新。weights/optimizer/RNG/loss严格resume相同；L12第一prediction/全部reader与encoder梯度、poison/calendar实际通过。两fresh allocator0/0，连续169.61740489676595秒=0.04711594580465721GPU-h，whole closeout242.43781951908022秒，overrun0。独立核29pins/85源码/131权重与123optimizer state，不声称二次GPU重算、完整旧CUDA测试或新known/source包GPU验收 | 冻结`docs/R7_V2_PRECISION_ACCEPTANCE.md`，证据commit42ecb890ce8f8f1d2925f8841a74859b2decd8f7；attempt SHA8ecd15ea…94ada/独立接受SHA bd167cb7…9aa86 | 全体（本次两precision声明的resume、身份及成本范围） | 已确认 |
+| E-237 | **B全部计算完成但原聚合failed，失败不复活**：协议9f76e6e3…5e62b02，seed41/42同父各200L6/200两步/400L6，共六训练1600更新、三十val528病例/17变量三区域均success。原attempt failed/finalizedfalse，物理指标聚合未接受；whole3200.912431293167秒，continuous3069.380453112535秒=0.8526056814201487GPU-h，overrun0，36owned fresh0/0自然退出。独立361文件opaque强hash与成本核齐，仅成本accepted，不把worker完成当实验接受 | 冻结`docs/R7_74_AUTOREGRESSIVE_ATTEMPT.md`，证据commit42ecb89；attempt SHA1868e0a5…b0664，source pins SHAe0151b63…7dc84，独立成本SHA c00dd04c…00db | 全体（本次36计算库存/原失败封印/完整成本） | 已确认 |
+| E-238 | **失败运算域直接确认，不能放宽物理指标容差**：原training objective校验以binary64组合FP32导出组件，seed41/42分别拒99/88条；400两步记录按round32(L6+round32(.5L12))全部逐bit相等。0036前瞻FP32严格multiply-add receipt与独立零GPU统计补全，不改原attempt/天气容差、不重六训练或三十评估。独立38合成测试通过仍发现claim前失败未封印、source双seal未直接绑定原protocol/stage、final hash跨硬限仍finalized三闸门反例；旧review gateFAIL、真实B统计尚未消费，修复另冻新协议 | `b_fp32_loss_cause.json` SHA f07a6712…2f631；`docs/decisions/0036-fp32-loss-audit-and-statistics-complement.md`；独立`/tmp/r7_stats_narrow_review_6dh18mz1/{protocol.json,test_attempt.json,counterexamples.json}` | 全体（400真实loss元数据与合成机械反证范围，非天气效果） | 已确认 |
+| E-239 | **known/source定向通过不抵消独立真实缺陷**：B原封印后才集成0035，active220passed/50.18s。独立HEAD616b默认关state/output/loss/all梯度/RNG精确一致、Process/Generic耦合两步与L12新projection/role/reader通过，但B3活跃样本[0,2]仍带未切片anchor拒绝、合法20分钟regular历史offset因浮点差值严格相等误拒。旧与新RW-B均BF16 fixed/streamed proposal decoder梯度不等，独立只改诊断autocast cache=False后原容差全部通过，forecast精确；原失败不删除，不放宽原容差，不回改已冻训练recipe。两活跃缺陷修复复验中，未fullsuite/新CI/C或科学支持 | `docs/R7_V2_KNOWN_CONTEXT_ACCEPTANCE.md`；独立`/tmp/r7_independent_known_source_review_20261003_eavOSK/`原protocol/log、gradient_diagnostic_results与autocast_cache_results | 全体（本次独立CPU声明的默认兼容与直接反证范围） | 已确认 |
+
+## 第二十四遍（2026-10-03）：B受限统计接受、真实UTC失败与稳定全量反证
+
+| 编号 | 发现 | 证据 | 覆盖度 | 置信度 |
+| --- | --- | --- | --- | --- |
+| E-240 | **原B失败保持，第二独立零GPU统计补全受限接受**：统计01自报完整却漏worker.log，113文件/110pins资格FAIL；02新protocol/排他output52.027687秒，完整111pins+2明确排除/113文件。独立361原+113新before/after不变、93/94/5/28代码库存、6train30eval、1530/765/三组255及11CSV row hashes核齐。rollout在四个primary均胜200L6但皆劣400L6，negative_or_mixed/l6，只终结该假设。02审阅442.525976秒/0overrun，01审阅1396.540345秒/软超496.540345及未跑qualification.py保留；原0.8526056814201487GPU-h只记一次 | `docs/R7_74_STATISTICS_COMPLEMENT.md`，独立audit SHA0f965f2e…f4e8b/closure d3e493da…dea11f，02protocol076f28df…449e9；补页1615795及正式record:n3-b-statistics-complement-negative | 全体（声明的完整元数据库存/重聚合，不是天气重跑） | 已确认 |
+| E-241 | **stable fullsuite真实失败不等于新科学支持**：5failed/3412passed/9skipped/3warnings、877.18秒，source_changed[]。五失败来自三旧fixture白名单遗漏新增history_offsets_hours；只补原metadata/完整期望集合，156assert/35test函数保留，同三完整模块96passed/66.47秒。installed-wheel额外明确known-context成员/安装来源及7个CLI，1passed/24.55秒，仍不替代下一stablefull或精确新CI | `/tmp/r7_v2_final_full_cpu_20261003_25a6b5fw` protocol72a4f61d…b8634/log996480c8…394efc；`/tmp/r7_history_whitelist_fixture_repair_ni04ra66`原AST计数、完整绿stdout7e6d79f8…203fa；wheelstdout264fd7bd…b2ac9 | 全体（本轮声明的完整CPU与修复定向范围） | 已确认 |
+| E-242 | **真实UTC首轮因重算标签运算域差异失败**：B-only原93归档/accepted02链/36receipts+36timings核齐，官方CLI374.24秒后failed/0行0组。首climatology保存skill0/undefined_ACC，重算binary64−2.22e−16在原容差内却新增negative标签，因精确签名拒绝；不把20400/400预期当观测，不原地复活。最晚整轮837.300674秒/软超237.300674硬1200未截断；独立窄诊断353.738253秒，所有196/133源pins不变。未来修正仅按解析的序列化指标签名，原finite/numeric/status/embedded exactlabels不改，28synthetic完整通过，不等于新actual接受 | `outputs/r7_74_utc_b_actual_20261003_failure_rdj7bd36.txt` SHA5d079461…4edd69；独立回执f0ee9f3c…755fe6；工程回执8004ff73…87953/runtime map aa212882…be59 | 全体（首失败直接反证及实际源/失败封印范围） | 已确认 |
+
 ## 统计
 
-- 台账条目：**235** 条（E-001 – E-235；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3 + 第十七遍3 + 第十八遍1 + 第十九遍4 + 第二十遍4 + 第二十一遍3 + 第二十二遍2）。
-- 按覆盖度（2026-10-03按行重数）：全体/全体扫描 **155** 条、抽样 **21** 条、单点 **59** 条。
+- 台账条目：**242** 条（E-001 – E-242；第一遍143 + 第二遍15 + 第三遍10 + 第四遍13 + 第五遍7 + 第六遍2 + 第七遍4 + 第八遍1 + 第九遍2 + 第十遍3 + 第十一遍1 + 第十二遍5 + 第十三遍6 + 第十四遍2 + 第十五遍1 + 第十六遍3 + 第十七遍3 + 第十八遍1 + 第十九遍4 + 第二十遍4 + 第二十一遍3 + 第二十二遍2 + 第二十三遍4 + 第二十四遍3）。
+- 按覆盖度（2026-10-03按行重数）：全体/全体扫描 **162** 条、抽样 **21** 条、单点 **59** 条。
   保留此前漂移处置：旧值「140/21/39」与当时行数不符，已经逐行改正；本次再按新增条目累加核对。
-- 按置信度（2026-10-03按行重数）：已确认 **234** 条、推测1条、未知0条；旧值「已确认197」是历史漂移。
+- 按置信度（2026-10-03按行重数）：已确认 **241** 条（含E-032仅确认文档声明、未实跑复现）、推测1条、未知0条；旧值「已确认197」是历史漂移。
   不确定者写入`OPEN_QUESTIONS.md`，不编造答案；推测E-187已登记Q-013；E-215 记明其推测成分（失败字节未取证）。
 - 未列入凭据类条目：历史5类凭据模式全部0命中，不是本轮重新全仓安全扫描。

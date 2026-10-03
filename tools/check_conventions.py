@@ -109,13 +109,9 @@ PARAM_MAX = 8
 FILE_LOC_HARD_MAX = 600
 FUNC_BODY_HARD_MAX = 200
 
-# R-009: recorded strength of the test suite. Update deliberately when tests are
-# intentionally added or restructured, and note it in docs/rules/CHANGELOG.md.
-# 2026-09-28 (#71/#72 round one): 320/613 -> 715/1778. Thirty-two test instances
-# were added across four files (bitwise switch equivalence + its counterproof,
-# space-time field causality, the seven-path input-set pin, positional-readout
-# probes); two existing input-set pins were re-expressed against
-# DECLARED_MODEL_INPUTS rather than a literal list. Nothing was removed.
+# R-009 AST baseline: 2026-10-03 final restage 1550/4272 -> 1574/4299 (+24/+27).
+# All 159 tracked test_*.py plus conftest.py match the full scan; not pytest instances.
+# UTC labels/inventory/wheel counterproofs; updates in docs/rules/CHANGELOG.md.
 # 2026-09-28 (#71/#72 round two): 715/1778 -> 722/1795. Seven test instances were
 # added in one file (the pooled-query capacity control: the bitwise-flat read at every
 # position and its uneven counterpart, pooling taken before the position encoding,
@@ -196,8 +192,8 @@ FUNC_BODY_HARD_MAX = 200
 # that no call site carries a second copy of the step, three-path agreement, the role
 # marker criterion, poisoned future fields against both the forward and the halting
 # selection, checkpoint round trip, BF16). Nothing was removed.
-TEST_FUNCTION_BASELINE = 1408
-ASSERT_BASELINE = 3794
+TEST_FUNCTION_BASELINE = 1574
+ASSERT_BASELINE = 4299
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")

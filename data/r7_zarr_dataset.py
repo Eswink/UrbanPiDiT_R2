@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset
 from .schema import validate_forecast_sample
 from .r7_store import (init_time_fields, require_complete_manifest, validate_store,
-    validate_record, normalization)
+    validate_record, normalization, history_offsets_hours_from_ns)
 
 
 class ZarrAtmosWindowDataset(Dataset):
@@ -66,6 +66,8 @@ class ZarrAtmosWindowDataset(Dataset):
         # initialization time is the store's own entry for `indices[-2]`.
         sample.update({name:torch.tensor(float(value))
             for name,value in init_time_fields(int(root['time_ns'][indices[-2]])).items()})
+        history_ns = np.asarray([root['time_ns'][i] for i in indices[:-1]], dtype=np.int64)
+        sample['history_offsets_hours'] = torch.from_numpy(history_offsets_hours_from_ns(history_ns))
         if 'process_diagnostics_raw' in root:
             raw = np.asarray(root['process_diagnostics_raw'][indices[-2]],dtype=np.float32)
             pmean,pstd = normalization(root,'process_normalization',len(raw))

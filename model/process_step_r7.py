@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Optional
 import torch
 
 from .local_solver_state_r7 import anchored_proposal, blend_forecast, expand_token_gate
-from .recursive_weather_r7 import declared_source_roles, recurrent_key, solver_conditioning
+from .recursive_weather_r7 import reasoning_source_key, solver_conditioning
 
 if TYPE_CHECKING:
     from .process_forecast_r7 import ProcessForecastCoReasoner
@@ -91,10 +91,7 @@ def process_reasoning_step(
         draft_tokens, draft_hw = model.draft_encoder(draft)
         if tuple(draft_hw) != tuple(token_hw):
             raise ValueError(f"draft token grid {draft_hw} != context grid {token_hw}")
-    role_context, role_draft = declared_source_roles(model)
-    process = model._reason(process, recurrent_key(
-        context, draft_tokens, role_context=role_context,
-        role_draft=role_draft if draft_tokens is not None else None))
+    process = model._reason(process, reasoning_source_key(model, context, draft_tokens, token_hw))
     prediction = model._process_prediction(process)
     if model.draft_query_feedback:
         summary = model.process_conditioning(process, context, token_hw, draft_tokens=draft_tokens)

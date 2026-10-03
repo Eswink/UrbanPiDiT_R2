@@ -1,6 +1,7 @@
 """Single-attempt v2 CPU prepare, sequential owned workers and final whole-round seal."""
 from __future__ import annotations
 
+import json
 import math
 import os
 from pathlib import Path
@@ -12,7 +13,7 @@ import time
 from .r7_v2_identity import archive_code, pin_inputs, pin_parents, verify_code, verify_input_pins
 from .r7_v2_protocol import (
     BUDGETS, CLEANUP_SECONDS, LIMITATIONS, ROOT, build_protocol, digest, job_key, local_path,
-    make_directory, monotonic_boot_id, preserve_error, read_json, safe_output,
+    make_directory, monotonic_boot_id, preserve_error, read_json, safe_output, sha256_file,
     verify_protocol, worker_result_path, write_json, write_path,
 )
 
@@ -310,6 +311,74 @@ def finalize_results(output, protocol, execution):
     return finalize(output, protocol, execution)
 
 
+def _seal_unqualified(output, error, run_entry, *, clock):
+    """Claimed startup failed before a trustworthy execution could be constructed."""
+    ended = clock()
+    attempt = {"status": "failed", "phase": "v2-unqualified-startup", "finalized": False,
+               "scientific_claim": False, "limitations": [*LIMITATIONS,
+                   "protocol/execution identity unqualified; no whole-round clock or frozen digest asserted"],
+               "test_read": False, "protocol_identity_qualified": False,
+               "run_entry_perf_counter": run_entry, "ended_perf_counter": ended,
+               "run_entry_elapsed_seconds": None if run_entry is None else max(0.0, ended - run_entry),
+               "failure_reason": f"{type(error).__name__}: {error}",
+               "budget_limited": isinstance(error, BudgetLimited), "no_retry_or_resurrection": True}
+    error.v2_attempt = attempt
+    try:
+        write_json(output / "attempt.json", attempt, output=output)
+    except BaseException as additional:
+        preserve_error(error, additional, "v2 unqualified startup seal publication failed")
+    return error
+
+
+def _publication_check(output, execution, attempt, error, *, clock):
+    """Never rewrite a cost snapshot; a failure marker overrides any apparent success."""
+    pins, publication_error = {}, None
+    try:
+        for name in ("execution_attempt.json", "attempt.json"):
+            pins[name] = sha256_file(output / name)
+    except BaseException as exc:
+        publication_error = exc
+    checked = clock()  # Includes final receipt serialization and the last hash.
+    late = checked >= execution["hard_deadline_perf_counter"]
+    if late:
+        budget = BudgetLimited("whole attempt final publication exceeded frozen hard deadline; acceptance refused")
+        if publication_error is not None:
+            preserve_error(budget, publication_error, "v2 final receipt hash failed")
+        publication_error = budget
+    if publication_error is None and error is None:
+        return None
+    if publication_error is not None:
+        if error is None:
+            error = publication_error
+        elif late and not isinstance(error, BudgetLimited):
+            preserve_error(publication_error, error, "original v2 attempt failure")
+            error = publication_error
+        else:
+            preserve_error(error, publication_error, "v2 final publication failure")
+    failure = {"status": "failed", "phase": "v2-final-publication", "finalized": False,
+               "authoritative": True, "acceptance_refused": True, "no_retry_or_resurrection": True,
+               "scientific_claim": False, "test_read": False, "limitations": list(execution["limitations"]),
+               "protocol_sha256": execution["protocol_sha256"], "stage": execution["stage"],
+               "hard_deadline_perf_counter": execution["hard_deadline_perf_counter"],
+               "publication_checked_perf_counter": checked, "receipt_sha256": pins,
+               "supersedes": ["attempt.json", "execution_attempt.json"],
+               "failure_reason": f"{type(error).__name__}: {error}",
+               "budget_limited": late or isinstance(error, BudgetLimited),
+               "cleanup_or_publication_diagnostics": list(getattr(error, "__notes__", []))}
+    execution.update(status="failed", finalized=False, budget_limited=failure["budget_limited"],
+                     failure_reason=failure["failure_reason"])
+    attempt.update(status="failed", finalized=False, budget_limited=failure["budget_limited"],
+                   failure_reason=failure["failure_reason"], acceptance_refused=True,
+                   authoritative_failure_reference=str(output / "publication_failure.json"))
+    error.v2_execution_attempt, error.v2_attempt = dict(execution), dict(attempt)
+    error.v2_publication_failure = failure
+    try:
+        write_json(output / "publication_failure.json", failure, output=output)
+    except BaseException as additional:
+        preserve_error(error, additional, "v2 authoritative publication failure marker failed")
+    return error
+
+
 def _publish_final(output, protocol, execution, outcome, error, *, clock):
     _costs(execution, protocol, clock=clock)
     if clock() >= execution["hard_deadline_perf_counter"]:
@@ -342,9 +411,7 @@ def _publish_final(output, protocol, execution, outcome, error, *, clock):
             attempt.update(status="failed", finalized=False, failure_reason=f"{type(exc).__name__}: {exc}")
         else:
             preserve_error(error, exc, "v2 final attempt seal publication failed")
-    if error is not None:
-        error.v2_execution_attempt, error.v2_attempt = dict(execution), dict(attempt)
-    return error
+    return _publication_check(output, execution, attempt, error, clock=clock)
 
 
 def run_bounded_round(output, *, snapshot_fn=None, popen_factory=None, clock=time.perf_counter, finalize_fn=None):
@@ -356,17 +423,23 @@ def run_bounded_round(output, *, snapshot_fn=None, popen_factory=None, clock=tim
                "code_commit.txt", "code_status.txt"}
     if not output.is_dir() or any(path.name not in allowed for path in output.iterdir()):
         raise FileExistsError("attempt already started/failed/partial; no retry or resurrection")
-    protocol = verify_protocol(output / "protocol.json")
-    prepared = read_json(output / "prepare_attempt.json")
-    if prepared.get("status") != "prepared-not-run" or prepared.get("protocol_sha256") != protocol["protocol_sha256"]:
-        raise ValueError("successful exact prepare receipt required before a first run")
-    execution = _execution(protocol)
-    error, outcome = None, None
-    check = lambda: check_budget(execution["hard_deadline_perf_counter"], clock=clock)
+    # Claim with O_EXCL before trusting any prepared input. A losing claimant never seals.
+    protocol, execution, error, outcome, run_entry = None, None, None, None, None
+    claim = write_path(output / "run_started.json", output).open("x", encoding="utf-8")
     try:
-        write_json(output / "run_started.json", {"scientific_claim": False, "limitations": list(LIMITATIONS),
-                   "protocol_sha256": protocol["protocol_sha256"], "started_perf_counter": clock()}, output=output)
-        execution["run_entry_perf_counter"] = clock()
+        with claim:
+            run_entry = clock()
+            json.dump({"scientific_claim": False, "limitations": list(LIMITATIONS),
+                       "protocol_identity_qualified": False, "started_perf_counter": run_entry}, claim,
+                      ensure_ascii=False, indent=2, allow_nan=False)
+            claim.write("\n")
+        protocol = verify_protocol(output / "protocol.json")
+        execution = _execution(protocol)
+        execution["run_entry_perf_counter"] = run_entry
+        check = lambda: check_budget(execution["hard_deadline_perf_counter"], clock=clock)
+        prepared = read_json(output / "prepare_attempt.json")
+        if prepared.get("status") != "prepared-not-run" or prepared.get("protocol_sha256") != protocol["protocol_sha256"]:
+            raise ValueError("successful exact prepare receipt required before a first run")
         if protocol["monotonic_boot_id"] != monotonic_boot_id() or protocol["round_started_perf_counter"] > clock():
             raise ValueError("same-boot frozen prepare anchor required; no cross-boot or future-anchor resurrection")
         check()
@@ -392,7 +465,10 @@ def run_bounded_round(output, *, snapshot_fn=None, popen_factory=None, clock=tim
     except BaseException as exc:
         error = exc
     finally:
-        error = _publish_final(output, protocol, execution, outcome, error, clock=clock)
+        if execution is None:
+            error = _seal_unqualified(output, error, run_entry, clock=clock)
+        else:
+            error = _publish_final(output, protocol, execution, outcome, error, clock=clock)
     if error is not None:
         raise error
     return outcome

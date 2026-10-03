@@ -49,4 +49,5 @@
 | [0011](0011-autonomous-execution-and-goal-handoff.md) | 实验/普通决策/节点推进常设下放与新窗口 V2 收尾 goal（0030） | 已实施；b961b3b/CI37024597813九步成功，正式objective2027字符；新实验未启动 | 2026-10-02 |
 | [0012](0012-r7-m3-evidence-registration-unblock.md) | M3 证据登记的安全闸门分诊与条件化收尾 | 原分诊BLOCKED保留；用户关闭Mimosa后有限D6已登记，A/index18/账本齐，B=da4939e/CI37108664102九步成功；完整CPU2395通过9跳过，非安全/科学通过，N2a暂停不变 | 2026-10-03 |
 | [0013](0013-n2a-delivery-acceptance-and-delegation.md) | N2a规定交付验收与全部授权下放接续 | 规定交付验收矩阵与全权授权已落实；本次46CPU/37阻断及18身份核对通过，精确新CI待绑定；科学paused/原failed不改，0新增GPU-h | 2026-10-03 |
-| [0014](0014-v2-autoregressive-engineering-and-query-repair.md) | 独立自回归工程与显式草稿query修正 | 工程实施中；默认父4合成case位等价，独立审查缺口正在修复；真实B/C与最终CI未执行 | 2026-10-03 |
+| [0014](0014-v2-autoregressive-engineering-and-query-repair.md) | 独立自回归工程与显式草稿query修正 | 工程616b029/精确CI37133487340成功，3107CPU通过9跳过；真实precision8updates通过、B实际运行，未作科学结论 | 2026-10-03 |
+| [0015](0015-complete-known-context-contract.md) | 原known-context/source-key验收补齐；B先封印、新C独立公平确认 | 原文缺口与0035/合法最小计划已核；B期间无源码修改，补齐/C尚未执行 | 2026-10-03 |
