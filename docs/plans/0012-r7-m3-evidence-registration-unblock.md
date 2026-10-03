@@ -1,6 +1,6 @@
 # 0012 — M3 证据登记的安全闸门分诊与条件化收尾
 
-**日期：2026-10-03。状态：原分诊已完成并保留 BLOCKED 出口；用户随后关闭 Mimosa 并明确允许继续，D6 有限登记恢复，科学暂停不变。**
+**日期：2026-10-03。状态：原分诊已完成并保留 BLOCKED 出口；用户随后关闭 Mimosa 并明确允许继续，D6 有限登记已完成，B 精确 CI 九步成功，科学暂停不变。**
 本计划源自一次 planner 委派（工作态草稿）及主链事实复核。草稿把证据路径、hash 长度和科学状态写错，
 未采用；主链按用户批准范围修正 JSON，`tools/check_planner_plan.py` 实跑 `verified=true`、0 失败。
 规划输出不是实验、安全或科学证据。本轮批准不包含安全策略豁免、外部发布或科学方向变更。
@@ -117,3 +117,33 @@ planner/campaign/goal/index/M3 complement 定向测试；只有合法进入登�
   命令注入模式并拒绝，整条Write未执行；按工具反馈删除候选中所有subprocess/动态命令后，纯只读
   `verify_registration_readonly.py` 经正常Write成功，实跑上述18检查。未修改安全设置或绕过扫描，
   也未判旧拒绝为误报；用户开关false不证明全部扫描链停用，正常commit若被拒绝仍立即停止。
+
+## D6 正式登记实际结果与 CI 尾（2026-10-03）
+
+- **A/B真实完成**：A证据页冻结身份见上，后续未改；B=`da4939e613eb1a0b39f6303142ffd7aa6ab8657c`
+  已正常提交并SSH推工作分支，含11治理文档，用户配置/两无关untracked不提交。正式record单append，
+  canonical index/brief18条、账本新行record指针齐，四旧历史notes不回填，不双记GPU-h。
+- **B精确主CI真实通过**：run37108664102/job111162098631，head_sha精确B、push/r7/weather-reasoning、
+  completed/success，九主步骤含conventions/campaign/index/compile-whitespace/完整unit-integration-wheel全success。
+  [run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/37108664102)与
+  [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/37108664102/jobs?per_page=100)，
+  匿名curl访问2026-10-03。run响应SHA256`c1e8892c3fab72cbfb7fef69702193e15c1b52b0e14774b1cb15c1a17b7832be`、
+  jobs响应SHA256`127447175ec123d5a97aacb549a4f8cadce97fb61f9ff7774cbfc00e3d3f782b`，核验回执SHA256
+  `b9184dc513cddea1d9c8748b09e98b2720194668ead9ed64a396007055e161bb`。未取得远端pytest日志计数，
+  本地2395/9/2与532/0不得冒称远端数字；旧工程CI不覆盖登记。
+- **独立审阅及逐要求审计**：指定12文档/本地git身份/index旧17原文/brief精确派生/账本/E235统计有限
+  只读复核无必修，不复跑测试/网络/数组/归档。31项原目标prompt-to-artifact在新回执更新，只D6由缺失
+  改工程已登记，17checks全过；回执SHA256`7ec1a3a03966da8af2f6fcb3b473b2efb61722252ef9f2e9a0a16301ac27134a`。
+  原failed/whole超cap、两seed/单段/负面/weakcoverage/MetPy及真实17通道端到端未做不掩盖。
+- **C范围与自CI**：本次C只进度块、goals/plans索引与本计划实际结果，不追改A证据页、JSONL/brief或
+  E/安全分诊历史；C自己的最终CI另在仓外回执/最终交付核验，不递归再造一个“记录自己的提交”。
+  当前本节写入时C尚未提交或跑CI，不能预写通过；B已成功不替代C自身验证。
+- **九项影响与未做**：只有docs治理/证据登记，模型接口/digest/数据/实验结果/依赖/凭据无变化，
+  新GPU-h=0；用户关闭开关未入提交，增量扫描仍在且拒绝/修候选事实保留，未取得官方/L3安全结论。
+  兼容性仅index17→18/canonical brief同步，不改validator；原109/新276/366归档/43科学pins不变。
+  无GPU重训/重评、MetPy、完整真实17通道CPU端到端、test解码/新下载/发布/支持工单/main/issue关闭。
+  N2a/paused与advance=false、N3/N4/N5依赖BLOCKED不变，工程D6完成不是科学或最终goal完成。
+  下一研究动作仅独立审阅已登记negative/mixed/any-unresolved与总体方向；本轮不推进或申请新算力。
+- **C提交前实际验证**：三组进度/goal/index定向46passed/0.23s、0skip；37阻断0违规、两goal0失败、
+  campaign0fail4历史notes、index18/brief与空白通过。六暂存路径全在goals/plans，冻结A证据页及
+  B的index/brief逐字未改，用户`.zcode/config.json`仍未暂存/不提交。C提交/自身CI在此时仍待实做。

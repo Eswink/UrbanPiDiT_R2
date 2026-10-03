@@ -399,3 +399,18 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
   账本新补测行增加record数值绑定，不重复GPU-h，四历史notes保留；完整CPU2395passed/9skipped/
   2warnings、230.96s，skip非通过。原109/新276/366归档/43科学pins恢复前不变；B提交/精确登记CI待
   实际绑定，不以37036869969代替。本次回执仓外 `/tmp/r7_m3_registration_resume_u8t215bd/`。
+- **D6正式登记CI已实核（2026-10-03）**：B=`da4939e613eb1a0b39f6303142ffd7aa6ab8657c`正常SSH推
+  工作分支，CI37108664102/job111162098631精确SHA completed/success九主步骤成功；匿名
+  [run API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/37108664102)与
+  [jobs API](https://api.github.com/repos/Eswink/UrbanPiDiT_R2/actions/runs/37108664102/jobs?per_page=100)
+  访问2026-10-03，核验回执SHA256`b9184dc513cddea1d9c8748b09e98b2720194668ead9ed64a396007055e161bb`。
+  正式index18/canonical brief与账本新record齐，campaign0fail4历史notes；532定向/37.67s/0skip、
+  完整2395/9skip/2warnings230.96s均为本地计数，远端日志计数未取。原failed与全部成本不改。
+- **本次收尾审计**：31项原目标对表仅D6从工程缺失改已登记，17核对全过，回执SHA256
+  `7ec1a3a03966da8af2f6fcb3b473b2efb61722252ef9f2e9a0a16301ac27134a`；旧109/新276/366归档/43科学pins
+  和用户配置/两无关文件不变，359活跃Python只AST、不编译归档。12文档独立复核无必修，不是最终
+  goal判定。用户开关false不证明扫描全停，仓外草稿Write增量拒绝与纯只读候选修正另见计划0012，
+  未改设置或claim安全。C只进度/plan尾另核自身CI，不递归改冻结证据/index；main refs未动。
+- **当前研究出口**：D6登记工程阻塞解除，不取消any-unresolved/N2a-paused，N3/N4/N5依赖仍BLOCKED。
+  不加算力闯关、不关闭issue或自行宣布goal完成；下一研究动作仅独立审阅negative/mixed证据与总体
+  方向，当前不执行新节点、GPU、数据或关闭。
