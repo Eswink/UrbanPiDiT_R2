@@ -3,7 +3,24 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 26; human-review candidates: 1
+Records: 27; human-review candidates: 1
+
+## s0-incumbent-gap-audit
+
+- Outcome class: `audit`; candidate state: `needs-review`
+- Human triage priority: `95` (not a scientific score)
+- Evidence: `docs/R7_S0_INCUMBENT_GAP_AUDIT.md` (SHA256 `e761df5aa5f8e99c861524bb5d7ecb3e9f1d7869b2ccb059c9c103a1eee413f5`)
+- Evidence commit: `64a155ddbe9849af6459a34eb1c9aac45fb27fb6`; experiment commit: `562e526afc5fdbdc99053a25ab20036b66a2a8bc`
+- Protocol SHA256: `ea0efb80e1b11eb7813fae74b4ee04ca67d145d16519eb8aa442af8d8851ad80`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: Establishes the campaign's fair starting point: the actual-C incumbent only exceeds the two-month train-only climatology at t2m/6h, so the main-model performance ladders (#77/#78/#79) start from a measured negative gap at 12-72 h rather than from a package-improvement claim.
+- Limitations:
+  - Mechanical identity and gap arithmetic only; no significance, SOTA or scientific verdict.
+  - Single two-month 2016 winter segment in one region; no cross-season or cross-year claim.
+  - The incumbent beats train-only climatology only at t2m/6h; every 12-72 h lead is negative.
+  - K1/K2/K4 are inference-depth probes of one K4-trained checkpoint, not equal-compute models.
+  - The process vs matched_generic separation remains unresolved and is not re-adjudicated here.
+- Excluded from runnable candidates: Read-only identity and gap audit of an already-frozen archive; it produces no new candidate and must not be launched as a run. Any follow-up training needs a new frozen protocol.
+- Recorded metrics (not recomputed): cells_recomputed=6885, gpu_hours=0.0, incumbent=process/K4/400updates, max_relative_deviation=6.629694519880788e-16, network_requests=0, positive_seed_cells_of_255=118, t2m_12h_skill_seed_mean=-0.1911, t2m_6h_skill_seed_mean=0.2073, t2m_72h_skill_seed_mean=-3.4061, test_read=false
 
 ## b2-multiseed-negative
 
