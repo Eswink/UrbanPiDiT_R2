@@ -2,7 +2,7 @@
 
 <!-- round-node: N4 -->
 
-**状态：active（2026-10-03），仅当前路由与前置排障活跃。C 未 prepare、未冻结实际 protocol、未训练/评估；新包 precision 未跑。** 本轮由实际 N3/B02 的 `negative_or_mixed / selected_mode:l6` 出口派生，适用0030/0032，不复用旧 prepared N4 长文为实际执行。`scientific_claim:false`；不自宣最终 goal 完成。
+**状态：active → 实证完成（2026-10-04）。C 已实跑并独立接受（144/144 job，protocol `ea0efb80…`）；M1-only 补全已实跑并 verify（24/24 job）；两侧 UTC 标量统计链完成（C 67,320 rows/1,320 groups；M1 20,400 cells/400 groups）；adaptive 四门已评价、`gate_met:false`，控制器不训练。** 本轮由实际 N3/B02 的 `negative_or_mixed / selected_mode:l6` 出口派生，适用0030/0032，不复用旧 prepared N4 长文为实际执行。`scientific_claim:false`；不自宣最终 goal 完成。剩余工作：N5 登记与六 issue 决定（见 §8）。
 
 ## §0 Objective（可直接粘贴，单段；实测 1179 字符，≤4000）
 
