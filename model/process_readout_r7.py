@@ -41,21 +41,62 @@ from torch import nn
 from .layers.sdpa import SDPAttention
 
 
+def require_position_encoding_mode(mode: str, *, positional_process_readout: bool) -> str:
+    """Validate the #77 frequency basis and where it may legally be switched on.
+
+    A non-legacy basis only exists inside the positional readout, so turning it
+    on with that pathway off would be a silently ignored switch and is refused
+    here rather than in every caller's constructor.
+    """
+    if mode not in PositionalProcessReadout.MODES:
+        raise ValueError(f"position_encoding_mode must be one of {PositionalProcessReadout.MODES}")
+    if mode != PositionalProcessReadout.LEGACY_FREQUENCIES and not positional_process_readout:
+        raise ValueError("a non-legacy position_encoding_mode only exists inside the positional "
+                         "process readout; turning it on without positional_process_readout "
+                         "would be silently ignored")
+    return mode
+
+
 class PositionalProcessReadout(nn.Module):
     """One query per output position reads every process token (N x M).
 
     Opt-in draft_query_feedback uses the aligned existing draft encoding inside
     the same query normalization. Off is the original context-only expression;
     neither mode adds a parameter, state key or random draw (ADR 0034).
+
+    ``position_encoding_mode`` (#77) selects the fixed frequency basis:
+
+    - ``'legacy'`` (default) is the pre-change basis ``2**-j`` described in
+      ``docs/R7_77_POSITION_ENCODING_BAND.md``: on a 33-point axis only 16 of
+      the 192 channels carry any spatial variation at fp32, because the
+      geometric decay leaves the phase span far below one radian. It is kept
+      bit-for-bit so existing checkpoints keep their exact semantics and a new
+      mode is never a silent rewrite of an old digest.
+    - ``'nyquist_band'`` spreads the same channel budget geometrically from
+      ``band_min_cycles`` to ``band_max_cycles`` cycles per normalized axis,
+      with ``band_max_cycles`` at most the axis Nyquist limit ``(N-1)/2`` for
+      the largest expected token grid. No new parameter, buffer or random draw
+      is added: the basis is still a fixed function of the token coordinates.
     """
 
+    LEGACY_FREQUENCIES = "legacy"
+    NYQUIST_BAND_FREQUENCIES = "nyquist_band"
+    MODES = (LEGACY_FREQUENCIES, NYQUIST_BAND_FREQUENCIES)
+    # Cycles per normalized axis; the top is the Nyquist limit of the largest
+    # token grid this model sees (the 33x33 patch grid of a 65x65 field).
+    NYQUIST_MIN_CYCLES = 0.5
+    NYQUIST_MAX_CYCLES = 16.0
+
     def __init__(self, dim: int, heads: int = 4, dropout: float = 0.0,
-                 pooled_readout_query: bool = False, draft_query_feedback: bool = False):
+                 pooled_readout_query: bool = False, draft_query_feedback: bool = False,
+                 position_encoding_mode: str = LEGACY_FREQUENCIES):
         super().__init__()
         for value, name in ((pooled_readout_query, 'pooled_readout_query'),
                             (draft_query_feedback, 'draft_query_feedback')):
             if type(value) is not bool:
                 raise ValueError(f'{name} must be boolean')
+        if position_encoding_mode not in self.MODES:
+            raise ValueError(f"position_encoding_mode must be one of {self.MODES}")
         dim = int(dim)
         if dim % 4:
             raise ValueError("positional readout needs dim divisible by 4 (two axes x sin/cos)")
@@ -63,14 +104,24 @@ class PositionalProcessReadout(nn.Module):
         self.heads = int(heads)
         self.pooled_readout_query = pooled_readout_query
         self.draft_query_feedback = draft_query_feedback
+        self.position_encoding_mode = position_encoding_mode
         self.query_norm = nn.LayerNorm(dim)
         self.process_norm = nn.LayerNorm(dim)
         self.attention = SDPAttention(dim, self.heads, dropout, cross=True)
         # Non-persistent: the basis is a fixed function, not a trained artifact,
         # so it never enters a state_dict or a checkpoint contract.
-        self.register_buffer(
-            "frequencies", 2.0 ** (-torch.arange(dim // 4, dtype=torch.float32)),
-            persistent=False)
+        frequencies = 2.0 ** (-torch.arange(dim // 4, dtype=torch.float32))
+        if position_encoding_mode == self.NYQUIST_BAND_FREQUENCIES:
+            # Same channel budget, spread geometrically across the usable band
+            # instead of decaying to 2**-47. Cycles per normalized axis [0,1].
+            # logspace in fp32 can round an endpoint a ulp outside the band, so
+            # both ends are pinned exactly rather than merely intended.
+            frequencies = torch.logspace(
+                math.log10(self.NYQUIST_MIN_CYCLES), math.log10(self.NYQUIST_MAX_CYCLES),
+                dim // 4, dtype=torch.float32)
+            frequencies[0] = self.NYQUIST_MIN_CYCLES
+            frequencies[-1] = self.NYQUIST_MAX_CYCLES
+        self.register_buffer("frequencies", frequencies, persistent=False)
 
     def position_encoding(self, token_hw: tuple[int, int], *,
                           device: torch.device, dtype: torch.dtype) -> torch.Tensor:

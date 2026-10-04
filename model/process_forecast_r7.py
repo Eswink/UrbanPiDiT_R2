@@ -8,7 +8,7 @@ from torch.utils.checkpoint import checkpoint
 
 from .coarse_forecast import CoarseForecastHead
 from .local_solver_state_r7 import (SOLVER_INITIAL_SCALE, LocalSolverState, PositionGate)
-from .process_readout_r7 import PositionalProcessReadout
+from .process_readout_r7 import PositionalProcessReadout, require_position_encoding_mode
 from .process_step_r7 import ProcessStepInput, ProcessStepOutput, process_reasoning_step
 from .recursive_weather_r7 import (ROLE_INITIAL_SCALE, DraftTokenEncoder,
     GenericRecursiveCell, solver_conditioning)
@@ -76,6 +76,7 @@ class ProcessForecastCoReasoner(nn.Module):
         spacetime_inputs:bool=False,
         spacetime_field_mode:str='fields',
         positional_process_readout:bool=False,
+        position_encoding_mode:str='legacy',
         pooled_readout_query:bool=False,
         source_role_markers:bool=False,
         local_solver_state:bool=False,
@@ -101,6 +102,8 @@ class ProcessForecastCoReasoner(nn.Module):
                 raise ValueError(f"{name} must be boolean")
         if source_position_markers and not positional_process_readout:
             raise ValueError('source_position_markers requires positional_process_readout=True')
+        require_position_encoding_mode(position_encoding_mode,
+                                       positional_process_readout=positional_process_readout)
         if known_context_inputs and not spacetime_inputs:
             raise ValueError('known_context_inputs requires spacetime_inputs=True')
         if pooled_readout_query and not positional_process_readout:
@@ -146,6 +149,7 @@ class ProcessForecastCoReasoner(nn.Module):
                 f"spacetime_field_mode={self.spacetime_field_mode!r} needs "
                 "spacetime_inputs=True; with the pathway off it would be silently ignored")
         self.positional_process_readout=positional_process_readout
+        self.position_encoding_mode=position_encoding_mode
         self.pooled_readout_query=pooled_readout_query
         self.draft_query_feedback=draft_query_feedback
         self.source_role_markers=source_role_markers
@@ -222,7 +226,8 @@ class ProcessForecastCoReasoner(nn.Module):
             with isolated_stream():
                 self.process_reader=PositionalProcessReadout(
                     dim,heads,dropout,pooled_readout_query=self.pooled_readout_query,
-                    draft_query_feedback=self.draft_query_feedback)
+                    draft_query_feedback=self.draft_query_feedback,
+                    position_encoding_mode=self.position_encoding_mode)
         # Both RW-B pathways are built last and under a rewound stream as well, so
         # "off" is the previous implementation and not merely something close to it.
         if self.source_role_markers:

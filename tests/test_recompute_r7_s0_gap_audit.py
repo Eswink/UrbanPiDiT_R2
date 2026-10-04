@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from tools import recompute_r7_s0_gap_audit as audit
+from tools import r7_s0_gap_audit_support as core
 
 CASE_OFFSETS = {(41, "old_ours"): 0.0, (41, "process"): -0.2, (41, "matched_generic"): -0.2,
                 (42, "old_ours"): 0.1, (42, "process"): -0.1, (42, "matched_generic"): -0.1,
@@ -137,7 +138,7 @@ def _publish_archive(root: Path, monkeypatch) -> Path:
     model_dir = root / "model"
     model_dir.mkdir(parents=True, exist_ok=True)
     (model_dir / "forecast.py").write_text("DIM = 192\n", encoding="utf-8")
-    model_code = audit._model_code_digest(root)
+    model_code = core._model_code_digest(root)
     protocol = {
         "format": "r7-v2-remaining-protocol-v1", "stage": "C", "scientific_claim": False,
         "test_read": False,
@@ -196,7 +197,7 @@ def _publish_archive(root: Path, monkeypatch) -> Path:
                 "files_sha256": pins, "files_digest": hashlib.sha256(_canonical(pins).encode()).hexdigest()}
     _write_json(archive / "artifact_manifest.json", manifest)
     (archive / "code_commit.txt").write_text("a" * 40 + "\n", encoding="utf-8")
-    monkeypatch.setattr(audit, "REPO", root)
+    monkeypatch.setattr(core, "REPO", root)
     return archive
 
 
@@ -206,7 +207,7 @@ def archive(tmp_path, monkeypatch):
 
 
 def test_report_is_read_only_and_identity_verifies(archive):
-    report = audit.recompute(archive)
+    report = core.recompute(archive)
     assert report["format"] == "r7-s0-gap-audit-v1"
     assert report["scientific_claim"] is False and report["test_read"] is False
     assert report["gpu_hours"] == 0 and report["network_requests"] == 0
@@ -217,7 +218,7 @@ def test_report_is_read_only_and_identity_verifies(archive):
 
 
 def test_primary_and_guard_arithmetic(archive):
-    report = audit.recompute(archive)
+    report = core.recompute(archive)
     primary = report["summary"]["primary_seed_means"]
     assert primary["6"]["skill_positive_all_seeds"] is True
     assert primary["12"]["skill_positive_all_seeds"] is False
@@ -238,7 +239,7 @@ def test_counterproof_protocol_digest(archive):
     payload["data"]["data_identity"] = "d" * 64
     _write_json(archive / "protocol.json", payload)
     with pytest.raises(ValueError, match="protocol_sha256 mismatch"):
-        audit.recompute(archive)
+        core.recompute(archive)
 
 
 def test_counterproof_manifest_digest(archive):
@@ -246,25 +247,25 @@ def test_counterproof_manifest_digest(archive):
     payload["files_sha256"]["protocol.json"] = "e" * 64
     _write_json(archive / "artifact_manifest.json", payload)
     with pytest.raises(ValueError, match="files_digest mismatch"):
-        audit.recompute(archive)
+        core.recompute(archive)
 
 
 def test_counterproof_checkpoint_digest(archive):
     (archive / "seed41" / "training" / "process" / "update_0000400.pt").write_bytes(b"tampered")
     with pytest.raises(ValueError, match="checkpoint digest mismatch"):
-        audit.recompute(archive)
+        core.recompute(archive)
 
 
 def test_counterproof_source_bytes(archive, tmp_path):
     (tmp_path / "source.nc").write_bytes(b"other bytes")
     with pytest.raises(ValueError, match="source_sha256"):
-        audit.recompute(archive)
+        core.recompute(archive)
 
 
 def test_counterproof_model_code_digest(archive, tmp_path):
     (tmp_path / "model" / "forecast.py").write_text("DIM = 200\n", encoding="utf-8")
     with pytest.raises(ValueError, match="model_code_sha256"):
-        audit.recompute(archive)
+        core.recompute(archive)
 
 
 def test_counterproof_case_count_mismatch(archive):
@@ -272,7 +273,7 @@ def test_counterproof_case_count_mismatch(archive):
     rows = list(csv.DictReader(path.open()))
     _write_csv(path, rows[:-1], list(rows[0].keys()))
     with pytest.raises(ValueError, match="count disagrees"):
-        audit.recompute(archive)
+        core.recompute(archive)
 
 
 def test_counterproof_missing_baseline_kind(archive):
@@ -281,22 +282,22 @@ def test_counterproof_missing_baseline_kind(archive):
     rows = [row for row in csv.DictReader(path.open()) if row["baseline_kind"] != "persistence"]
     _write_csv(path, rows, list(rows[0].keys()))
     with pytest.raises(ValueError, match="missing baseline kind"):
-        audit.recompute(archive)
+        core.recompute(archive)
 
 
 def test_sealed_test_manifest_is_refused(tmp_path):
     with pytest.raises(ValueError, match="sealed test.jsonl"):
-        audit._plain_path(tmp_path / "manifests" / "test.jsonl")
+        core._plain_path(tmp_path / "manifests" / "test.jsonl")
 
 
 def test_exclusive_write_refuses_existing_and_sources(archive, tmp_path):
     protected = {str(archive / "protocol.json")}
     with pytest.raises(ValueError, match="must not overwrite"):
-        audit._write_exclusive(archive / "protocol.json", "x", protected)
+        core._write_exclusive(archive / "protocol.json", "x", protected)
     target = tmp_path / "new.csv"
-    audit._write_exclusive(target, "a,b\n", protected)
+    core._write_exclusive(target, "a,b\n", protected)
     with pytest.raises(FileExistsError):
-        audit._write_exclusive(target, "a,b\n", protected)
+        core._write_exclusive(target, "a,b\n", protected)
 
 
 def test_cli_writes_table_and_report(archive, tmp_path):
@@ -327,6 +328,7 @@ def test_tool_has_no_network_or_write_imports():
         elif isinstance(node, ast.ImportFrom) and node.module:
             modules.add(node.module.split(".")[0])
     allowed = {"__future__", "argparse", "csv", "hashlib", "io", "json", "math", "os",
-               "statistics", "sys", "pathlib"}
+               "statistics", "sys", "pathlib", "tools"}
     assert modules <= allowed, f"unexpected imports: {sorted(modules - allowed)}"
-    assert "torch" not in " ".join(sorted(modules))
+    assert not any(name in modules for name in ("torch", "socket", "urllib", "requests",
+                                                "numpy", "zarr", "icechunk"))

@@ -2,6 +2,46 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-05 — S1 数据准备、#77 接线与两处 CI 缺陷修正（`[model-digest-change]`）
+
+**范围**：`data/download/`（新增 400 行整的 `earthmover_spatial_s1.py` 与 85 行
+`season_plan_s1.py`，下载器拆分为计划算术 + 只读核/合并/回执两模块）、`model/` 三个文件接线
+`position_encoding_mode`（#77，默认 `legacy` 位级不变）、`tests/` 新增两文件
+（`test_r7_77_position_encoding_band.py` 11 项、`test_r7_season_acquisition.py` 11 项）、
+`tools/` 拆分 S0 审计工具（462→`r7_s0_gap_audit_support.py` 400 行 + 68 行工具模块）并同步
+`size-thresholds.md` 实测 marker、`testing.md`/`MIGRATION.md` 的 R-009 基线与 checker 常量。
+**未改任何规则级别、判据或阈值**；400/600/200 规模上限与冻结例外清单不变。
+
+**两处真实 CI 缺陷的归因与修正**（`b717b2c` 的 run37236801832 / attempt1 / job111537418638 实为
+completed/failure：必要 step9 失败、17 skipped、其余 10 项 success；官方匿名 annotations 取到确切
+两个 failing node）：
+
+1. `test_size_report_counts_match_the_checker` 断言 R-021 says 65 / reports 66。根因是本轮此前把
+   462 行的 `tools/recompute_r7_s0_gap_audit.py` 提交进树，未同步 marker；**修法是把该工具拆成
+   support（400 行）+ 工具模块（68 行）并重测**，不是放宽 400 行目标。R-021 实回 65。
+2. `test_final_hash_and_owned_cleanup_crossing_hard_limit_never_seals_success[provenance-hash]`
+   断言 `1200.9999999999998 >= 1201.0` 失败。根因是**本机（非 CI）既有的绝对 `perf_counter`
+   锚点算术**：`(anchor + 1201.) - anchor` 对大锚点可向下偏 1 ulp。修法是让反证断言与模拟交叉
+   用同一算术（`>= (anchor + 1201.) - anchor`，另加 `> 1201. - 1e-6` 的下限哨兵），不弱化语义；
+   本机实测 40 passed。
+
+### `model_code_sha256` 变化（#77 频带接线）
+
+`model/process_readout_r7.py`（新 `position_encoding_mode` 与 `nyquist_band` 基）、
+`model/process_forecast_r7.py`、`model/recursive_weather_r7.py`（构造函数透传与守卫）使
+`model_code_digest()` 从 `551261c4a501a6f9727fef2a712b40ab67ec51adaa460298a6b5b59bf8ae5dc1`
+（S0 审计与 C/M1 精度证据所记录的值）变为
+`84e77e8b475a1ab5c1f3f031d509e50b91507a6d72c1cf30d48a37d6ed8dbe59`。
+默认 `legacy` 与旧实现的频率基**逐位一致**（`2**-j`，由新测试直接钉住），所以这是
+**新增开关**而非静默改写；旧 checkpoint 只能用它归档的 `code.zip` 重放，守卫未放宽。
+S0 审计与全部旧 checkpoint 记录的仍是 `551261c4…`，不回改。本提交带 `[model-digest-change]` 标签。
+
+R-009 基线 1600/4355（HEAD 实测）→ **1622/4404**（+22 函数/+49 断言，两新测试文件，未删未弱化），
+`checker` 常量、`testing.md`、`MIGRATION.md` 同步；规模报告 marker 与实测重算对齐
+（R-019b 969→971、R-023 38→39，R-021 66→65 为拆后实测）。本机无下载/训练/评分发生；
+S1 的 2017 冬季 part 已在上一轮 pilot 中实测完成（3,569,705,460 字节网络、1167.7 秒），本轮只做
+离线核验与代码准备。正式 S1 合并/建 store 与 S2 训练待后续节点执行。
+
 ## 2026-10-04 — 主模型超气候态新方向与自主数据扩围（0038/计划0016）
 
 用户批准新长期研究方向和本轮文档/校检交付。0038继承0030的实验、普通决策、时长和节点自主、

@@ -293,7 +293,11 @@ def test_final_hash_and_owned_cleanup_crossing_hard_limit_never_seals_success(tm
     seal = read_json(output / "attempt.json")
     assert seal["status"] == "failed" and seal["finalized"] is False
     assert seal["coverage_complete"] is False and seal["budget_limited"] is True
-    assert seal["whole_elapsed_seconds"] >= 1201.
+    # The clock is an absolute perf_counter: (anchor + 1201.) - anchor can land one
+    # ulp below 1201. for a large anchor, so the counterproof asserts the simulated
+    # crossing against the same arithmetic instead of the decimal literal.
+    assert seal["whole_elapsed_seconds"] >= (anchor + 1201.) - anchor
+    assert seal["whole_elapsed_seconds"] > 1201. - 1e-6
     assert seal["owned_unreaped"] is False
     failed_bytes = (output / "attempt.json").read_bytes()
     with pytest.raises(FileExistsError): complement.run(output / "protocol.json")
@@ -354,7 +358,10 @@ def test_final_owned_serialization_crossing_limit_is_resealed_failed_not_success
     with pytest.raises(TimeoutError): complement.run(output / "protocol.json")
     result = read_json(output / "attempt.json")
     assert result["status"] == "failed" and result["finalized"] is False
-    assert result["budget_limited"] is True and result["whole_elapsed_seconds"] >= 1201.
+    # Same absolute-perf_counter ulp caveat as the crossing test above.
+    assert result["budget_limited"] is True
+    assert result["whole_elapsed_seconds"] >= (anchor + 1201.) - anchor
+    assert result["whole_elapsed_seconds"] > 1201. - 1e-6
     with pytest.raises(FileExistsError): complement.run(output / "protocol.json")
 
 

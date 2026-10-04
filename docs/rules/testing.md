@@ -2,13 +2,13 @@
 
 范围：`tests/**`、`pytest.ini`。
 
-现状基线（2026-10-04 campaign校检支持，只读AST复算，未暂存）：**1586 个测试函数、4333 个断言**。
+现状基线（2026-10-05 S1数据准备，只读AST复算）：**1622 个测试函数、4404 个断言**。
 按 checker R-009 的 `iter_py`/AST 口径计入 `tests/**` 下全部 `test_*` 同步/异步函数（含嵌套函数）与每条 `assert`；
 159 个 `test_*.py` 加 `conftest.py` 共160个Python文件，跟踪集合与checker全扫描计数完全一致。
-相对1574/4299净增12函数/34断言，来自campaign默认/指定master、路径/节点/账本/证据/commit正反证；
-旧测试不删不弱，参数化实例13→60不是AST函数数。UTC/inventory/wheel原覆盖及156条旧fixture断言保持。
+相对1600/4355净增22函数/49断言，来自#77位置编码频带判别（11项）与S1季节计划/合并/失败回执守卫（11项）；
+旧测试不删不弱。UTC/inventory/wheel原覆盖及156条旧fixture断言保持。
 历史fullsuite失败与BF16 fixed/streamed梯度缺口不由本次计数追认解决；计数不等于pytest实例或科学接受。
-其中 1586/4333 是 R-009 使用的稳定基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
+其中 1622/4404 是 R-009 使用的稳定基线；**有意增删测试时应同步更新 `tools/check_conventions.py`
 的 `TEST_FUNCTION_BASELINE` / `ASSERT_BASELINE`** 并在 CHANGELOG 说明原因。本页与
 `docs/rules/MIGRATION.md` 引用的数字现在由 `tests/test_check_conventions.py` **直接对 checker 的常量**
 断言（此前钉的是字面量 "827/2046"，改基线就会让测试变红而文档仍写着旧值）。测试文件数与参数化计数是当前观测值，

@@ -7,7 +7,14 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=969 R-020=49 R-021=65 R-022=57 R-023=38 -->
+<!-- measured: R-019=0 R-019b=971 R-020=50 R-021=65 R-022=57 R-023=39 -->
+
+**2026-10-05 S1 数据准备与 #77 接线复算（复算含未提交新文件）**：
+R-019b **969→971**、R-023 **38→39**；R-019=0/R-020=50/R-021=65/R-022=57 保持。
+新增 `data/download/season_plan_s1.py`（85 行）与 400 行整的 `earthmover_spatial_s1.py`（拆出后回到
+目标线内）、`tests/test_r7_season_acquisition.py`（11 项）与 `tests/test_r7_77_position_encoding_band.py`
+（11 项）贡献了行宽/参数命中。上一轮把 R-021 记成 66 是**在 462 行工具尚未再拆时测的**，
+本表按拆后实测重记为 65；400/600/200 阈值与冻结例外清单不变，checker 未改判据。
 
 **2026-10-04 campaign校检支持，只读复算（未暂存）**：
 R-021 **64→65**，新增路径/节点/账本/证据正反证使 `tests/test_check_campaign_state.py` 达408行；

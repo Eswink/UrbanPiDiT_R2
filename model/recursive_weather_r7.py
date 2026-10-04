@@ -10,7 +10,7 @@ from .layers.sdpa import SDPAttention,CrossBlock,FeedForward
 from .layers.patch_grid import pad_patch_grid
 from .local_solver_state_r7 import (ROLE_INITIAL_SCALE, SOLVER_INITIAL_SCALE,
     LocalSolverState, PositionGate, anchored_proposal, blend_forecast, expand_token_gate)
-from .process_readout_r7 import PositionalProcessReadout
+from .process_readout_r7 import PositionalProcessReadout, require_position_encoding_mode
 from .spacetime_conditioning_r7 import isolated_stream, require_field_mode
 
 
@@ -266,6 +266,7 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                  detach_between_steps:bool=False,spatial_solver_feedback:bool=False,
                  spacetime_inputs:bool=False,spacetime_field_mode:str='fields',
                  source_role_markers:bool=False,positional_process_readout:bool=False,
+                 position_encoding_mode:str='legacy',
                  pooled_readout_query:bool=False,local_solver_state:bool=False,
                  solver_state_recurrence:bool=False,solver_gate_proposal:bool=False,
                  use_forecast_feedback:bool=True,draft_query_feedback:bool=False,
@@ -287,6 +288,8 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                 raise ValueError(f"{name} must be boolean")
         if source_position_markers and not positional_process_readout:
             raise ValueError('source_position_markers requires positional_process_readout=True')
+        require_position_encoding_mode(position_encoding_mode,
+                                       positional_process_readout=positional_process_readout)
         if known_context_inputs and not spacetime_inputs:
             raise ValueError('known_context_inputs requires spacetime_inputs=True')
         if pooled_readout_query and not positional_process_readout:
@@ -310,6 +313,7 @@ class GenericRecursiveWeatherForecaster(nn.Module):
         self.source_position_markers=source_position_markers
         self.known_context_inputs=known_context_inputs
         self.positional_process_readout=positional_process_readout
+        self.position_encoding_mode=position_encoding_mode
         self.pooled_readout_query=pooled_readout_query
         self.draft_query_feedback=draft_query_feedback
         self.local_solver_state=local_solver_state
@@ -347,7 +351,8 @@ class GenericRecursiveWeatherForecaster(nn.Module):
             with isolated_stream():
                 self.process_reader=PositionalProcessReadout(
                     dim,heads,dropout,pooled_readout_query=self.pooled_readout_query,
-                    draft_query_feedback=self.draft_query_feedback)
+                    draft_query_feedback=self.draft_query_feedback,
+                    position_encoding_mode=self.position_encoding_mode)
         if self.source_role_markers:
             with isolated_stream():
                 self.role_context=nn.Parameter(torch.randn(1,1,dim)*ROLE_INITIAL_SCALE)
