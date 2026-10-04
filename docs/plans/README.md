@@ -51,3 +51,4 @@
 | [0013](0013-n2a-delivery-acceptance-and-delegation.md) | N2a规定交付验收与全部授权下放接续 | 规定交付验收矩阵与全权授权已落实；本次46CPU/37阻断及18身份核对通过，精确新CI待绑定；科学paused/原failed不改，0新增GPU-h | 2026-10-03 |
 | [0014](0014-v2-autoregressive-engineering-and-query-repair.md) | 独立自回归工程与显式草稿query修正 | 工程616b029/精确CI37133487340成功，3107CPU通过9跳过；真实precision8updates通过、B实际运行，未作科学结论 | 2026-10-03 |
 | [0015](0015-complete-known-context-contract.md) | 原known-context/source-key验收补齐；B先封印、新C独立公平确认 | 原文缺口与0035/合法最小计划已核；B期间无源码修改，补齐/C尚未执行 | 2026-10-03 |
+| [0016](0016-main-model-climatology-campaign.md) | 主模型超气候态新campaign：科学合同、数据扩围、自主研究及子代理/技能路由 | 文档与校检支持交接；研究S0–S4未执行，0GPU-h，无下载/发布/commit/push；实测验证见文内 | 2026-10-04 |

@@ -26,6 +26,12 @@
 
 配套：[`environment.md`](environment.md) 记录虚拟环境与三份 requirements 未覆盖的依赖缺口（非规则）。
 
+**新研究方向指针（2026-10-04）**：决策0038具名扩围免费区域天气数据下载与自审preflight后新
+outputs路径派生发布，R-001–R-009/R-028/R-054及身份校验不变，见data-and-artifacts授权接续。
+新唯一主计划 `docs/goals/main-model-climatology-campaign.md` 与科学合同
+`docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md` 先冻结再运行，不回改旧科学出口或增加约定例外。
+`Check campaign state`同时显式检查新master，默认旧master保持，详见ci-and-verification。
+
 归档目录清单（只读，不适用规模与命名规则）：
 `legacy_v531_full/`、`data/legacy_v531/`、`model/legacy_v531/`、`legacy_v6/`。
 

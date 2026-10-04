@@ -35,6 +35,7 @@ Exit codes: 0 = no hard drift, 1 = hard drift, 2 = usage error.
 
     .venv/bin/python tools/check_campaign_state.py
     .venv/bin/python tools/check_campaign_state.py --json
+    .venv/bin/python tools/check_campaign_state.py --campaign docs/goals/main-model-climatology-campaign.md
 """
 from __future__ import annotations
 
@@ -146,15 +147,16 @@ def commit_exists(root: Path, sha: str) -> bool | None:
 
 
 def check_state_block(campaign_text: str, failures: list[str],
-                      notes: list[str]) -> dict | None:
+                      notes: list[str], campaign_doc: str = CAMPAIGN_DOC) -> dict | None:
     """C-01: the machine-readable state block exists and carries its keys."""
     state = parse_state(campaign_text)
     if state is None:
-        failures.append(f"C-01 no parseable campaign-state block in {CAMPAIGN_DOC}")
+        failures.append(f"C-01 no parseable campaign-state block in {campaign_doc}")
         return None
     missing = [key for key in REQUIRED_STATE_KEYS if key not in state]
     if missing:
-        failures.append(f"C-01 campaign-state block lacks keys: {', '.join(missing)}")
+        failures.append(f"C-01 campaign-state block in {campaign_doc} lacks keys: "
+                        f"{', '.join(missing)}")
     return state
 
 
@@ -300,15 +302,40 @@ def check_current_round(state: dict, root: Path, failures: list[str]) -> None:
         failures.append(f"C-05 {current_goal} fails the brief structure check: {detail}")
 
 
-def check(root: Path = ROOT) -> dict:
+def _campaign_path(root: Path, campaign_doc: str) -> Path:
+    """Accept only repository-relative docs/goals/*.md without symlink escape."""
+    relative = Path(campaign_doc)
+    if relative.is_absolute():
+        raise ValueError("campaign path must be repository-relative, not absolute")
+    if ".." in relative.parts:
+        raise ValueError("campaign path must not contain '..' traversal")
+    if len(relative.parts) != 3 or relative.parts[:2] != ("docs", "goals") \
+            or relative.suffix != ".md":
+        raise ValueError("campaign path must name docs/goals/*.md")
+    path = root / relative
+    try:
+        resolved = path.resolve()
+        resolved_root = root.resolve()
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ValueError(f"campaign path cannot be resolved safely: {exc}") from exc
+    if not resolved.is_relative_to(resolved_root):
+        raise ValueError("campaign path resolves outside the repository (symlink escape)")
+    return resolved
+
+
+def check(root: Path = ROOT, campaign_doc: str = CAMPAIGN_DOC) -> dict:
     failures: list[str] = []
     notes: list[str] = []
-    campaign_path = root / CAMPAIGN_DOC
+    try:
+        campaign_path = _campaign_path(root, campaign_doc)
+    except ValueError as exc:
+        return {"failures": [f"C-01 invalid master plan path {campaign_doc!r}: {exc}"],
+                "notes": [], "node": None}
     if not campaign_path.is_file():
-        return {"failures": [f"C-01 master plan missing: {CAMPAIGN_DOC}"],
+        return {"failures": [f"C-01 master plan missing: {campaign_doc}"],
                 "notes": [], "node": None}
     campaign_text = campaign_path.read_text(encoding="utf-8")
-    state = check_state_block(campaign_text, failures, notes)
+    state = check_state_block(campaign_text, failures, notes, campaign_doc)
     if state is None:
         return {"failures": failures, "notes": notes, "node": None}
     records = load_index(root)
@@ -322,13 +349,15 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", default=str(ROOT),
                         help="repository root (default: this checkout)")
+    parser.add_argument("--campaign", default=CAMPAIGN_DOC,
+                        help=f"repository-relative docs/goals/*.md (default: {CAMPAIGN_DOC})")
     parser.add_argument("--quiet", action="store_true",
                         help="print only the summary line")
     parser.add_argument("--json", action="store_true",
                         help="emit the full report as JSON")
     args = parser.parse_args(argv)
 
-    report = check(Path(args.root))
+    report = check(Path(args.root), campaign_doc=args.campaign)
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     elif args.quiet:

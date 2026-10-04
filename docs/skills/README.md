@@ -11,9 +11,9 @@ ZCode 的 skill 发现路径，模型会按 `description` 里的触发条件自�
 
 | 能力 | 触发条件 | 用途 | 证据 |
 | --- | --- | --- | --- |
-| [`bounded-study-run`](../../.agents/skills/bounded-study-run/SKILL.md) | 要跑一个受预算约束的实验并留下可核查证据 | 冻结协议 → 训练 → 评估 → 归档代码身份 | 11 个 workflow 同一形状；8 个模块同一模式（E-055, E-065） |
+| [`bounded-study-run`](../../.agents/skills/bounded-study-run/SKILL.md) | 要跑一个受预算约束的**CPU**实验并留下可核查证据 | 冻结协议 → 训练 → 评估 → 归档代码身份；非通用GPU训练SOP | 11 个 workflow 同一形状；8 个模块同一模式（E-055, E-065） |
 | [`pinned-artifact-replay`](../../.agents/skills/pinned-artifact-replay/SKILL.md) | 要用已归档的产物重跑或核对历史结果 | 校验源 hash 与 receipt → 重建 → 离线评估 → 写接受标记 | 3 个 replay 模块 + 3 个 workflow（E-129, E-130） |
-| [`real-data-acquisition`](../../.agents/skills/real-data-acquisition/SKILL.md) | 要引入新的真实数据或重建派生数据集 | 只读 preflight 报告 → 人审 → 显式 `--write` 授权 → 发布契约 | preflight 被每个 pilot 复用（E-051, E-052） |
+| [`real-data-acquisition`](../../.agents/skills/real-data-acquisition/SKILL.md) | 要引入真实源/下载器或重建派生数据 | 核具名范围/分批预算→只读preflight审阅→显式新路径发布；0038方向内自审已授权，其余人审 | preflight 被每个 pilot 复用（E-051, E-052）；0038前瞻scope不豁免校验 |
 | [`result-freeze`](../../.agents/skills/result-freeze/SKILL.md) | 某个结果要被引用、写进报告或归档 | 复现性核查 → digest 核对 → 登记 | 3 个迭代的 docs 记录都含 run id 与 digest（E-066, E-067） |
 | [`environment-rebuild`](../../.agents/skills/environment-rebuild/SKILL.md) | 换机器/容器、`ModuleNotFoundError`、CUDA 不可用 | 虚拟环境搭建顺序 + 未声明依赖清单 | 2026-09-24 实测重建；4 个未声明依赖 + torch≥2.8 不兼容（E-157, Q-011, Q-012） |
 | [`ci-workflow-triage`](../../.agents/skills/ci-workflow-triage/SKILL.md) | CI 失败、运行 pending/取消、要判断"算不算通过" | 18 条 workflow 分类 → 触发标签 → run-id pin → 禁网验证 | 18 条 workflow；`R7_MANUAL_ITERATION.md:17-21`；`R7_TASK_QUEUE.md` |

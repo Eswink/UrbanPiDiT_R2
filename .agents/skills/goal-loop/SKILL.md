@@ -26,7 +26,9 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
 1. **引用现行授权边界**：决策 0030 将总体研究方向内的实验、时长预算、普通决策与节点推进常设
    下放，不逐次询问、不逐轮等待用户触发。总体方向与付费/新数据/发布/独占/main 合并/破坏性等
    保留边界仍归用户；scope 与失败规则仍写进每轮长文/协议。历史 goal 的具名限制保留为当轮事实，
-   新接续目标应明确适用 0030，不把旧逐轮停顿重建为现行闸门。
+   新接续目标应明确适用 0030，不把旧逐轮停顿重建为现行闸门。主模型超气候态方向另按决策
+   0038 已具名授权免费区域多年度/多季节下载和自审 preflight 后向全新 outputs 路径 --write；
+   不再重复询问范围内的每批获取/发布，单位/源身份/预算/发布校验不省，付费等其余保留边界不变。
 2. **逐轮时长与记账必须写出数字**：按决策 0030（继承 0029），campaign 无总 GPU-h 上限；逐轮自设
    `planned_seconds`（软）与 `hard_cap_seconds`（宽松硬上限，默认约 2× 计划，按整轮墙钟），
    在长文写死并于实验前纳入冻结协议。超软预算不中止，记录 `soft_overrun_seconds`；硬截断记
@@ -41,10 +43,12 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
    校验是否成功（`~/.zcode/cli/db/db.sqlite`，`query_source='target_completion_verification'`）；
    已知 `new-provider-4`（cline-pass 路由）在该表里 6/6 未成功，分布见
    `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §2.4。收尾纪律见下节的两种形态处置。
-7. **若本目标属于一个 campaign（当前是主模型 V2）**：开工前先读主计划
-   `docs/goals/main-model-v2-campaign.md` 的当前节点与 §3 对表清单，跑
+7. **若本目标属于一个 campaign**：先核本方向唯一主计划的当前节点、对表、授权与科学合同。
+   旧V2用 `docs/goals/main-model-v2-campaign.md` 与默认检查；主模型超气候态用
+   `docs/goals/main-model-climatology-campaign.md`（0038），必须显式检查本master，不借旧绿灯：
    ```bash
    .venv/bin/python tools/check_campaign_state.py
+   .venv/bin/python tools/check_campaign_state.py --campaign docs/goals/main-model-climatology-campaign.md
    ```
    退出码必须为 0。它查的是**机械可判定**的四件事（规则号 `C-01`…`C-06`，属该工具自己的命名空间）：
    节点一致性、账本算术与证据指针、上一轮证据已登记、本轮长文结构与 `<!-- round-node: X -->` 标记。
@@ -117,6 +121,12 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
 - **把 skip / 取消 / 排队的运行当通过**（`AGENTS.md:19`）。
 - **为了报告好看而放宽判据或改测试**；负面结果照写才算完成。
 - **回溯改写老目标文件**：它们是证据；新约定只约束之后写或重写的目标。
+- **终极方向把一条negative变成全部阻塞，或重复直到偶然赢**：0038方向按新主计划/科学合同将
+  每个假设独立预注册、停止/饱和出口留痕，负面终结该假设后自主回主线。新数据/方法实例不改旧
+  停止线；正式确认有test曝光/序号和累积alpha纪律，不能重复同一test或事后换primary。
+- **只列子代理/skill名而不实际调度**：新主计划明确Explore/planner/web-researcher及backup/
+  general-purpose何时用与隔离边界；触发实际加载对应技能，候选/最终证据独立只读审阅。
+  bounded-study-run只管有界CPU，不虚构通用GPU技能；GPU并发由统一父调度核共驻余量。
 - **把校验器的两种失败形态当成目标失败**：见下节——会话被打断、或校验调用悬挂，都是客户端已知问题，
   恢复后从 `§8` 续跑即可。
 

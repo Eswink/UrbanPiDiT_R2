@@ -2,6 +2,33 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-04 — 主模型超气候态新方向与自主数据扩围（0038/计划0016）
+
+用户批准新长期研究方向和本轮文档/校检交付。0038继承0030的实验、普通决策、时长和节点自主、
+无总GPU-h闸门；具名扩展免费合法区域多年度/多季节下载与执行者自审只读preflight后向全新排他
+outputs路径--write派生发布，不逐批问人。数字范围/许可/字节/磁盘/soft-hard先冻结，source完整hash、
+单位/schema/finite、fresh_outputs/BUILD_COMPLETE及R-001–R-009/R-028/R-054不放松，旧受保护数据和
+归档只读，失败无合成回退。AGENTS/数据规则/real-data-acquisition及goal-loop接续，付费/租卡/独占/
+方向改变/main合并/破坏性仍保留；#76–#79关闭不继承0037旧六许可。
+
+新唯一master `docs/goals/main-model-climatology-campaign.md`、科学合同与计划0016写出S0–S4、
+实际incumbent/gap、公平train-only climatology、t2m五时效/关键守门、未见年度四季/至少3seed、
+时间块同时区间及重复确认alpha记账。planner仅设计，科学门由主链写定，旧C与失败/暂停不回改；
+资料与CPU可并行，Explore/planner/web-researcher/backup/general-purpose及11技能触发明确。
+旧master/closeout只加真实交接、修正页首过时N4陈述，不自裁complete。
+
+check_campaign_state最小新增显式--campaign路径，默认旧master/C01–C06不变；新master初始0GPU文档
+行有真实计划指针，不宽免空账本或编造实验record。CI既有campaign step增加新master调用，不新增
+实验workflow/标签/依赖/timeout。工具测试正反证及本轮实际验证见计划0016，未commit/push或新CI。
+R-009基线只读AST实测1574/4299→1586/4333（+12函数/+34断言），来自campaign正反证，160文件不变；
+checker常量与testing/MIGRATION同步，未删除或弱化旧测试。首轮六模块261passed/1failed/0skip，
+唯一失败为规模报告marker仍记R-021=64而实际65；更新真实观测，不改400目标/600硬限或断言，失败日志保留。
+独立审阅发现objective未显式携带全部既定科学门，补齐后实测单段3974字符，复核无必修，不改科学合同。
+修后同六治理模块262passed/0failed/0skip、整轮33.0412秒，socket禁网/CUDA hidden，软600/硬1200、
+overrun0；独立工具静态审阅无必修。37阻断/新旧campaign/三个goal/index26及空白通过，未跑fullsuite。
+本轮0GPU，无下载/发布/训练/评分/clone，不改model digest/用户配置/凭据/安全hook；治理未跟踪不
+冒称干净clone可用，正式科研全部待新执行goal。
+
 ## 2026-10-04 — N5 收尾轮：六 issue 有条件关闭窗口（0037）
 
 决策 0037 落定 #70–#75 的具名关闭窗口：仅经 N5 单一关闭提交（逐行 `Closes #70`…`Closes #75`），

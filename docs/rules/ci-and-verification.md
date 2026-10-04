@@ -95,6 +95,12 @@
 它**不判断科学方向**——通过只表示「与主计划不矛盾」。该步骤使作业从八步变**九步**；
 历史证据页里的「八步」是它们当时的实测，不回溯改写。
 
+**2026-10-04 接续（0038/计划0016）**：同一个 `Check campaign state` 步骤另调用
+`python tools/check_campaign_state.py --campaign docs/goals/main-model-climatology-campaign.md --quiet`。
+默认旧master检查保留，新路径同样强核C-01–C-06；不宽免空账本/不可达证据、不新增实验workflow、
+标签、依赖或时限。未来CI核实际精确SHA的全部必要步骤，不照抄历史九/十二步数。工具绿只说明
+机械一致，不是超气候态门；本轮未commit/push，不能声称已有远端CI覆盖这些改动。
+
 `ci.yml:35-40` 原有步骤（第二遍已修正范围）：
 
 1. `python -m compileall -q data model training scripts train_r7_local.py evaluate_r7_local.py`

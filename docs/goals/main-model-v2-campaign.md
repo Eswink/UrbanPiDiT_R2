@@ -1,6 +1,6 @@
 # main-model-v2-campaign：主模型 V2 的 campaign 主计划与每轮对表
 
-**状态：campaign级主计划（活文档）。当前N4/active：实际N3/B02冻结出口negative_or_mixed/l6已登记，独立L6三臂确认路由到新current目标；当前仅前置排障，C未prepare/未run、新包precision未run。用户0032终结已交付的M3辅助监督假设，独立路线连续接续。N2a原failed与完整补测any-unresolved/paused/advance=false全部保留，不伪称旧出口放行；新路线不再以该辅助假设暂停作总前置。不自宣最终goal完成或科学增益。**
+**状态：旧V2路线N5收尾已有实证（2026-10-04）；机器工作态仍N5/active，不自裁最终complete。actual C/M1/precision及六issue关闭已登记，package改善不能归因过程语义，adaptive成本门未过；本页历史N4前置排障记录及N2a failed/any-unresolved/paused保留。新主模型超气候态方向按0038交接至 docs/goals/main-model-climatology-campaign.md，本页仍是旧V2的权威历史，不以新目标回改旧科学结论。**
 
 本文件是「主计划 + 每轮 recheck」机制的**唯一权威**：节点图（§2）、每轮开工前必须走的对表清单（§3）、
 预算账本（§7）与进度块（§8）都在这里。每一轮的目标长文是它的**派生物**，不是平行的第二处真相——
@@ -513,3 +513,13 @@
 - 最后登记工程实测：37阻断0失败；campaign N4/0失败/4历史notes；current/remaining/master三个goal0失败0建议；index23/canonical brief与git diff --check均exit0；五相关治理CPU模块 **213 passed/33.15秒**，socket先禁网、CUDA hidden、无skip，actual AST仍1574测试函数/4299assert。回执 `/tmp/r7_governance_registration_audit_20261003_NRQYhoBF/verification_receipt.json` 记录whole软900/硬1800、实际软超，不把工程PASS当remoteCI、科学或最终goal通过。
 - 主链独立Py3.11.15/torch2.14.1+cpu的精确523 full已实跑 **3462passed/14skipped/0fail/0error、pytest906.85秒/child+reap909.57秒/attempt whole909.92秒、exit0、425sourcepins前后不变**，tree `cb81953cebc6bc032ac619cfa144c0da28101656`；六warnings经主链实际读取为三record_property+duplicatezip+两Lightning；attempt whole采用909.92秒权威值，不拿pytest或child时间代替。主链stdlib JUnit对比两环境skip identities精确同14，14skip为6CUDA+缺M2/D1及optional真实fixtures，与独立clean3.12同缺项，不能算passed/依赖错误或合成回退。此本地绿仍不能归因或追认实际remote523失败，新包precision/C仍未run。
 - 主链另改 `.github/workflows/ci.yml` 仅step9失败诊断（保持原pytest全量选择/原exitstatus，RUNNER_TEMP junit及有限escaped annotations）；这是外部Main非owned变动，非本登记agent改source/model/tests，不能称remote bug已修。最晚通报workflow SHA `aacaca7ababd01e071a48fd70a7ae04151c0a52951bad8382707eba43bbf7e5a`、独立review尚待；初PATH python缺失counterproof失败127保留，随后诊断反证独立通过是工程范围，不是新CI。当前remote cause未复现/未确认。
+
+### 新方向交接（2026-10-04，0038/计划0016，0新增GPU-h）
+
+用户确认上述旧路线已做，并选择主模型持续迭代到公平超过train-only climatology；允许更多免费
+区域多年度/多季节真实数据。新方向唯一master `docs/goals/main-model-climatology-campaign.md` 与
+科学合同已准备，代理/11技能触发、preflight自审后全新outputs发布及软硬时长自主由0038记录。
+本窗口未下载/发布/训练/评分/clone、未commit/push；旧ledger9.9139/N5机器active与所有历史科学读法
+保持，旧goal最终complete不自裁。页首过时N4“C未run”仅校正为有实证N5收尾，不删上列历史。
+**下一动作**：旧路线 **N5** 保持其关闭复核与科学限制留档；新路线 **S0** 在新master显式对表、核
+actual C配置/源/checkpoint，冻结并实际重建同case气候态gap。不是以本轮文档或旧CI冒称研究已通过。

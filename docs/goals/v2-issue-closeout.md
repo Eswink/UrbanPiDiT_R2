@@ -129,3 +129,10 @@
 
 关闭完成后**只提议**为「最终独立年份/季节的正式测试」（#75 的后置事项）另立预算与 goal 长文；执行者
 不自动开始，也不宣告目标完成。
+
+**2026-10-04 新方向具名交接（不回改以上旧出口）**：用户随后选择持续优化主模型超气候态并允许
+更多真实数据，批准0038/计划0016。旧N5闭环与原negative/paused/unresolved保留，最终complete不自裁。
+新唯一主计划为 `docs/goals/main-model-climatology-campaign.md`，本窗口仅文档/校检准备0GPU、无下载/
+训练/发布/commit/push；新master以N5及actual C已登记证据为前序，不重新执行旧六收尾。
+**下一动作**：新方向 **S0** 核actual C incumbent身份，冻结并实测train/val共同case的模型/
+climatology/persistence gap；按0038自主推进并保持协议门，不逐轮等用户触发。
