@@ -2,6 +2,31 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-04 — 精确 CI 的新机单调时钟反证修正
+
+新工程 `8af079db256b96f30e7dc75a6428af04dfd7dd2b` 的 run37160881198 / attempt1 /
+job111313876196 实际 completed/failure：必要step9失败、17 skipped，其余10项success，
+不接受该SHA。官方匿名annotations取得确切失败
+`tests.test_r7_v2_stats_complement::test_prepare_hard_timeout_seals_new_failure_without_touching_old`：
+runner的实际锚点为−530.479624246，`perf_counter()-1210` 在低于1210秒的启动时间下是负数，
+正确的非负同boot输入守卫先抛ValueError，测试未进入其声明的TimeoutError路径。原回执
+`outputs/r7_v2_remaining_acceptance_20261003/engineering_8af079d_exact_ci_observation_attempt01/receipt.json`
+SHA256 `d931c1d3f52e205de5689f33987d2513c252cfe69ba7f92214ca7d6982e5bbf7` 与完整trace原样保留；
+此前523c819远端失败的具体原因仍未取得，不把相同源码与本次归因当作其已证实的原因。
+
+仅修 `tests/test_r7_v2_stats_complement.py` 两项时钟fixture：20秒前置测试显式anchor10/clock30，
+硬超时测试使用非负anchor0、10、1e9及各自anchor+1210的注入时钟。使用既有`clock`接口，
+TimeoutError、1210秒whole、失败封印、0GPU与旧源全inventory断言全部不动；新增两个参数化实例，
+AST函数/断言数不变，不修改生产守卫、600/1200预算、科学容忍或旧归档。独立反证与新全量suite
+另立排他协议执行。独立窄验实际复现旧测试的相同负锚点/ValueError，保留pytest RC1；当前完整模块
+40passed/0skip/RC0，三非负锚点均执行。负锚点守卫另验证ValueError、失败封印/禁止重试与76个旧源
+pins不变，实际全部AST为20函数/49断言，两侧一致（独立仅test函数内计48，遗漏helper内1条）。
+独立回执 `/tmp/r7_complement_actualverify_thow665g/verification_receipt.json` SHA256
+`e9455a1aa4cf47b972e79b55a56a96176fbccd09ecca963f0cae991898c8edca`，整轮509.746秒，
+180软600硬/软超329.746秒，2975产物digest封印、日志关闭且owned reaped；仅接受窄工程。
+新全量suite仍执行中、不预写结果；新工程CI、新包GPU precision、C与M1仍未通过/未实际执行。
+无接口、数据、依赖、用户配置、凭据、安全hook或模型digest变化。
+
 ## 2026-10-03 — 实际 CI 失败留存与匿名可读测试诊断
 
 工程 `523c819b8d42a3f43163eb53509f76136d8038f4` 的 run37155293949 / job111297340351

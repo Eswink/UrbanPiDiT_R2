@@ -69,16 +69,17 @@ def tiny_source(tmp_path):
 
 def test_prepare_freezes_whole_anchor_gap_budget_and_exact_correction_without_metrics(tmp_path):
     source, original, pins, files = tiny_source(tmp_path)
-    anchor = time.perf_counter() - 20.
+    anchor = 10.
+    clock = lambda: anchor + 20.
     output = tmp_path / "independent_metadata"
-    protocol = complement.prepare(pins, output, round_started_perf_counter=anchor)
+    protocol = complement.prepare(pins, output, round_started_perf_counter=anchor, clock=clock)
     assert protocol["round_started_perf_counter"] == anchor
     assert protocol["monotonic_boot_id"] == complement.boot_id()
     assert protocol["planned_seconds"] == 600 and protocol["hard_cap_seconds"] == 1200
     assert protocol["source_status"] == "failed" and len(protocol["source_inventory"]) == 36
     assert protocol["source_files_digest"] == digest(files)
     assert verify_inventory(source, files) == len(files)
-    assert complement.clock_fields(anchor, protocol)["whole_elapsed_seconds"] >= 20.
+    assert complement.clock_fields(anchor, protocol, clock=clock)["whole_elapsed_seconds"] >= 20.
     assert not (source / "provenance.json").exists()
     with pytest.raises(FileExistsError): complement.prepare(pins, output)
 
@@ -121,11 +122,12 @@ def test_only_exact_objective_validator_delta_is_allowed_model_archive_stays_ide
     with pytest.raises(ValueError): extract_corrected(source, original, tmp_path / "bad_runtime", bad)
 
 
-def test_prepare_hard_timeout_seals_new_failure_without_touching_old(tmp_path):
+@pytest.mark.parametrize("anchor", [0., 10., 1_000_000_000.])
+def test_prepare_hard_timeout_seals_new_failure_without_touching_old(tmp_path, anchor):
     source, _, pins, files = tiny_source(tmp_path)
     output = tmp_path / "timed_prepare"
-    anchor = time.perf_counter() - 1210.
-    with pytest.raises(TimeoutError): complement.prepare(pins, output, round_started_perf_counter=anchor)
+    clock = lambda: anchor + 1210.
+    with pytest.raises(TimeoutError): complement.prepare(pins, output, round_started_perf_counter=anchor, clock=clock)
     attempt = read_json(output / "attempt.json")
     assert attempt["status"] == "failed" and attempt["finalized"] is False
     assert attempt["whole_elapsed_seconds"] >= 1210.
