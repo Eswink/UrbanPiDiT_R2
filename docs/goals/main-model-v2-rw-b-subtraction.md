@@ -206,3 +206,5 @@
 - **下一动作**（按停止条件 3）：停止发明新模块；记下**可反驳假设**——「换一个真正可区分的负控制
   （例如把 Z 换成同形状冻结随机张量、其余不变），48/72h 的恶化应当仍然出现」；并转去重新检查
   forecast state / training objective / data regime（证据文档 §8 给出了具体第一动作）。
+
+- **后续适用指针（2026-10-04）**：本页中「不关闭 #70–#75／本轮不关闭 issue／关闭是收尾轮的事」为当轮禁止项，如实保留不改写；自决策 0037（`docs/decisions/0037-issue-closeout-window-scope.md`）起，#70–#75 的有条件关闭按 `docs/goals/v2-issue-closeout.md` 执行（单一 `Closes` 提交、精确 CI、非 force ff 推 main、匿名复核；关闭≠科学成功）。

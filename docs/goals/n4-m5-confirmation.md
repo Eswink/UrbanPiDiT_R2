@@ -105,3 +105,5 @@ matched-Generic 前置在 N3 已可构造，故本轮按用户指示开跑）。
 M5 完成后**只提议**进入节点 **N5**（收尾轮 `docs/goals/v2-issue-closeout.md`：补 #71/#72 证据 +
 六 issue 判定登记 + 关闭）；不自行宣告主模型达到 SOTA 或 SCIENTIFIC SUPPORT，也不自动进入最终独立年份/
 季节的正式测试（那是后置事项，需另立预算）。
+
+- **后续适用指针（2026-10-04）**：本页中「不关闭 #70–#75／本轮不关闭 issue／关闭是收尾轮的事」为当轮禁止项，如实保留不改写；自决策 0037（`docs/decisions/0037-issue-closeout-window-scope.md`）起，#70–#75 的有条件关闭按 `docs/goals/v2-issue-closeout.md` 执行（单一 `Closes` 提交、精确 CI、非 force ff 推 main、匿名复核；关闭≠科学成功）。

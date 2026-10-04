@@ -2,6 +2,20 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-04 — N5 收尾轮：六 issue 有条件关闭窗口（0037）
+
+决策 0037 落定 #70–#75 的具名关闭窗口：仅经 N5 单一关闭提交（逐行 `Closes #70`…`Closes #75`），
+先工作分支精确 SHA 的 `R7 CPU CI` 12 必要步骤 success，再非 force ff 推 main（决策 0003），
+匿名复核终态；合并仍禁且不需要。判定口径与证据页一致、不因关闭放宽：#70 工程 DONE/科学
+negative-mixed；#71 工程 DONE/单因素 unresolved、不 DONE-positive；#72 结构验收 DONE/实验
+negative-mixed；#73 规定交付 DONE/科学 paused；#74 NEGATIVE；#75 三类（科学增益/工程完成/
+试验否定）分写。历史长文中的「不关闭 #70–#75」为当轮禁止项，不回溯改写，自本决策起以
+0037 与 `docs/goals/v2-issue-closeout.md` 为准。保留禁止：force push、`--mirror`、删默认分支、
+合并、其它 issue 关闭、放宽冻结判据、删弱测试、改写归档或负面结果、读封存 test、无授权
+下载/租卡/发布。本轮为 0 GPU-h 登记轮：三新证据记录（precision/C/M1）入索引与 canonical brief，
+账本新行 0.0544/3.1550/0.8758（逐行显示总 9.9139、余 14.0861）；不新增实验、不改判据、
+不动用户安全配置；关闭提交自身的 CI/推送/终态复核结果回写 queue/comments/主计划 §8。
+
 ## 2026-10-04 — 精确 CI 的新机单调时钟反证修正
 
 新工程 `8af079db256b96f30e7dc75a6428af04dfd7dd2b` 的 run37160881198 / attempt1 /

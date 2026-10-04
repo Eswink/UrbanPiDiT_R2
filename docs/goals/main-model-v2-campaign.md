@@ -72,9 +72,11 @@
 
 **常设禁止项**：不新增 solver 部件；不改已冻结判据、阈值、端点或案例集；不重跑或改写归档产物；
 不读封存 test；不无授权下载数据或租 GPU；不 force push、不合并。main/issue 关闭仅限 N5 在
-计划 0009/决策 0030 的具名范围与证据/精确 CI/非 force ff 条件齐备后进行，禁止提前关闭或借此
-宣称科学成功。普通节点推进已下放，不需用户逐次放行，但不绕冻结前置与停止线；
-skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自判。
+计划 0009/决策 0030/0037 的具名范围与证据/精确 CI/非 force ff 条件齐备后进行——2026-10-04
+该窗口按决策 0037 执行：#70–#75 的终局判定见 `docs/R7_ISSUE_COMMENTS.md`，仅经单一
+`Closes` 提交、精确工作分支 CI 12 必要步骤 success、非 force ff 推 main 与匿名复核；关闭≠
+科学成功，其它 issue 与合并/force/`--mirror` 仍禁。普通节点推进已下放，不需用户逐次放行，
+但不绕冻结前置与停止线；skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自判。
 
 ## §3 判据与每轮 recheck 清单
 
@@ -155,7 +157,10 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 | N3可微两步FP32/BF16精度探针（success，8实际updates） | 0.0471 | 4.9279 | `docs/R7_V2_PRECISION_ACCEPTANCE.md` + 索引记录 `record:n3-v2-precision-gpu-acceptance`（`gpu_hours = 0.04711594580465721`；continuous首spawn至末owned reap，独立工程结果不作科学支持） |
 | B同父两步训练（6train/30eval成功，聚合failed） | 0.8526 | 5.7805 | `docs/R7_74_AUTOREGRESSIVE_ATTEMPT.md` + 索引记录 `record:n3-autoregressive-attempt-failed`（`gpu_hours = 0.8526056814201487`；原failed全额连续计费，不以全worker成功冒称聚合通过） |
 | 真正原#72 K3参照（0train/10eval，metadata补全受限接受） | 0.0482 | 5.8287 | `docs/R7_72_ORIGINAL_K3_REFERENCE.md` + 索引记录 `record:n3-original-k3-reference-metadata-complement`（`gpu_hours = 0.04818810004533993`；独立audit/UTC登记0GPU，原B/precision不重记） |
-| **合计已用** | **5.8287** | — | 24 − 5.8287 = **余 18.1713 GPU-h** |
+| 新包GPU精度探针（8实际updates，独立接受） | 0.0544 | 5.8831 | `docs/R7_V2_NEW_PACKAGE_PRECISION_ACCEPTANCE.md` + 索引记录 `record:v2-new-package-precision-acceptance`（`gpu_hours = 0.0544421515867321`；continuous首spawn至末owned reap，metadata-only接受） |
+| actual C 独立L6三臂确认（9train/135eval，独立接受） | 3.1550 | 9.0381 | `docs/R7_C_ACTUAL_CONFIRMATION.md` + 索引记录 `record:v2-actual-c-confirmation`（`gpu_hours = 3.155003245259221`；连续首spawn→末owned reap，含软超884.2877719895914s，四位显示舍入） |
+| actual M1单因素补全（4train/20eval，verify通过） | 0.8758 | 9.9139 | `docs/R7_M1_ACTUAL_AND_UTC.md` + 索引记录 `record:v2-actual-m1-completion`（`gpu_hours = 0.8757688270136714`；复用C 10个K4评分不重计，四位显示舍入） |
+| **合计已用** | **9.9139** | — | 24 − 9.9139 = **余 14.0861 GPU-h** |
 
 说明（如实）：决策 0029 后账本**只记账、不设总上限**；`cap_gpu_h=24.0` 是历史会计基数，
 `used_gpu_h` 为实际累计消耗，`remaining_gpu_h` 为基数减累计的会计差额，三字段仍供 C-02 算术对表，
@@ -171,7 +176,37 @@ skip/queued/cancelled/partial/failed 不算通过，最终 goal 完成不得自�
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "N4", "previous_node": "N3", "current_round_goal": "docs/goals/v2-l6-confirmation-current.md", "previous_round_goal": "docs/goals/v2-remaining-stages-exploration.md", "previous_round_evidence": "docs/R7_74_STATISTICS_COMPLEMENT.md", "cap_gpu_h": 24.0, "used_gpu_h": 5.8287, "remaining_gpu_h": 18.1713, "status": "active", "next_node_proposal": null, "budget_mode": "accounting-only", "route_decision": "0032"} -->
+<!-- campaign-state: {"current_node": "N5", "previous_node": "N4", "current_round_goal": "docs/goals/v2-issue-closeout.md", "previous_round_goal": "docs/goals/v2-l6-confirmation-current.md", "previous_round_evidence": "docs/R7_C_ACTUAL_CONFIRMATION.md", "cap_gpu_h": 24.0, "used_gpu_h": 9.9139, "remaining_gpu_h": 14.0861, "status": "active", "next_node_proposal": null, "budget_mode": "accounting-only", "route_decision": "0032"} -->
+
+- **N5 登记轮（2026-10-04；0新增GPU-h）**：actual C（144/144 job，独立接受 `aa44b8cd…`，3.155003245259221 GPU-h）、
+  actual M1（24/24 job，verify `c5df8cc6…`，0.8757688270136714 GPU-h）与新包 precision（独立接受 metadata-only，
+  0.0544421515867321 GPU-h）已实跑并各自独立接受；两侧 UTC 标量统计链完成（C 67,320 rows/1,320 groups；
+  M1 400 groups/20,400 cells，oracle `635cd90c…`）；证据页 `docs/R7_C_ACTUAL_CONFIRMATION.md`、
+  `docs/R7_M1_ACTUAL_AND_UTC.md`、`docs/R7_V2_NEW_PACKAGE_PRECISION_ACCEPTANCE.md` 冻结于
+  `858eddbf7b917ac158689c5f7de150fca1152e47`；E-245–E-247 追加；账本新行逐行显示总 9.9139、余 14.0861。
+  科学读数如实：C/M1 的 package 相对 old_ours 严格改善，但 process/「过程语义」相对同结构 Generic 均为
+  unresolved（C 1e−5 K、M1 4e−6 K 量级）——**不能归因过程语义独立贡献，#71 无实际改善不得 DONE-positive**；
+  adaptive 四门 evaluated、`gate_met:false`（accuracy_cost_tradeoff 未过）、控制器不训练、oracle 不部署。
+  本节点按 `docs/goals/v2-issue-closeout.md` 执行 N5 登记与六 issue 有条件关闭；关闭不等于科学成功。
+- **N5 收尾登记（2026-10-04）**：终局判定六段写入 `docs/R7_ISSUE_COMMENTS.md`、六行入
+  `docs/R7_TASK_QUEUE.md`；决策 0037 accepted（decisions/README + CHANGELOG 段）；三新证据记录入
+  索引（26 记录）与 canonical brief；`check_campaign_state.py` exit 0（4 历史 notes）；
+  conventions 37 阻断 0 违规；关闭提交（`Closes #70`…`Closes #75`）的精确 CI/ff/匿名复核结果
+  按决策 0037 回写本块。非 CUDA-hidden 全量跑暴露的 `fork_rng` 次序缺陷已修（不在任何冻结 map；
+  正交性以 stash 复跑验证），`training/r7_experiment.py` 的 CUDA-visible 初始化倾向如实记为已知限制
+  不改（在冻结 map 内）。
+
+### N4 实证窗口归档（2026-10-04）
+
+- **D1**：新包 precision 实跑 FP32/BF16 各 4 updates（共 8）、4 checkpoint decode，独立接受
+  `accepted-actual-new-package-precision-metadata-only`（接受文件 `8503adfe…`）。
+- **D2**：actual C 按冻结协议 9train/135eval、144/144 job、1333 文件全 pin；独立审阅 `aa44b8cd…` 接受；
+  whole 11684.287771989591 s / 10800 软 21600 硬 / 软超 884.2877719895914 s / 未触硬限。
+- **D3**：adaptive 四门在 144-job 独立接受后评价：package_improvement met、accuracy_cost_tradeoff **not met**、
+  case_heterogeneity met、complete_engineering_evidence met → `gate_met:false`，不启动控制器协议。
+- **D4**：C 独立接受后复用 old_ours 41/42 十个 K4 评分（identity pin，不导入权重），4 fresh scratch
+  M1-only train + 20 K4 eval 实跑成功并 verify；M1-only UTC 400 groups/20,400 cells oracle 通过。
+- **未做**：过程语义独立贡献的可分辨实验、#75 之后的最终泛化/季节测试、adaptive 控制器——均仅提议。
 
 - **N3当前工程窗口（2026-10-03；非预报结果）**：matched Generic、旧身份显式权重导入、exact185窗口与
   原initial/allK深监督的可微两步接线已落；source只读preflight通过，无新数据/发布。独立归档父两seed×

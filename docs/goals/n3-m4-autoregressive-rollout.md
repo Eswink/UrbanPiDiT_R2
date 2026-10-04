@@ -107,3 +107,5 @@
 
 M4 完成后**只提议**进入 N4（M5 最小确认闭环，`docs/goals/n4-m5-confirmation.md`）；matched-Generic V2
 在本轮已可构造，是 N4 的前置之一。不自行宣告 M4 成功或自动跳步。
+
+- **后续适用指针（2026-10-04）**：本页中「不关闭 #70–#75／本轮不关闭 issue／关闭是收尾轮的事」为当轮禁止项，如实保留不改写；自决策 0037（`docs/decisions/0037-issue-closeout-window-scope.md`）起，#70–#75 的有条件关闭按 `docs/goals/v2-issue-closeout.md` 执行（单一 `Closes` 提交、精确 CI、非 force ff 推 main、匿名复核；关闭≠科学成功）。

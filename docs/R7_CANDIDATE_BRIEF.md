@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 23; human-review candidates: 1
+Records: 26; human-review candidates: 1
 
 ## b2-multiseed-negative
 
@@ -284,6 +284,56 @@ Records: 23; human-review candidates: 1
 - CI run: `37133487340`
 - Excluded from runnable candidates: Engineering prerequisite only, not a scientific or runnable model candidate, weather comparison, full B experiment acceptance or goal completion. Historical failed records and M3 pause remain unchanged; independent-route authorization is new, not a rewrite of those records. Independent B statistics acceptance is pending in separate outputs, with no GPU rerun. This index entry grants no execution permission and does not invent registration CI.
 - Recorded metrics (not recomputed): acceptance_flags_true=4, all_allocator_baselines_zero=true, all_same_precision_resume_checks_equal=true, archived_source_members=85, attempt_path=outputs/r7_v2_precision_probe_20261003_attempt01/attempt.json, attempt_sha256=8ecd15ea505f43235544d576b214ddc648e2a76c143ed6928334bd9fad094ada, attempt_status=success, b_independent_statistics_acceptance=pending, b_original_aggregate_status=failed, batch_size=2, bf16_peak_allocated_mib_rounded=631.8799, bf16_peak_reserved_mib=674, bf16_worker_seconds_rounded=79.1489, budget_limited=false, calendar_phase_atol=2e-06, closeout_sha256=4db58b6a6b8070f9468154e7432e2b3cea67277872dacd8fc3fa346895a4c29e, closeout_wall_seconds=242.43781951908022, device_policy=shared-headroom, device_uuid=GPU-408ad137-a60e-6a04-e2c8-22f5f64e5e3b, engineering_ci_receipt_path=outputs/r7_v2_remaining_acceptance_20261003/engineering_ci_acceptance.json, finalized=true, fp32_peak_allocated_mib_rounded=987.6782, fp32_peak_reserved_mib=1134, fp32_worker_seconds_rounded=84.0124, full_internal_and_physical_bptt_recorded=true, future_target_poison_forecast_unchanged_recorded=true, gpu_hours=0.04711594580465721, gpu_phase_seconds=169.61740489676595, gpu_rerun_performed_for_registration=false, grid_shape=[65, 65], hard_cap_seconds=1800, independent_acceptance_sha256=bd167cb754eb179cc457f08f60841b336f46edbaca684fe8bda9319c8099aa86, independent_artifact_pins_sha256=062d27579b98cf50231a429c21ec66ab7f68fa7c8cdb567f639b11eb9c9f09e8, independent_artifacts_unchanged=29, independent_review_dir=outputs/r7_v2_remaining_acceptance_20261003/precision_independent_review, intentional_resume_updates_per_precision=2, m3_original_failed_preserved=true, m3_original_pause_preserved=true, model_code_sha256=0cc9c16e7a12bf23150fb04e13acb72f548f8cb461ad64df1d45123b387a223e, original_failed_audit_preserved=true, output_dir=outputs/r7_v2_precision_probe_20261003_attempt01, parent_arm=M3 aux_off seed41 update400, planned_seconds=900, precisions=["FP32", "BF16"], reasoning_steps=4, registration_ci_available_at_index_write=false, registration_status_at_index_write=evidence-frozen-index-recorded-awaiting-separate-registration-ci, reproducibility_level=same-device/software same-precision checkpoint-body bitwise resume in this small probe; ordinary GPU training code/data/config-bound numerical reproducibility only, resume_model_tensors=131, resume_optimizer_states=123, soft_overrun_seconds=0.0, test_read=false, thresholds_added=0, train_windows=2, training_updates=8, uninterrupted_updates_per_precision=2, updates_per_precision=4, variables=17, whole_wall_seconds=242.43521373253316, workers_completed=2, workers_failed=0
+
+## v2-actual-c-confirmation
+
+- Outcome class: `mixed`; candidate state: `needs-review`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_C_ACTUAL_CONFIRMATION.md` (SHA256 `bc9cdfe3d1582cfa91335dc49a7e2a0becd23446641fb3cc2283b0c683497a51`)
+- Evidence commit: `858eddbf7b917ac158689c5f7de150fca1152e47`; experiment commit: `562e526afc5fdbdc99053a25ab20036b66a2a8bc`
+- Protocol SHA256: `ea0efb80e1b11eb7813fae74b4ee04ca67d145d16519eb8aa442af8d8851ad80`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: 独立冻结协议的 actual C 三臂确认（old_ours/process/matched_generic × seed 41/42/43）144/144 job 完成、1333 文件全 pin、独立审阅接受（aa44b8cd…）；package 相对 old_ours 在冻结 primary 6/6 cell 严格改善，但 process vs matched_generic 为 unresolved（1e−5 K 量级差正负不稳）→ 不能归因过程语义独立贡献；adaptive 四门 evaluated:true、gate_met:false、控制器不训练。
+- Limitations:
+  - 三个 seed、一个冬季区域、单次运行；描述性一致性，不是显著性，也不构成泛化证据。
+  - package 改善不能拆归因到某一 reader/query/过程语义；matched_generic 同结构同输入对照仍解析为不能区分。
+  - accuracy_cost_tradeoff 门未过；adaptive 保持 not-started，K 数是推理轮次，不代表延迟优势。
+  - 指标含负值与 undefined（AC 对 climatology 的 normalize 语义），全部保留未过滤；可复现等级为 identity-bound numerical replay，非 GPU 逐位一致。
+  - UTC 标量补链（67,320 rows/1,320 groups）为 metadata 层，历史 old whole-owner 日志失败保留不回修。
+- Excluded from runnable candidates: 不是 SOTA、显著性、过程语义归因成功或目标完成；单区域单次运行且 adaptive 未启动；不授权控制器训练、新数据或最终泛化测试。
+- Recorded metrics (not recomputed): adaptive_gate_met=false, arms=3, gpu_hours=3.155003245259221, hard_limit_seconds=21600, jobs_completed=144, jobs_planned=144, package_improved_cells=6, primary_cells=6, process_minus_generic_resolved=unresolved, seeds=3, soft_overrun_seconds=884.2877719895914, whole_seconds=11684.287771989591
+
+## v2-actual-m1-completion
+
+- Outcome class: `mixed`; candidate state: `needs-review`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_M1_ACTUAL_AND_UTC.md` (SHA256 `8816bb4ccbd4d2bee34af45924bc2dcc6ee0cef88a9bae11a57639dc633b3efe`)
+- Evidence commit: `858eddbf7b917ac158689c5f7de150fca1152e47`; experiment commit: `562e526afc5fdbdc99053a25ab20036b66a2a8bc`
+- Protocol SHA256: `c5df8cc63c8860e21f8feb6d2ec658d6218e82e2bb87923b8cc5b93974ca2d58`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: actual M1 单输入因素补全 24/24 job（4 fresh scratch 训练 + 20 K4 评估）实跑成功，accept_own_output verify 通过（c5df8cc6…）；primary 4/4 cell 相对 old_ours 严格改善，但 process−generic 在 4e−6 K 量级 → 单因素 unresolved，#71 无实际改善不得 DONE-positive；M1-only UTC 标量链 400 groups/20,400 cells 经独立 oracle（635cd90c…）通过。
+- Limitations:
+  - 两个种子、单冬季段；合法复用 C 的 old_ours 41/42 十个 K4 评分（不导入权重），未新增第三 seed。
+  - M1 相对旧 ours 的改善主要来自 known-context 输入容量；过程语义独立贡献 unresolved。
+  - UTC 统计为标量 metadata 重算（独立公式），不是天气场/tensor oracle，也不改任何 GPU 数值身份。
+  - round-4 运算符先放收据冲突 sealed as failed 如实保留；可复现等级为 config/numerical identity bound，非 GPU 逐位。
+  - scientific_claim: false；test_read: false；未扩臂、未读封存 test、未改判据。
+- Excluded from runnable candidates: 不是科学增益、SOTA 或 #71 DONE-positive 依据；单因素读数为 unresolved；不授权过程语义追认实验、最终泛化测试或任何新数据。
+- Recorded metrics (not recomputed): gpu_hours=0.8757688270136714, jobs_completed=24, jobs_planned=24, m1_utc_cells=20400, m1_utc_groups=400, process_minus_generic_resolved=unresolved, reused_c_evaluation_jobs=10, soft_overrun_seconds=0, whole_seconds=3543.913658151403
+
+## v2-new-package-precision-acceptance
+
+- Outcome class: `engineering-positive`; candidate state: `needs-review`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_V2_NEW_PACKAGE_PRECISION_ACCEPTANCE.md` (SHA256 `8fec7a972a77605b51fbf979faa034fefcc98652eac6e2531f2e4d6378adf66e`)
+- Evidence commit: `858eddbf7b917ac158689c5f7de150fca1152e47`; experiment commit: `562e526afc5fdbdc99053a25ab20036b66a2a8bc`
+- Protocol SHA256: `edc83fb64df15ef9b1925758a029251c25dbc213b3ebca3e1b9b87b0a9c46f68`; data identity: `ef8c66911a70d6db222517e6a7e3f62bc32d2eef86efd4132e3bdd48266ccc07`
+- Reason: 新工程包 FP32/BF16 精度探针实跑 8 实际优化更新（两精度各 4）与 4 checkpoint decode，获独立 metadata-only 接受（accepted-actual-new-package-precision-metadata-only，接受文件 8503adfe…）；resume 逐位相等、L12-only 第一步与 process_reader 梯度 finite>0、poison/calendar 断言通过。
+- Limitations:
+  - 独立接受是 metadata/source/inventory 校验与 CPU 端点对比；GPU forward 未被独立重算，不构成 forecast-skill、收敛或任何科学声明。
+  - 0.0544421515867321 GPU-h 与旧 precision 0.04711594580465721 是不同对象，各记一次；本探针是 actual C 的工程前置之一而非其必要条件。
+  - CI green 绑定尚未对本次登记取得（本记录 ci_run_id/ci_commit 为 null）；精确 CI 以收尾提交的工作分支运行单独绑定。
+  - scientific_claim: false；test_read: false；未新增训练臂、未读封存 test、未改判据。
+- Excluded from runnable candidates: 工程精度前置，不是天气收益、可运行候选、科学成功或目标完成；GPU forward 未独立重算；不构成任何新运行授权。
+- Recorded metrics (not recomputed): actual_updates=8, checkpoint_decodes=4, gpu_hours=0.0544421515867321, gpu_phase_seconds=195.99174571223557, soft_overrun_seconds=0, whole_seconds=273.1497834455222
 
 ## rw-b-subtraction-round-cannot-attribute
 

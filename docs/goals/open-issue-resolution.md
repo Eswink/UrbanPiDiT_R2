@@ -11,7 +11,14 @@ BLOCKED（带 reopen 条件），#1 为已答复的负面结论。关闭机制�
 后记：2026-09-25 第二次深度安全扫描确认下载层两条 SSRF 已修复，27 条归档侧发现
 按只读边界接受——见 `docs/R7_SECURITY_SCAN_TRIAGE.md`。
 
-**状态：尚未执行。** 本文件是任务定义，不是结果。
+**状态：进入第二轮（2026-10-04，进行中）。** 第二轮六个 issue（#70–#75）的终局判定已登记并
+按 N5 收尾轮（`docs/goals/v2-issue-closeout.md`、决策 0037）执行关闭：判定全文见
+`docs/R7_ISSUE_COMMENTS.md`「终局判定」段，任务队列快照见 `docs/R7_TASK_QUEUE.md` 六行；
+关闭机制为单一 `Closes #70`…`Closes #75` 提交、工作分支精确 CI 12 必要步骤 success、
+非 force ff 推 main、匿名复核。复核结果（提交 SHA、CI run、关闭时间戳）落地后回写本段；
+若推送被拒则停在分支并报告，不重试 force。**关闭≠科学成功**：#70/#71 的 process 归因
+仍 unresolved，#74 为 NEGATIVE，#73 科学 paused，#75 三类分写。
+下文中 2026-09-24 的「尚未执行」叙述保留为历史快照，不再改写成随后发生的事实。
 
 ---
 

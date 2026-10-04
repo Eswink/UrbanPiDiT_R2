@@ -866,3 +866,106 @@ Draft comment：
 > - **adaptive 的默认预期是不启动**：#66/S4 已证前置 gate 不成立（最优 K 只在 6h seed-一致且那里最优 K
 >   恰是最贵 K=4、增益 0.00%）。只有固定 K 出现**有用的 accuracy–compute 前沿**才讨论。
 > - **本轮未开始实现**；保持 TODO/READY。
+
+---
+
+## #70–#75 — 终局判定（2026-10-04，N5 收尾轮；以下六段是最终 verdict，替代 2026-09-29 的规划草稿）
+
+**状态：六条判定以下列文本为准；关闭经默认分支提交的 `Closes #70`…`Closes #75` 生效。**
+判定口径与证据绑定见 `docs/goals/v2-issue-closeout.md`、决策 0037；全部 `scientific_claim: false`。
+本轮为 0 新增 GPU-h 登记轮；实际实验成本与产物 SHA 逐条列在各自段内。
+
+### #70 — [R7-MODEL][EPIC] 主模型优先
+
+> **Verdict：工程交付 DONE（V2 源码与最小证据链齐备）／科学增益 negative-mixed（不 DONE-positive）。**
+>
+> - **已交付**：V2 主模型的实现与最小证据链——已知时空输入（M1）、位置化 process 读写（RW-A）、
+>   局部门控求解状态（RW-B，默认关闭）、matched-Generic 同结构对照、可微两步 rollout 接线、
+>   过程监督尺度与三类时刻语义；粗粒度到细粒度的实测链见
+>   `docs/R7_71_72_M1_AND_RWA.md`、`docs/R7_72_RW_B_PILOT.md`、`docs/R7_72_RW_B_SUBTRACTION.md`、
+>   `docs/R7_C_ACTUAL_CONFIRMATION.md`、`docs/R7_M1_ACTUAL_AND_UTC.md`。
+> - **读数**：整个 package 相对 old_ours 在 actual C 的冻结 primary 6/6 cell 与 M1 的 4/4 cell 严格改善
+>   （C 独立接受 `aa44b8cdc89588874c56eeedd13a222511d6377034abae4a38e0efd19c0ad8dc`）；
+>   但 process 相对同结构 matched-Generic 为 unresolved（C 1e−5 K、M1 4e−6 K 量级差正负不稳）——
+>   无法把改善归因于过程语义读写本身。RW-B 一轮有界对照为 negative（5 时效中 3 个 sign-consistent
+>   恶化）；减法轮 `stop-confounded-control` 不能归因；两步可微 rollout 为 NEGATIVE（#74）。
+> - **未做 / 重开条件**：能分辨「同输入信息量」的过程语义独立贡献协议未做；最终独立年份/季节
+>   测试与发表期强基线表未做。重开条件：出现可证伪的新机制或新数据依赖时另立具名协议。
+> - **Closure statement**：按 issue 原文「一个实际改进的 V2 及其最小证据链」——整体系改进已实测，
+>   但按本线自己的条款（无实际改善不 DONE-positive）以 negative-mixed 结题；关闭不表示模型研究完成。
+
+### #71 — [R7-MODEL][P0][M1] 已知时空条件接入
+
+> **Verdict：工程 DONE ／ 科学单因素 unresolved（不 DONE-positive）。**
+>
+> - **工程**：`model/spacetime_conditioning_r7.py` + whitelist 贯通 dataset→forward→streamed→rollout→adaptive；
+>   actual M1 24/24 job（4 fresh scratch train + 20 K4 eval）实跑并 verify 通过，
+>   protocol `c5df8cc63c8860e21f8feb6d2ec658d6218e82e2bb87923b8cc5b93974ca2d58`，
+>   成本 0.8757688270136714 GPU-h；证据页 `docs/R7_M1_ACTUAL_AND_UTC.md`。
+> - **判据补强（2026-10-03 已落地、本轮复跑）**：`tests/test_r7_v2_time_and_feedback.py` 13 个测试函数
+>   33 项通过（本轮 CUDA-hidden 复跑 33 passed），覆盖年末（2023/2024-12-31→+6h）、闰年边界
+>   （1900/2000/2100/2024-02-28）、UTC 跨日、东西经（含负经度 per-token）、batch 内不同日期、
+>   odd grid+padding 地理对齐、内部 K 保持同一 valid_time 等，均带故障注入反证。
+> - **读数**：M1 版相对 old_ours 4/4 primary cell 严格改善；m1_process − m1_generic 全表
+>   67 improved / 141 unresolved / 47 worsened → 单输入因素 unresolved。
+> - **Closure statement**：接口、容量控制与实测链齐备，但「过程语义独立贡献」未证明，
+>   #71 的「实际改善」验收条不判 DONE-positive；重开条件：同输入信息量的可分辨协议。
+
+### #72 — [R7-MODEL][P0][M2] 空间 Process Read–Write Solver
+
+> **Verdict：结构验收 DONE ／ 实验 negative-mixed（不能归因）。**
+>
+> - **工程**：RW-A `PositionalProcessReadout`（默认开关、逐位等价测试
+>   `tests/test_r7_v2_time_and_feedback.py` 中现役路径反馈到达 latent + `process_reader` 非零梯度，
+>   含阻断式反证）；RW-B `local_solver_state`（默认关闭、开启与上一轮逐位等价；pilot 证据页
+>   `docs/R7_72_RW_B_PILOT.md`，记录 `rw-b-bounded-round-negative`）。
+> - **实验**：第四轮 pilot primary 未获支持（6/48/72h sign-consistent 恶化，12/24h 小改善差一个数量级）；
+>   第五轮减法 `stop-confounded-control`（负控制按构造退化、0.00003–0.00008 K 浮点噪声，不能归因）；
+>   actual C 中 process 与 matched-Generic 同结构对照 unresolved → 过程语义读写仍不可分离。
+> - **Closure statement**：结构正确、逐位等价与全部接口测试通过；实验读数为 negative/mixed，
+>   不重启 naive `spatial_solver_feedback=True`，不新建 solver 部件；重开需新机制假设与独立协议。
+
+### #73 — [R7-MODEL][P1][M3] 预报相关的过程监督
+
+> **Verdict：规定交付 DONE（可验收）／ 科学 paused（any-unresolved 出口触发，不得当通过）。**
+>
+> - **交付**：train-only 物理单位尺度 sidecar（版本化 metadata，不原地改 store/checkpoint）；
+>   `input_diagnostics` / `future_diagnostic_targets` / `draft_diagnostics` 三分离字段与同一
+>   valid-time 语义；analytic 涡度/散度/平流、零方差/NaN/shape 拒绝、poisoned future label
+>   只改 loss 不改 forward/halting 的定向测试。
+> - **实测**：三臂尝试 6 训练完成、7/30 评估（deadline 终止，failed/budget_limited，0.49725426027008024 GPU-h
+>   全额保留）；独立 23 项 val 补全 23/23 + 跨来源 30/30（0.17899193391850632 GPU-h，
+>   `docs/R7_73_VALIDATION_COMPLEMENT.md`）；尺度修复只伤辅助损失的读数保持。
+> - **未做 / 重开条件**：完整三臂对照与 paired comparison 未取得（原失败不重跑）；重开需新协议新输出。
+> - **Closure statement**：按 N2a 验收「negative/mixed 允许验收、不新增事后完成门」，规定交付完成、
+>   科学状态 paused；不以此关闭动作改写 any-unresolved。
+
+### #74 — [R7-MODEL][P1][M4] 真自回归草稿修正训练
+
+> **Verdict：NEGATIVE（rollout 假设终结；原 failed 与统计补全的 negative_or_mixed 保留）。**
+>
+> - **实测**：同父两臂两 seed 的 B 轮——6 训练/30 评估 worker 全部成功，但聚合 attempt
+>   因 FP32 损失校验缺陷 failed/finalized:false（全额 0.8526056814201487 GPU-h 保留，
+>   `docs/R7_74_AUTOREGRESSIVE_ATTEMPT.md`）；独立零 GPU 统计补全（决策 0036）复算全部
+>   200/400 L6 对比：两 lead 对 200 L6 均改善、对 400 L6 均恶化 → `negative_or_mixed / selected_mode:l6`
+>   （`docs/R7_74_STATISTICS_COMPLEMENT.md`）。
+> - **修复**：时钟反证 fixture 修复 `562e526`（12/12 CI 绿），不复活旧 attempt；不扩 4/8/12 步 unroll。
+> - **Closure statement**：按 §3 规则负面终结该假设；重开条件：实质不同的机制/对照须另立协议。
+
+### #75 — [R7-MODEL][P1][M5] 最小实验闭环与有条件的自适应
+
+> **Verdict：三类分开——（a）科学增益：未确立；（b）工程完成：DONE；（c）某试验否定：多项成立。**
+>
+> - **（a）科学增益**：actual C 三臂三 seed（9 训练/135 评估、144/144 job，独立接受
+>   `aa44b8cd…`，3.155003245259221 GPU-h，`docs/R7_C_ACTUAL_CONFIRMATION.md`）显示 package 相对
+>   old_ours 6/6 primary cell 改善，但 process − matched_generic 为 unresolved；adaptive 四门
+>   `evaluated:true / gate_met:false`（accuracy_cost_tradeoff 未过）→ 控制器不训练、oracle 不部署。
+>   **主模型的过程语义科学增益仍未确立。**
+> - **（b）工程完成**：三臂最小确认闭环 + 冻结 primary/容忍/配对/单位 + 全 17 变量五 lead +
+>   K1/2/4 同 checkpoint 探针 + 四成本视图 + adaptive 门评价 + 两侧 UTC 标量统计链
+>   （C 67,320 rows/1,320 groups；M1 400 groups/20,400 cells oracle `635cd90c…`）全部实跑并登记。
+> - **（c）某试验否定**：RW-B 局部门控一轮 negative；减法轮不能归因；两步可微 rollout NEGATIVE；
+>   M3 完整对照未取得（paused）。adaptive 以「门未过、不启动」结题。
+> - **Closure statement**：按 issue 原文「科学增益、工程完成和某个试验否定分别标记，不能通过
+>   『所有 Issue 已关闭』冒充模型研究已完成」——本段即三类分离声明；关闭覆盖本条及以上五条，
+>   最终泛化/季节测试与可分辨过程语义实验留待新预算与新协议。

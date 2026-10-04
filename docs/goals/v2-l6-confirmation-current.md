@@ -69,13 +69,13 @@
 
 ## §8 进度块
 
-- **状态**：active，仅N4前置排障与真实证据路由；C prepared:false、actual_trainings:0、actual_evaluations:0、actual_jobs:0/144，新包precision未跑，M1实际0/24，adaptive evaluated:false。
-- **已登记**：B02实际N3/L6出口保持旧indexed1615795/7ea1；K3与UTC两页实际containing61db/finalGit bytes、E-243/E-244、index23/canonical brief；K3一次0.04818810004533993GPU-h，账本逐行显示5.8287/18.1713、精确5.828616076415684/18.171383923584315，不混显示口径。
-- **六项recheck**：①actual N3§8 next N4与主state/current目标一致，旧N3 marker不变；②K3一次记账、旧B/precision不重记、四历史notes保留；③上一轮B02已有可达精确evidence_commit；④本N4派生0030/0032/L6与冻结preregistration；⑤冻结页/源/tests/用户配置不改；⑥当前CI失败与precision缺项仍阻GPU，本登记不执行C。
-- **实际验证**：37阻断0失败、campaign N4/0失败4历史notes、current/remaining/master三goal0失败0建议、index23canonical及空白exit0；五相关治理CPU模块213passed/33.15秒，socket先禁网/CUDA hidden/无skip，实际AST1574/4299不变。整轮900软1800硬有软超，精确whole/overrun及before/after身份见 `/tmp/r7_governance_registration_audit_20261003_NRQYhoBF/verification_receipt.json`，本地工程结构绿不作remoteCI、科学或最终goal裁定。
-- **主链外部变动**：仅`.github/workflows/ci.yml`step9诊断增强，保留原pytest全量/exitstatus，新junit/有限escaped annotations不是bugfix；最晚通报SHA `aacaca7ababd01e071a48fd70a7ae04151c0a52951bad8382707eba43bbf7e5a`、独立review待，不由本登记改source/tests，不把诊断counterproof或本地3.11/3.12绿当新CI。
-- **未做**：新包精确CI成功、新包GPUprecision、C prepare/protocol/144jobs/独立整包、实际M1-only/UTC、adaptive四门计算/训练、N5 verdict/issue关闭、main/最终goal判定。
-- 下一动作：N4先修复与独立核实实际523c819 CI失败原因，取得精确新包12必要步骤success及独立新precision；之后按本页§4冻结C新独立协议再执行，不在此前启动GPU，不要求普通逐次许可。
+- **状态**：实证完成（2026-10-04）。D1–D4 全部执行：新包 precision 独立接受（E-245）；actual C 144/144 job 独立接受（E-246）；actual M1 24/24 job verify 通过（E-247）；两侧 UTC 标量统计链完成；adaptive 四门 evaluated、`gate_met:false`、控制器不训练。
+- **已登记（2026-10-04）**：`docs/R7_C_ACTUAL_CONFIRMATION.md`、`docs/R7_M1_ACTUAL_AND_UTC.md`、`docs/R7_V2_NEW_PACKAGE_PRECISION_ACCEPTANCE.md` 冻结于 `858eddbf7b917ac158689c5f7de150fca1152e47`；E-245–E-247；账本新行 0.0544/3.1550/0.8758，逐行显示总 **9.9139**、余 **14.0861**（精确总 9.913830300275308 / 余 14.086169699724692）。
+- **C 读数**：package 相对 old_ours 在 primary 6/6 cell 严格改善；process vs matched_generic unresolved（1e−5 K 量级差正负不稳）→ 不归因过程语义；adaptive 门 accuracy_cost_tradeoff 未过。
+- **M1 读数**：M1 版相对 old_ours 4/4 cell 严格改善；process−generic 4e−6 K 量级 → 单因素 unresolved；#71 无实际改善，按原条款不得 DONE-positive。
+- **六项recheck**：①actual N3§8 next N4与主state/current目标一致，旧N3 marker不变；②新行各记一次、旧B/precision不重记、四历史notes保持；③上一轮B02/K3/UTC记录evidence_commit可达；④本轮实现0030/0032/L6与冻结preregistration；⑤冻结页/源/tests/用户配置不改，primary/容忍/adaptive判据未动；⑥实验均先冻协议、离线、共驻只读余量。
+- **实际验证**：full pytest 与 conventions/campaign/index 门禁见 N5 登记轮（`docs/goals/v2-issue-closeout.md` §7）；官方 CI 以 858eddb+登记提交的精确 run 为准。
+- **未做/下一动作**：N5 登记与六 issue 决定已按 `docs/goals/v2-issue-closeout.md` 执行；#71 过程语义独立贡献的重开条件、#75 之后的最终泛化测试均未做，仅提议。
 
 ### Objective副本（与§0同段；实测 1179 字符）
 

@@ -198,3 +198,5 @@ D5完整30评估/paired/四成本缺失，不能接受完整实验或宣告goal�
 本次M3为budget_limited/完整评估未完成，不提出进入N3的执行许可。只审阅已保存的工程与失败成本
 证据；D5缺口仍在，不能把部分运行判为negative/mixed或#73完成。未来即使完整轮negative/mixed也应
 如实登记；本次不补跑、不自动跳步、不自行宣告M3成功。
+
+- **后续适用指针（2026-10-04）**：本页中「不关闭 #70–#75／本轮不关闭 issue／关闭是收尾轮的事」为当轮禁止项，如实保留不改写；自决策 0037（`docs/decisions/0037-issue-closeout-window-scope.md`）起，#70–#75 的有条件关闭按 `docs/goals/v2-issue-closeout.md` 执行（单一 `Closes` 提交、精确 CI、非 force ff 推 main、匿名复核；关闭≠科学成功）。

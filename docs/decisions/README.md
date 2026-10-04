@@ -62,3 +62,4 @@
 | [0034](0034-explicit-draft-query-feedback.md) | 显式default-off局部draft query补齐设计；旧父保留、完整Generic配对与直接因果反证 | accepted | 2026-10-03 |
 | [0035](0035-complete-known-context-contract.md) | 原local solar/history offsets/source位置契约显式补齐，B先封印、新C独立公平包级确认 | accepted | 2026-10-03 |
 | [0036](0036-fp32-loss-audit-and-statistics-complement.md) | 实际FP32目标逐运算核验；保留B聚合failed，仅独立零GPU统计补全 | accepted | 2026-10-03 |
+| [0037](0037-issue-closeout-window-scope.md) | N5收尾轮：#70–#75具名有条件关闭的范围、判定口径与代价 | accepted | 2026-10-04 |

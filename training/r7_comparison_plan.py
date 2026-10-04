@@ -27,7 +27,7 @@ def write_comparison_plan(out_dir,*,channels=17,seeds=(42,43,44),dim=128):
     ]
     rows=[]
     for name,kind,model_config,process_weight in cases:
-        with torch.random.fork_rng():
+        with torch.random.fork_rng(devices=[]):
             torch.manual_seed(0)
             model=make_model(kind,model_config)
             params=sum(p.numel() for p in model.parameters())

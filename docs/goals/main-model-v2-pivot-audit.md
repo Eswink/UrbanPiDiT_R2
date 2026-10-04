@@ -223,3 +223,5 @@
   未读test/下载/租GPU/改model或main/force/merge/关闭#70–#75/动原归档。
 - **下一动作**：N1仍paused/current_node=N1；当前一次补测授权已用，失败即停。仅提议原因审阅与单独具名
   修复/重试决策，不能把预算余量或这次许可当重跑授权；原unresolved/N2d提议不变，不自宣完成或推进节点。
+
+- **后续适用指针（2026-10-04）**：本页中「不关闭 #70–#75／本轮不关闭 issue／关闭是收尾轮的事」为当轮禁止项，如实保留不改写；自决策 0037（`docs/decisions/0037-issue-closeout-window-scope.md`）起，#70–#75 的有条件关闭按 `docs/goals/v2-issue-closeout.md` 执行（单一 `Closes` 提交、精确 CI、非 force ff 推 main、匿名复核；关闭≠科学成功）。

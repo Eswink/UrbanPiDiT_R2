@@ -199,3 +199,5 @@ issue 评论落仓为草稿（API 写 401）。
   停止发明新模块，转去重新检查 forecast state / training objective / data regime。
 
 每推进一步就更新本块（一行「已完成/未做/下一动作」），不要留给下一轮补写。
+
+- **后续适用指针（2026-10-04）**：本页中「不关闭 #70–#75／本轮不关闭 issue／关闭是收尾轮的事」为当轮禁止项，如实保留不改写；自决策 0037（`docs/decisions/0037-issue-closeout-window-scope.md`）起，#70–#75 的有条件关闭按 `docs/goals/v2-issue-closeout.md` 执行（单一 `Closes` 提交、精确 CI、非 force ff 推 main、匿名复核；关闭≠科学成功）。

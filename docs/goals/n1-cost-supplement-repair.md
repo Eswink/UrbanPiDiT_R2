@@ -297,3 +297,5 @@ test 未读、0 训练更新。任一评估失败 ⇒ 即停、全额计费、�
 - **下一动作（2026-10-02 用户具名触发）**：按本次 M3 objective 进入 N2a，执行
   `docs/goals/n2a-m3-process-supervision.md`；这不是自动推进，原 N1 cannot-distinguish 不改写。
   本轮仅 M3、≤1.0 GPU-h，不沿用此前总括授权自动启动 N3/N4 或关闭 issue。
+
+- **后续适用指针（2026-10-04）**：本页中「不关闭 #70–#75／本轮不关闭 issue／关闭是收尾轮的事」为当轮禁止项，如实保留不改写；自决策 0037（`docs/decisions/0037-issue-closeout-window-scope.md`）起，#70–#75 的有条件关闭按 `docs/goals/v2-issue-closeout.md` 执行（单一 `Closes` 提交、精确 CI、非 force ff 推 main、匿名复核；关闭≠科学成功）。

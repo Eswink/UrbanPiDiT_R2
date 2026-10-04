@@ -94,10 +94,33 @@
 
 ## §7 进度块
 
-- **状态**：`prepared`（2026-10-02）：本文件为执行前长文；未补测试、未登记、未关闭、未推送。
-- **前置**：A/B/C 三轮（`n2a-m3-process-supervision.md` / `n3-m4-autoregressive-rollout.md` /
-  `n4-m5-confirmation.md`）已执行并登记；用户 2026-10-02 已书面授权关闭 #70–#75。
-- **下一动作**：进入执行窗口，按 §4 顺序先补证据、再解除禁令、最后关闭并 ff 落 main。
+- **状态**：执行窗口打开（2026-10-04）。前置全部就绪：actual C（144/144，独立接受 `aa44b8cd…`）、
+  actual M1（24/24，verify `c5df8cc6…`）、新包 precision（独立接受 `8503adfe…`）与两侧 UTC 统计链
+  已实跑并登记（E-245–E-247，证据页冻结于 `858eddb`）；#71/#72 的判据补强测试早已随工程 616b029
+  落地（`tests/test_r7_v2_time_and_feedback.py`），本轮复跑通过，无需新增测试。
+- **D1/D2（等价于已完成、本轮复跑）**：时间/地理与现役反馈测试 33 passed（CUDA-hidden）。
+- **D3（本轮完成）**：`docs/R7_ISSUE_COMMENTS.md` 终局判定六段 + `docs/R7_TASK_QUEUE.md` 六行；
+  #70 按 negative-mixed、#75 三类分写。
+- **D4（本轮完成）**：主计划 §2 禁令按 0037 修订；决策 0037 accepted + decisions/README 行 + CHANGELOG 段。
+- **D5（执行中）**：关闭提交（`Closes #70`…`Closes #75`）+ 工作分支精确 CI + 非 force ff 推 main +
+  匿名复核六终态；结果回写 queue/comments/主计划 §8 与本段。
+- **D6（本轮完成）**：主计划 §7/§8、`docs/goals/README.md` 行、本页与 `open-issue-resolution.md` 回写；
+  证据索引 26 记录、canonical brief 重渲染、campaign-state 对表 exit 0。
+- **未做**：最终独立年份/季节测试、可分辨过程语义新协议、adaptive 重评——仅提议。
+- **本轮实跑暴露并处置的工程缺陷（如实记录）**：非 CUDA-hidden 全量跑出一个次序相关失败——
+  `training/r7_comparison_plan.py:30` 的 `torch.random.fork_rng()` 未传 `devices=[]`，在可见 CUDA 的
+  机器上会初始化全部 GPU，触发 `training/r7_v2_driver.py:268`「CPU prepare must not initialize CUDA」
+  守卫（守卫正确、未弱化）；该文件不在任何冻结 file map（M1 96 文件、revision06 111 依赖、C 均无），
+  已按仓库既有惯用写法改 `devices=[]`（与 `r7_v2_profile.py:54`、`r7_autoregressive_runner.py:153`
+  一致），定向前后对（baselines+driver）恢复 12 passed。正交性实测：`stash` 该改动后 M1 verify 仍以
+  同一 `source_head` 条款失败（HEAD 已从冻结的 562e526 前进到证据提交 858eddb——按设计；`files`/
+  `runtime` 映射与 `model_digest` 均逐项相等），即该修复不触碰任何冻结身份。**仍存在**：
+  `training/r7_experiment.py` 的 `rng_state()` 在 CUDA 可见但未使用时也调
+  `torch.cuda.get_rng_state_all()` 使 CUDA 初始化——该文件在冻结 map 内，本轮不改，如实记为
+  「CUDA-visible 次序敏感、CI（CPU-only）与 CUDA-hidden 基线不受影响」的已知限制；
+  重开条件=任何 GPU-visible 全量跑要求时。
+- **下一动作（仅提议）**：关闭完成后为最终泛化测试另立预算与 goal 长文；执行者不自动开始。
+- **诚实声明**：关闭动作不改写任何负面/未决读数；「六 issue 全部关闭」≠模型研究完成。
 
 ## §8 下一动作（仅提议）
 
