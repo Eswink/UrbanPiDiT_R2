@@ -157,3 +157,16 @@ next-action，再一致更新主计划/current_round_goal/round-node；可由本
 ## §9 Objective 副本（与 §0 相同，便于交接）
 
 > 你在 /data/esw/UrbanPiDiT_R2 的 r7/weather-reasoning 分支继续，先核 git status/HEAD，通读 docs/goals/v2-autonomous-completion-and-closeout.md、docs/plans/0009-r7-v2-completion-and-closeout.md、docs/goals/main-model-v2-campaign.md 与决策0030。用户只把控总体实验方向；该方向内的实验、时长预算、普通工程/方法决策及节点推进已全部常设下放，在当前goal内连续完成N2a补全→N3→N4→N5/关闭，不逐次请示、不逐轮等用户触发；每节点前后对表、核冻结前置/出口、登记证据再推进，独立审阅是质量检查而非新许可，不绕失败停止线。D1补N2a/M3：核六个已完成400-update checkpoint、原code.zip、source/model/sidecar身份及已有7/30评估；优先全新输出/独立协议补缺23项val，不无故重训、不改旧1800秒协议或失败终态；旧checkpoint按归档代码重放，需新时长支持用版本化补测驱动、不改冻结常量、不绕digest。新汇总逐项区分旧训练/旧7项与新补测来源和全额成本，交付全17变量×6/12/24/48/72h、显式seed配对、四成本视图与新登记；不能合法复用时自主预注册新方案，不伪造拼接。D2执行N3：复用既有组件构造同结构/同已知输入/无过程语义的matched-Generic V2，实现可微两步物理rollout；同父checkpoint两臂×两固定seed比较L6与L6+0.5L12，按冻结要求验证预测喂回、future只改loss、梯度回传、时间更新、reasoning_steps/rollout_steps分轴、resume/finite/BF16；不用no_grad评估rollout训练，不扩4/8/12步，算力不等照报，模型改动标model-digest-change并合法处理旧checkpoint身份。D3执行N4：旧Ours/matchedGenericV2/ProcessV2三臂至少三预声明seed，冻结primary/配对/单位/成本口径，全17变量×五时效照报；三seed不称显著性，adaptive默认不启动，冻结有效准确率—成本前沿成立才另立协议。D4执行N5：补#71年末/闰年/UTC跨日/东西经/batch多日期/odd-grid-padding/内部K同valid_time反证，补#72现役位置化反馈到达latent与process_reader非零梯度；逐issue登记#70–#75证据、DONE/NEGATIVE/BLOCKED、负面结论和未做项。按0009/0030具名关闭授权，前置与验收证据齐备后写Closes提交，先工作分支精确SHA主CI九步成功，再非force ff推main并匿名核issue状态；不合并main、不为全部关闭弱化测试，证据不足保持开放/BLOCKED，关闭不等于科学成功。每实验在长文写死范围/产物/失败skip处理、planned_seconds软预算及hard_cap_seconds宽松硬上限（默认约2倍），运行前冻结protocol/digest；整轮墙钟含CPU前置/训练/评估/启动间隔/清理，超软预算继续并记soft_overrun_seconds，硬截断failed/budget_limited全额记账且不算通过。无总GPU-h上限，cap/used/remaining只记账；承载新实验的CI timeout-minutes×60须高于硬上限并留收尾余量。GPU默认共驻，每次启动/spawn只读核UUID/余量，不信号邻居。总体方向改变，或需付费/租卡、新或多年度下载、数据发布--write、独占、main合并、破坏性操作时按保留边界停下取授权；普通排障和推进不要再问用户，force push/绕hook仍禁止。R-006/R-028/R-054/R-009、身份校验、原始数据/归档只读、scientific_claim:false与limitations不豁免；不读封存test、不据曝光test选配置、不事后改冻结阈值/端点/案例集，不建立cron或脱离当前goal后台续跑。逐节点实跑conventions、campaign、当前goal结构、定向及全量pytest、index/brief、空白检查，提交推工作分支核精确SHA九步CI；skip/cancelled/queued/partial/failed不算通过，工程/实验/科学结论分开。收尾逐交付物核实际运行、digest、测试、CI和issue终态，报告九项影响、失败与未做事项，不自行宣布最终goal完成。
+
+- **N3→N5 实际执行与六 issue 关闭（2026-10-04 接续窗口汇总）**：本文件 §0 的 N2a→N3→N4→N5 顺序已在
+  0030/0032 授权内连续执行完毕——N3/B：可微两步与 matched-Generic 接线、同父两臂两 seed 实跑
+  （聚合 attempt 因 FP32 校验缺陷 failed、独立零 GPU 统计补全判 `negative_or_mixed / l6`，
+  `docs/R7_74_AUTOREGRESSIVE_ATTEMPT.md`、`docs/R7_74_STATISTICS_COMPLEMENT.md`）；N4：actual C
+  三臂三 seed 144/144 job 独立接受（`aa44b8cd…`，3.155003245259221 GPU-h）、新包 precision
+  独立接受（0.0544421515867321 GPU-h）、actual M1 24/24 verify（`c5df8cc6…`，0.8757688270136714 GPU-h）
+  与两侧 UTC 统计链完成（`docs/R7_C_ACTUAL_CONFIRMATION.md`、`docs/R7_M1_ACTUAL_AND_UTC.md`）；
+  N5：终局判定登记并关闭 #70–#75——提交 `f0b77057fca425c22826687cd6a0a28342ab5cf8`、
+  工作分支精确 CI 37215981072 十二必要步骤 success、非 force ff `dafd22e..f0b7705` 落 main、
+  匿名复核六 issue closed（2026-10-04T16:29:26–28Z）。**关闭≠科学成功**：process 归因 unresolved、
+  #74 NEGATIVE、#73 paused、adaptive `gate_met:false` 未启动；最终独立年份/季节测试与可分辨过程
+  语义协议仍为提议。本总体 goal 的完成状态仍由用户/运行时独立裁定，执行者不自宣 complete。

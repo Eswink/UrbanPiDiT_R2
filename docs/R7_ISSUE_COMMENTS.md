@@ -871,7 +871,11 @@ Draft comment：
 
 ## #70–#75 — 终局判定（2026-10-04，N5 收尾轮；以下六段是最终 verdict，替代 2026-09-29 的规划草稿）
 
-**状态：六条判定以下列文本为准；关闭经默认分支提交的 `Closes #70`…`Closes #75` 生效。**
+**状态：六条判定以下列文本为准；关闭已生效。** 关闭经默认分支提交 `f0b77057fca425c22826687cd6a0a28342ab5cf8`
+（`Closes #70`…`Closes #75` 逐行）执行：工作分支精确 SHA `R7 CPU CI` run 37215981072 全部 12 必要步骤
+success（step 1–9 + post 17/18/19），非 force ff 推送 `dafd22e..f0b7705` 落 main（决策 0003 放行、
+无合并提交）；匿名 API 复核六 issue 均 `state=closed`（closed_at 2026-10-04T16:29:26–28Z，
+`state_reason: completed`）。
 判定口径与证据绑定见 `docs/goals/v2-issue-closeout.md`、决策 0037；全部 `scientific_claim: false`。
 本轮为 0 新增 GPU-h 登记轮；实际实验成本与产物 SHA 逐条列在各自段内。
 

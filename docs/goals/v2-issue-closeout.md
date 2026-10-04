@@ -102,10 +102,13 @@
 - **D3（本轮完成）**：`docs/R7_ISSUE_COMMENTS.md` 终局判定六段 + `docs/R7_TASK_QUEUE.md` 六行；
   #70 按 negative-mixed、#75 三类分写。
 - **D4（本轮完成）**：主计划 §2 禁令按 0037 修订；决策 0037 accepted + decisions/README 行 + CHANGELOG 段。
-- **D5（执行中）**：关闭提交（`Closes #70`…`Closes #75`）+ 工作分支精确 CI + 非 force ff 推 main +
-  匿名复核六终态；结果回写 queue/comments/主计划 §8 与本段。
+- **D5（已完成）**：关闭提交 `f0b77057fca425c22826687cd6a0a28342ab5cf8`（逐行 `Closes #70`…`Closes #75`）
+  经工作分支精确 SHA `R7 CPU CI` run 37215981072 全部 12 必要步骤 success（step 1–9 + post 17/18/19）；
+  非 force ff 推送 `dafd22e..f0b7705` 落 main（无合并提交）；匿名 API 复核六 issue 全部 `state=closed`
+  （closed_at 2026-10-04T16:29:26–28Z，`state_reason: completed`）。
 - **D6（本轮完成）**：主计划 §7/§8、`docs/goals/README.md` 行、本页与 `open-issue-resolution.md` 回写；
-  证据索引 26 记录、canonical brief 重渲染、campaign-state 对表 exit 0。
+  证据索引 26 记录、canonical brief 重渲染、campaign-state 对表 exit 0；queue 六行与 comments
+  状态段已写入关闭时间戳与 run/SHA。
 - **未做**：最终独立年份/季节测试、可分辨过程语义新协议、adaptive 重评——仅提议。
 - **本轮实跑暴露并处置的工程缺陷（如实记录）**：非 CUDA-hidden 全量跑出一个次序相关失败——
   `training/r7_comparison_plan.py:30` 的 `torch.random.fork_rng()` 未传 `devices=[]`，在可见 CUDA 的

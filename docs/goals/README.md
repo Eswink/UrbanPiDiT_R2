@@ -56,9 +56,9 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 | [`n2a-m3-process-supervision.md`](n2a-m3-process-supervision.md) | V2 阶段 A（节点 N2a / #73）：过程监督的尺度修复与「三类时刻」语义（三分离字段 + 有界三臂对照） | **budget_limited（2026-10-02）**；工程/尺度已验证，唯一尝试6训练/7评估后deadline失败，D5完整对照缺失；0.497254GPU-h全额记账，不重试、不推进或关闭issue |
 | [`n3-m4-autoregressive-rollout.md`](n3-m4-autoregressive-rollout.md) | V2 阶段 B（节点 N3 / #74）：真实 2 步可微自回归（`L6+λL12`）+ matched-Generic V2 接线 | **prepared（2026-10-02）**；warm-start 自既有 +6h 父 checkpoint；≤1.0 GPU-h |
 | [`n4-m5-confirmation.md`](n4-m5-confirmation.md) | V2 阶段 C（节点 N4 / #75）：≥3 seed 三臂最小确认闭环 + adaptive 决定 | **prepared（2026-10-02）**；adaptive 默认不启动；≤2.5 GPU-h |
-| [`v2-issue-closeout.md`](v2-issue-closeout.md) | V2 收尾轮（节点 N5）：补 #71/#72 完成判据、登记六条判定并关闭 #70–#75 | **执行窗口打开/执行中（2026-10-04）**；0 GPU-h；判定已登记（comments 六段 + queue 六行）、0037 生效；关闭提交/CI/ff/匿名复核结果回写本行 |
+| [`v2-issue-closeout.md`](v2-issue-closeout.md) | V2 收尾轮（节点 N5）：补 #71/#72 完成判据、登记六条判定并关闭 #70–#75 | **已完成（2026-10-04）**：判定六段+六行登记、0037 生效；关闭提交 `f0b7705` 经 CI 37215981072（12/12 success）ff 落 main，匿名复核六 issue closed（16:29Z）；关闭≠科学成功 |
 | [`v2-autonomous-completion-and-closeout.md`](v2-autonomous-completion-and-closeout.md) | 0030 新授权下的 N2a 补全 → N3 → N4 → N5/有条件关闭 | paused；N2a已补全但原any-unresolved出口触发，N3/N4/N5前置BLOCKED；最终goal未裁定完成 |
 | [`n2a-m3-validation-complement.md`](n2a-m3-validation-complement.md) | N2a独立23项val补测与跨attempt来源/全额成本汇总 | **N2a规定交付完成，科学paused**；尺度/三时刻/反证及23新val/30总覆盖、D6/index18/账本齐，B/C精确CI九步成功；negative/mixed如实验收，原失败/归档与any-unresolved暂停不改；全权授权接续与验收见计划0013 |
 | [`v2-l6-confirmation-current.md`](v2-l6-confirmation-current.md) | V2 阶段 C（节点 N4 / #75）：actual C 三臂确认 + M1 补全 + UTC 统计的实证窗口 | **实证完成（2026-10-04）**：C 144/144 独立接受、M1 24/24 verify、precision 独立接受、两侧 UTC 链完成；E-245–E-247 |
-| [`v2-remaining-stages-exploration.md`](v2-remaining-stages-exploration.md) | 0032独立autoregressive-exposure主线，接续B/C/D/E与必要主线探索 | **收尾执行中（2026-10-04）**；M3辅助监督终结且保留原paused出口；六 issue 终局判定与关闭经 N5/决策 0037 执行，终态复核结果回写 |
+| [`v2-remaining-stages-exploration.md`](v2-remaining-stages-exploration.md) | 0032独立autoregressive-exposure主线，接续B/C/D/E与必要主线探索 | **已收尾（2026-10-04）**；M3辅助监督终结且保留原paused出口；六 issue 已按 N5/决策 0037 关闭（负面/未决读数不改） |
 | `docs/R7_GPU_BRINGUP_BRIEF.md` | （已迁移） | R-034 登记为早于约定的例外；现仅为指向本目录的指针，不再维护第二份定义 |

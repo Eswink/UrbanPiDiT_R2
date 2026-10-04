@@ -191,10 +191,14 @@
 - **N5 收尾登记（2026-10-04）**：终局判定六段写入 `docs/R7_ISSUE_COMMENTS.md`、六行入
   `docs/R7_TASK_QUEUE.md`；决策 0037 accepted（decisions/README + CHANGELOG 段）；三新证据记录入
   索引（26 记录）与 canonical brief；`check_campaign_state.py` exit 0（4 历史 notes）；
-  conventions 37 阻断 0 违规；关闭提交（`Closes #70`…`Closes #75`）的精确 CI/ff/匿名复核结果
-  按决策 0037 回写本块。非 CUDA-hidden 全量跑暴露的 `fork_rng` 次序缺陷已修（不在任何冻结 map；
-  正交性以 stash 复跑验证），`training/r7_experiment.py` 的 CUDA-visible 初始化倾向如实记为已知限制
-  不改（在冻结 map 内）。
+  conventions 37 阻断 0 违规。**关闭已完成**：提交 `f0b77057fca425c22826687cd6a0a28342ab5cf8`
+  （逐行 `Closes #70`…`Closes #75`）经工作分支精确 CI run 37215981072 全部 12 必要步骤 success，
+  非 force ff 推送 `dafd22e..f0b7705` 落 main（无合并提交），匿名 API 复核六 issue 全部 closed
+  （2026-10-04T16:29:26–28Z，`state_reason: completed`）。关闭≠科学成功：process 归因仍 unresolved、
+  #74 NEGATIVE、#73 paused、adaptive 未启动。非 CUDA-hidden 全量跑暴露的 `fork_rng` 次序缺陷已修
+  （不在任何冻结 map；正交性以 stash 复跑验证），`training/r7_experiment.py` 的 CUDA-visible 初始化
+  倾向如实记为已知限制不改（在冻结 map 内）。最终独立年份/季节测试与可分辨过程语义协议仅为提议，
+  另立预算与 goal 长文后执行。
 
 ### N4 实证窗口归档（2026-10-04）
 
