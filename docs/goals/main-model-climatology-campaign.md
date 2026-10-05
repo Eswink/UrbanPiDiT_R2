@@ -157,15 +157,17 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | --- | --- | --- | --- |
 | 0038新方向文档与校检支持（无实验） | 0.0000 | 0.0000 | `docs/plans/0016-main-model-climatology-campaign.md`（真实0GPU文档准备，无实验index record） |
 | S0 incumbent身份复核与D1差距审计（零GPU只读） | 0.0000 | 0.0000 | `docs/R7_S0_INCUMBENT_GAP_AUDIT.md`；产物 `outputs/r7_s0_gap_audit_20261005_attempt01/`（墙钟5.523s，planned600/hard1200，overrun0，网络0，6,885 cell独立重算≤6.63e-16） |
-| S1 四季2017获取与dev store发布（0 GPU） | 0.0000 | 0.0000 | `docs/R7_S1_FOUR_SEASON_ACQUISITION.md`；产物 `outputs/r7_s1_seasons_2017/`（4 part 合并 480 时间点，网络14,390,323,242字节=计划99.2%、硬上限56%，4,604.4s；store 16.83s BUILD_COMPLETE；test未读） |
-| **合计已用** | **0.0000** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费 |
+| S1 四季2017获取与dev store发布（0 GPU） | 0.0000 | 0.0000 | `docs/R7_S1_FOUR_SEASON_ACQUISITION.md`（索引记录 `record:s1-four-season-2017-dev-store`）；产物 `outputs/r7_s1_seasons_2017/`（4 part 合并 480 时间点，网络14,390,323,242字节=计划99.2%、硬上限56%，4,604.4s；store 16.83s BUILD_COMPLETE；test未读） |
+| S2 #77 频带筛选 v1（writer 缺陷轮，非注册） | 0.3201 | 0.3201 | `docs/R7_S2_77_PE_BAND.md` §5（v1 缺陷轮计费；无索引条目：非注册轮）；`outputs/r7_77_pe_band_pilot/FINALIZE_DEFECT.md`；三 seed 各 549.0/550.4/575.5s；finalize 被共享门拒绝，产物保留计费不手改 |
+| S2 #77 频带筛选 v2（注册轮） | 0.3297 | 0.6498 | `docs/R7_S2_77_PE_BAND.md`（索引记录 `record:s2-77-pe-band-screening`）；`outputs/r7_77_pe_band_pilot_v2/paired_comparison.json`（整轮 579.7/555.6/552.4s，训练 1186.9s+评估 170.5s；overrun 0；test未读） |
+| **合计已用** | **0.6498** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S1", "previous_node": "S0", "current_round_goal": "docs/goals/main-model-climatology-campaign.md", "previous_round_goal": "docs/R7_S0_INCUMBENT_GAP_AUDIT.md", "previous_round_evidence": "docs/R7_S0_INCUMBENT_GAP_AUDIT.md", "cap_gpu_h": 0.0, "used_gpu_h": 0.0, "remaining_gpu_h": 0.0, "status": "active", "next_node_proposal": "S2", "budget_mode": "accounting-only", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S2", "previous_node": "S1", "current_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_goal": "docs/goals/main-model-climatology-campaign.md", "previous_round_evidence": "docs/R7_S1_FOUR_SEASON_ACQUISITION.md", "cap_gpu_h": 6.0, "used_gpu_h": 0.6498, "remaining_gpu_h": 5.3502, "status": "active", "next_node_proposal": "S2", "budget_mode": "accounting-only", "route_decision": "0038"} -->
 
 - **状态**：active；S0 已完成并登记；S1 数据侧已完成（2026-10-05，0 GPU）：四季节 2017 区域段已
   下载、合并、发布为 dev store，并登记进账本与证据索引；#77 频带接线与 11 项反证已随 62414bd 过
@@ -195,7 +197,14 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   fail-closed 的 train-only (month,hour) 气候态缺 4/7 月桶且时间范围合同禁交错声明，改为四季节
   前 24 天作 train、十月 16–24 日作 val、25 日–次月 1 日作 test（340/34/22 窗口），依据写在
   `store_build_protocol.json`。test 从未读取。
-- **下一动作（S2）**：按 #76 的 P0→#77→#78 次序做单因素机制筛选：`scripts/study_r7_77_pe_band.py`
-  已写好（两臂 `legacy` vs `nyquist_band`，同参数量/FLOPs、同初始化、K4、三 seed、400 更新、
-  val-only），先 CPU 接线 smoke 再上 GPU；#77 之后是 #78 的 train-only 6h 变化尺度重参数化解码，
-  #79 并行设计。dev store 上只做筛选，不产生科学声明；正式确认门在未见年份实例上判定。
+- **S2 #77 已完成并登记（2026-10-05，0.6498 GPU-h 含 v1 缺陷轮）**：`scripts/study_r7_77_pe_band.py`
+  两臂 `legacy` vs `nyquist_band`（同参数量 2,948,771 / 同 FLOPs / 同 seed 初始化逐位共享）三 seed
+  400 更新 val-only。机制探针确认开关生效（legacy 16 live/68 dead → nyquist 192 live/0 dead，
+  spread 比 0.44–0.48 → 0.49–0.54），但**预注册主格 t2m 6h/12h 三 seed 增量符号不一致 → 双格
+  unresolved**：按冻结决定文本该机制在本预算/实例上被证伪为杠杆，不进入正式确认候选。
+  全 85 cell：18 improved/14 worsened/53 unresolved，如实报告不追认方向。
+  注册读数与成本见 `docs/R7_S2_77_PE_BAND.md`；v1 轮 writer 缺陷（合并门缺 per-arm
+  protocol_sha256/switches，修复 74c2279）作为缺陷记录保留、双轮计费。
+- **下一动作（S2 续）**：#78 R-A 变化尺度重参数化解码——train-only 精确连续 6h 窗口拟合每通道
+  d_c，与 store 的 s_c 组合为 `Y = X_t + (d_c/s_c) * r_c`（loss 不变），先只检验数值参数化；
+  R-B 的差值尺度 loss 另轮。dev store 上只做筛选，不产生科学声明；正式确认门在未见年份实例上判定。

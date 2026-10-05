@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 28; human-review candidates: 1
+Records: 29; human-review candidates: 1
 
 ## s0-incumbent-gap-audit
 
@@ -27,7 +27,7 @@ Records: 28; human-review candidates: 1
 - Outcome class: `audit`; candidate state: `not-candidate`
 - Human triage priority: `92` (not a scientific score)
 - Evidence: `docs/R7_S1_FOUR_SEASON_ACQUISITION.md` (SHA256 `cea9ea13d99b5acaa6a753dde1fe6a008f330702a8c5a2b223b77733f2f08be1`)
-- Evidence commit: `6814c46a9b4a9967f6793db1bae302f253ed76aa`; experiment commit: `6814c46a9b4a9967f6793db1bae302f253ed76aa`
+- Evidence commit: `6814c460cd11f16ab6837d8f18261e37e0edb353`; experiment commit: `6814c460cd11f16ab6837d8f18261e37e0edb353`
 - Protocol SHA256: `5abdea4b00c05a643e1f5706250acf4d9bedafde530663516ef1a79c7328ddd1`; data identity: `894b8d1b6c08d49f93255558fdacb1290ace690de43757d84369a91b3b28e02c`
 - Reason: One-year four-season real ERA5 segment (2017, ROI 27-43N/107-123E, 17 channels, 480 six-hourly stamps) downloaded in four season parts under decision 0038, merged with exact-union timestamp re-validation, and published as a dev store with train-only normalization and process diagnostics. The store carries a corrected time-range split whose scored October buckets are fully covered by train; the originally intended month-disjoint plan was mechanically unscorable under the fail-closed train-only climatology and was rejected before any build or score.
 - Limitations:
@@ -54,6 +54,23 @@ Records: 28; human-review candidates: 1
 - CI run: `36276587108`
 - Excluded from runnable candidates: Candidate for human review only; follow-up still requires a new frozen protocol and explicit authorization.
 - Recorded metrics (not recomputed): gate_met=false, gpu_hours=1.157, lead_hours=[6, 12, 24, 48, 72], seeds=3, test_read=false
+
+## s2-77-pe-band-screening
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `88` (not a scientific score)
+- Evidence: `docs/R7_S2_77_PE_BAND.md` (SHA256 `7474941004626874f0d21c0edeaa37b0add8e3ec5aca01a4cfe21e97b3f949ff`)
+- Evidence commit: `74c22791cebac3a5eb3cd3dfdead5f3de518d7d2`; experiment commit: `74c22791cebac3a5eb3cd3dfdead5f3de518d7d2`
+- Protocol SHA256: `503df8e43dc2cf56e472b196c7d1f157d77a8b46c6a4d577201487f5485e1c80`; data identity: `894b8d1b6c08d49f93255558fdacb1290ace690de43757d84369a91b3b28e02c`
+- Reason: #77 位置编码频带单因素筛选：同参数量/FLOPs/初始化的 legacy vs nyquist_band 两臂，三 seed、400 更新、val-only。机制探针确认开关生效（16→192 live channels），但预注册主格在两 lead 均符号不一致（unresolved），按冻结决定文本该机制在本预算/实例上未成为杠杆；全 85 cell 如实报告，不做方向追认。证据：outputs/r7_77_pe_band_pilot_v2/paired_comparison.json。
+- Limitations:
+  - 单 dev store（2017 四季、单区域），val-only；val/test 是十月内 6–15 天窗口，非完整季节。
+  - 400 更新/seed 的有界筛选，无收敛或显著性主张；三 seed 只作一致性证据。
+  - 主格两格均 unresolved（每 seed 增量符号不一致）；18/14/53 improved/worsened/unresolved 不并入判定。
+  - v1 轮 writer 缺陷已被共享合并门拒绝、产物保留并计费；v2 为注册轮（修复见 74c2279）。
+  - test_read: false；未改任何冻结判据、未扩臂、未换开关。
+- Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m 6h/12h，band−legacy）三 seed 符号不一致，按冻结规则无 seed 均值、无方向判定；机制探针确认开关生效但未转化为验证收益。不进入正式确认实例候选，不构成任何科学声明。
+- Recorded metrics (not recomputed): arms=2, cells_improved=18, cells_unresolved=53, cells_worsened=14, forward_backward_flops=46282984704, forward_flops=15465592704, gpu_hours=0.3297, gpu_hours_total=0.6498, gpu_hours_v1=0.3201, gpu_hours_v2=0.3297, legacy_dead_channels=68, legacy_live_channels=16, nyquist_dead_channels=0, nyquist_live_channels=192, parameters_per_arm=2948771, primary_cells={"12h": "unresolved", "6h": "unresolved"}, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
 
 ## m3-process-supervision-budget-limited
 
