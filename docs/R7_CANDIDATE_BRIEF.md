@@ -27,7 +27,7 @@ Records: 28; human-review candidates: 1
 - Outcome class: `audit`; candidate state: `not-candidate`
 - Human triage priority: `92` (not a scientific score)
 - Evidence: `docs/R7_S1_FOUR_SEASON_ACQUISITION.md` (SHA256 `cea9ea13d99b5acaa6a753dde1fe6a008f330702a8c5a2b223b77733f2f08be1`)
-- Evidence commit: `62414bd21a748fe5ba459202635e0054b5b526d0`; experiment commit: `62414bd21a748fe5ba459202635e0054b5b526d0`
+- Evidence commit: `6814c46a9b4a9967f6793db1bae302f253ed76aa`; experiment commit: `6814c46a9b4a9967f6793db1bae302f253ed76aa`
 - Protocol SHA256: `5abdea4b00c05a643e1f5706250acf4d9bedafde530663516ef1a79c7328ddd1`; data identity: `894b8d1b6c08d49f93255558fdacb1290ace690de43757d84369a91b3b28e02c`
 - Reason: One-year four-season real ERA5 segment (2017, ROI 27-43N/107-123E, 17 channels, 480 six-hourly stamps) downloaded in four season parts under decision 0038, merged with exact-union timestamp re-validation, and published as a dev store with train-only normalization and process diagnostics. The store carries a corrected time-range split whose scored October buckets are fully covered by train; the originally intended month-disjoint plan was mechanically unscorable under the fail-closed train-only climatology and was rejected before any build or score.
 - Limitations:

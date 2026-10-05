@@ -55,7 +55,9 @@ EVALUATION_LEADS = (6, 12, 24, 48, 72)
 REASONING_STEPS = 4
 PROCESS_WEIGHT = 0.0
 EVALUATION_MAX_SAMPLES = 64
-DEADLINE_SECONDS_PER_SEED = 3600.0
+DEADLINE_SECONDS_PER_SEED = 4500.0  # per-seed hard stop, frozen before the run
+PLANNED_SECONDS_ROUND = 7200.0     # soft budget for all three seeds
+HARD_CAP_SECONDS_ROUND = 14400.0   # loose hard cap for all three seeds
 COMPARATOR_DEPTH = 0
 REQUIRED_VALIDATION_UPGRADE = 2.0
 
@@ -119,10 +121,15 @@ def readout_spread(model, token_hw=(33, 33)) -> dict:
     readout = model.process_reader
     if not isinstance(readout, PositionalProcessReadout):
         raise ValueError("the mechanism probe requires the positional readout")
+    # Deterministic nonzero process/context: with all-zero value vectors every
+    # position would attend to the same zero value no matter the encoding, so a
+    # zero probe would report zero spread for both modes and discriminate nothing.
+    generator = torch.Generator().manual_seed(77)
+    device = next(readout.parameters()).device
     with torch.no_grad():
-        process = torch.zeros(1, 4, readout.dim, device=next(readout.parameters()).device)
-        context = torch.zeros(1, token_hw[0] * token_hw[1], readout.dim,
-                              device=process.device)
+        process = torch.randn(1, 4, readout.dim, generator=generator, device=device)
+        context = torch.randn(1, token_hw[0] * token_hw[1], readout.dim,
+                              generator=generator, device=device)
         base = readout(process, context, token_hw)
         delta = torch.zeros_like(process)
         delta[:, 0] = 1.0
@@ -130,7 +137,7 @@ def readout_spread(model, token_hw=(33, 33)) -> dict:
         magnitude = float(response.max())
         spread = float(response.max() - response.min())
         encoding = readout.position_encoding(
-            token_hw, device=process.device, dtype=torch.float32)
+            token_hw, device=device, dtype=torch.float32)
         span = encoding.max(dim=0).values - encoding.min(dim=0).values
     return {"positions": int(response.numel()), "response_abs_max": magnitude,
             "response_spread": spread,
@@ -201,6 +208,15 @@ def protocol_payload(manifests_dir, identity, channels, measured):
                           "cell, reads as the encoding not being a useful lever at this "
                           "budget and instance"),
             "required_upgrade_on_val_rmse_t2m_6h": REQUIRED_VALIDATION_UPGRADE,
+        },
+        "budgets": {
+            "planned_seconds_round": PLANNED_SECONDS_ROUND,
+            "hard_cap_seconds_round": HARD_CAP_SECONDS_ROUND,
+            "deadline_seconds_per_seed": DEADLINE_SECONDS_PER_SEED,
+            "whole_round_scope": ("all declared seeds: CPU preflight/probe, training, "
+                                  "evaluation, aggregation; soft overrun is recorded and "
+                                  "continues, only the hard cap truncates"),
+            "frozen_before_any_step": True,
         },
         "scientific_claim": False,
         "limitations": LIMITATIONS,
@@ -435,6 +451,9 @@ def primary_reading(pairs):
 
 def main():
     """Seed mode runs one seed; finalize mode merges the declared seeds."""
+    from scripts.r7_m3_offline import deny_network
+
+    deny_network()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", required=True, choices=("seed", "finalize"))
     parser.add_argument("--seed", type=int)
@@ -449,9 +468,36 @@ def main():
     if args.mode == "seed":
         if args.seed is None or args.seed not in SEEDS:
             parser.error(f"--mode seed requires --seed in {SEEDS}")
-        run_seed(args.manifests, args.out / f"seed{args.seed}", seed=args.seed,
-                 updates=args.updates, device_name=args.device,
-                 deadline_seconds=args.deadline_seconds)
+        started = time.perf_counter()
+        seed_dir = args.out / f"seed{args.seed}"
+        attempt = {"format": "r7-77-pe-band-seed-attempt-v1", "seed": args.seed,
+                   "scientific_claim": False, "test_read": False,
+                   "planned_seconds_round": PLANNED_SECONDS_ROUND,
+                   "hard_cap_seconds_round": HARD_CAP_SECONDS_ROUND,
+                   "deadline_seconds_per_seed": args.deadline_seconds,
+                   "started_perf_counter": started, "status": "running"}
+        try:
+            result = run_seed(args.manifests, seed_dir, seed=args.seed,
+                              updates=args.updates, device_name=args.device,
+                              deadline_seconds=args.deadline_seconds)
+        except BaseException as exc:
+            attempt.update({"status": "failed", "finalized": False,
+                            "failure_reason": f"{type(exc).__name__}: {exc}",
+                            "elapsed_seconds": time.perf_counter() - started,
+                            "no_retry_or_resurrection": True})
+            if seed_dir.exists():
+                (seed_dir / "attempt.json").write_text(
+                    json.dumps(attempt, indent=2, ensure_ascii=False, allow_nan=False),
+                    encoding="utf-8")
+            raise
+        attempt.update({"status": "success", "finalized": True,
+                        "elapsed_seconds": time.perf_counter() - started,
+                        "protocol_sha256": result["protocol_sha256"],
+                        "soft_overrun_seconds": max(0.0, time.perf_counter() - started
+                                                    - PLANNED_SECONDS_ROUND / len(SEEDS))})
+        (seed_dir / "attempt.json").write_text(
+            json.dumps(attempt, indent=2, ensure_ascii=False, allow_nan=False),
+            encoding="utf-8")
         return 0
 
     from training.r7_arm_harness import (comparator_blocks, merge_seed_results,
