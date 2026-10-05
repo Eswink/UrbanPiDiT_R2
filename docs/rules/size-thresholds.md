@@ -7,7 +7,17 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=971 R-020=55 R-021=70 R-022=57 R-023=40 -->
+<!-- measured: R-019=0 R-019b=970 R-020=58 R-021=73 R-022=57 R-023=40 -->
+
+**2026-10-06 S3-D3/D4 与 update-budget 筛选复算（暂存后实测）**：b310689 的 CI pytest
+anti-drift 守卫红：`size-thresholds.md` 记 R-019b=971 而提交树报 970——漂移来自 D3/D4 落地
+（4a3c309…c46981e）与 S0 审计工具拆分的行宽命中变动（净 −1：`tests/test_r7_m4_autoregressive_rollout.py`
++2/−2、`training/r7_autoregressive_runner.py` +1/−2），标记当时未随之重测。R-020 **55→58**：
+`scripts/study_r7_s3_d3_incumbent.py`、`scripts/study_r7_s3_d4_rc_candidate.py` 各 +1，
+新筛查脚本 `scripts/study_r7_s3_update_budget.py` +1；R-021 **70→73**：同上三文件各 +1
+（三者均在 400 目标与 600/200 硬上限内，无新冻结例外）；R-019=0/R-022=57/R-023=40 保持。
+数字取自暂存树上 checker 实跑（与 `test_size_report_counts_match_the_checker` 同一调用路径），
+不放宽任何阈值、checker 规则与冻结例外清单。
 
 **2026-10-05 S2 / #78 R-B 复算（暂存后实测）**：R-020 **54→55**、R-021 **69→70**，归因于新增
 `scripts/study_r7_78_rb_loss.py`（578 行，其 `run_seed` 188 行；R-051 的 600 行硬上限内，
