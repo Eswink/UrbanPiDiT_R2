@@ -224,6 +224,11 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   预算响应读数据此判为：单年 train 上预算饱和，下一能力投资是数据而非算力**（batch-3
   2018–2021 四季已在并行获取）。整轮 4937.6s（planned 5400/hard 10800、overrun 0），
   保守 GPU-h 1.3716，test 未读。
+- **零成本诊断（BC 后，只读已产出的 ACC/skill，无新运行）**：t2m 长 lead 的失败是
+  **pattern 能力**而非幅度伪影——任何纯幅度/线性重标定最多把 skill 恢复到 ρ²（构造性恒等式，
+  已用合成数据数值核验）：48h 上限 seed 均值 +0.095、72h 仅 +0.017，而当前 skill 为
+  −0.89/−2.15。该界说明解码侧校准救不了 48–72h 墙，必须提升 ρ 本身（模型/数据）；
+  与「单年预算饱和→扩数据」的读数一致，支撑 batch-3 与 v3 实例路线。
 - **S0 已做并实核**：actual C 身份链六类 digest 独立重算全部一致（protocol `ea0efb80…`、manifest
   `bb4569f6…`、model_code `551261c4…`、code commit `562e526`、data `ef8c6691…`、source `496084a9…`），
   九个 endpoint checkpoint 逐个 SHA256 与 receipt 相符；新工具 `tools/recompute_r7_s0_gap_audit.py`
