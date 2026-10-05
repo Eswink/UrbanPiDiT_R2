@@ -7,7 +7,15 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=971 R-020=54 R-021=69 R-022=57 R-023=40 -->
+<!-- measured: R-019=0 R-019b=971 R-020=55 R-021=70 R-022=57 R-023=40 -->
+
+**2026-10-05 S2 / #78 R-B 复算（暂存后实测）**：R-020 **54→55**、R-021 **69→70**，归因于新增
+`scripts/study_r7_78_rb_loss.py`（578 行，其 `run_seed` 188 行；R-051 的 600 行硬上限内，
+无新冻结例外）与 `data/preprocess/r7_rb_weights.py` 的拆分（该函数本应追加进
+`data/preprocess/r7_change_scale.py`，使该文件 374→405 行、同时把 `run_scheduled_weights` 顶到
+213 行而**触发 R-052 阻断**；修法是拆出独立小模块与 `_validated_loss_weights`/`_training_report`
+两个 helper，未加任何阈值例外，scheduled runner 从 211 回到 186 行）。R-019b 971、R-022 57、
+R-023 40 保持（`_training_report` 首版 9 参触发过 R-023 报告命中，改成 6 个分组参数后回落）；400/600/200 阈值与冻结例外清单均未改。
 
 **2026-10-05 深夜 S2 / #79 注册轮复算**：R-020 **52→54**、R-021 **68→69**（相对上一行：studies 脚本
 拆分为 `scripts/study_r7_79_typed_evidence.py`（514 行，其 `run_seed` 189 行）与

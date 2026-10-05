@@ -84,7 +84,8 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
                                 process_supervision_context=None,
                                 input_diagnostic_weight: float = 0.0,
                                 future_diagnostic_weight: float = 0.0,
-                                draft_diagnostic_weight: float = 0.0) -> StreamedBackwardResult:
+                                draft_diagnostic_weight: float = 0.0,
+                                loss_channel_weights=None) -> StreamedBackwardResult:
     """Accumulate gradients without zeroing or stepping an optimizer.
 
     Matches detach_between_steps=True (Y0 is still differentiable through round
@@ -120,6 +121,15 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
         raise ValueError("final_weight, forecast_weight and loss_scale must be positive")
     target = batch["atmos_target"].detach().float()
     latitude = batch.get("latitude")
+    channel_weights = None
+    if loss_channel_weights is not None:
+        channel_weights = torch.as_tensor(loss_channel_weights, dtype=torch.float32,
+                                          device=target.device)
+        if (channel_weights.ndim != 1 or channel_weights.shape[0] != target.shape[1]
+                or not torch.isfinite(channel_weights).all()
+                or not bool((channel_weights > 0).all())):
+            raise ValueError("loss_channel_weights must be a finite strictly positive [C] "
+                             f"vector matching {target.shape[1]} channels")
     process_target = None
     if isinstance(model, ProcessForecastCoReasoner) and pw > 0 and "process_targets" in batch:
         process_target = batch["process_targets"].detach().float()
@@ -157,7 +167,8 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
                                          anchor=base.base_state)
             state, draft, prediction = result.process, result.draft, result.prediction
             solver_state = result.solver_state
-        mse = per_sample_latitude_mse(draft, target, latitude).mean()
+        mse = per_sample_latitude_mse(draft, target, latitude,
+                                      channel_weights=channel_weights).mean()
         ploss = target.new_zeros(())
         if step and process_target is not None:
             ploss = F.mse_loss(prediction.float(), process_target) / reasoning_steps

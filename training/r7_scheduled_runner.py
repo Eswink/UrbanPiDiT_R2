@@ -142,6 +142,16 @@ def _check_deadline(deadline):
         raise RuntimeError("scheduled runner deadline exceeded")
 
 
+def _validated_loss_weights(loss_channel_weights):
+    """None stays None; otherwise a finite strictly positive float list."""
+    if loss_channel_weights is None:
+        return None
+    weights = [float(value) for value in loss_channel_weights]
+    if not weights or any(not math.isfinite(value) or value <= 0 for value in weights):
+        raise ValueError("loss_channel_weights must be finite and strictly positive")
+    return weights
+
+
 def _validate_schedule(*, total_updates, batch_size, steps, seed, validation_every,
                        lr, clip, minimum_lr_ratio, early_stopping_patience,
                        minimum_improvement, validation_dataset):
@@ -286,12 +296,19 @@ def run_scheduled_updates(
     deadline=None,
     process_supervision_context=None,
     process_supervision_contract=None,
+    loss_channel_weights=None,
 ):
     """Train to a pre-declared schedule, selecting on validation only.
 
     The schedule is fixed by the caller's frozen protocol; nothing here adapts
     it to an observed metric except the declared early-stopping rule, which
     reads the validation split and stops *shorter*, never longer.
+
+    ``loss_channel_weights`` (optional [C], finite strictly positive) is the
+    #78 R-B per-channel objective weighting; ``None`` trains exactly the
+    equal-channel loss every earlier arm trained with, and a non-None value is
+    recorded in the training contract so the two objectives cannot share a
+    checkpoint signature.
 
     ``shared_initial_state`` (optional) is a ``state_dict`` subset to load into
     the freshly constructed model before the first step, for the #64 B2
@@ -316,6 +333,9 @@ def run_scheduled_updates(
         early_stopping_patience=early_stopping_patience, minimum_improvement=minimum_improvement,
         validation_lead_hours=validation_lead_hours, step_hours=step_hours,
         validation_dataset=validation_dataset, intervention=intervention)
+    contract["loss_channel_weights"] = _validated_loss_weights(loss_channel_weights)
+    if contract["loss_channel_weights"] is None:
+        del contract["loss_channel_weights"]
     from .r7_process_training_contract import supervision_training_contract
     supervision, supervision_kwargs = supervision_training_contract(
         process_supervision_context, process_supervision_contract,
@@ -368,6 +388,7 @@ def run_scheduled_updates(
             _check_deadline(deadline)
         loss = update_group(model, optimizer, batches, kind=kind, device=device, steps=steps,
                             bf16=bf16, process_weight=process_weight, clip=clip,
+                            loss_channel_weights=loss_channel_weights,
                             **({"process_supervision_kwargs": supervision_kwargs}
                                if supervision is not None else {}))
         updates += 1
@@ -419,25 +440,50 @@ def run_scheduled_updates(
     if device.type == "cuda":
         torch.cuda.synchronize(device)
     elapsed = time.perf_counter() - started
-    report = {
+    report = _training_report(
+        register={"contract": contract, "signature": signature,
+                  "data_identity": data_identity},
+        history={"losses": losses, "validations": validations},
+        selection={"total_updates": total_updates, "best_mse": best_mse,
+                   "best_update": best_update, "selected_path": selected_path,
+                   "stopped_reason": stopped_reason, "validation_every": validation_every,
+                   "updates": updates},
+        transfer={"provided": shared_initial_state is not None, "applied": applied,
+                  "ignored": ignored},
+        elapsed=elapsed, device=device)
+    if deadline is not None:
+        _check_deadline(deadline)
+    with metrics_path.open("x", encoding="utf-8") as handle:
+        json.dump(report, handle, ensure_ascii=False, indent=2, allow_nan=False)
+    return selected_path, report
+
+
+def _training_report(*, register, history, selection, transfer, elapsed, device):
+    """The run report; kept separate so the training loop stays under R-052."""
+    losses, validations = history["losses"], history["validations"]
+    best_update, best_mse = selection["best_update"], selection["best_mse"]
+    updates, total_updates = selection["updates"], selection["total_updates"]
+    validation_every = selection["validation_every"]
+    applied, ignored = transfer["applied"], transfer["ignored"]
+    return {
         "scientific_claim": False,
-        "data_identity": str(data_identity),
-        "contract": contract, "signature": signature,
+        "data_identity": str(register["data_identity"]),
+        "contract": register["contract"], "signature": register["signature"],
         "updates_this_run": len(losses), "total_updates": total_updates,
         "elapsed_seconds": elapsed,
         "seconds_per_update": elapsed / max(1, len(losses)),
         "losses": losses, "validations": validations,
         "selected_update": best_update, "selected_validation_mse": best_mse,
         "validation_checks_configured": bool(validation_every),
-        "selected_checkpoint": str(selected_path),
-        "stopped_reason": stopped_reason,
+        "selected_checkpoint": str(selection["selected_path"]),
+        "stopped_reason": selection["stopped_reason"],
         "selection_split": "val",
         "selection_metric": ("mean latitude-weighted normalized MSE over the declared "
                              "validation rollout windows; lower is better; ties keep the "
                              "earlier checkpoint"),
         "early_stopped": bool(validation_every) and updates < total_updates,
         "shared_initial_state": {
-            "provided": shared_initial_state is not None,
+            "provided": transfer["provided"],
             "applied_parameters": sorted(applied), "ignored_parameters": sorted(ignored),
             "applied_count": len(applied), "ignored_count": len(ignored),
             "note": ("shared/common parameters were copied before the first step; "
@@ -451,8 +497,3 @@ def run_scheduled_updates(
         "note": ("wall time includes batch reads and validation scoring; CUDA peaks cover "
                  "this bounded run, not a forecast-skill benchmark"),
     }
-    if deadline is not None:
-        _check_deadline(deadline)
-    with metrics_path.open("x", encoding="utf-8") as handle:
-        json.dump(report, handle, ensure_ascii=False, indent=2, allow_nan=False)
-    return selected_path, report

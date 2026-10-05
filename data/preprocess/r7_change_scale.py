@@ -48,6 +48,11 @@ SAMPLE_RULE = ('every train-owned contiguous (t, t + 6 h) pair inside one declar
                'train half-open range, counted once')
 FALLBACK_RULE = 'zero-change channel: d_c reference = 1.0 of its physical unit; runtime ratio 1.0'
 FLOOR_RULE = 'relative floor = float32 eps * max(ratio over all channels)'
+RB_WEIGHT_RULE = ('w_c = (1 / runtime_ratio_c)^2 normalized so the 17 weights have mean '
+                  'one; derived from the published train-only ratio, fixed before the run')
+RB_LOSS_RULE = ('mean over channels of w_c * normalized squared error: the dimensionless '
+                'form of sum_c mean(((forecast - target) / d_c)^2) because the stored '
+                'state is already divided by s_c and runtime_ratio_c = d_c / s_c')
 
 
 def _local_path(value):

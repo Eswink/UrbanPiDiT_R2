@@ -20,7 +20,7 @@ def _integer(value,name,minimum=1):
 
 
 def update_group(model,optimizer,cpu_batches,*,kind,device,steps,bf16,process_weight,clip,
-                 process_supervision_kwargs=None):
+                 process_supervision_kwargs=None,loss_channel_weights=None):
     """Move one microbatch at a time; one optimizer step per sample-weighted group."""
     count = sum(len(b['coarse_history']) for b in cpu_batches)
     optimizer.zero_grad(set_to_none=True)
@@ -32,7 +32,8 @@ def update_group(model,optimizer,cpu_batches,*,kind,device,steps,bf16,process_we
             if kind == 'native':
                 with torch.autocast(device.type,dtype=torch.bfloat16,enabled=bf16):
                     prediction = model(forecast_inputs(batch)).forecast
-                loss = per_sample_latitude_mse(prediction,batch['atmos_target'],batch.get('latitude')).mean()
+                loss = per_sample_latitude_mse(prediction,batch['atmos_target'],
+                    batch.get('latitude'),channel_weights=loss_channel_weights).mean()
                 if not torch.isfinite(loss):
                     raise ValueError('nonfinite native training loss')
                 (loss*scale).backward()
@@ -41,6 +42,7 @@ def update_group(model,optimizer,cpu_batches,*,kind,device,steps,bf16,process_we
             else:
                 result = backward_streamed_truncated(model,batch,reasoning_steps=steps,
                     process_weight=process_weight,loss_scale=scale,amp_dtype=torch.bfloat16 if bf16 else None,
+                    loss_channel_weights=loss_channel_weights,
                     **(process_supervision_kwargs or {}))
                 value = float(result.total)
                 del result

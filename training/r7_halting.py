@@ -12,13 +12,26 @@ from model.r7_halting import AdaptiveProcessForecaster, positive_int
 
 
 def per_sample_latitude_mse(prediction: torch.Tensor, target: torch.Tensor,
-                            latitude: torch.Tensor | None = None) -> torch.Tensor:
-    """Equal-channel MSE on normalized fields, reduced in FP32 to [B]."""
+                            latitude: torch.Tensor | None = None,
+                            channel_weights: torch.Tensor | None = None) -> torch.Tensor:
+    """Latitude-weighted MSE on normalized fields, reduced in FP32 to [B].
+
+    ``channel_weights`` (optional finite strictly positive [C]) multiplies each
+    channel's squared error before the reduction - the #78 R-B change-scale loss
+    weights the objective per channel with it. ``None`` is exactly the
+    equal-channel behavior every earlier caller relies on.
+    """
     if prediction.ndim != 4 or prediction.shape != target.shape or min(prediction.shape) < 1:
         raise ValueError("prediction/target must have equal nonempty [B,C,H,W] shapes")
     error = (prediction.float() - target.float()).square()
     if not torch.isfinite(error).all():
         raise ValueError("nonfinite forecast error")
+    if channel_weights is not None:
+        weight = torch.as_tensor(channel_weights, dtype=torch.float32, device=error.device)
+        if (weight.ndim != 1 or weight.shape[0] != error.shape[1]
+                or not torch.isfinite(weight).all() or not bool((weight > 0).all())):
+            raise ValueError("channel_weights must be a finite strictly positive [C] vector")
+        error = error * weight.view(1, -1, 1, 1)
     if latitude is None:
         return error.mean((1, 2, 3))
     lat = torch.as_tensor(latitude, dtype=torch.float32, device=error.device)

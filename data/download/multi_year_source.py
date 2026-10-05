@@ -49,6 +49,44 @@ def _load_verified(nc_path, receipt_path):
     return receipt, digest
 
 
+def _assert_compatible(datasets, recorded, reference, time_name):
+    """Every input must share the reference's variables and coordinates."""
+    import numpy as np
+
+    for dataset, entry in zip(datasets, recorded):
+        if dataset["time"].dims != (time_name,):
+            raise ValueError(f"source {entry['path']} has an unexpected time axis")
+        for coord in ("latitude", "longitude", "level"):
+            if coord not in dataset.coords or coord not in reference.coords:
+                raise ValueError(f"source {entry['path']} lacks coordinate {coord!r}")
+            if dataset[coord].shape != reference[coord].shape or not np.array_equal(
+                    np.asarray(dataset[coord].values), np.asarray(reference[coord].values)):
+                raise ValueError(f"source {entry['path']} coordinate {coord!r} differs "
+                                 "from the first source; refusing to combine")
+        if set(dataset.data_vars) != set(reference.data_vars):
+            raise ValueError(f"source {entry['path']} variables differ from the first source")
+
+
+def _assert_exact_union(times, all_times, datasets, *, expected_stamps):
+    """The combined axis must be the sorted, unique, 6-hourly union of inputs."""
+    import pandas as pd
+
+    if int(expected_stamps) != sum(len(pd.DatetimeIndex(d["time"].values)) for d in datasets):
+        raise ValueError(f"expected {expected_stamps} stamps, sources record a different total")
+    if len(times) != int(expected_stamps):
+        raise ValueError(f"combined source has {len(times)} stamps, expected {expected_stamps}")
+    expected_axis = pd.DatetimeIndex(sorted(set(all_times)))
+    if len(expected_axis) != len(all_times) or not times.is_unique:
+        raise ValueError("sources overlap: duplicate time stamps")
+    if not times.equals(expected_axis):
+        raise ValueError("combined time axis differs from the sorted union of the sources "
+                         "(check the given order is chronological)")
+    if not times.is_monotonic_increasing or times.hasnans:
+        raise ValueError("combined time axis must be unique, increasing and valid")
+    if sorted({stamp.hour for stamp in times}) != [0, 6, 12, 18]:
+        raise ValueError("combined stamps must cover the four UTC initialization hours")
+
+
 def combine_sources(source_pairs, out_nc, receipt_json, *, expected_stamps):
     """Concatenate verified batch sources along time into one new source.
 
@@ -57,7 +95,6 @@ def combine_sources(source_pairs, out_nc, receipt_json, *, expected_stamps):
     recorded stamps, so reordering, duplicates and overlaps are refused rather
     than repaired.
     """
-    import numpy as np
     import pandas as pd
     import xarray as xr
 
@@ -86,37 +123,10 @@ def combine_sources(source_pairs, out_nc, receipt_json, *, expected_stamps):
 
     reference = datasets[0]
     time_name = "time"
-    for dataset, entry in zip(datasets, recorded):
-        if dataset["time"].dims != (time_name,):
-            raise ValueError(f"source {entry['path']} has an unexpected time axis")
-        for coord in ("latitude", "longitude", "level"):
-            if coord not in dataset.coords or coord not in reference.coords:
-                raise ValueError(f"source {entry['path']} lacks coordinate {coord!r}")
-            if dataset[coord].shape != reference[coord].shape or not np.array_equal(
-                    np.asarray(dataset[coord].values), np.asarray(reference[coord].values)):
-                raise ValueError(f"source {entry['path']} coordinate {coord!r} differs "
-                                 "from the first source; refusing to combine")
-        if set(dataset.data_vars) != set(reference.data_vars):
-            raise ValueError(f"source {entry['path']} variables differ from the first source")
-
+    _assert_compatible(datasets, recorded, reference, time_name)
     merged = xr.concat(datasets, dim=time_name) if len(datasets) > 1 else datasets[0]
     times = pd.DatetimeIndex(merged["time"].values)
-    if int(expected_stamps) != sum(len(pd.DatetimeIndex(d["time"].values)) for d in datasets):
-        raise ValueError(f"expected {expected_stamps} stamps, sources record a different total")
-    if len(times) != int(expected_stamps):
-        raise ValueError(f"combined source has {len(times)} stamps, expected {expected_stamps}")
-    expected_axis = pd.DatetimeIndex(sorted(set(all_times)))
-    if len(expected_axis) != len(all_times):
-        raise ValueError("sources overlap: duplicate time stamps")
-    if not times.is_unique:
-        raise ValueError("sources overlap: duplicate time stamps")
-    if not times.equals(expected_axis):
-        raise ValueError("combined time axis differs from the sorted union of the sources "
-                         "(check the given order is chronological)")
-    if not times.is_monotonic_increasing or not times.is_unique or times.hasnans:
-        raise ValueError("combined time axis must be unique, increasing and valid")
-    if sorted({stamp.hour for stamp in times}) != [0, 6, 12, 18]:
-        raise ValueError("combined stamps must cover the four UTC initialization hours")
+    _assert_exact_union(times, all_times, datasets, expected_stamps=expected_stamps)
 
     attrs = dict(reference.attrs)
     attrs["combined_batches"] = json.dumps(
