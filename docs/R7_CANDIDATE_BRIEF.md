@@ -3,7 +3,26 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 36; human-review candidates: 1
+Records: 37; human-review candidates: 1
+
+## s3-d4-rc-candidate
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `97` (not a scientific score)
+- Evidence: `docs/R7_S3_D4_RC_CANDIDATE.md` (SHA256 `467e9591fa81a3d0731da9ba3a9536ad59a46529a507f56977635fae9ed7cabe`)
+- Evidence commit: `1610b5485958fcb4613267dac7ea691004121893`; experiment commit: `c46981e139b820d35f14d183723fc7be859b7abc`
+- Protocol SHA256: `c078f80432416e236a1eb4e560c48e19f262055f82042df912ff2aaf8b6864af`; data identity: `e01828e951e4c41182869b088da2b72131c9fc6c1c2d4abf42456b4e4cd6ed09`
+- Reason: S3-D4 R-C lead-coverage candidate single-factor screen: same spec/initialization/data/eval path as the registered S3-D3 incumbent, sole difference the training objective (control l6 at 400 updates vs candidate two_step l6+0.5*l12 at FLOP-matched 200 updates). The pre-registered primary reads worsened at both 6h and 12h with all three seeds the same sign (+0.92...+1.46 K), and the u10/v10/mslp gate pre-screen fails with 34 positive cells, so the candidate stops per the frozen rule. Whole round 3050.1 s vs planned 5400 / hard 10800 with zero overrun; code fenced at c46981e1; test unread. This independently reproduces the B-stage negative for extending the training objective to +12h on the v2 instance.
+- Limitations:
+  - screening only: one instance (2017 train / 2022 val, one ROI, 17 channels), no significance, convergence or SOTA claim
+  - the control readings come from the registered S3-D3 incumbent run on the same store and are pinned by SHA256, not retrained inside this protocol
+  - FLOP-matching follows the measured two_step/l6 objective ratio 2.0018; equal updates is deliberately NOT the comparison, so the update allocator differs
+  - three seeds are consistency evidence, not a significance test
+  - K4 is an inference-depth probe on the same K4-trained checkpoint, not an independent model
+  - GPU runs are co-resident; latency/memory observations include neighbor load
+  - validation split only; the test split stays sealed until the S4 preregistered read
+- Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m/full 6h/12h，two_step_200 − incumbent_l6_400）三 seed 全部同号为正，即把训练目标扩到 +12h 的候选比同 FLOP 的 l6 控制更差（6h +0.9202/+1.0247/+0.9263 K、12h +1.3219/+1.4587/+1.2365 K）；u10/v10/mslp 守门预审 34 个正 cell 也不通过。按冻结决定文本候选停当轮（candidate-stops-registered-negative），不进 S4 冻结包，不构成任何科学声明。
+- Recorded metrics (not recomputed): candidate_mode=two_step, candidate_updates=200, control_mode=l6, control_updates=400, delta_t2m_full_rmse_vs_incumbent={"41": {"12": 1.3219, "6": 0.9202}, "42": {"12": 1.4587, "6": 1.0247}, "43": {"12": 1.2365, "6": 0.9263}}, elapsed_seconds_total=3050.1, first_spawn_to_last_reap_seconds=3001.2, flop_parity_relative_error=0.0008891315554136186, gate_failures=34, gpu_hours=0.8472, hard_cap_seconds=10800.0, lambda12=0.5, network_bytes=0, planned_seconds=5400.0, primary_verdict={"12": "worsened", "6": "worsened"}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, test_read=false
 
 ## s3-d3-incumbent-retrain
 

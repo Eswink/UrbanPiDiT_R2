@@ -103,7 +103,14 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
     `record:s3-d3-incumbent-retrain`；三 seed 初始化逐位复现 actual C、400 L6 updates×3；
     整轮 3955.3s、planned 5400/hard 10800、overrun 0、GPU-h 1.0987；t2m 6h skill
     +0.2143/+0.2754/+0.3262，seed43 12h +0.0037、24h +0.0526；test 未读）。
-- **未做**：D4 R-C 候选筛选（协议已冻结 `c078f804…`、FLOP parity 0.09%、GPU0，实跑进行中）；
-  D5 S4 冻结包；#79 typed-evidence 的 needs-review 处置（留作 S3 内可选候选，须新协议才可再筛）。
-- **下一动作**：完成 D4 实跑并按预注册判读（t2m 6h/12h 每 seed 同号 + u10/v10/mslp 守门预审）；
-  通过则 D5 冻结 S4 包，不通过则如实登记负结果并给出下一独立假设。
+  - D4 R-C lead-coverage 候选筛选（`docs/R7_S3_D4_RC_CANDIDATE.md`，索引记录
+    `record:s3-d4-rc-candidate`；two_step×200 更新 vs D3 l6×400，FLOP 匹配比 2.0018；
+    **注册负结果 worsened**：6h +0.9202/+1.0247/+0.9263 K、12h +1.3219/+1.4587/+1.2365 K
+    三 seed 同号为正，守门预审 34 个正 cell；候选按冻结规则停当轮，不进 S4 冻结包；
+    整轮 3050.1s、overrun 0、GPU-h 0.8472；test 未读）。
+- **未做**：D5 S4 冻结包（当前无通过 GM 筛选的候选）；#79 typed-evidence 的 needs-review
+  处置（留作 S3 内可选候选，须新协议才可再筛）。
+- **下一动作**：R-C 杠杆（two_step 目标）已在本实例注册为负、不再重开同因素；按 D4 页 §7
+  推测启动下一独立单因素假设——update 预算筛选（l6 800 更新 vs D3 冻结的 400 更新 l6 控制），
+  直接检验 S0 的「400 更新末段 loss 仍在降＝可能停早了」；新协议预注册后运行，通过则 D5 冻结
+  S4 包，不通过则继续给出下一独立假设。节点软预算 2.5 内余量约 0.55 GPU-h，超出即记 overrun。
