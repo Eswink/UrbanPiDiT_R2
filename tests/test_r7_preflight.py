@@ -70,3 +70,18 @@ def test_cli_defaults_to_no_writes(tmp_path):
 def test_remote_sources_never_opened():
     with pytest.raises(ValueError,match='local'):
         prepare_local('gs://example/not-authorized.zarr',config())
+
+
+def test_fingerprint_is_complete_beyond_the_old_stat_only_bound(tmp_path):
+    """ADR 0039: >64 MiB sources must still get a complete byte-level hash."""
+    import hashlib
+    from data.preprocess.r7_preflight import source_fingerprint
+    source=tmp_path/'big.nc'
+    payload=bytes(range(256))*((64*2**20)//256+4096)  # just over the old 64 MiB bound
+    source.write_bytes(payload)
+    assert len(payload)>64*2**20
+    before=source.read_bytes()
+    fingerprint=source_fingerprint(source)
+    assert fingerprint=={'scope':'full-local-file','bytes':len(payload),
+        'sha256':hashlib.sha256(payload).hexdigest()}
+    assert source.read_bytes()==before

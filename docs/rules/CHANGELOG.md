@@ -2,6 +2,21 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-05 深夜 — 源指纹契约修正：去 64 MiB 降级（决策 0039）
+
+`data/preprocess/r7_preflight.py` 的 `source_fingerprint()` 删除 `max_hash_bytes=64*2**20`
+参数与 `file-stat-only` 分支：常规文件**总是**全文 SHA256（`full-local-file`），
+目录的 `zarr-root-metadata-only` 行为不变。触发事实（真实发布缺陷）：S3 确认 store 的
+合并源 231,865,649 字节超过旧上限，其审计只有 stat-only 指纹，导致
+`r7_process_scale_sidecar._source_identity` 拒绝（line 260），process-scale sidecar 无法发布——
+该 sidecar 是 S4 incumbent（actual C `process` 臂）训练契约的必需输入；S1 的 77 MB 源同样从未
+有 process-scale sidecar。修法是**完整哈希成为默认且唯一形态**（更强身份，非放宽），
+对应决策 0039 与 ADR 0038 第 4 条"完整 source SHA256"前置；不改任何读取方的接受判据。
+新增回归测试 `tests/test_r7_preflight.py::test_fingerprint_is_complete_beyond_the_old_stat_only_bound`
+（>64 MiB 文件必须得到完整 `full-local-file` 指纹且输入不被修改）。
+已写出的 v1 审计不回改，重建实例走全新排他路径。`real-data-acquisition` skill 检查点同步更新。
+无规则级别/阈值/规模 marker 改动（checker 与阈值均未动）。
+
 ## 2026-10-05 深夜 — #78 R-A 解码重参数化开关（`[model-digest-change]`）
 
 新增单开关 `change_scale_mode`（`identity` 默认 / `normalized_change_scale`）贯通

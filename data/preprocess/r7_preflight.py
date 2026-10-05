@@ -120,23 +120,25 @@ def inspect_era5(ds,config):
     return report,specs
 
 
-def source_fingerprint(path,max_hash_bytes=64*2**20):
-    """Bounded fingerprint. Never call a partial fingerprint a whole-source hash."""
+def source_fingerprint(path):
+    """Complete byte-level identity for a local source artifact.
+
+    Regular files are always hashed in full. A stat-only or partial
+    fingerprint must never be presented as a whole-source hash (ADR 0039):
+    the process-scale sidecar and the M3/V2 identity chains require the
+    ``full-local-file`` scope, and ADR 0038 requires the complete source
+    SHA256 before any ``--write``.
+    """
     path=Path(path)
     if path.is_file():
-        size=path.stat().st_size
-        if size<=max_hash_bytes:
-            digest=hashlib.sha256()
-            with path.open('rb') as f:
-                for chunk in iter(lambda:f.read(1<<20),b''):
-                    digest.update(chunk)
-            return {'scope':'full-local-file','sha256':digest.hexdigest(),'bytes':size}
-        return {'scope':'file-stat-only','bytes':size,'mtime_ns':path.stat().st_mtime_ns,'sha256':None}
+        digest=hashlib.sha256()
+        with path.open('rb') as f:
+            for chunk in iter(lambda:f.read(1<<20),b''):
+                digest.update(chunk)
+        return {'scope':'full-local-file','sha256':digest.hexdigest(),'bytes':path.stat().st_size}
     metadata=[p for p in [path/'zarr.json',path/'.zgroup',path/'.zattrs',path/'.zmetadata'] if p.is_file()]
     digest=hashlib.sha256()
     for p in sorted(metadata):
-        if p.stat().st_size>max_hash_bytes:
-            raise ValueError('root metadata exceeds bounded hash budget')
         digest.update(p.name.encode()+b'\0'+p.read_bytes())
     return {'scope':'zarr-root-metadata-only','sha256':digest.hexdigest(),'files':[p.name for p in metadata]}
 

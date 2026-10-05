@@ -58,9 +58,10 @@ description: 当要引入新的真实数据源、下载器或重建派生数据�
 
 ## 检查点
 
-- **步骤 1 后**：报告里若出现 `scope='file-stat-only'`（文件 >64MiB 时只做 stat，
-  不给内容 hash），**要意识到这个 fingerprint 弱于完整 SHA256**。
-  对科学运行，应设法取得完整 hash 或信任来源侧提供的 checksum。
+- **步骤 1 后**：报告的 `fingerprint.scope` 必须是 `full-local-file`（完整内容 SHA256，
+  按决策 0039 对任何大小的文件都做全文哈希）。若出现 `scope='file-stat-only'`，
+  说明用的是旧代码或旧审计，**不要继续**：该指纹弱于完整 SHA256，process-scale sidecar
+  与 M3/V2 身份链都会拒绝它，正确做法是用当前代码在新路径重建实例。
 - **步骤 3 前**：确认目标路径不存在。已存在的路径会被 `fresh_outputs` 拒绝——
   这是设计行为，**不要**通过删除旧目录来"让重试成功"（`docs/R7_DATA_PUBLICATION.md:6`）。
   正确做法是选一个新目标。
@@ -75,7 +76,8 @@ description: 当要引入新的真实数据源、下载器或重建派生数据�
   （源/区域/变量/时间跨度/存储目标/最大下载量/时间与金钱上限）。
 - **字节预算搞错语义**：`decoded_budget_bytes` 是**解码后**的读取量，
   不是 HTTP 流量、也不是峰值内存。`docs/R7_TASK_QUEUE.md:42-43` 明确记录过这个区分。
-- **把 stat-only fingerprint 当成完整校验**：见上。
+- **把 stat-only fingerprint 当成完整校验**：见上。若拿到 stat-only 报告，先确认
+  代码版本（决策 0039 起不再降级），不要沿用旧审计里的弱指纹。
 - **合成回退**：下载失败必须留下 `status='failed-no-fallback'`、`synthetic_fallback=False`
   的记录并重新抛出（R-008）。**禁止**静默改用合成数据继续。
 - **忽略单位**：项目不会猜测单位；缺失单位会被写成 `'unknown'` 而不是猜一个。

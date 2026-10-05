@@ -1,0 +1,15 @@
+# S3 confirmation instance: three complete calendar years of the four frozen
+# season blocks (train 2017 / val 2022 / test 2023), year-mode splits.
+# Frozen in outputs/r7_s3_confirmation_2017_2022_2023/store_build_protocol.json.
+# No download or write occurs unless prepare_r7_local.py receives --write.
+split_years:
+  train: [2017]
+  val: [2022]
+  test: [2023]
+history_steps: 2
+history_interval_hours: 6
+lead_time_hours: 6
+sample_stride_hours: 6
+time_chunk: 16
+compute_process_targets: true
+# channels omitted -> the existing 17-channel ERA5 long-name schema.
