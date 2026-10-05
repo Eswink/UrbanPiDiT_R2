@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 29; human-review candidates: 1
+Records: 30; human-review candidates: 1
 
 ## s0-incumbent-gap-audit
 
@@ -54,6 +54,23 @@ Records: 29; human-review candidates: 1
 - CI run: `36276587108`
 - Excluded from runnable candidates: Candidate for human review only; follow-up still requires a new frozen protocol and explicit authorization.
 - Recorded metrics (not recomputed): gate_met=false, gpu_hours=1.157, lead_hours=[6, 12, 24, 48, 72], seeds=3, test_read=false
+
+## s2-78-change-scale-screening
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `90` (not a scientific score)
+- Evidence: `docs/R7_S2_78_CHANGE_SCALE.md` (SHA256 `22b9f2a834ea19ddfcd9587646c1e4fa247a068dc99185fa98111564d46253b1`)
+- Evidence commit: `833d6bbf65885d1ef9f5d888bac5329d0dcdb5c8`; experiment commit: `833d6bbf65885d1ef9f5d888bac5329d0dcdb5c8`
+- Protocol SHA256: `84dafc498c69c4ef0cd0e16b4dea5cbe0e2e9fd6915ee782e6977ca62997e074`; data identity: `894b8d1b6c08d49f93255558fdacb1290ace690de43757d84369a91b3b28e02c`
+- Reason: #78 R-A 变化尺度重参数化解码单因素筛选：同参数量/FLOPs/初始化的 identity vs normalized_change_scale 两臂（Y = X_t + (d_c/s_c)*r_c，loss 不变），三 seed、400 更新、val-only。接线探针证明 ratio 确实进入前向（≤2.6e-5），但预注册主格两 lead 三 seed 同号为正（worsened），按冻结决定文本该机制在本预算/实例被证伪；全 85 cell 如实报告，长 lead 的改善多数格仅作描述不作主张。证据：outputs/r7_78_change_scale_pilot_v2/paired_comparison.json。
+- Limitations:
+  - 单 dev store（2017 四季、单区域），val-only；val/test 是十月内 6–15 天窗口，非完整季节。
+  - 400 更新/seed 的有界筛选，无收敛或显著性主张；三 seed 只作一致性证据。
+  - 主格两 lead 三 seed 同号为正（worsened）；24–72h 的多数 improved 格是描述性、未预注册，不并入判定。
+  - v1 三 seed 在训练前被接线探针拒绝（harness 缺陷，7 s/seed），已修复并 v2 重跑；两轮均计费。
+  - test_read: false；未改任何冻结判据；R-B（差值尺度 loss）未因此轮做任何主张。
+- Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m 6h/12h，change_scale−identity）三 seed 全部同号为正，即变化尺度重参数化使 val RMSE 恶化（6h +0.1105、12h +0.1668 seed 均值）；按冻结决定文本被证伪。不进入正式确认实例候选，不构成任何科学声明。
+- Recorded metrics (not recomputed): arms=2, cells_improved=30, cells_unresolved=44, cells_worsened=11, change_scale_ratio_max=0.747278094291687, change_scale_ratio_min=0.07220174372196198, delta_seed_mean_12h=0.16681554533105677, delta_seed_mean_6h=0.1105266114221289, forward_backward_flops=46282984704, forward_flops=15465592704, gpu_hours=0.37003, gpu_hours_total=0.3759, gpu_hours_v1=0.0059, gpu_hours_v2=0.37003, parameters_per_arm=2948771, primary_cells={"12h": "worsened", "6h": "worsened"}, probe_max_relative_error=2.64e-05, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
 
 ## s2-77-pe-band-screening
 

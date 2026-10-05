@@ -72,7 +72,11 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
 ## §7 进度块
 
 - **状态**：`active`
-- **已完成**：#77（频带筛选，screening-negative）、#78 R-A 的 data 侧（change-scale 模块
-  +16 测试 +sidecar 发布）。
-- **未做**：#78 R-A 的 model 侧接线与 GPU 轮、#79 设计、S3 批量下载、S4 确认门。
-- **下一动作**：#78 R-A model 侧接线（等 #77 v2 评估全部结束后），随后按 §4 推进到 GPU 两轮与登记。
+- **已完成**：#77（频带筛选，screening-negative）、#78 R-A（变化尺度重参数化，**worsened 双格**
+  → screening-negative；data 侧模块+16 测试+sidecar、model 侧开关+9 测试、两轮 GPU 全部登记）、
+  #79 设计冻结（三臂、aux=0、判据与不变量）。
+- **未做**：#79 的实现与 GPU 轮、#78 R-B（差值尺度 loss，须先写清与 R-A 的机制差异）、
+  S3 批量下载、S4 未见年份确认门。
+- **下一动作**：#79 实现（CPU 反证测试 + 逐类到达探针 → protocol.json → GPU 三臂轮）；
+  之后按主线决定是否开 R-B 与进入 S3。
+- **成本**：S2 累计 1.0257/6.0 GPU-h（#77 两轮 0.6498 + #78 两轮 0.3759），软预算 2.0 内。
