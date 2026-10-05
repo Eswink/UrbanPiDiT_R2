@@ -30,7 +30,8 @@ class NativeAtmosForecaster(nn.Module):
                  dim:int=128,patch_size:int=2,depth:int=4,heads:int=4,window_size:int=8,
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
                  default_lead_hours:float=6.,spacetime_inputs:bool=False,
-                 spacetime_field_mode:str='fields',known_context_inputs:bool=False):
+                 spacetime_field_mode:str='fields',known_context_inputs:bool=False,
+                 change_scale_mode:str='identity',change_scale_ratio=None):
         super().__init__()
         if type(known_context_inputs) is not bool:
             raise ValueError('known_context_inputs must be boolean')
@@ -58,7 +59,8 @@ class NativeAtmosForecaster(nn.Module):
         self.encoder=CoarseEncoder(self.in_channels,self.history_steps,dim,patch_size,depth,
             heads,window_size,dropout,activation_checkpointing,periodic_width,pad_to_patch=True)
         self.lead_time=LeadTimeEmbedding(dim)
-        self.head=CoarseForecastHead(dim,self.out_channels,patch_size)
+        self.head=CoarseForecastHead(dim,self.out_channels,patch_size,
+            change_scale_mode=change_scale_mode,change_scale_ratio=change_scale_ratio)
         # Built last and under a rewound stream: with the switch off nothing is
         # constructed, and with it on every pre-existing parameter keeps the value
         # the same seed gives it without the pathway. That is what makes the two

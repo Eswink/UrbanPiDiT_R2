@@ -2,6 +2,18 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-05 深夜 — #78 R-A 解码重参数化开关（`[model-digest-change]`）
+
+新增单开关 `change_scale_mode`（`identity` 默认 / `normalized_change_scale`）贯通
+`CoarseForecastHead`（`model/coarse_forecast.py`）、`NativeAtmosForecaster`、`ProcessForecastCoReasoner`
+与 `GenericRecursiveWeatherForecaster`：scaled 模式写 `Y = X_t + (d_c/s_c)*r_c`，ratio 是**非持久
+buffer**（无新 state key、无参数量/FLOPs 差异、臂间同 seed 权重逐位相同），identity 路径与旧实现
+**逐位一致**（`tests/test_r7_78_change_scale_decode.py` 9 项直接钉住；`test_r7_switched_path_equivalence`
+的 pre-change 位级对比 4 项仍过）。`model_code_digest()` 因此从 `84e77e8b…` 变为 `701f1823…`；
+S2/#77 与 S1 记录的是 `84e77e8b…`，**不回改**；旧 checkpoint 只能用它归档的 `code.zip` 重放。
+新增测试文件 275+175 行，规模 marker 复测后不变（R-020=51/R-021=66 等保持，新文件均在阈值内）；
+本提交带 `[model-digest-change]` 标签。无规则级别/判据/阈值改动。
+
 ## 2026-10-05 晚 — 第三处 CI 红：size marker 漂移同步（仅文档）
 
 `d232445` 的 CI（run37247277150 / job111567576431）pytest 步骤失败，另一处 marker 漂移：

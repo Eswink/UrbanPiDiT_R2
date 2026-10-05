@@ -85,6 +85,8 @@ class ProcessForecastCoReasoner(nn.Module):
         draft_query_feedback:bool=False,
         source_position_markers:bool=False,
         known_context_inputs:bool=False,
+        change_scale_mode:str='identity',
+        change_scale_ratio=None,
     ):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
@@ -156,6 +158,7 @@ class ProcessForecastCoReasoner(nn.Module):
         self.local_solver_state=local_solver_state
         self.solver_state_recurrence=solver_state_recurrence
         self.solver_gate_proposal=solver_gate_proposal
+        self.change_scale_mode=change_scale_mode
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -192,6 +195,8 @@ class ProcessForecastCoReasoner(nn.Module):
             spacetime_inputs=spacetime_inputs,
             spacetime_field_mode=self.spacetime_field_mode,
             known_context_inputs=self.known_context_inputs,
+            change_scale_mode=change_scale_mode,
+            change_scale_ratio=change_scale_ratio,
         )
 
         self.process_queries=nn.Parameter(
@@ -216,6 +221,8 @@ class ProcessForecastCoReasoner(nn.Module):
             dim=dim,
             out_channels=self.out_channels,
             patch_size=patch_size,
+            change_scale_mode=change_scale_mode,
+            change_scale_ratio=change_scale_ratio,
         )
         # Same rule as the space-time term: the pathway is constructed last and
         # under a rewound stream, so switching it on cannot move any other weight.
@@ -241,7 +248,9 @@ class ProcessForecastCoReasoner(nn.Module):
                 self.solver_cell=LocalSolverState(dim)
                 self.solver_gate=PositionGate(dim)
                 self.proposal_head=CoarseForecastHead(
-                    dim=dim,out_channels=self.out_channels,patch_size=patch_size)
+                    dim=dim,out_channels=self.out_channels,patch_size=patch_size,
+                    change_scale_mode=change_scale_mode,
+                    change_scale_ratio=change_scale_ratio)
 
     def process_conditioning(
         self,

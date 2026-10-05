@@ -41,9 +41,37 @@ class LeadTimeEmbedding(nn.Module):
 
 
 class CoarseForecastHead(nn.Module):
-    """Decode full patch cells and crop; never resize a native-grid tendency."""
-    def __init__(self,dim:int,out_channels:int,patch_size:int=2,hidden:int|None=None):
+    """Decode full patch cells and crop; never resize a native-grid tendency.
+
+    #78 R-A decode reparameterization. The decoder writes a tendency ``r_c`` in
+    the existing normalized-state space; with ``normalized_change_scale`` the
+    module instead writes ``Y = X_t + (d_c / s_c) * r_c``, where the ratio is a
+    fixed, train-only quantity supplied at construction (the store's train-only
+    change scale ``d_c`` over its train-only state scale ``s_c``). The loss is
+    untouched: this changes the parameterization of the decoded increment, not
+    its units or its channel weighting.
+
+    The ratio is a non-persistent buffer: it is not a trained tensor and adds no
+    state-dict key, so the identity and scaled arms share one tensor set and one
+    parameter count - the contrast is the parameterization alone. With the mode
+    left at ``identity`` nothing scaled is built or multiplied, so the default
+    path is bitwise the pre-change implementation.
+    """
+    MODES = ("identity", "normalized_change_scale")
+
+    def __init__(self,dim:int,out_channels:int,patch_size:int=2,hidden:int|None=None,
+                 change_scale_mode:str="identity",change_scale_ratio=None):
         super().__init__()
+        if change_scale_mode not in self.MODES:
+            raise ValueError(f"change_scale_mode must be one of {self.MODES}")
+        self.change_scale_mode=str(change_scale_mode)
+        if self.change_scale_mode == "identity":
+            if change_scale_ratio is not None:
+                raise ValueError("change_scale_ratio with identity mode would be "
+                                 "silently ignored; leave it unset or switch modes")
+        elif change_scale_ratio is None:
+            raise ValueError("normalized_change_scale requires the train-only "
+                             "d_c / s_c vector")
         hidden=hidden or max(64,dim//2)
         self.out_channels=int(out_channels)
         self.patch_size=int(patch_size)
@@ -52,6 +80,20 @@ class CoarseForecastHead(nn.Module):
             nn.GELU(),nn.Conv2d(hidden,self.out_channels,3,padding=1))
         nn.init.normal_(self.decode[-1].weight,mean=0.,std=1e-3)
         nn.init.zeros_(self.decode[-1].bias)
+        if self.change_scale_mode != "identity":
+            value=torch.as_tensor(change_scale_ratio,dtype=torch.float32)
+            if tuple(value.shape)!=(self.out_channels,) or not torch.isfinite(value).all() \
+                    or bool((value<=0).any()):
+                raise ValueError("change scale ratio must be a finite positive "
+                                 f"[{self.out_channels}] vector")
+            self.register_buffer("change_scale_ratio",value.clone(),persistent=False)
+
+    def _scaled_tendency(self, tendency: torch.Tensor) -> torch.Tensor:
+        if self.change_scale_mode == "identity":
+            return tendency
+        if tuple(self.change_scale_ratio.shape) != (tendency.shape[1],):
+            raise ValueError("change scale ratio must match the decoded channels")
+        return tendency * self.change_scale_ratio.to(tendency.dtype).view(1, -1, 1, 1)
 
     def forward(self,tokens:torch.Tensor,token_hw:tuple[int,int],output_hw:tuple[int,int],base_state:torch.Tensor):
         B,N,D=tokens.shape
@@ -62,4 +104,5 @@ class CoarseForecastHead(nn.Module):
             raise ValueError('base_state must match output batch/channel/native spatial shape')
         z=self.norm(tokens).transpose(1,2).reshape(B,D,ht,wt)
         tendency=crop_native_grid(self.decode(z),output_hw,self.patch_size)
+        tendency=self._scaled_tendency(tendency)
         return base_state+tendency,tendency

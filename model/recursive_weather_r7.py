@@ -270,7 +270,8 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                  pooled_readout_query:bool=False,local_solver_state:bool=False,
                  solver_state_recurrence:bool=False,solver_gate_proposal:bool=False,
                  use_forecast_feedback:bool=True,draft_query_feedback:bool=False,
-                 source_position_markers:bool=False,known_context_inputs:bool=False):
+                 source_position_markers:bool=False,known_context_inputs:bool=False,
+                 change_scale_mode:str='identity',change_scale_ratio=None):
         super().__init__()
         for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
                            (spacetime_inputs,'spacetime_inputs'),
@@ -319,6 +320,7 @@ class GenericRecursiveWeatherForecaster(nn.Module):
         self.local_solver_state=local_solver_state
         self.solver_state_recurrence=solver_state_recurrence
         self.solver_gate_proposal=solver_gate_proposal
+        self.change_scale_mode=change_scale_mode
         self.use_forecast_feedback=use_forecast_feedback
         # Exposed, not just forwarded: the rollout asks the model which lead
         # convention it was configured for.
@@ -337,12 +339,14 @@ class GenericRecursiveWeatherForecaster(nn.Module):
         self.backbone=NativeAtmosForecaster(in_channels,history_steps,self.out_channels,dim,patch_size,
             depth,heads,window_size,dropout,activation_checkpointing,periodic_width,default_lead_hours,
             spacetime_inputs=spacetime_inputs,spacetime_field_mode=self.spacetime_field_mode,
-            known_context_inputs=self.known_context_inputs)
+            known_context_inputs=self.known_context_inputs,
+            change_scale_mode=change_scale_mode,change_scale_ratio=change_scale_ratio)
         self.latent=nn.Parameter(torch.randn(1,int(latent_tokens),dim)*.02)
         self.draft_encoder=DraftTokenEncoder(self.out_channels,dim,patch_size)
         self.cell=GenericRecursiveCell(dim,heads,mlp_ratio=3.,dropout=dropout)
         self.latent_to_context=nn.Sequential(nn.LayerNorm(dim),nn.Linear(dim,dim))
-        self.correction_head=CoarseForecastHead(dim,self.out_channels,patch_size)
+        self.correction_head=CoarseForecastHead(dim,self.out_channels,patch_size,
+            change_scale_mode=change_scale_mode,change_scale_ratio=change_scale_ratio)
         # Built last and under a rewound stream, for the same reason the space-time
         # pathway is: declaring source roles must not move a single weight the
         # model would have had without them, so the two arms differ by the roles
@@ -362,7 +366,9 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                 self.solver_init=nn.Parameter(torch.randn(1,1,dim)*SOLVER_INITIAL_SCALE)
                 self.solver_cell=LocalSolverState(dim)
                 self.solver_gate=PositionGate(dim)
-                self.proposal_head=CoarseForecastHead(dim,self.out_channels,patch_size)
+                self.proposal_head=CoarseForecastHead(dim,self.out_channels,patch_size,
+                    change_scale_mode=change_scale_mode,
+                    change_scale_ratio=change_scale_ratio)
 
     def latent_conditioning(self,latent,context,token_hw,*,draft_tokens=None):
         """Same solver-facing read and dimensions, unconstrained Generic tokens."""
