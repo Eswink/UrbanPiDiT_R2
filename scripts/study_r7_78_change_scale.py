@@ -335,11 +335,19 @@ def run_seed(manifests_dir, output_dir, *, seed, updates=UPDATES, device_name="c
     verified_registration(protocol_path)
 
     # Wiring check before any step: the shipped ratio must multiply the initial
-    # decoded tendency, and the identity arm must reproduce the identity mode.
-    seed_everything(seed)
-    probe_models = {name: make_model("process", resolved)
-                    for (name, kind, config), (_, _, resolved)
-                    in zip(arms, resolved_arms)}
+    # decoded tendency. Each probe model is seeded immediately before its own
+    # construction - seeding once and building both would give them different
+    # weights, and the probe's bitwise-equal-weights precondition would be
+    # false (v1 harness defect; the probe refused and the round re-ran).
+    probe_models = {}
+    for (name, kind, config), (_, _, resolved) in zip(arms, resolved_arms):
+        seed_everything(seed)
+        probe_models[name] = make_model("process", resolved)
+    if not all(torch.equal(probe_models[IDENTITY_ARM].state_dict()[key],
+                           probe_models[SCALED_ARM].state_dict()[key])
+               for key in probe_models[IDENTITY_ARM].state_dict()):
+        raise RuntimeError("probe precondition failed: the two probe models must "
+                           "start from bitwise equal same-seed weights")
     probe = decode_scale_probe(probe_models[IDENTITY_ARM], probe_models[SCALED_ARM],
                                probe_batch)
     for model in probe_models.values():
