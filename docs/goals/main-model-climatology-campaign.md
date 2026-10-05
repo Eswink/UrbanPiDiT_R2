@@ -169,19 +169,21 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3-D2 同数据气候态/persistence 重建（CPU，零 GPU） | 0.0000 | 2.0919 | `docs/R7_S3_D2_BASELINES.md`（索引记录 `record:s3-d2-same-data-baselines`）；`outputs/r7_s3_d2_baselines_20261005_attempt01/`（逐 lead 全覆盖 472/468/460/444/428；气候态 480 步 fit、16 桶各 30；墙钟 553.1s，planned 1800/hard 3600，overrun 0；网络 0；test未读） |
 | S3-D3 同数据 incumbent 重训（GPU 3 seed） | 1.0987 | 3.1906 | `docs/R7_S3_D3_INCUMBENT.md`（索引记录 `record:s3-d3-incumbent-retrain`）；`outputs/r7_s3_d3_incumbent_20261005_attempt01/`（三 seed 初始化逐位复现 actual C；400 L6 updates×3；整轮 3955.3s，planned 5400/hard 10800，overrun 0；t2m 6h skill +0.2143/+0.2754/+0.3262；seed43 12h +0.0037/24h +0.0526；test未读） |
 | S3-D4 R-C lead-coverage 候选筛选（注册负结果） | 0.8472 | 4.0378 | `docs/R7_S3_D4_RC_CANDIDATE.md`（索引记录 `record:s3-d4-rc-candidate`）；`outputs/r7_s3_d4_rc_candidate_20261005_attempt01/`（two_step×200 更新 vs D3 l6×400，FLOP 匹配比2.0018；整轮 3050.1s，planned 5400/hard 10800，overrun 0；主格 worsened 6h +0.9202/+1.0247/+0.9263、12h +1.3219/+1.4587/+1.2365；守门 34 个正 cell；候选停当轮；test未读） |
-| **合计已用** | **4.0378** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费 |
+| S3-UB 更新预算筛选 l6×800（主格 supported / 守门未过，注册混合） | 1.1010 | 5.1388 | `docs/R7_S3_UB_UPDATE_BUDGET.md`（索引记录 `record:s3-ub-update-budget`）；`outputs/r7_s3_update_budget_20261006_attempt01/`（l6×800 vs D3 l6×400，训练 FLOP 比 2.0；整轮 3963.6s，planned 5400/hard 10800，overrun 0；主格 supported 6h −0.6170/−0.5144/−0.3985、12h −0.6191/−0.5105/−0.3487，全 lead 15/15 负；t2m skill 6h +0.49/+0.50/+0.50、12h +0.18/+0.21/+0.19、24h +0.08/+0.12/+0.16；守门 48h/72h 13 个正 cell 未过→不进 S4；test未读） |
+| **合计已用** | **5.1388** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费；S3 节点软预算 2.5 已超 0.5470（按决策 0030 软超继续并记录），硬上限 12.0 未触 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-confirmation-baselines-and-candidate.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 12.0, "used_gpu_h": 4.0378, "remaining_gpu_h": 7.9622, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-confirmation-baselines-and-candidate.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 12.0, "used_gpu_h": 5.1388, "remaining_gpu_h": 6.8612, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
   三年度、三 sidecar、决策 0039 修正）已发布；D2（同数据气候态/persistence，0 GPU）、
-  D3（同数据 incumbent 重训，1.0987 GPU-h）与 D4（R-C 候选筛选，0.8472 GPU-h，注册负结果）
+  D3（同数据 incumbent 重训，1.0987 GPU-h）、D4（R-C 候选筛选，0.8472 GPU-h，注册负结果）
+  与 UB（更新预算筛选，1.1010 GPU-h，注册混合：主格 supported、守门 48/72h 未过）
   已完成并登记；S3 轮次目标见
   `docs/goals/s3-confirmation-baselines-and-candidate.md`（同数据基线 + incumbent 重训 +
   R-C 候选筛选 + S4 冻结包）。
@@ -202,6 +204,16 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   （`candidate-stops-registered-negative`），不进 D5/S4 冻结包。整轮 3050.1s（planned 5400/hard
   10800、overrun 0），保守 GPU-h 0.8472，test 未读。该轮独立复现了旧 B 阶段「扩展训练目标到 +12h
   无增益」的负结论，横向把「two_step 目标」这条 R-C 杠杆在两个数据实例上都标为无效。
+- **S3-UB 已做并实核（注册混合：主格 supported、守门未过）**：直达检验 S0「400 更新末段 loss
+  仍在降＝可能停早了」——同配方 l6 跑到 800 更新，对注册的 D3 400 更新控制做单因素筛选。预注册
+  主格 t2m/full 6h/12h 三 seed 全部同号为负 → **supported**（6h −0.3985/−0.5144/−0.6170 K、
+  12h −0.3487/−0.5105/−0.6191 K），且全部五个 lead 的 t2m 15/15 全负；**首次**把正 skill 推过
+  6h：t2m/full 相对同数据气候态 6h +0.49/+0.50/+0.50、12h +0.18/+0.21/+0.19、
+  24h +0.08/+0.12/+0.16（D3 的 400 更新仅在 6h 稳定为正）。训练 loss 在 400 之后继续下降
+  （末段 701–800 比 301–400 低 8.8%/13.5%/9.6%），确认「停早了」在 t2m 上成立。但守门预审在
+  48h/72h 有 13 个正 cell（v10 最重 +0.39），按冻结合取规则登记为不进入 S4 的混合轮；整轮
+  3963.6s（planned 5400/hard 10800、overrun 0），保守 GPU-h 1.1010，test 未读。节点软预算
+  2.5 现已超 0.5470（累计 3.0470），按决策 0030 软超继续并记账，硬上限 12.0 未触。
 - **S0 已做并实核**：actual C 身份链六类 digest 独立重算全部一致（protocol `ea0efb80…`、manifest
   `bb4569f6…`、model_code `551261c4…`、code commit `562e526`、data `ef8c6691…`、source `496084a9…`），
   九个 endpoint checkpoint 逐个 SHA256 与 receipt 相符；新工具 `tools/recompute_r7_s0_gap_audit.py`

@@ -3,7 +3,26 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 37; human-review candidates: 1
+Records: 38; human-review candidates: 1
+
+## s3-ub-update-budget
+
+- Outcome class: `mixed`; candidate state: `not-candidate`
+- Human triage priority: `98` (not a scientific score)
+- Evidence: `docs/R7_S3_UB_UPDATE_BUDGET.md` (SHA256 `14a68802012047debacb6f5b20dce63740f500f59888360f4e7179ab4fd3cc00`)
+- Evidence commit: `9ff4f47abe85c31efe6b03dbe2b6eb1c5fc5180c`; experiment commit: `994a0e82f9f810962192ff65ca0340c70aa38ddb`
+- Protocol SHA256: `a625b9d46f3722445c44983651e177084289c5ad0bc2faa9ed391e5c467ed653`; data identity: `e01828e951e4c41182869b088da2b72131c9fc6c1c2d4abf42456b4e4cd6ed09`
+- Reason: S3-UB update-budget screen: the S0 observation that the 400-update l6 incumbent's loss is still descending was tested directly by running the identical recipe to 800 updates against the pinned S3-D3 control. The pre-registered primary reads supported at 6h and 12h with all three seeds the same sign (and at all five leads for t2m), and t2m skill vs the same-data climatology becomes positive at 24h for every seed -- the first time a model point estimate has been positive beyond 6h in this direction. However the u10/v10/mslp pre-screen fails 13 cells at 48h/72h, so under the frozen conjunction rule the endpoint does not advance to the S4 freeze and this round is registered as mixed/no-advance. Whole round 3963.6 s vs planned 5400 / hard 10800 with zero overrun; code fenced at 994a0e8; test unread. Node soft budget 2.5 GPU-h is now exceeded by 0.5470 (3.0470 used) and recorded as overrun per decision 0030.
+- Limitations:
+  - screening only: one instance (2017 train / 2022 val, one ROI, 17 channels), no significance, convergence or SOTA claim
+  - the control readings come from the registered S3-D3 incumbent run (400 l6 updates) on the same store and are pinned by SHA256, not retrained inside this protocol
+  - the candidate deliberately spends 2x the control's training updates and FLOPs; the verdict prices that extra training and is not a compute-matched comparison
+  - three seeds are consistency evidence, not a significance test
+  - K4 is an inference-depth probe on the same K4-trained checkpoint, not an independent model
+  - GPU runs are co-resident; latency/memory observations include neighbor load
+  - validation split only; the test split stays sealed until the S4 preregistered read
+- Excluded from runnable candidates: 混合筛选结果：主格（t2m/full 6h/12h，l6_800 − incumbent_l6_400）三 seed 全部同号为负（supported，6h −0.3985/−0.5144/−0.6170 K、12h −0.3487/−0.5105/−0.6191 K，且 24/48/72h 亦全负），但 u10/v10/mslp 守门预审 48h/72h 共 13 个正 cell 未过；按冻结合取规则（primary 与 gate 须同时通过）登记为不进入 S4 的负面轮。不构成任何科学声明。
+- Recorded metrics (not recomputed): candidate_updates=800, control_updates=400, delta_t2m_full_rmse_vs_incumbent={"41": {"12": -0.6191, "6": -0.617}, "42": {"12": -0.5105, "6": -0.5144}, "43": {"12": -0.3487, "6": -0.3985}}, elapsed_seconds_total=3963.6, first_spawn_to_last_reap_seconds=3911.6, gate_failures=13, gate_failures_by_lead={"48": 6, "72": 7}, gpu_hours=1.101, hard_cap_seconds=10800.0, mode=l6, network_bytes=0, planned_seconds=5400.0, positive_seed_cells_of_51={"12": 51, "24": 51, "48": 8, "6": 51, "72": 0}, primary_verdict={"12": "supported", "6": "supported", "overall": "supported"}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, t2m_skill_vs_climatology_12h={"41": 0.1844, "42": 0.2101, "43": 0.1923}, t2m_skill_vs_climatology_24h={"41": 0.0774, "42": 0.1248, "43": 0.1579}, t2m_skill_vs_climatology_6h={"41": 0.4929, "42": 0.5017, "43": 0.4983}, test_read=false, updates_ratio=2.0
 
 ## s3-d4-rc-candidate
 
