@@ -166,20 +166,33 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S2 #78 R-B 加权损失（注册轮） | 0.3533 | 2.0919 | `docs/R7_S2_78_RB_LOSS.md`（索引记录 `record:s2-78-rb-loss-screening`）；`outputs/r7_78_rb_loss_pilot/paired_comparison.json`（三 seed 532.5/520.7/542.5s，两臂同参数量/FLOPs；worsened 6h +0.3101/12h +0.4806；接线探针 rel_err 0.0；test未读） |
 | S3 batch-2 四季 2022/2023 获取（0 GPU） | 0.0000 | 2.0919 | `docs/R7_S3_BATCH2_ACQUISITION.md`（索引记录 `record:s3-batch2-20222023-acquisition`）；`outputs/r7_s2_batch2_20222023/`（8 part 成功、2 个 failed-no-fallback 保留、网络28,773,423,423字节=计划99.9%、硬上限55.8%；合并源`44a24ca0…`960 stamps；test未读） |
 | S3 确认实例 v2 发布（0 GPU，含决策0039修正） | 0.0000 | 2.0919 | `docs/R7_S3_CONFIRMATION_INSTANCE.md`（索引记录 `record:s3-confirmation-instance-v2`）；`outputs/r7_s3_confirmation_2017_2022_2023_v2/`（train2017/val2022/test2023，472/472/472窗口，三sidecar齐；v1缺陷构建保留；test未读） |
-| **合计已用** | **2.0919** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费 |
+| S3-D2 同数据气候态/persistence 重建（CPU，零 GPU） | 0.0000 | 2.0919 | `docs/R7_S3_D2_BASELINES.md`（索引记录 `record:s3-d2-same-data-baselines`）；`outputs/r7_s3_d2_baselines_20261005_attempt01/`（逐 lead 全覆盖 472/468/460/444/428；气候态 480 步 fit、16 桶各 30；墙钟 553.1s，planned 1800/hard 3600，overrun 0；网络 0；test未读） |
+| S3-D3 同数据 incumbent 重训（GPU 3 seed） | 1.0987 | 3.1906 | `docs/R7_S3_D3_INCUMBENT.md`（索引记录 `record:s3-d3-incumbent-retrain`）；`outputs/r7_s3_d3_incumbent_20261005_attempt01/`（三 seed 初始化逐位复现 actual C；400 L6 updates×3；整轮 3955.3s，planned 5400/hard 10800，overrun 0；t2m 6h skill +0.2143/+0.2754/+0.3262；seed43 12h +0.0037/24h +0.0526；test未读） |
+| **合计已用** | **3.1906** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-confirmation-baselines-and-candidate.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 12.0, "used_gpu_h": 2.0919, "remaining_gpu_h": 9.9081, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-confirmation-baselines-and-candidate.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 12.0, "used_gpu_h": 3.1906, "remaining_gpu_h": 8.8094, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
-- **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05）**：batch-2 四季
+- **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
-  三年度、三 sidecar、决策 0039 修正）已发布；S3 轮次目标见
+  三年度、三 sidecar、决策 0039 修正）已发布；D2（同数据气候态/persistence，0 GPU）与
+  D3（同数据 incumbent 重训，1.0987 GPU-h）已完成并登记；S3 轮次目标见
   `docs/goals/s3-confirmation-baselines-and-candidate.md`（同数据基线 + incumbent 重训 +
   R-C 候选筛选 + S4 冻结包）。
+- **S3-D2/D3 已做并实核**：D2 在 v2 val 上重建 train-only (month,hour) 气候态（480 步 fit、
+  16 桶各 30、fail-closed）与 persistence，逐 lead 全覆盖 472/468/460/444/428，墙钟 553.1s
+  （planned 1800/hard 3600、overrun 0、网络 0）。D3 三 seed 从**逐位复现 actual C 的初始化**
+  出发（`a79ea47f…`/`ec5bb5ef…`/`844bd234…` 与归档 pairing 完全一致），在 v2 2017 train 上完成
+  400 次 L6 更新并评 val 全 cohort；整轮 3955.3s（planned 5400/hard 10800、overrun 0），
+  保守 GPU-h 1.0987，邻居共驻未 signal。**同数据 t2m/full skill**：6h 三 seed 全正
+  （+0.2143/+0.2754/+0.3262），12h 两负一微正（−0.1655/−0.0697/+0.0037），24h 两负一微正
+  （−0.2907/−0.1088/+0.0526），48–72h 三 seed 全负——与 S0 形状一致，且 seed43 把边界推到
+  12h/24h 微正；全 17 变量正 seed-cell 计数 51/49/47/6/0（6/12/24/48/72h）。两页均带索引记录
+  （`record:s3-d2-same-data-baselines`、`record:s3-d3-incumbent-retrain`），test 全程未读。
 - **S0 已做并实核**：actual C 身份链六类 digest 独立重算全部一致（protocol `ea0efb80…`、manifest
   `bb4569f6…`、model_code `551261c4…`、code commit `562e526`、data `ef8c6691…`、source `496084a9…`），
   九个 endpoint checkpoint 逐个 SHA256 与 receipt 相符；新工具 `tools/recompute_r7_s0_gap_audit.py`

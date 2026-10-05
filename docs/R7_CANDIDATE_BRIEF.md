@@ -3,7 +3,25 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 34; human-review candidates: 1
+Records: 36; human-review candidates: 1
+
+## s3-d3-incumbent-retrain
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `96` (not a scientific score)
+- Evidence: `docs/R7_S3_D3_INCUMBENT.md` (SHA256 `b5193cd0ea69f19ddb2ea8ee53f3ade8ed46748aa631c3c82c62a7216968d592`)
+- Evidence commit: `7d31556c26a14187b5ef5e0cb131670cd79e7401`; experiment commit: `55ab0b685182061531eb19754546435c2dd31d55`
+- Protocol SHA256: `e4d521bb2e57c89a697d5ee37a6d2f505c3b7e25e06c2b6e8db149373d6467ec`; data identity: `e01828e951e4c41182869b088da2b72131c9fc6c1c2d4abf42456b4e4cd6ed09`
+- Reason: S3-D3 same-data incumbent retrain on the v2 confirmation instance: three pre-declared seeds were asserted bitwise-equal to the archived actual-C seeded initialization on CPU, trained 400 L6 updates on the 2017 train split through the worker's fine_tune path (frozen endpoint, no validation selection), and scored on the same per-lead val cohorts D2 used. t2m/full skill vs the same-data train-only climatology is positive at 6h for every seed (+0.21/+0.28/+0.33) and negative at 48-72h, reproducing the S0 shape on this instance; seed43 reaches +0.0037 at 12h. Whole round 3955.3 s vs planned 5400 / hard 10800 with zero overrun and zero network; test never opened. These RMSE CSVs are the pinned control the D4 R-C screen pairs against.
+- Limitations:
+  - screening control only: one instance (2017 train / 2022 val, one ROI, 17 channels); no significance, convergence or SOTA claim
+  - three seeds are consistency evidence, not a significance test
+  - K4 is an inference-depth probe on the same K4-trained checkpoint, not an independent model
+  - the incumbent is retrained, not imported: actual-C numbers on the old dev store are a different instance and are not reused as this instance's control
+  - GPU runs are co-resident (a 10.4 GiB neighbour appeared mid-round); latency observations include neighbor load and never signal it
+  - validation split only; the test split stays sealed until the S4 preregistered read
+- Excluded from runnable candidates: Same-data control rebuild only: retrains the actual-C process incumbent on the v2 train split to produce the comparison readings later candidate screens pair against. It enters no verdict, is not itself a candidate, and makes no climatology-superiority claim; the D4 screen and the S4 gate have their own protocols.
+- Recorded metrics (not recomputed): cohorts={"12": 468, "24": 460, "48": 444, "6": 472, "72": 428}, elapsed_seconds_total=3955.3, first_spawn_to_last_reap_seconds=3936.4, gpu_hours=1.0987, hard_cap_seconds=10800.0, initial_state_sha256={"41": "a79ea47fa098bfc4dce651e2ea6c8fd18d996e4ff88a0e8503832645a29f1c47", "42": "ec5bb5ef581e1cfe4923b938f60635fd5c79aaebd0f3f1fb37f01524ea3a26d0", "43": "844bd23402cabb3f0cfb961efa4ba2e854207a06c51b51d32fba89e6e358efdf"}, initialization_matches_archived_actual_c_bitwise=true, mode=l6, network_bytes=0, planned_seconds=5400.0, positive_seed_cells_of_51={"12": 49, "24": 47, "48": 6, "6": 51, "72": 0}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, t2m_full_skill_vs_same_data_climatology={"41": {"12": -0.1655, "24": -0.2907, "48": -1.7115, "6": 0.2143, "72": -2.6343}, "42": {"12": -0.0697, "24": -0.1088, "48": -1.3401, "6": 0.2754, "72": -2.0742}, "43": {"12": 0.0037, "24": 0.0526, "48": -1.2948, "6": 0.3262, "72": -2.2304}}, test_read=false, train_windows_usable=468, updates_per_seed=400
 
 ## s0-incumbent-gap-audit
 
@@ -54,6 +72,22 @@ Records: 34; human-review candidates: 1
   - the transport-concurrency speedup note is a cross-window working handoff, not registered evidence; actual throughput in this batch was serial single-stream
 - Excluded from runnable candidates: Data acquisition only: this record produces no model result and no skill number. It feeds the S3 confirmation instance build; any scientific comparison requires its own frozen protocol under the S4 gate.
 - Recorded metrics (not recomputed): download_seconds_successful_parts=9832.8, gpu_hours=0.0, hard_cap_seconds=28800, network_bytes=28773423423, network_hard_cap_bytes=51539607552, parts_failed_kept=2, parts_successful=8, per_part_deadline_seconds=1800.0, per_part_decoded_gib_cap_final=16.0, planned_network_bytes=28800000000, planned_seconds=10800, stamps=960, synthetic_fallback=false, test_read=false
+
+## s3-d2-same-data-baselines
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `93` (not a scientific score)
+- Evidence: `docs/R7_S3_D2_BASELINES.md` (SHA256 `6498f5e1952b43a43056532ea303f416b1e19e3733ac833fcf2ce3d9f43adcec`)
+- Evidence commit: `4a3c309ce609590d6435fc158f38b2bae96c9b55`; experiment commit: `4a3c309ce609590d6435fc158f38b2bae96c9b55`
+- Protocol SHA256: `dba134239c254f1cd909e7b4f86631ef10ee79746b2acb3552b84a6b94d38ca3`; data identity: `e01828e951e4c41182869b088da2b72131c9fc6c1c2d4abf42456b4e4cd6ed09`
+- Reason: S3-D2 same-data reference rebuild on the v2 confirmation instance: the train-only (month,hour) climatology (fitted on 2017 train only, 480 steps, complete 16-bucket coverage, fail-closed) and persistence scored through the identical evaluate_local path and per-lead full val cohorts (472/468/460/444/428) a later incumbent/candidate uses, so their RMSEs are same-case and same-unit comparable. Zero GPU, zero network, test never opened; 553.1 s against planned 1800 / hard 3600 with zero overrun. Climatology identity was byte-identical across the two arms' independent runs.
+- Limitations:
+  - parameter-free reference scoring only; it produces no model result and no skill claim
+  - the climatology is a train-only (month, hour) grid-cell mean, not a WeatherBench2 reproduction
+  - one ROI, three years, 17 channels; val is 2022 only
+  - persistence skill vs climatology at 24h is a property of this 30-day val block, not a physical conclusion
+- Excluded from runnable candidates: Parameter-free reference scoring only: (month,hour) train-only climatology and persistence produce no model result, no skill claim and enter no verdict. They are the same-case denominators a later incumbent/candidate comparison needs; the model-side comparison requires its own frozen protocol under the S4 gate.
+- Recorded metrics (not recomputed): bucket_count=16, bucket_max_count=30, bucket_min_count=30, climatology_fit_steps=480, climatology_fit_years=[2017], cohorts={"12": 468, "24": 460, "48": 444, "6": 472, "72": 428}, elapsed_seconds_total=553.1, gpu_hours=0.0, hard_cap_seconds=3600.0, network_bytes=0, persistence_skill_vs_climatology_t2m_full={"12": -1.8507000588003528, "24": 0.16054305008166647, "48": -0.5544940980001842, "6": -0.6495262105328024, "72": -1.0373428186765081}, planned_seconds=1800.0, soft_overrun_seconds=0.0, t2m_full_climatology_rmse_K={"12": 3.5083358322351277, "24": 3.4525900928001483, "48": 3.352207924793912, "6": 3.5403577941696134, "72": 3.3116810336238727}, t2m_full_persistence_rmse_K={"12": 5.923479932137085, "24": 3.163328065604577, "48": 4.179511140488608, "6": 4.547018959975189, "72": 4.726945088063722}, test_read=false
 
 ## s1-four-season-2017-dev-store
 

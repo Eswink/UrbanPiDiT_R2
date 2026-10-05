@@ -96,6 +96,14 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
   - D1 实例 v2（`docs/R7_S3_CONFIRMATION_INSTANCE.md`；源 `e0b51616…`、store 472/472/472、
     三 sidecar `6fd9e774…`/`b2830014…`/`8760894a…`、data identity `e01828e9…`；v1 缺陷构建保留；
     test 未读）；决策 0039（源指纹完整化）与回归测试随 `8fa6e0c` 提交。
-- **未做**：D2 同数据气候态/persistence 重建；D3 incumbent 重训；D4 R-C 筛选；D5 S4 冻结包；
-  #79 typed-evidence 的 needs-review 处置（留作 S3 内可选候选，须新协议才可再筛）。
-- **下一动作**：先跑 D2（CPU 基线身份核对），再冻结 D3 incumbent 协议并上 GPU。
+  - D2 同数据气候态/persistence（`docs/R7_S3_D2_BASELINES.md`，索引记录
+    `record:s3-d2-same-data-baselines`；逐 lead 全覆盖、气候态 480 步/16 桶各 30；553.1s、
+    overrun 0、网络 0、GPU 0；test 未读）。
+  - D3 同数据 incumbent 重训（`docs/R7_S3_D3_INCUMBENT.md`，索引记录
+    `record:s3-d3-incumbent-retrain`；三 seed 初始化逐位复现 actual C、400 L6 updates×3；
+    整轮 3955.3s、planned 5400/hard 10800、overrun 0、GPU-h 1.0987；t2m 6h skill
+    +0.2143/+0.2754/+0.3262，seed43 12h +0.0037、24h +0.0526；test 未读）。
+- **未做**：D4 R-C 候选筛选（协议已冻结 `c078f804…`、FLOP parity 0.09%、GPU0，实跑进行中）；
+  D5 S4 冻结包；#79 typed-evidence 的 needs-review 处置（留作 S3 内可选候选，须新协议才可再筛）。
+- **下一动作**：完成 D4 实跑并按预注册判读（t2m 6h/12h 每 seed 同号 + u10/v10/mslp 守门预审）；
+  通过则 D5 冻结 S4 包，不通过则如实登记负结果并给出下一独立假设。
