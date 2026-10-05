@@ -2,6 +2,18 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-05 晚 — 第三处 CI 红：size marker 漂移同步（仅文档）
+
+`d232445` 的 CI（run37247277150 / job111567576431）pytest 步骤失败，另一处 marker 漂移：
+`test_size_report_counts_match_the_checker` 报 `R-020: says 50, reports 51`（官方匿名 annotations 实取）。
+根因归因为 `scripts/study_r7_77_pe_band.py`（541 行、`run_seed` 172 行）在 `6814c46`/`d232445`
+落地时未重测 marker：R-020 **50→51**、R-021 **65→66**。该文件在 600/200 硬上限内，不新增冻结
+例外；修法是把 `size-thresholds.md` marker 重测同步为实测值（在干净 d232445 worktree 复现并差集
+归因到唯一新增路径），**未放宽任何阈值、未改 checker 判据**。conventions step 只跑阻断规则所以
+未拦到，拦到它的是 pytest 反漂移守卫——这正是该守卫存在的意义。本机已验：该测试 1 passed、
+阻断规则 37 条 0 failing。study 脚本不哈希自身字节（只钉 protocol_sha256/model_code_sha256），
+故该纯文档修正不影响正在跑的 seed41–43 身份。
+
 ## 2026-10-05 — S1 数据准备、#77 接线与两处 CI 缺陷修正（`[model-digest-change]`）
 
 **范围**：`data/download/`（新增 400 行整的 `earthmover_spatial_s1.py` 与 85 行
