@@ -77,7 +77,7 @@ Records: 31; human-review candidates: 1
 - Outcome class: `engineering-positive`; candidate state: `needs-review`
 - Human triage priority: `90` (not a scientific score)
 - Evidence: `docs/R7_S2_79_TYPED_EVIDENCE.md` (SHA256 `002f319f21981b8853c72253cb21a3f67cd5621150cd89b170d020b7487fdbec`)
-- Evidence commit: `f47bca6fb203383f788a0f9da9f5a8724c8ecfbb`; experiment commit: `f47bca6fb203383f788a0f9da9f5a8724c8ecfbb`
+- Evidence commit: `3ad1d97284a934bfeb4fdb2a7f081d6cd032d300`; experiment commit: `3ad1d97284a934bfeb4fdb2a7f081d6cd032d300`
 - Protocol SHA256: `bd093a1591e9f5f35e456c833ed7bc760ff313ee85c7c866bca5795aa5cba6e6`; data identity: `894b8d1b6c08d49f93255558fdacb1290ace690de43757d84369a91b3b28e02c`
 - Reason: #79 类型诊断证据三臂（A 现役 V2 / B 同容量同信息无类型融合 / C 类型路由），aux=0、三 seed、400 更新、val-only。接线逐 seed 核验（off 路径位级不变、4×4 到达矩阵严格对角、B/C 参数量与 FLOPs 相等）。注册主格以容量匹配配对为准：B→C 6h/12h 三 seed 同号为负，supported；整体 C−A 两 lead unresolved，故仅允许作为下一确认实例的设计输入。证据：outputs/r7_79_typed_evidence_pilot/paired_comparison.json。
 - Limitations:
