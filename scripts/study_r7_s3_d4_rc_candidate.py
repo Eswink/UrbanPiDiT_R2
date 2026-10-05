@@ -208,7 +208,7 @@ def control_pins():
             if record["n_evaluated"] != EXPECTED_COHORTS[str(lead)]:
                 raise RuntimeError(f"D3 seed {seed} lead {lead} cohort differs from the frozen expectation")
             entry["leads"][str(lead)] = {"rmse_csv_sha256": record["rmse_csv_sha256"],
-                                         "rmse_csv": record.get("dir", "")}
+                                         "evaluation_dir": record["dir"]}
         pins["seeds"][str(seed)] = entry
     return pins
 
@@ -537,11 +537,19 @@ def main(argv=None):
                               "elapsed_seconds": round(time.perf_counter() - started, 1)}), flush=True)
             if time.perf_counter() > hard_deadline:
                 raise TimeoutError("D4 exceeded the frozen hard cap; aborting without a claim")
-        # Paired reading against the pinned D3 control.
+        # Paired reading against the pinned D3 control; the control CSVs consumed
+        # must be byte-identical to the SHA256 pinned in the frozen protocol.
+        from training.r7_arm_harness import sha256_file
+        pins = json.loads((args.out / "protocol.json").read_text(encoding="utf-8"))["arms"]["control"]["pins"]
         all_cells = {}
         for seed in SEEDS:
             control_dir = D3 / f"seed{seed}" / "evaluation" / "process"
             candidate_dir = args.out / f"seed{seed}" / "evaluation" / "candidate"
+            for lead in EVALUATION_LEADS:
+                expected_sha = pins["seeds"][str(seed)]["leads"][str(lead)]["rmse_csv_sha256"]
+                actual_sha = sha256_file(control_dir / f"lead_{lead:03d}h" / "rmse.csv")
+                if actual_sha != expected_sha:
+                    raise RuntimeError(f"control CSV drifted from its pinned SHA256: seed {seed} lead {lead}")
             all_cells[str(seed)] = paired_cells(candidate_dir, control_dir)
         results["paired_cells"] = all_cells
         results["primary_verdict"] = primary_verdict(all_cells)
