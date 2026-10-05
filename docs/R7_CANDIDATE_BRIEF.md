@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 31; human-review candidates: 1
+Records: 32; human-review candidates: 1
 
 ## s0-incumbent-gap-audit
 
@@ -71,6 +71,23 @@ Records: 31; human-review candidates: 1
   - test_read: false；未改任何冻结判据；R-B（差值尺度 loss）未因此轮做任何主张。
 - Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m 6h/12h，change_scale−identity）三 seed 全部同号为正，即变化尺度重参数化使 val RMSE 恶化（6h +0.1105、12h +0.1668 seed 均值）；按冻结决定文本被证伪。不进入正式确认实例候选，不构成任何科学声明。
 - Recorded metrics (not recomputed): arms=2, cells_improved=30, cells_unresolved=44, cells_worsened=11, change_scale_ratio_max=0.747278094291687, change_scale_ratio_min=0.07220174372196198, delta_seed_mean_12h=0.16681554533105677, delta_seed_mean_6h=0.1105266114221289, forward_backward_flops=46282984704, forward_flops=15465592704, gpu_hours=0.37003, gpu_hours_total=0.3759, gpu_hours_v1=0.0059, gpu_hours_v2=0.37003, parameters_per_arm=2948771, primary_cells={"12h": "worsened", "6h": "worsened"}, probe_max_relative_error=2.64e-05, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
+
+## s2-78-rb-loss-screening
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `90` (not a scientific score)
+- Evidence: `docs/R7_S2_78_RB_LOSS.md` (SHA256 `4f6bd885f64d3b91e368290d71459464a0594cb5baba07812241690da73dd231`)
+- Evidence commit: `1c4b366dd5c2740fa41f2087f8fddc38b1bb79a2`; experiment commit: `1c4b366dd5c2740fa41f2087f8fddc38b1bb79a2`
+- Protocol SHA256: `4bee95613783c2950b9800cbcb70b9b0712afb78fb4f31ed6b8d97f3a20fad73`; data identity: `894b8d1b6c08d49f93255558fdacb1290ace690de43757d84369a91b3b28e02c`
+- Reason: #78 R-B 变化尺度加权损失单因素筛选（R-A 的另轮）：同参数量/FLOPs/初始化的两臂，解码均保持 identity，只把训练目标换成 w_c=(1/runtime_ratio_c)^2（归一化均值 1）的逐通道加权，三 seed、400 更新、val-only。接线探针三 seed 相对误差 0.0（权重确实只改定价），但预注册主格两 lead 三 seed 同号为正（worsened），按冻结决定文本该目标在本预算/实例被证伪；全 85 cell 如实报告。证据：outputs/r7_78_rb_loss_pilot/paired_comparison.json。
+- Limitations:
+  - 单 dev store（2017 四季、单区域），val-only；val/test 是十月内 6–15 天窗口，非完整季节。
+  - 400 更新/seed 的有界筛选，无收敛或显著性主张；三 seed 只作一致性证据。
+  - 主格两 lead 三 seed 同号为正（worsened）；48h 的多数 improved 格是描述性、未预注册，不并入判定。
+  - 权重口径单一（w_c=(1/runtime_ratio)^2 归一化均值 1，train-only sidecar），未试其他口径。
+  - test_read: false；未改任何冻结判据；与 R-A 的机制差异已在协议内写定（解码不变、只改目标权重）。
+- Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m 6h/12h，loss_change_scale−loss_identity）三 seed 全部同号为正，即按变化尺度加权的训练目标使 val RMSE 恶化（6h +0.3101、12h +0.4806 seed 均值）；按冻结决定文本被证伪。加权目标不进入正式确认实例候选，不构成任何科学声明。
+- Recorded metrics (not recomputed): arms=2, cells_improved=21, cells_unresolved=50, cells_worsened=14, delta_seed_mean_12h=0.48057, delta_seed_mean_6h=0.310095, forward_backward_flops=46282984704, forward_flops=15465592704, gpu_hours=0.3533, loss_weight_max=6.778827422832301, loss_weight_min=0.06328276508370698, parameters_per_arm=2948771, primary_cells={"12h": "worsened", "6h": "worsened"}, probe_max_relative_error=0.0, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
 
 ## s2-79-typed-evidence-screening
 

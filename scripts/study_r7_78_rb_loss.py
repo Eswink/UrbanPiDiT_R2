@@ -107,6 +107,32 @@ def refused_test_manifest(manifest: Path) -> None:
         raise ValueError("this study is validation-only: the test split stays sealed")
 
 
+MECHANISM_DIFFERENCE_FROM_RA = (
+    "R-A reparameterized the decoded increment (Y = X_t + ratio_c * r_c) with "
+    "the objective unchanged; it closed worsened. R-B keeps the decode at "
+    "identity and reweights the objective per channel, so it tests a different "
+    "hypothesis - that the equal-channel objective is the binding constraint - "
+    "and is not falsified by R-A's negative result; it is a separate round, "
+    "never a combined change.")
+OBJECTIVE_TEXT = (
+    "measure whether reweighting the training objective per channel by the "
+    "train-only change scale changes validation skill relative to the "
+    "equal-channel loss under an otherwise identical model, decode and schedule")
+MECHANISM_PREDICTION = (
+    "if the equal-channel objective underprices channels whose normalized "
+    "errors are large relative to their physical 6 h change, the weighted "
+    "objective should lower the t2m validation RMSE through a better shared "
+    "representation")
+MECHANISM_FALSIFIER = (
+    "no validation-skill change at all, or a worsened primary cell, reads as "
+    "the objective reweighting not being a useful lever at this budget and "
+    "instance")
+ROUND_SCOPE = (
+    "all declared seeds: CPU preflight/probe, training, evaluation, "
+    "aggregation; soft overrun is recorded and continues, only the hard cap "
+    "truncates")
+
+
 def load_weight_metadata():
     """Read the published sidecar and derive the frozen R-B weights."""
     from data.preprocess.r7_change_scale import load_change_scale_sidecar
@@ -196,17 +222,8 @@ def protocol_payload(manifests_dir, identity, channels, measured, weights, deriv
         "format": "r7-78-rb-loss-single-factor-protocol-v1",
         "frozen_before_any_step": True,
         "issue": "#78 R-B change-scale-weighted loss (S2)",
-        "objective": ("measure whether reweighting the training objective per channel "
-                      "by the train-only change scale changes validation skill relative "
-                      "to the equal-channel loss under an otherwise identical model, "
-                      "decode and schedule"),
-        "mechanism_difference_from_ra": (
-            "R-A reparameterized the decoded increment (Y = X_t + ratio_c * r_c) with "
-            "the objective unchanged; it closed worsened. R-B keeps the decode at "
-            "identity and reweights the objective per channel, so it tests a different "
-            "hypothesis - that the equal-channel objective is the binding constraint - "
-            "and is not falsified by R-A's negative result; it is a separate round, "
-            "never a combined change."),
+        "objective": OBJECTIVE_TEXT,
+        "mechanism_difference_from_ra": MECHANISM_DIFFERENCE_FROM_RA,
         "data": {
             "store": str(Path(manifests_dir).parent / "cache.zarr"),
             "train_manifest": str(Path(manifests_dir) / "train.jsonl"),
@@ -266,21 +283,14 @@ def protocol_payload(manifests_dir, identity, channels, measured, weights, deriv
                                  "both arms (the contrast is the training objective)"),
         },
         "mechanism_prediction": {
-            "text": ("if the equal-channel objective underprices channels whose "
-                     "normalized errors are large relative to their physical 6 h change, "
-                     "the weighted objective should lower the t2m validation RMSE "
-                     "through a better shared representation"),
-            "falsifier": ("no validation-skill change at all, or a worsened primary "
-                          "cell, reads as the objective reweighting not being a useful "
-                          "lever at this budget and instance"),
+            "text": MECHANISM_PREDICTION,
+            "falsifier": MECHANISM_FALSIFIER,
         },
         "budgets": {
             "planned_seconds_round": PLANNED_SECONDS_ROUND,
             "hard_cap_seconds_round": HARD_CAP_SECONDS_ROUND,
             "deadline_seconds_per_seed": DEADLINE_SECONDS_PER_SEED,
-            "whole_round_scope": ("all declared seeds: CPU preflight/probe, training, "
-                                  "evaluation, aggregation; soft overrun is recorded and "
-                                  "continues, only the hard cap truncates"),
+            "whole_round_scope": ROUND_SCOPE,
             "frozen_before_any_step": True,
         },
         "scientific_claim": False,
@@ -498,41 +508,6 @@ def run_seed(manifests_dir, output_dir, *, seed, updates=UPDATES, device_name="c
     with (output_dir / "seed_result.json").open("x", encoding="utf-8") as handle:
         json.dump(results, handle, indent=2, ensure_ascii=False, allow_nan=False)
     return results
-
-
-def primary_reading(pairs):
-    """The preregistered primary cell, read by the registered decision text."""
-    block = pairs.get(f"{PRIMARY_PAIR[0]} - {PRIMARY_PAIR[1]}", {}).get("cells", {})
-    cells, verdicts = {}, []
-    for lead in PRIMARY_LEADS:
-        entry = block.get(f"{lead}h|{PRIMARY_VARIABLE}")
-        if entry is None or not entry["sign_consistent"]:
-            cells[str(lead)] = {"delta_seed_mean": None, "outcome": "unresolved",
-                                "seed_deltas": ({} if entry is None
-                                                else dict(entry["seed_deltas"])),
-                                "reading": ("per-seed deltas disagree or the comparator "
-                                            "returned no cell; no verdict and no seed "
-                                            "mean under the frozen rule")}
-            continue
-        deltas = list(entry["seed_deltas"].values())
-        delta = sum(deltas) / len(deltas)
-        outcome = "supported" if delta < 0 else "worsened"
-        cells[str(lead)] = {"delta_seed_mean": delta, "outcome": outcome,
-                            "sign_consistent": True, "seed_deltas": dict(entry["seed_deltas"]),
-                            "reading": f"{outcome}: every seed agrees, delta {delta:+.6f}"}
-        verdicts.append(outcome)
-    if verdicts and all(value == "supported" for value in verdicts):
-        headline = "supported on both registered leads"
-    elif any(value == "worsened" for value in verdicts):
-        headline = "worsened: a registered lead moved the wrong way"
-    elif not verdicts:
-        headline = "no sign-consistent primary cell"
-    else:
-        headline = "mixed/unresolved: the registered leads did not both support"
-    return {"primary_pair": list(PRIMARY_PAIR), "variable": PRIMARY_VARIABLE,
-            "leads_hours": list(PRIMARY_LEADS), "cells": cells, "headline": headline,
-            "reading": ("supported requires 6 h and 12 h both sign-consistent and "
-                        "negative; anything else is negative or mixed")}
 
 
 def main():

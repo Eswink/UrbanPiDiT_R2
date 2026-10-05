@@ -18,8 +18,47 @@ if str(ROOT) not in sys.path:
 from scripts.study_r7_78_rb_loss import (
     ARM_NAMES, COMPARATOR_DEPTH, EVALUATION_LEADS, HARD_CAP_SECONDS_ROUND,
     PLANNED_SECONDS_ROUND, PRIMARY_LEADS, PRIMARY_PAIR, PRIMARY_VARIABLE, SEEDS,
-    UPDATES, primary_reading,
+    UPDATES,
 )
+
+
+def primary_reading(pairs):
+    """The preregistered primary cell, read by the registered decision text.
+
+    Kept here rather than in the seed runner: this is the finalize-side reading
+    of the frozen registration, and the seed runner stays under R-051.
+    """
+    block = pairs.get(f"{PRIMARY_PAIR[0]} - {PRIMARY_PAIR[1]}", {}).get("cells", {})
+    cells, verdicts = {}, []
+    for lead in PRIMARY_LEADS:
+        entry = block.get(f"{lead}h|{PRIMARY_VARIABLE}")
+        if entry is None or not entry["sign_consistent"]:
+            cells[str(lead)] = {"delta_seed_mean": None, "outcome": "unresolved",
+                                "seed_deltas": ({} if entry is None
+                                                else dict(entry["seed_deltas"])),
+                                "reading": ("per-seed deltas disagree or the comparator "
+                                            "returned no cell; no verdict and no seed "
+                                            "mean under the frozen rule")}
+            continue
+        deltas = list(entry["seed_deltas"].values())
+        delta = sum(deltas) / len(deltas)
+        outcome = "supported" if delta < 0 else "worsened"
+        cells[str(lead)] = {"delta_seed_mean": delta, "outcome": outcome,
+                            "sign_consistent": True, "seed_deltas": dict(entry["seed_deltas"]),
+                            "reading": f"{outcome}: every seed agrees, delta {delta:+.6f}"}
+        verdicts.append(outcome)
+    if verdicts and all(value == "supported" for value in verdicts):
+        headline = "supported on both registered leads"
+    elif any(value == "worsened" for value in verdicts):
+        headline = "worsened: a registered lead moved the wrong way"
+    elif not verdicts:
+        headline = "no sign-consistent primary cell"
+    else:
+        headline = "mixed/unresolved: the registered leads did not both support"
+    return {"primary_pair": list(PRIMARY_PAIR), "variable": PRIMARY_VARIABLE,
+            "leads_hours": list(PRIMARY_LEADS), "cells": cells, "headline": headline,
+            "reading": ("supported requires 6 h and 12 h both sign-consistent and "
+                        "negative; anything else is negative or mixed")}
 
 
 def main():
