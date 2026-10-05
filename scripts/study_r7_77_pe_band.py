@@ -71,6 +71,17 @@ ARMS = (
 )
 ARM_NAMES = tuple(entry[0] for entry in ARMS)
 LEGACY_ARM, BAND_ARM = ARMS[0][0], ARMS[1][0]
+
+
+def arm_switches(config):
+    """The frozen switch block both the protocol arms and run records echo.
+
+    The shared merge gate and the table writer read these off the runs, so the
+    two spellings must come from one source; a writer that emits neither (the
+    v1 defect) merges into a half-checked round instead of failing loudly.
+    """
+    return {"position_encoding_mode": config["position_encoding_mode"],
+            "positional_process_readout": True}
 PRIMARY_PAIR = (BAND_ARM, LEGACY_ARM)
 PRIMARY_VARIABLE = "t2m"
 PRIMARY_LEADS = (6, 12)
@@ -169,6 +180,7 @@ def protocol_payload(manifests_dir, identity, channels, measured):
         },
         "seeds": list(SEEDS),
         "arms": [{"name": name, "kind": kind, "config": config,
+                  "switches": arm_switches(config),
                   "parameters": measured[name]["parameters"],
                   "forward_flops": measured[name]["forward_flops"],
                   "forward_backward_flops": measured[name]["forward_backward_flops"]}
@@ -355,8 +367,8 @@ def run_seed(manifests_dir, output_dir, *, seed, updates=UPDATES, device_name="c
             raise RuntimeError(f"{name}: shared-state transfer ignored "
                                f"{applied['ignored_count']} tensors")
         results["training"][name] = {
-            "switches": {"position_encoding_mode": config["position_encoding_mode"],
-                         "positional_process_readout": True},
+            "protocol_sha256": protocol["protocol_sha256"],
+            "switches": arm_switches(config),
             "updates_run": report["updates_this_run"],
             "selected_update": report["selected_update"],
             "selected_validation_mse": report["selected_validation_mse"],
