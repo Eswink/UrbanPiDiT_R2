@@ -7,7 +7,13 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=970 R-020=58 R-021=73 R-022=57 R-023=40 -->
+<!-- measured: R-019=0 R-019b=970 R-020=59 R-021=74 R-022=57 R-023=40 -->
+
+**2026-10-06 S3 budget-curve 筛查复算（暂存后实测）**：R-020 **58→59**、R-021 **73→74**，归因于
+新筛查脚本 `scripts/study_r7_s3_budget_curve.py`（594 行，其 `run_seed` 与 `main` 均在 200 行内；
+R-051 的 600 行硬上限内，无新冻结例外）与其反证测试 `tests/test_r7_s3_budget_curve.py`；
+R-019=0/R-019b=970/R-022=57/R-023=40 保持。数字取自暂存树上 checker 实跑，
+不放宽任何阈值、规则或冻结例外清单。
 
 **2026-10-06 S3-D3/D4 与 update-budget 筛选复算（暂存后实测）**：b310689 的 CI pytest
 anti-drift 守卫红：`size-thresholds.md` 记 R-019b=971 而提交树报 970——漂移来自 D3/D4 落地
