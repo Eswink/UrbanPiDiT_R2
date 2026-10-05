@@ -227,7 +227,8 @@ def _output_path(output, contract):
             raise ValueError("cannot nest a new arm inside another fine_tune attempt")
     if "outputs" in parts and folder.parent.name != "outputs":
         ancestor = next((parent for parent in folder.parents if parent.parent.name == "outputs"), None)
-        if (ancestor is None or not re.fullmatch(r"r7_(?:74_autoregressive|v2_comparison)_\d{8}_attempt\d{2,}", ancestor.name)
+        if (ancestor is None or not re.fullmatch(
+                r"r7_(?:74_autoregressive|v2_comparison|s3_[a-z0-9_]+)_\d{8}_attempt\d{2,}", ancestor.name)
                 or not (ancestor / "protocol.json").is_file()):
             raise ValueError("nested original outputs require a new frozen v2 attempt root")
         if (ancestor / "protocol.json").is_symlink():

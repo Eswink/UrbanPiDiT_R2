@@ -559,16 +559,22 @@ def test_output_safety_and_new_driver_child_root(tmp_path, monkeypatch):
     root = tmp_path / "sandbox"
     monkeypatch.setattr(module, "ROOT", root)
     protocol = {"protocol_sha256": options["contract"]["protocol_sha256"]}
-    attempt = root / "outputs" / "r7_74_autoregressive_20261003_attempt01"
-    attempt.mkdir(parents=True)
-    (attempt / "protocol.json").write_text(json.dumps(protocol), encoding="utf-8")
-    child = attempt / "seed7" / "training" / "two_step"
-    assert module._output_path(child, options["contract"]) == child
+    for attempt_name in ("r7_74_autoregressive_20261003_attempt01",
+                         "r7_v2_comparison_20261004_attempt01",
+                         "r7_s3_d3_incumbent_20261005_attempt01"):
+        attempt = root / "outputs" / attempt_name
+        attempt.mkdir(parents=True)
+        (attempt / "protocol.json").write_text(json.dumps(protocol), encoding="utf-8")
+        child = attempt / "seed7" / "training" / "two_step"
+        assert module._output_path(child, options["contract"]) == child
     with pytest.raises(ValueError, match="nested original"):
         module._output_path(root / "outputs" / "old_run" / "training", options["contract"])
+    with pytest.raises(ValueError, match="nested original"):
+        module._output_path(root / "outputs" / "r7_s4_real_attempt01" / "training", options["contract"])
+    attempt = root / "outputs" / "r7_74_autoregressive_20261003_attempt01"
     (attempt / "attempt.json").write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError, match="completed/failed"):
-        module._output_path(child, options["contract"])
+        module._output_path(attempt / "seed7" / "training" / "two_step", options["contract"])
 
 
 def test_standard_evaluate_local_accepts_child_checkpoint_on_val_fixture(tmp_path):
