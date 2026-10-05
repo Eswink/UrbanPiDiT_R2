@@ -11,8 +11,9 @@ buffer**（无新 state key、无参数量/FLOPs 差异、臂间同 seed 权重�
 **逐位一致**（`tests/test_r7_78_change_scale_decode.py` 9 项直接钉住；`test_r7_switched_path_equivalence`
 的 pre-change 位级对比 4 项仍过）。`model_code_digest()` 因此从 `84e77e8b…` 变为 `701f1823…`；
 S2/#77 与 S1 记录的是 `84e77e8b…`，**不回改**；旧 checkpoint 只能用它归档的 `code.zip` 重放。
-新增测试文件 275+175 行，规模 marker 复测后不变（R-020=51/R-021=66 等保持，新文件均在阈值内）；
-本提交带 `[model-digest-change]` 标签。无规则级别/判据/阈值改动。
+新增测试文件 275+175 行，规模 marker 复测后为 R-020 **51→52**、R-021 **66→67**（归因于 588 行的
+`scripts/study_r7_78_change_scale.py`，在 600/200 硬上限内），其余不变；本提交带
+`[model-digest-change]` 标签。无规则级别/判据/阈值改动。
 
 ## 2026-10-05 晚 — 第三处 CI 红：size marker 漂移同步（仅文档）
 
