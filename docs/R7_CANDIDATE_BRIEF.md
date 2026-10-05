@@ -3,7 +3,28 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 38; human-review candidates: 1
+Records: 39; human-review candidates: 1
+
+## s3-budget-curve
+
+- Outcome class: `mixed`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_BUDGET_CURVE.md` (SHA256 `7e2c0d37efadcbd0d4175e1a738a47831d929511b16f5c2971faf3a58fbbe48d`)
+- Evidence commit: `2ae7990cf6651264ce00986e7f06ffe0636d9658`; experiment commit: `3995267c36a46d2cafb40ac1a3b902b76a7fe9fa`
+- Protocol SHA256: `08eaf4768dd4fc06a2bed26080cf1f37ddced51e277799fa58e419561f0fa434`; data identity: `e01828e951e4c41182869b088da2b72131c9fc6c1c2d4abf42456b4e4cd6ed09`
+- Reason: S3-BC budget-curve screen: the second and final declared dose of the update-budget factor on the v2 instance (l6 at 1600 updates vs the pinned 400-update control). The pre-registered primary reads supported at 6h and 12h on all seeds, with t2m seed-mean skill rising monotonically across the 400/800/1600 doses at 6/12/24h (0.272/0.498/0.595, -0.077/0.196/0.333, -0.116/0.120/0.226); training loss still descends through 1600. However the u10/v10/mslp pre-screen fails 17 cells at 48h/72h (worse than the 13 at 800 updates), so the frozen conjunction rule registers no-advance and the pre-declared budget-response reading resolves toward data: on the single-year train set the budget is saturating. Whole round 4937.6 s vs planned 5400 / hard 10800 with zero overrun; code fenced at 3995267; test unread.
+- Limitations:
+  - screening only: one instance (2017 train / 2022 val, one ROI, 17 channels), no significance, convergence or SOTA claim
+  - the control readings come from the registered S3-D3 incumbent run (400 l6 updates) on the same store and are pinned by SHA256, not retrained inside this protocol
+  - the candidate deliberately spends 4x the control's training updates and FLOPs; the verdict prices that extra training and is not a compute-matched comparison
+  - the 800-update reading compared against is the registered S3-UB round; this round does not re-run it
+  - three seeds are consistency evidence, not a significance test
+  - K4 is an inference-depth probe on the same K4-trained checkpoint, not an independent model
+  - GPU runs are co-resident; latency/memory observations include neighbor load
+  - validation split only; the test split stays sealed until the S4 preregistered read
+  - this is the final declared budget dose on the v2 instance; further budget questions move to the batch-3 expanded instance
+- Excluded from runnable candidates: 混合筛选结果：第二剂（也是 v2 实例最后一剂）更新预算因子。主格 t2m/full 6h/12h 三 seed 同号 supported（6h −0.6427/−0.7454/−0.9084 K、12h −0.6195/−0.7667/−0.9339 K，24h 亦全负），近三 lead 的 skill 单调改善（seed 均值 6h +0.595、12h +0.333、24h +0.226）；但 u10/v10/mslp 守门在 48h/72h 有 17 个正 cell（比 800 更新的 13 个更差），按冻结合取规则不进 S4。预声明的预算响应读数据此判为「单年数据下预算饱和」：下一能力投资是数据（batch-3 扩年在并行获取）而非继续加预算。不构成任何科学声明。
+- Recorded metrics (not recomputed): budget_response=t2m improves monotonically at 6/12/24h through 1600 updates while the long-lead gate cost grows 13->17 cells; on one train year the budget is saturating and the next capability investment is data, candidate_updates=1600, control_updates=400, delta_t2m_full_rmse_vs_incumbent={"41": {"12": -0.9339, "6": -0.9084}, "42": {"12": -0.7667, "6": -0.7454}, "43": {"12": -0.6195, "6": -0.6427}}, dose=2, elapsed_seconds_total=4937.6, first_spawn_to_last_reap_seconds=4884.4, gate_failures=17, gate_failures_by_lead={"48": 8, "72": 9}, gpu_hours=1.3716, hard_cap_seconds=10800.0, mode=l6, network_bytes=0, planned_seconds=5400.0, positive_seed_cells_of_51={"12": 51, "24": 51, "48": 7, "6": 51, "72": 2}, primary_verdict={"12": "supported", "6": "supported", "overall": "supported"}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, t2m_seed_mean_skill_12h=0.333, t2m_seed_mean_skill_24h=0.226, t2m_seed_mean_skill_6h=0.595, test_read=false, updates_ratio=4.0
 
 ## s3-ub-update-budget
 
