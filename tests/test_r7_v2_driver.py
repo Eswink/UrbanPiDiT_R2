@@ -445,6 +445,14 @@ def test_source_closure_archive_excludes_outputs_tests_and_rejects_changed_helpe
 def test_prepare_failure_seals_only_new_safe_output_and_no_real_inputs(tmp_path, monkeypatch):
     output = tmp_path / protocol.DEFAULT_OUTPUT.name
     monkeypatch.setattr(driver, "pin_inputs", lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("preflight failure fixture")))
+    # The subject here is the seal path, not GPU state. On a GPU host an earlier
+    # test in the same process may already have initialized CUDA, and prepare()'s
+    # "CPU prepare must not initialize CUDA" guard would then fire before the
+    # fixture error; that guard is exercised by its own test. Answer the query
+    # with the CPU-clean precondition so this test keeps asserting exactly what
+    # it always did: the failure receipt, the charge of zero and the refusal.
+    import torch
+    monkeypatch.setattr(torch.cuda, "is_initialized", lambda: False)
     with pytest.raises(ValueError, match="preflight failure"): driver.prepare(tmp_path / "manifests", tmp_path / "scale", output, "GPU-fixed")
     receipt = protocol.read_json(output / "attempt.json")
     assert receipt["status"] == "failed" and receipt["gpu_hours_charged"] == 0 and not receipt["finalized"]
