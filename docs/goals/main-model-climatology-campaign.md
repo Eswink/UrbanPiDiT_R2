@@ -162,14 +162,15 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S2 #77 频带筛选 v2（注册轮） | 0.3297 | 0.6498 | `docs/R7_S2_77_PE_BAND.md`（索引记录 `record:s2-77-pe-band-screening`）；`outputs/r7_77_pe_band_pilot_v2/paired_comparison.json`（整轮 579.7/555.6/552.4s，训练 1186.9s+评估 170.5s；overrun 0；test未读） |
 | S2 #78 R-A 变化尺度筛选 v1（探针拒绝轮，零训练） | 0.0059 | 0.6557 | `docs/R7_S2_78_CHANGE_SCALE.md` §5；`outputs/r7_78_change_scale_pilot/FINALIZE_DEFECT.md`（三 seed 各 ~7 s 在训练前被拒） |
 | S2 #78 R-A 变化尺度筛选 v2（注册轮） | 0.3700 | 1.0257 | `docs/R7_S2_78_CHANGE_SCALE.md`（索引记录 `record:s2-78-change-scale-screening`）；`outputs/r7_78_change_scale_pilot_v2/paired_comparison.json`（三 seed 549.0/553.7/554.9s，两臂同参数量/FLOPs；worsened 6h +0.1105/12h +0.1668；test未读） |
-| **合计已用** | **1.0257** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费 |
+| S2 #79 类型诊断证据三臂（注册轮） | 0.7129 | 1.7386 | `docs/R7_S2_79_TYPED_EVIDENCE.md`（索引记录 `record:s2-79-typed-evidence-screening`）；`outputs/r7_79_typed_evidence_pilot/paired_comparison.json`（三 seed 整轮 855.9/860.4/850.2s，训练 1793.0s；B/C 同参数量 3097571 同 FLOPs；B→C 归因 6h/12h 三 seed 同号为负 −0.0533；相对 incumbent 两主格 unresolved；test未读） |
+| **合计已用** | **1.7386** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S2", "previous_node": "S1", "current_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_goal": "docs/goals/main-model-climatology-campaign.md", "previous_round_evidence": "docs/R7_S1_FOUR_SEASON_ACQUISITION.md", "cap_gpu_h": 6.0, "used_gpu_h": 1.0257, "remaining_gpu_h": 4.9743, "status": "active", "next_node_proposal": "S2", "budget_mode": "accounting-only", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S2", "previous_node": "S1", "current_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_goal": "docs/goals/main-model-climatology-campaign.md", "previous_round_evidence": "docs/R7_S1_FOUR_SEASON_ACQUISITION.md", "cap_gpu_h": 6.0, "used_gpu_h": 1.7386, "remaining_gpu_h": 4.2614, "status": "active", "next_node_proposal": "S2", "budget_mode": "accounting-only", "route_decision": "0038"} -->
 
 - **状态**：active；S0 已完成并登记；S1 数据侧已完成（2026-10-05，0 GPU）：四季节 2017 区域段已
   下载、合并、发布为 dev store，并登记进账本与证据索引；#77 频带接线与 11 项反证已随 62414bd 过

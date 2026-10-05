@@ -9,7 +9,7 @@ from data.preprocess.process_diagnostics import (
     EARTH_RADIUS_M, REQUIRED_PROCESS_CHANNELS, compute_process_diagnostic_vector,
     horizontal_advection as numpy_advection, spherical_scalar_gradient as numpy_gradient,
 )
-from training.r7_process_tensor_diagnostics import (
+from model.r7_process_tensor_diagnostics import (
     compute_process_tensor_diagnostics, horizontal_advection, spherical_divergence,
     spherical_scalar_gradient, spherical_vorticity,
 )

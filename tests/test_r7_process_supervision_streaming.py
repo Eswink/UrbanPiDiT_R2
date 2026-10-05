@@ -12,7 +12,7 @@ from model.process_forecast_r7 import ProcessForecastCoReasoner
 from model.r7_halting import forecast_inputs
 from training.r7_process_forecast_losses import process_forecast_coreasoning_loss
 from training.r7_process_supervision import ProcessDiagnosticContext
-from training.r7_process_tensor_diagnostics import compute_process_tensor_diagnostics
+from model.r7_process_tensor_diagnostics import compute_process_tensor_diagnostics
 from training.r7_streaming import backward_streamed_truncated, train_streamed_update
 
 CHANNELS = ("t2m", "u10", "v10", "mslp", "z850", "t850", "q850", "u850", "v850",

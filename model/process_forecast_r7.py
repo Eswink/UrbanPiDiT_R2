@@ -33,6 +33,70 @@ class ProcessForecastReasoningOutput:
     solver_state: Optional[torch.Tensor]=None
 
 
+def _validate_switches(*, spatial_solver_feedback, spacetime_inputs,
+                       positional_process_readout, pooled_readout_query,
+                       source_role_markers, local_solver_state,
+                       solver_state_recurrence, solver_gate_proposal,
+                       draft_query_feedback, source_position_markers,
+                       known_context_inputs, use_forecast_feedback,
+                       position_encoding_mode):
+    """Reject switch combinations nothing reads; one definition for every arm.
+
+    Extracted from the constructor so the constructor stays inside R-052 while
+    the combination rules remain written down exactly once. Every rule here is
+    the same statement: a switch turned on where nothing reads it, or turned
+    off where the thing it modifies is off, is an error rather than a no-op.
+    """
+    for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
+                       (spacetime_inputs,'spacetime_inputs'),
+                       (positional_process_readout,'positional_process_readout'),
+                       (pooled_readout_query,'pooled_readout_query'),
+                       (source_role_markers,'source_role_markers'),
+                       (local_solver_state,'local_solver_state'),
+                       (solver_state_recurrence,'solver_state_recurrence'),
+                       (solver_gate_proposal,'solver_gate_proposal'),
+                       (draft_query_feedback,'draft_query_feedback'),
+                       (source_position_markers,'source_position_markers'),
+                       (known_context_inputs,'known_context_inputs')):
+        if type(value) is not bool:
+            raise ValueError(f"{name} must be boolean")
+    if source_position_markers and not positional_process_readout:
+        raise ValueError('source_position_markers requires positional_process_readout=True')
+    require_position_encoding_mode(position_encoding_mode,
+                                   positional_process_readout=positional_process_readout)
+    if known_context_inputs and not spacetime_inputs:
+        raise ValueError('known_context_inputs requires spacetime_inputs=True')
+    if pooled_readout_query and not positional_process_readout:
+        raise ValueError("pooled_readout_query only exists inside the positional "
+                         "process readout; turning it on without "
+                         "positional_process_readout would be a silently ignored switch")
+    if draft_query_feedback and not positional_process_readout:
+        raise ValueError('draft_query_feedback requires positional_process_readout=True')
+    if draft_query_feedback and not use_forecast_feedback:
+        raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
+    # RW-B's working state is updated from the per-position process read R_k and
+    # from the encoded draft; without either of those two inputs the recurrence
+    # would not be the one the design contract froze, so the combination is
+    # rejected instead of quietly substituting a pooled read or dropping a term.
+    if local_solver_state and not positional_process_readout:
+        raise ValueError("local_solver_state updates Z from the per-position read "
+                         "R_k; turning it on without positional_process_readout "
+                         "would silently substitute the pooled summary")
+    if local_solver_state and not use_forecast_feedback:
+        raise ValueError("local_solver_state updates Z from the encoded draft "
+                         "E(Y_k); turning it on with use_forecast_feedback=False "
+                         "would silently drop that term")
+    # The subtraction switches default to the full RW-B and only mean anything
+    # inside it. A caller that turns a piece off with the whole mechanism off is
+    # asking for something nothing reads, so that is an error and not a no-op.
+    for value,name in ((solver_state_recurrence,'solver_state_recurrence'),
+                       (solver_gate_proposal,'solver_gate_proposal')):
+        if value is not True and not local_solver_state:
+            raise ValueError(
+                f"{name}=False only exists inside local_solver_state; turning it off "
+                "with local_solver_state=False would be a silently ignored switch")
+
+
 class ProcessForecastCoReasoner(nn.Module):
     """R7.3 Process-Forecast Co-Reasoning model.
 
@@ -87,57 +151,24 @@ class ProcessForecastCoReasoner(nn.Module):
         known_context_inputs:bool=False,
         change_scale_mode:str='identity',
         change_scale_ratio=None,
+        typed_evidence_mode:Optional[str]=None,
+        typed_evidence=None,
     ):
         super().__init__()
-        for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
-                           (spacetime_inputs,'spacetime_inputs'),
-                           (positional_process_readout,'positional_process_readout'),
-                           (pooled_readout_query,'pooled_readout_query'),
-                           (source_role_markers,'source_role_markers'),
-                           (local_solver_state,'local_solver_state'),
-                           (solver_state_recurrence,'solver_state_recurrence'),
-                           (solver_gate_proposal,'solver_gate_proposal'),
-                           (draft_query_feedback,'draft_query_feedback'),
-                           (source_position_markers,'source_position_markers'),
-                           (known_context_inputs,'known_context_inputs')):
-            if type(value) is not bool:
-                raise ValueError(f"{name} must be boolean")
-        if source_position_markers and not positional_process_readout:
-            raise ValueError('source_position_markers requires positional_process_readout=True')
-        require_position_encoding_mode(position_encoding_mode,
-                                       positional_process_readout=positional_process_readout)
-        if known_context_inputs and not spacetime_inputs:
-            raise ValueError('known_context_inputs requires spacetime_inputs=True')
-        if pooled_readout_query and not positional_process_readout:
-            raise ValueError("pooled_readout_query only exists inside the positional "
-                             "process readout; turning it on without "
-                             "positional_process_readout would be a silently ignored switch")
-        if draft_query_feedback and not positional_process_readout:
-            raise ValueError('draft_query_feedback requires positional_process_readout=True')
-        if draft_query_feedback and not use_forecast_feedback:
-            raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
-        # RW-B's working state is updated from the per-position process read R_k
-        # and from the encoded draft; without either of those two inputs the
-        # recurrence would not be the one the design contract froze, so the
-        # combination is rejected instead of quietly substituting a pooled read
-        # or dropping a term.
-        if local_solver_state and not positional_process_readout:
-            raise ValueError("local_solver_state updates Z from the per-position read "
-                             "R_k; turning it on without positional_process_readout "
-                             "would silently substitute the pooled summary")
-        if local_solver_state and not use_forecast_feedback:
-            raise ValueError("local_solver_state updates Z from the encoded draft "
-                             "E(Y_k); turning it on with use_forecast_feedback=False "
-                             "would silently drop that term")
-        # The subtraction switches default to the full RW-B and only mean anything
-        # inside it. A caller that turns a piece off with the whole mechanism off is
-        # asking for something nothing reads, so that is an error and not a no-op.
-        for value,name in ((solver_state_recurrence,'solver_state_recurrence'),
-                           (solver_gate_proposal,'solver_gate_proposal')):
-            if value is not True and not local_solver_state:
-                raise ValueError(
-                    f"{name}=False only exists inside local_solver_state; turning it off "
-                    "with local_solver_state=False would be a silently ignored switch")
+        _validate_switches(
+            spatial_solver_feedback=spatial_solver_feedback,
+            spacetime_inputs=spacetime_inputs,
+            positional_process_readout=positional_process_readout,
+            pooled_readout_query=pooled_readout_query,
+            source_role_markers=source_role_markers,
+            local_solver_state=local_solver_state,
+            solver_state_recurrence=solver_state_recurrence,
+            solver_gate_proposal=solver_gate_proposal,
+            draft_query_feedback=draft_query_feedback,
+            source_position_markers=source_position_markers,
+            known_context_inputs=known_context_inputs,
+            use_forecast_feedback=use_forecast_feedback,
+            position_encoding_mode=position_encoding_mode)
         self.spatial_solver_feedback=spatial_solver_feedback
         self.source_position_markers=source_position_markers
         self.known_context_inputs=known_context_inputs
@@ -159,6 +190,7 @@ class ProcessForecastCoReasoner(nn.Module):
         self.solver_state_recurrence=solver_state_recurrence
         self.solver_gate_proposal=solver_gate_proposal
         self.change_scale_mode=change_scale_mode
+        self.typed_evidence_mode=typed_evidence_mode
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -251,6 +283,47 @@ class ProcessForecastCoReasoner(nn.Module):
                     dim=dim,out_channels=self.out_channels,patch_size=patch_size,
                     change_scale_mode=change_scale_mode,
                     change_scale_ratio=change_scale_ratio)
+        # #79 typed local evidence: built last under a rewound stream so "off"
+        # is the previous implementation bit for bit. The pathway adds exactly
+        # one shared patch projection, one projection set and one inject site;
+        # the reasoning recurrence downstream of the slot state is untouched.
+        if typed_evidence_mode is not None:
+            from .typed_evidence_r7 import EVIDENCE_MODES, TypedEvidenceRouter
+            if typed_evidence_mode not in EVIDENCE_MODES:
+                raise ValueError(f"typed_evidence_mode must be one of {EVIDENCE_MODES}")
+            fields = dict(typed_evidence or {})
+            expected = {'channels', 'denorm_mean', 'denorm_std', 'field_scale',
+                        'field_mean', 'field_std', 'field_active'}
+            if set(fields) != expected:
+                raise ValueError(f"typed_evidence must carry exactly {sorted(expected)}")
+            if self.anchored_processes < 4:
+                raise ValueError("typed evidence writes the first four anchored slots; "
+                                 "anchored_processes must be >= 4")
+            with isolated_stream():
+                self.typed_evidence=TypedEvidenceRouter(
+                    dim,patch_size,mode=typed_evidence_mode,**fields)
+
+    def initial_process_state(self, process:torch.Tensor, batch:Mapping, *,
+                              anchor:torch.Tensor, draft:torch.Tensor)->torch.Tensor:
+        """The process state before the first internal step, with #79 evidence.
+
+        Every path that starts the recurrence calls this: the fixed forward, the
+        streamed trainer and the adaptive wrapper. With the pathway off this is
+        the expanded ``process_queries``, operation for operation.
+
+        ``anchor`` and ``draft`` are the tensors the first step itself consumes:
+        ``X_t`` is the known state the decode is anchored to and ``draft`` is the
+        initial forecast that becomes ``Y_0``. The caller passes the *same*
+        tensors it will step with - in the streamed trainer that is the detached
+        interface leaf, so the evidence gradient accumulates on the leaf and is
+        sent through the backbone exactly once by the trainer's own final
+        adjoint pass, instead of opening a second retained graph. No target,
+        future field or validation value is read here.
+        """
+        if not hasattr(self,"typed_evidence"):
+            return process
+        evidence = self.typed_evidence.evidence(batch, anchor=anchor, draft=draft)
+        return self.typed_evidence.inject(process, evidence)
 
     def process_conditioning(
         self,
@@ -337,6 +410,7 @@ class ProcessForecastCoReasoner(nn.Module):
             raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
 
         process=self.process_queries.expand(B,-1,-1)
+        process=self.initial_process_state(process,batch,anchor=base.base_state,draft=draft)
         solver_state=None
         drafts=[draft]
         process_predictions=[]

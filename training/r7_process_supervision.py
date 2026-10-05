@@ -14,7 +14,7 @@ import torch
 from data.preprocess.process_diagnostics import (
     PROCESS_DIAGNOSTIC_NAMES, REQUIRED_PROCESS_CHANNELS,
 )
-from .r7_process_tensor_diagnostics import compute_process_tensor_diagnostics
+from model.r7_process_tensor_diagnostics import compute_process_tensor_diagnostics
 
 HOUR_NS = 3_600_000_000_000
 ATMOSPHERIC_CHANNEL_COUNT = 17

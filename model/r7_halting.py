@@ -120,6 +120,8 @@ class AdaptiveProcessForecaster(nn.Module):
         if base.forecast.shape[0] < 1:
             raise ValueError("empty batches are unsupported")
         process = self.forecaster.process_queries.expand(base.forecast.shape[0], -1, -1)
+        process = self.forecaster.initial_process_state(
+            process, batch, anchor=base.base_state, draft=base.forecast)
         return base, process
 
     def reasoning_step(self, process, context, draft, token_hw, *,

@@ -3,6 +3,12 @@
 These are regional diagnostics, not causal labels or closed physical budgets.
 Sensitive differences/reductions run outside autocast in FP32 (FP64 is retained
 only when the caller supplies FP64, for analytic engineering oracles).
+
+This module lives under ``model/`` because the #79 typed-evidence pathway calls
+the operators from inside the model's forward path: ``model_code_sha256`` covers
+``model/**.py`` and only those bytes, so a forward-path numerical dependency
+under ``training/`` would sit outside every checkpoint's identity digest. The
+supervision code that consumes the 8-d vector imports it from here.
 """
 from __future__ import annotations
 
@@ -145,6 +151,56 @@ def horizontal_advection(scalar, u, v, latitude, longitude):
 
 def _mean(field, weights):
     return (field * weights).sum((-2, -1)) / weights.sum((-2, -1))
+
+
+#: Field order of the #79 local evidence: four of the eight frozen proxies kept
+#: as maps instead of being reduced to regional scalars.
+LOCAL_FIELD_NAMES = (
+    "divergence_850", "vorticity_850",
+    "temperature_advection_850", "static_stability_850_500",
+)
+
+#: The channels :func:`typed_local_fields` reads. A store must carry all four;
+#: nothing else from the diagnostic set is touched.
+TYPED_EVIDENCE_CHANNELS = ("t500", "t850", "u850", "v850")
+
+
+def typed_local_fields(
+    state: torch.Tensor, channel_names: Sequence[str], latitude, longitude,
+) -> torch.Tensor:
+    """``[...,4,H,W]`` physical-unit local fields for the #79 typed evidence path.
+
+    Four of the eight proxies of :func:`compute_process_tensor_diagnostics`, kept
+    as spatial maps: 850 hPa divergence and vorticity of ``(u850, v850)``,
+    horizontal advection of ``t850`` by ``(u850, v850)``, and the 850-500 hPa
+    static-stability difference. Same operators, FP32 policy, nonperiodic
+    boundaries and unit conventions as the scalar diagnostics; this is the
+    single definition both the model's evidence module and the train-only
+    sidecar fitter call.
+    """
+    state = _field(state)
+    names = tuple(channel_names)
+    if (state.ndim < 3 or len(names) != state.shape[-3]
+            or any(not isinstance(name, str) or not name for name in names)
+            or len(set(names)) != len(names)):
+        raise ValueError("unique channel names must match [...,C,H,W] state")
+    missing = [name for name in TYPED_EVIDENCE_CHANNELS if name not in names]
+    if missing:
+        raise KeyError(f"missing typed-evidence channels: {missing}")
+    with torch.autocast(state.device.type, enabled=False):
+        fields = dict(zip(names, state.unbind(dim=-3)))
+        phi, lam, cosine = _coordinates(fields["t850"], latitude, longitude)
+        u, v = fields["u850"], fields["v850"]
+        tx, ty = _scalar_gradient(fields["t850"], phi, lam, cosine)
+        stability = (fields["t500"] * (1000. / 500.) ** KAPPA_DRY_AIR
+                     - fields["t850"] * (1000. / 850.) ** KAPPA_DRY_AIR)
+        result = torch.stack((
+            _divergence(u, v, phi, lam, cosine), _vorticity(u, v, phi, lam, cosine),
+            -(u * tx + v * ty), stability,
+        ), dim=-3)
+        if not bool(torch.isfinite(result).all()):
+            raise ValueError("nonfinite typed local field")
+        return result
 
 
 def _rms(field, weights):

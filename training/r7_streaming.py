@@ -141,6 +141,9 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
     draft = initial
     query = model.process_queries if isinstance(model, ProcessForecastCoReasoner) else model.latent
     state = query.expand(target.shape[0], -1, -1)
+    if isinstance(model, ProcessForecastCoReasoner):
+        state = model.initial_process_state(state, batch, anchor=base.base_state,
+                                            draft=initial)
     solver_state = None
     errors = []
     forecast_log, process_log = target.new_zeros(()), target.new_zeros(())

@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 30; human-review candidates: 1
+Records: 31; human-review candidates: 1
 
 ## s0-incumbent-gap-audit
 
@@ -71,6 +71,23 @@ Records: 30; human-review candidates: 1
   - test_read: false；未改任何冻结判据；R-B（差值尺度 loss）未因此轮做任何主张。
 - Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m 6h/12h，change_scale−identity）三 seed 全部同号为正，即变化尺度重参数化使 val RMSE 恶化（6h +0.1105、12h +0.1668 seed 均值）；按冻结决定文本被证伪。不进入正式确认实例候选，不构成任何科学声明。
 - Recorded metrics (not recomputed): arms=2, cells_improved=30, cells_unresolved=44, cells_worsened=11, change_scale_ratio_max=0.747278094291687, change_scale_ratio_min=0.07220174372196198, delta_seed_mean_12h=0.16681554533105677, delta_seed_mean_6h=0.1105266114221289, forward_backward_flops=46282984704, forward_flops=15465592704, gpu_hours=0.37003, gpu_hours_total=0.3759, gpu_hours_v1=0.0059, gpu_hours_v2=0.37003, parameters_per_arm=2948771, primary_cells={"12h": "worsened", "6h": "worsened"}, probe_max_relative_error=2.64e-05, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
+
+## s2-79-typed-evidence-screening
+
+- Outcome class: `engineering-positive`; candidate state: `needs-review`
+- Human triage priority: `90` (not a scientific score)
+- Evidence: `docs/R7_S2_79_TYPED_EVIDENCE.md` (SHA256 `002f319f21981b8853c72253cb21a3f67cd5621150cd89b170d020b7487fdbec`)
+- Evidence commit: `f47bca6fb203383f788a0f9da9f5a8724c8ecfbb`; experiment commit: `f47bca6fb203383f788a0f9da9f5a8724c8ecfbb`
+- Protocol SHA256: `bd093a1591e9f5f35e456c833ed7bc760ff313ee85c7c866bca5795aa5cba6e6`; data identity: `894b8d1b6c08d49f93255558fdacb1290ace690de43757d84369a91b3b28e02c`
+- Reason: #79 类型诊断证据三臂（A 现役 V2 / B 同容量同信息无类型融合 / C 类型路由），aux=0、三 seed、400 更新、val-only。接线逐 seed 核验（off 路径位级不变、4×4 到达矩阵严格对角、B/C 参数量与 FLOPs 相等）。注册主格以容量匹配配对为准：B→C 6h/12h 三 seed 同号为负，supported；整体 C−A 两 lead unresolved，故仅允许作为下一确认实例的设计输入。证据：outputs/r7_79_typed_evidence_pilot/paired_comparison.json。
+- Limitations:
+  - 单 dev store（2017 四季、单区域），val-only；val 是十月内 6–15 天窗口，非完整季节。
+  - 400 更新/seed 的有界筛选，无收敛或显著性主张；三 seed 只作一致性证据。
+  - B→C 归因 supported 只说明同容量同信息下类型结构优于无类型融合；C 相对 incumbent 与 climatology 均无优势（三臂 t2m skill ≈ −0.11）。
+  - 短 lead 改善/长 lead 恶化的分界仅描述性、未预注册，不并入判定。
+  - test_read: false；未改任何冻结判据；未做 R-B（差值尺度 loss）。
+- Excluded from runnable candidates: 筛选级正结果：预注册的容量匹配归因配对 typed_routing − generic_fusion 在 t2m 6h/12h 三 seed 全部同号为负（seed 均值 6h −0.053297、12h −0.053297），按冻结决定文本 supported；相对 incumbent 的整体配对（C−A）6h/12h 均 unresolved，故本读数不构成超过现状或气候态的主张，只允许把 typed evidence 带进下一确认实例的设计冻结讨论。
+- Recorded metrics (not recomputed): arms=3, cells_overall_improved=11, cells_overall_unresolved=63, cells_overall_worsened=11, cells_typed_improved=13, cells_typed_unresolved=64, cells_typed_worsened=8, delta_seed_mean_12h=-0.053297, delta_seed_mean_6h=-0.053297, forward_flops_evidence=16776992640, forward_flops_incumbent=15465592704, gpu_hours=0.7129, gpu_hours_training=0.498, parameters_per_arm_evidence=3097571, parameters_per_arm_incumbent=2948771, primary_cells={"12h": "supported", "6h": "supported"}, primary_pair=typed_routing - generic_fusion, probe_off_path_identity=true, probe_typed_arrival_diagonal=true, secondary_pair_12h=unresolved, secondary_pair_6h=unresolved, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
 
 ## s2-77-pe-band-screening
 
