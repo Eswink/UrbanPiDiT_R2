@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 32; human-review candidates: 1
+Records: 34; human-review candidates: 1
 
 ## s0-incumbent-gap-audit
 
@@ -21,6 +21,39 @@ Records: 32; human-review candidates: 1
   - The process vs matched_generic separation remains unresolved and is not re-adjudicated here.
 - Excluded from runnable candidates: Read-only identity and gap audit of an already-frozen archive; it produces no new candidate and must not be launched as a run. Any follow-up training needs a new frozen protocol.
 - Recorded metrics (not recomputed): cells_recomputed=6885, gpu_hours=0.0, incumbent=process/K4/400updates, max_relative_deviation=6.629694519880788e-16, network_requests=0, positive_seed_cells_of_255=118, t2m_12h_skill_seed_mean=-0.1911, t2m_6h_skill_seed_mean=0.2073, t2m_72h_skill_seed_mean=-3.4061, test_read=false
+
+## s3-confirmation-instance-v2
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `95` (not a scientific score)
+- Evidence: `docs/R7_S3_CONFIRMATION_INSTANCE.md` (SHA256 `95f6df52854deba8becec592519826f5c4586e61e40562596975a07f38818570`)
+- Evidence commit: `8fa6e0cb9a83bb4450d312ef1af9ffba19809520`; experiment commit: `8fa6e0cb9a83bb4450d312ef1af9ffba19809520`
+- Protocol SHA256: `f4160989b309e29b5785ca90d9c1d131bc4b0ad21109e84c4b08daadb67499b0`; data identity: `e01828e9988ba8baed8d29c7e1c2a06553700e6fe3ee6f56f6a22e31bad76a0e`
+- Reason: S3 confirmation instance published as the corrected v2 build: two verified four-season batches (2017 from S1, 2022/2023 from batch-2) combined into one 1440-stamp source and built into a year-split store (train 2017 / val 2022 / test 2023) with train-only normalization and process diagnostics. The v2 build exists because the v1 audit was degraded to a file-stat-only source fingerprint by the old 64 MiB hash cap (decision 0039 removed it), which structurally blocked the process-scale sidecar the S4 incumbent training contract requires; the weather bytes are byte-identical to v1 and only the audit scope changed. All three train-only sidecars (change-scale, process-scale, typed-evidence) are published and bind one data identity. No model training, scoring or test read.
+- Limitations:
+  - three years of one ROI (27-43N/107-123E) at 0.25 degrees, 17 channels; season blocks are 30-day samples, not full seasons
+  - store preparation only: no model result and no scientific claim; the test split is never scored
+  - the fingerprint audit attests source byte identity, not the scientific adequacy of the source
+  - the v1 defective build remains on disk; any formal run must point explicitly at the v2 root (mixed identities are refused by the loaders)
+  - sidecar counts differ by definition (change-scale 476 train pairs; process-scale 480 history+target frames; typed-evidence 476 pairs over 4.02M field values), all bound to the same data identity
+- Excluded from runnable candidates: Data preparation and identity correction only: this record is not a runnable candidate and produces no skill number. The fair confirmation on this instance requires its own frozen protocol under the S4 gate.
+- Recorded metrics (not recomputed): combined_source_bytes=231865649, combined_source_sha256=e0b51616a7c31f29b9832221e74522f8b5cad4b36b72b0d7586d140787e3b42d, gpu_hours=0.0, hard_cap_seconds=3600, network_bytes=0, planned_seconds=1200, raw_gib_cap=3.0, raw_state_gib=0.3853, sidecar_identities={"change_scale": "6fd9e77456de6378b2c3116a16614541d771c81c2e24871e267c178cce311465", "process_scale": "b28300145a2d9785099fdce1358b9f142470bddb54683eb092c2e3e531d7cd7e", "typed_evidence": "8760894aa4c83ba38761111d044e37518d5b4d1a82860bd443a9b0cb25bc4495"}, stamps=1440, test_read=false, test_windows=472, train_windows=472, v1_defect_build_kept=true, v2_wall_seconds_approx=123, val_windows=472, weather_bytes_identical_to_v1=true
+
+## s3-batch2-20222023-acquisition
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `94` (not a scientific score)
+- Evidence: `docs/R7_S3_BATCH2_ACQUISITION.md` (SHA256 `3ed6e91182e1047e9649c5ed278212f41f1600b0d65110a53e3c34ce89f89c37`)
+- Evidence commit: `c791317a3a006ddb71e62363976a8d6a0842bf62`; experiment commit: `c791317a3a006ddb71e62363976a8d6a0842bf62`
+- Protocol SHA256: `7847fa1e9ebe94cf7d5d2fd138a973024844dd1be249563d5d5821d9e3cf88cb`; data identity: `not recorded`
+- Reason: Batch-2 four-season regional ERA5 acquisition (2022/2023) completed for the confirmation instance: 8/8 parts downloaded real under the frozen per-part budgets, network 28,773,423,423 bytes (99.9% of plan, 55.8% of hard cap), and the merged 960-stamp source 44a24ca0... with exact-union re-validation. Two genuine failures are kept as failed-no-fallback with no synthetic substitute: winter_2022 refused by the frozen 8 GiB per-part decode cap (amended to 16 GiB, the value S1 actually passed under, before any successful part; retried as a NEW artifact name) and winter_2023 hung past its 1800 s deadline (executor terminated its own process, wrote an honest audit receipt because the downloader's failure path does not cover SIGTERM, and added a per-part timeout watchdog; retried as winter_2023_r2). No part file was ever deleted; no resume is claimed.
+- Limitations:
+  - two years of one ROI at 0.25 degrees; each season block is a 30-day sample, not a full season
+  - acquisition only: no store is built here, no model is trained or scored, and no scientific claim is made
+  - winter_2023's hang has no stack-level root cause (the process was terminated); single-stream blocked-read is a hypothesis consistent with the isolated per-connection rate-limit readings, not a controlled reproduction
+  - the transport-concurrency speedup note is a cross-window working handoff, not registered evidence; actual throughput in this batch was serial single-stream
+- Excluded from runnable candidates: Data acquisition only: this record produces no model result and no skill number. It feeds the S3 confirmation instance build; any scientific comparison requires its own frozen protocol under the S4 gate.
+- Recorded metrics (not recomputed): download_seconds_successful_parts=9832.8, gpu_hours=0.0, hard_cap_seconds=28800, network_bytes=28773423423, network_hard_cap_bytes=51539607552, parts_failed_kept=2, parts_successful=8, per_part_deadline_seconds=1800.0, per_part_decoded_gib_cap_final=16.0, planned_network_bytes=28800000000, planned_seconds=10800, stamps=960, synthetic_fallback=false, test_read=false
 
 ## s1-four-season-2017-dev-store
 

@@ -164,6 +164,8 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S2 #78 R-A 变化尺度筛选 v2（注册轮） | 0.3700 | 1.0257 | `docs/R7_S2_78_CHANGE_SCALE.md`（索引记录 `record:s2-78-change-scale-screening`）；`outputs/r7_78_change_scale_pilot_v2/paired_comparison.json`（三 seed 549.0/553.7/554.9s，两臂同参数量/FLOPs；worsened 6h +0.1105/12h +0.1668；test未读） |
 | S2 #79 类型诊断证据三臂（注册轮） | 0.7129 | 1.7386 | `docs/R7_S2_79_TYPED_EVIDENCE.md`（索引记录 `record:s2-79-typed-evidence-screening`）；`outputs/r7_79_typed_evidence_pilot/paired_comparison.json`（三 seed 整轮 855.9/860.4/850.2s，训练 1793.0s；B/C 同参数量 3097571 同 FLOPs；B→C 归因 6h/12h 三 seed 同号为负 −0.0533；相对 incumbent 两主格 unresolved；test未读） |
 | S2 #78 R-B 加权损失（注册轮） | 0.3533 | 2.0919 | `docs/R7_S2_78_RB_LOSS.md`（索引记录 `record:s2-78-rb-loss-screening`）；`outputs/r7_78_rb_loss_pilot/paired_comparison.json`（三 seed 532.5/520.7/542.5s，两臂同参数量/FLOPs；worsened 6h +0.3101/12h +0.4806；接线探针 rel_err 0.0；test未读） |
+| S3 batch-2 四季 2022/2023 获取（0 GPU） | 0.0000 | 2.0919 | `docs/R7_S3_BATCH2_ACQUISITION.md`（索引记录 `record:s3-batch2-20222023-acquisition`）；`outputs/r7_s2_batch2_20222023/`（8 part 成功、2 个 failed-no-fallback 保留、网络28,773,423,423字节=计划99.9%、硬上限55.8%；合并源`44a24ca0…`960 stamps；test未读） |
+| S3 确认实例 v2 发布（0 GPU，含决策0039修正） | 0.0000 | 2.0919 | `docs/R7_S3_CONFIRMATION_INSTANCE.md`（索引记录 `record:s3-confirmation-instance-v2`）；`outputs/r7_s3_confirmation_2017_2022_2023_v2/`（train2017/val2022/test2023，472/472/472窗口，三sidecar齐；v1缺陷构建保留；test未读） |
 | **合计已用** | **2.0919** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
@@ -171,11 +173,13 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S2", "previous_node": "S1", "current_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_goal": "docs/goals/main-model-climatology-campaign.md", "previous_round_evidence": "docs/R7_S1_FOUR_SEASON_ACQUISITION.md", "cap_gpu_h": 6.0, "used_gpu_h": 2.0919, "remaining_gpu_h": 3.9081, "status": "active", "next_node_proposal": "S2", "budget_mode": "accounting-only", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-confirmation-baselines-and-candidate.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 12.0, "used_gpu_h": 2.0919, "remaining_gpu_h": 9.9081, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
-- **状态**：active；S0 已完成并登记；S1 数据侧已完成（2026-10-05，0 GPU）：四季节 2017 区域段已
-  下载、合并、发布为 dev store，并登记进账本与证据索引；#77 频带接线与 11 项反证已随 62414bd 过
-  CI；进入 S2 单因素机制筛选（#77 → #78）。
+- **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05）**：batch-2 四季
+  2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
+  三年度、三 sidecar、决策 0039 修正）已发布；S3 轮次目标见
+  `docs/goals/s3-confirmation-baselines-and-candidate.md`（同数据基线 + incumbent 重训 +
+  R-C 候选筛选 + S4 冻结包）。
 - **S0 已做并实核**：actual C 身份链六类 digest 独立重算全部一致（protocol `ea0efb80…`、manifest
   `bb4569f6…`、model_code `551261c4…`、code commit `562e526`、data `ef8c6691…`、source `496084a9…`），
   九个 endpoint checkpoint 逐个 SHA256 与 receipt 相符；新工具 `tools/recompute_r7_s0_gap_audit.py`
@@ -216,7 +220,26 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   被证伪，不进入正式确认候选。全 85 cell：30 improved/11 worsened/44 unresolved；24–72h 的
   改善多数格仅作描述、未预注册、不追认。v1 探针拒绝轮（harness 缺陷，零训练）已修复并双轮计费。
   注册读数与成本见 `docs/R7_S2_78_CHANGE_SCALE.md`（累计 1.0257 GPU-h）。
-- **下一动作（S2 续）**：#79 有类型局部诊断证据三臂设计已冻结
-  （`docs/R7_S2_79_TYPED_DIAGNOSTICS_DESIGN.md`，首轮 aux=0、B→C 才归因 typed 结构）；
-  实现顺序为先 CPU 反证测试与逐类到达探针，再写 protocol.json 后上 GPU。
-  dev store 上只做筛选，不产生科学声明；正式确认门在未见年份实例上判定。
+- **S2 全部四项已登记（#77/#78 R-A/#79/#78 R-B）**：#77 主格 unresolved（screening-negative）、
+  #78 R-A 双格 worsened、#79 B→C supported（相对 incumbent 两主格 unresolved，needs-review）、
+  #78 R-B 双格 worsened；四项的回主线动作分别是"不进正式确认候选/留 S3 设计讨论/新协议才可再筛"，
+  见各自证据页与 S2 轮次目标 §7。
+- **S3 batch-2 已完成并登记（2026-10-05，0 GPU）**：8 个 (year, season) part 全部真实下载，
+  网络 **28,773,423,423 字节（计划 99.9%、48 GiB 硬上限 55.8%）**、成功 part 合计 9,832.8 s；
+  合并源 SHA256 `44a24ca0…`（960 stamps、17 通道、四个 UTC init 小时、精确并集）。两次真实失败
+  全部保留：winter_2022 被冻结的 8 GiB 每 part 解码上限拒绝（在任何成功 part 前修正为 16 GiB =
+  S1 实跑值，重试用新名 `_r2`）；winter_2023 挂死超过冻结 1800 s 期限（执行者终止自己的进程、
+  自撰 executor `failed-no-fallback` 回执、给下载脚本加每 part 看门狗，重试用 `winter_2023_r2`）。
+  从未删除部分产物、未宣称续传。详情 `docs/R7_S3_BATCH2_ACQUISITION.md`。
+- **S3 确认实例 v2 已发布并登记（2026-10-05，0 GPU）**：两批源合并（`e0b51616…`，231,865,649
+  字节）后建于全新排他路径 `outputs/r7_s3_confirmation_2017_2022_2023_v2/`，train 2017 /
+  val 2022 / test 2023（年模式，472/472/472 窗口），三个 train-only sidecar 全部发布并绑定同一
+  data identity `e01828e9…`（change-scale `6fd9e774…`、process-scale `b2830014…`、
+  typed-evidence `8760894a…`）。v1 构建因旧 64 MiB 指纹上限只能记 `file-stat-only`、结构上无法
+  发布 process-scale sidecar（S4 incumbent 契约的必需输入）——按决策 0039 修 `source_fingerprint`
+  为总是全文哈希（更强身份，非放宽），v2 与 v1 的天气字节逐位相同，v1 缺陷构建保留不删。
+  详情 `docs/R7_S3_CONFIRMATION_INSTANCE.md`；修正提交 8fa6e0c。
+- **下一动作（S3）**：先做同数据气候态/persistence 重建核对（CPU，零 GPU，只读 train），
+  再冻结 incumbent 重训协议（process、L6、400 更新、3 seed、val-only）并上 GPU；随后按 S3 轮次
+  目标的 R-C 预注册做单因素候选筛选与 S4 冻结包。
+  dev store 与 v1 的旧读数不作本实例结论；正式确认门在未见年份（2023 test）上判定。

@@ -76,7 +76,7 @@
 | 项 | 值 |
 | --- | --- |
 | 本轮新增软预算 | 2.5 GPU-h（累计软预算 4.5 = S2 的 2.0 + 本轮 2.5；超软继续并记 overrun） |
-| 本轮新增硬上限 | 6.0 GPU-h（累计硬上限 12.0 = S2 的 6.0 + 本轮 6.0；本轮 attempt 到此截断，不科学通过） |
+| 本轮新增硬上限 | 6.0 GPU-h（累计硬上限 12.0 = S2 的 6.0 + 本轮 6.0；累计用量达 12.0 时截断本轮 attempt，不科学通过） |
 | 每 seed deadline | 各轮协议内冻结（建议 5400 s 量级，按实例规模核） |
 | CPU 预算 | D2 与协议/测试准备不设 GPU；墙钟按工具实际记录 |
 | 停止条件 | 候选完成冻结 + S4 草案就绪；或硬截止；或需保留授权（付费/独占/main 合并） |
@@ -90,9 +90,12 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
 ## §7 进度块
 
 - **状态**：`active`
-- **已完成**：D1 实例 v2（`docs/R7_S3_CONFIRMATION_INSTANCE.md`；源 `e0b51616…`、store
-  472/472/472、三 sidecar `6fd9e774…`/`b2830014…`/`8760894a…`、data identity `e01828e9…`；
-  v1 缺陷构建保留；test 未读）；决策 0039（源指纹完整化）与回归测试随 `8fa6e0c` 提交。
+- **已完成**：
+  - batch-2 四季 2022/2023 获取（8/8 part、网络 28,773,423,423 字节、两次失败保留；
+    `docs/R7_S3_BATCH2_ACQUISITION.md`，索引记录 `record:s3-batch2-20222023-acquisition`）。
+  - D1 实例 v2（`docs/R7_S3_CONFIRMATION_INSTANCE.md`；源 `e0b51616…`、store 472/472/472、
+    三 sidecar `6fd9e774…`/`b2830014…`/`8760894a…`、data identity `e01828e9…`；v1 缺陷构建保留；
+    test 未读）；决策 0039（源指纹完整化）与回归测试随 `8fa6e0c` 提交。
 - **未做**：D2 同数据气候态/persistence 重建；D3 incumbent 重训；D4 R-C 筛选；D5 S4 冻结包；
   #79 typed-evidence 的 needs-review 处置（留作 S3 内可选候选，须新协议才可再筛）。
 - **下一动作**：先跑 D2（CPU 基线身份核对），再冻结 D3 incumbent 协议并上 GPU。
