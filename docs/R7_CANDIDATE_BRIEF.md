@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 27; human-review candidates: 1
+Records: 28; human-review candidates: 1
 
 ## s0-incumbent-gap-audit
 
@@ -21,6 +21,22 @@ Records: 27; human-review candidates: 1
   - The process vs matched_generic separation remains unresolved and is not re-adjudicated here.
 - Excluded from runnable candidates: Read-only identity and gap audit of an already-frozen archive; it produces no new candidate and must not be launched as a run. Any follow-up training needs a new frozen protocol.
 - Recorded metrics (not recomputed): cells_recomputed=6885, gpu_hours=0.0, incumbent=process/K4/400updates, max_relative_deviation=6.629694519880788e-16, network_requests=0, positive_seed_cells_of_255=118, t2m_12h_skill_seed_mean=-0.1911, t2m_6h_skill_seed_mean=0.2073, t2m_72h_skill_seed_mean=-3.4061, test_read=false
+
+## s1-four-season-2017-dev-store
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `92` (not a scientific score)
+- Evidence: `docs/R7_S1_FOUR_SEASON_ACQUISITION.md` (SHA256 `cea9ea13d99b5acaa6a753dde1fe6a008f330702a8c5a2b223b77733f2f08be1`)
+- Evidence commit: `62414bd21a748fe5ba459202635e0054b5b526d0`; experiment commit: `62414bd21a748fe5ba459202635e0054b5b526d0`
+- Protocol SHA256: `5abdea4b00c05a643e1f5706250acf4d9bedafde530663516ef1a79c7328ddd1`; data identity: `894b8d1b6c08d49f93255558fdacb1290ace690de43757d84369a91b3b28e02c`
+- Reason: One-year four-season real ERA5 segment (2017, ROI 27-43N/107-123E, 17 channels, 480 six-hourly stamps) downloaded in four season parts under decision 0038, merged with exact-union timestamp re-validation, and published as a dev store with train-only normalization and process diagnostics. The store carries a corrected time-range split whose scored October buckets are fully covered by train; the originally intended month-disjoint plan was mechanically unscorable under the fail-closed train-only climatology and was rejected before any build or score.
+- Limitations:
+  - single year and single region; this is a dev screening instance, not a confirmation dataset
+  - val/test are 6-15 day windows inside one season block, not complete seasons
+  - the train-only climatology so far covers four sampled months of one year
+  - no cross-region, cross-year or significance claim; the test split was not opened
+- Excluded from runnable candidates: Data preparation only: the dev store screens #77/#78 mechanisms and never produces a scientific claim or a runnable candidate. The fair confirmation requires the separate multi-year acquisition (unseen years 2022/2023) described in the record limitations.
+- Recorded metrics (not recomputed): download_seconds=4604.432, gpu_hours=0.0, network_bytes=14390323242, network_hard_cap_bytes=25769803776, parts=4, planned_network_bytes=14504924706, stamps=480, store_build_seconds=16.83, test_read=false, test_windows=22, train_windows=340, val_windows=34
 
 ## b2-multiseed-negative
 

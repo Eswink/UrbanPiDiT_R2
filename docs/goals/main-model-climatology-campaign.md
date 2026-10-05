@@ -157,6 +157,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | --- | --- | --- | --- |
 | 0038新方向文档与校检支持（无实验） | 0.0000 | 0.0000 | `docs/plans/0016-main-model-climatology-campaign.md`（真实0GPU文档准备，无实验index record） |
 | S0 incumbent身份复核与D1差距审计（零GPU只读） | 0.0000 | 0.0000 | `docs/R7_S0_INCUMBENT_GAP_AUDIT.md`；产物 `outputs/r7_s0_gap_audit_20261005_attempt01/`（墙钟5.523s，planned600/hard1200，overrun0，网络0，6,885 cell独立重算≤6.63e-16） |
+| S1 四季2017获取与dev store发布（0 GPU） | 0.0000 | 0.0000 | `docs/R7_S1_FOUR_SEASON_ACQUISITION.md`；产物 `outputs/r7_s1_seasons_2017/`（4 part 合并 480 时间点，网络14,390,323,242字节=计划99.2%、硬上限56%，4,604.4s；store 16.83s BUILD_COMPLETE；test未读） |
 | **合计已用** | **0.0000** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
@@ -166,7 +167,9 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 
 <!-- campaign-state: {"current_node": "S1", "previous_node": "S0", "current_round_goal": "docs/goals/main-model-climatology-campaign.md", "previous_round_goal": "docs/R7_S0_INCUMBENT_GAP_AUDIT.md", "previous_round_evidence": "docs/R7_S0_INCUMBENT_GAP_AUDIT.md", "cap_gpu_h": 0.0, "used_gpu_h": 0.0, "remaining_gpu_h": 0.0, "status": "active", "next_node_proposal": "S2", "budget_mode": "accounting-only", "route_decision": "0038"} -->
 
-- **状态**：active；S0 已完成（2026-10-05，零 GPU 只读），进入 S1 数据 pilot 与 #77/#78/#79 解析设计。
+- **状态**：active；S0 已完成并登记；S1 数据侧已完成（2026-10-05，0 GPU）：四季节 2017 区域段已
+  下载、合并、发布为 dev store，并登记进账本与证据索引；#77 频带接线与 11 项反证已随 62414bd 过
+  CI；进入 S2 单因素机制筛选（#77 → #78）。
 - **S0 已做并实核**：actual C 身份链六类 digest 独立重算全部一致（protocol `ea0efb80…`、manifest
   `bb4569f6…`、model_code `551261c4…`、code commit `562e526`、data `ef8c6691…`、source `496084a9…`），
   九个 endpoint checkpoint 逐个 SHA256 与 receipt 相符；新工具 `tools/recompute_r7_s0_gap_audit.py`
@@ -184,8 +187,15 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   旧 test 曝光状态不变，unresolved 的 process/matched_generic 归因不重裁。
 - **恢复方式**：执行窗口核实际 HEAD/status、只读本 §8 与 §2/§3/§5、核两个校检器；必要前瞻工作态
   更新与上一轮 next-action/round-node 一致后才能实验。历史失败终态不改，普通节点自主推进。
-- **下一动作（S1）**：①按 `real-data-acquisition` 冻结第一批多季节/多年度下载的数字范围、网络/
-  decoded/磁盘预算与软硬秒数，先小 pilot 核真实速率与 schema，再自审 preflight 后向全新
-  `outputs/` 路径 `--write`；②并行完成 #77 位置编码频带的分析与 CPU 阳性反证、#78 R-A/R-C 的
-  train-only 统计与接线、#79 三臂设计的可证伪接口测试；③S2 起按 #76 的 P0→#77→#78 次序做单因素
-  真实 train/val 小试（#79 可并行）。不等待逐项授权，不自宣 complete。
+- **S1 已完成并实核**：四季 2017（winter/spring/summer/autumn）四 part 全部
+  `downloaded-real-source`，网络合计 **14,390,323,242 字节（计划 99.2%、24 GiB 硬上限 56%）**、
+  4,604.4 秒；合并源 SHA256 `3b2c2dad…`（480 时间点、17 通道、全域有限、四个 UTC init 小时齐）；
+  dev store 于 16.83 s 发布（`BUILD_COMPLETE`，train-only 归一化与重算最大相对偏差 5.3e-08），
+  data identity `894b8d1b…`。原 frozen 意图中的 `train=1月/val=4月/test=7月` 被**建库前机械拒绝**：
+  fail-closed 的 train-only (month,hour) 气候态缺 4/7 月桶且时间范围合同禁交错声明，改为四季节
+  前 24 天作 train、十月 16–24 日作 val、25 日–次月 1 日作 test（340/34/22 窗口），依据写在
+  `store_build_protocol.json`。test 从未读取。
+- **下一动作（S2）**：按 #76 的 P0→#77→#78 次序做单因素机制筛选：`scripts/study_r7_77_pe_band.py`
+  已写好（两臂 `legacy` vs `nyquist_band`，同参数量/FLOPs、同初始化、K4、三 seed、400 更新、
+  val-only），先 CPU 接线 smoke 再上 GPU；#77 之后是 #78 的 train-only 6h 变化尺度重参数化解码，
+  #79 并行设计。dev store 上只做筛选，不产生科学声明；正式确认门在未见年份实例上判定。
