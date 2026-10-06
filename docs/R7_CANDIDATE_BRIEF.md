@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 43; human-review candidates: 1
+Records: 44; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -63,6 +63,25 @@ Records: 43; human-review candidates: 1
   - validation split only; the test split stays sealed until the S4 preregistered read
 - Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m/full 6h/12h，two_step_200 − incumbent_l6_400）三 seed 全部同号为正，即把训练目标扩到 +12h 的候选比同 FLOP 的 l6 控制更差（6h +0.9202/+1.0247/+0.9263 K、12h +1.3219/+1.4587/+1.2365 K）；u10/v10/mslp 守门预审 34 个正 cell 也不通过。按冻结决定文本候选停当轮（candidate-stops-registered-negative），不进 S4 冻结包，不构成任何科学声明。
 - Recorded metrics (not recomputed): candidate_mode=two_step, candidate_updates=200, control_mode=l6, control_updates=400, delta_t2m_full_rmse_vs_incumbent={"41": {"12": 1.3219, "6": 0.9202}, "42": {"12": 1.4587, "6": 1.0247}, "43": {"12": 1.2365, "6": 0.9263}}, elapsed_seconds_total=3050.1, first_spawn_to_last_reap_seconds=3001.2, flop_parity_relative_error=0.0008891315554136186, gate_failures=34, gpu_hours=0.8472, hard_cap_seconds=10800.0, lambda12=0.5, network_bytes=0, planned_seconds=5400.0, primary_verdict={"12": "worsened", "6": "worsened"}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, test_read=false
+
+## s3-v3-budget-dose
+
+- Outcome class: `mixed`; candidate state: `not-candidate`
+- Human triage priority: `97` (not a scientific score)
+- Evidence: `docs/R7_S3_V3_BUDGET_DOSE.md` (SHA256 `c20ce54405edeeb20ef88f9ff16117cc9d93d1757a67b5e1105f32d98cbaa4bd`)
+- Evidence commit: `7ec1c326301a8a914a4f0c25e9b8b9493cfcb14f`; experiment commit: `7ec1c326301a8a914a4f0c25e9b8b9493cfcb14f`
+- Protocol SHA256: `83002900073b35a74691c50660cd1547d8556787adbd044649c1255a891f7e1e`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: v3 budget-dose screen: l6 x1600 updates on the five-train-year instance (train 2017-2021, val 2022) against the pinned v3-D3 400-update control, val-only, three seeds, FLOP ratio 4.0. Primary pre-registered cell supported: t2m/full RMSE deltas 6h -0.4328/-0.7607/-0.4444 K and 12h -0.5351/-0.7199/-0.5158 K (all seeds same sign, candidate lower); 24h also all-negative. Gate pre-screen failed with 17 positive u10/v10/mslp cells (24h 1, 48h 7, 72h 9) -- the same net count as the registered v2-BC reading at the same dose on the single-year train (17 cells at 48/72 h), so the pre-declared data-response branch reads 'persist': the long-lead degradation is not fixed by train volume alone at this dose. Frozen conjunction rule -> registered-negative; the endpoint does not advance to the S4 freeze package. Candidate t2m skill vs the v3 five-year climatology: 6h +0.588/+0.586/+0.601, 12h +0.307/+0.306/+0.338, 24h +0.199/+0.127/+0.299, 48h/72h negative; positive seed-cells 51/51/50/22/14. Whole round 6883.9 s vs planned 6300 (soft overrun 583.9 s recorded) and hard 12600 untouched; conservative 1.9122 GPU-h; co-resident GPU0 with passed read-only gates (neighbor load slowed seed41 evals, recorded); zero network; test unread.
+- Limitations:
+  - screening only: one instance (2017-2021 train / 2022 val, one ROI, 17 channels); no significance, convergence or SOTA claim
+  - the control comes from the registered v3-D3 run pinned by SHA256, not retrained inside this protocol
+  - the candidate spends 4x the control's updates and FLOPs; not a compute-matched comparison
+  - the dose is not epoch-matched (about 0.7 epochs on v3 vs 3.4 on v2)
+  - three seeds are consistency evidence, not a significance test
+  - GPU runs are co-resident; latency includes neighbor load
+  - validation split only; the test split stays sealed until the S4 preregistered read
+- Excluded from runnable candidates: 混合筛选结果（primary supported / 守门未过 -> registered-negative）：扩年实例上 l6×1600 vs 同实例 400 控制，主格 t2m 6h/12h 三 seed 同号 supported，但 u10/v10/mslp 守门 17 个正 cell 与 v2-BC 同剂量持平——预声明数据响应分支判「长 lead 退化不由训练体量单独修复」；按冻结合取规则不进 S4。不构成任何科学声明。
+- Recorded metrics (not recomputed): cohorts={"12": 468, "24": 460, "48": 444, "6": 472, "72": 428}, decision=registered-negative, elapsed_seconds_total=6883.938784704544, first_spawn_to_last_reap_seconds=6673.923021165654, flop_ratio=4.0, gate_failures={"by_lead": {"24": 1, "48": 7, "72": 9}, "by_variable": {"mslp": 6, "u10": 5, "v10": 6}, "total": 17}, gate_passed=false, gpu_hours=1.9122, hard_cap_seconds=12600, initialization_matches_archived_actual_c_bitwise=true, network_bytes=0, planned_seconds=6300, positive_seed_cells_of_51={"12": 51, "24": 50, "48": 22, "6": 51, "72": 14}, primary_verdict=supported, seed_mean_skill={"12": 0.3171, "24": 0.2082, "6": 0.5915}, soft_overrun_seconds=583.9387847045437, t2m_rmse_delta_k={"41": {"12": -0.5351, "24": -0.3237, "48": 0.1379, "6": -0.4328, "72": 1.1889}, "42": {"12": -0.7199, "24": -0.4513, "48": -0.2162, "6": -0.7607, "72": 0.6898}, "43": {"12": -0.5158, "24": -0.6301, "48": -0.7578, "6": -0.4444, "72": -0.5936}}, t2m_skill_vs_v3_climatology={"41": {"12": 0.3073, "24": 0.1992, "48": -1.2675, "6": 0.5879, "72": -3.5069}, "42": {"12": 0.3059, "24": 0.1268, "48": -1.2061, "6": 0.5861, "72": -2.787}, "43": {"12": 0.3381, "24": 0.2988, "48": -0.4702, "6": 0.6005, "72": -1.1766}}, test_read=false, updates_candidate=1600, updates_control=400, v2_bc_gate_failures_same_dose={"by_lead": {"48": 8, "72": 9}, "total": 17}
 
 ## s3-d3-incumbent-retrain
 
