@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-状态：active / feasibility-audited，2026-10-06。唯一主计划仍为
+状态：active / screen-supported-audited，2026-10-06。唯一主计划仍为
 `docs/goals/main-model-climatology-campaign.md`；本文件是其S3新的独立开发轮，不是S4或新方向。
 
 ## §0 Objective（单段，实测1123字符）
@@ -83,7 +83,7 @@ main/issue关闭/force/mirror、常驻/cron；不自裁goal complete。
 
 ## §8 进度与交接
 
-- 状态：active，feasibility-audited；S3未变、S4未开始。
+- 状态：active，screen-supported-audited；S3未变、S4未开始。
 - 前轮negative/精确重放/全部费用已登记，来源 `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md`。
 - 新dataset/objective84、runner22、证据消费23个CPU反证加规模anti-drift，共**130 passed/172.22s**；
   metadata-only已核2140/220/window digest。独立prelaunch审阅的三项保障缺口已修复并定向复查无剩余
@@ -104,6 +104,26 @@ main/issue关闭/force/mirror、常驻/cron；不自裁goal complete。
   归档同样本重放完整846.060163s、五测量字段精确同原值，两个workerreaped/no signals；
   独立terminal审阅28项通过（85.756s），所有重放作用域/再现等级限制保留。原probe0.4458+replay0.2350
   全額计费，方向累计14.7962，index现50条；没有optimizer更新或val/test评分。
-- 下一具体动作：使用同一执行archive66836d2另冻三seed一次screen，先核compatible feasibility、
-  known peak与新spawn至少4346MiB余量，再执行200更新/全部val/独立审阅和归档重放登记。
+- 已启动另冻三seed一次screen：`outputs/r7_s3_long_rollout_20261006_attempt01/`，同一执行archive66836d2，
+  compatible feasibility自动重核、known peak carried、每spawn余量至少4346MiB；
+  soft6300/hard12600/perseed3600、200更新/原physicalweights/K4/FP32/freshAdamW不变。
+  三seed均完整200endpoint/五lead全部val，控制相对主格6/12h均supported、守门0/45，
+  全255格RMSE低于控制；parent相对守门16/45正格，t2m48/72h气候态skill仍三seed全负。
+  独立全部765RMSErow/20,448case审阅、strictcheckpoint/template/optimizer/loss与费用核验齐；
+  保存advance-to-S4-freeze只表示独立冻结包准备资格，不是科学通过或已读test。
+  整轮8994.237921s、soft超2694.237921s/hard超0，全部6workerexit0/reaped/no signals，2.4984GPU-h
+  已本轮index登记加入；seed41归档重放1935.462220s/ceil0.5378GPU-h、soft超135.462220/hard0，
+  15CSV/2272case精确同原值，三seedcollector摘要一致。方向累计17.8324，index52条，证据d1dcd46。
+  独立replayterminal153项数值无差，optional文档收尾hard超3.402s不是全预算合规，限制全额保留。
+  登记提交e9db4fb的精确CI
+  [37509906302](https://github.com/Eswink/UrbanPiDiT_R2/actions/runs/37509906302)现已completed/success，
+  所有必要约定/campaign/index及测试步骤均success（不是科学接受）。screen protocol已冻结
+  `a1631d9b87721c2260a28c5862ef26ae7245fdd5f7c30cd404cb05708a8d10ea`。
+- 归档seed41五lead重放与全三seedcollector exact比对已完成；独立静态初稿两项blocker首次执行前修复，
+  128+36CPU synthetic检查及独立定向复查齐，wrapper仅/tmp，原screen不改。
+  冻结证据 `docs/R7_S3_LONG_ROLLOUT_SCREEN.md`，replay soft1800/hard3600、spawn≥4370MiB。
+- 600条training norm全部clip前>1，四50更新块末vs首改善但41/43块3→4反弹，样本不同不判收敛；
+  零GPU摘要已登记证据§8，不能据此盲目加剂量。
+- 下一具体动作：核本轮登记精确SHA CI，再在S3设计/冻结同case train/val差距诊断或数据制度分析，
+  不碰test、不无限重复本剂量、不把advance-to-S4-freeze当科学接受、不自行complete。
   原failed/negative保持，不做optimizer更新于probe，不读val/test评分，不自行complete。

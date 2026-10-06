@@ -53,7 +53,7 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 | [`main-model-climatology-campaign.md`](main-model-climatology-campaign.md) | 新长期主模型超气候态方向（S0–S4）：gap、单因素探索、多年度/四季数据、未见确认 | 新方向唯一权威/0038；S3 进行中（batch-2 获取、v2 确认实例已登记）；objective单段≤4000、代理与11技能触发明确、`--campaign`显式对表 |
 | [`s2-climatology-mechanism-screening.md`](s2-climatology-mechanism-screening.md) | S2 节点：单因素机制筛选（#77 → #78 R-A → #79 → #78 R-B） | 已完成：四项全部登记（unresolved/worsened/supported-needs-review/worsened），回主线动作明确 |
 | [`s3-confirmation-baselines-and-candidate.md`](s3-confirmation-baselines-and-candidate.md) | S3 节点：同数据基线、incumbent 重训、R-C/预算/短rollout筛选 | v3-D2/D3/BD及短rollout已登记；短rollout13/45守门negative，S4未开始，test未评分 |
-| [`s3-long-rollout-supervision.md`](s3-long-rollout-supervision.md) | S3 接续：直接12步全BPTT，监督48/72h生成历史 | active；FP32可行性与归档单样本重放完整且独立审阅、全额登记0.6808GPU-h；下一三seed一次screen、判据未变 |
+| [`s3-long-rollout-supervision.md`](s3-long-rollout-supervision.md) | S3 接续：直接12步全BPTT，监督48/72h生成历史 | S3开发screen完整：主格supported、控制gate0/45，长lead气候态仍全负；归档15CSV精确，全额登记，非S4/科学接受 |
 | [`main-model-v2-rw-b-round.md`](main-model-v2-rw-b-round.md) | V2 第二阶段：RW-B 局部门控求解状态（#72 M2-B） | 已完成（negative，`docs/R7_72_RW_B_PILOT.md`）；含 goal 校验悬挂的恢复记录指针 |
 | [`main-model-v2-rw-b-subtraction.md`](main-model-v2-rw-b-subtraction.md) | RW-B 减法归因（(a) 门控+锚定提案 / (b) Z 递推 / (c) role 标记） | 已完成（`branch=stop-confounded-control`：负控制按构造退化，不能归因） |
 | [`main-model-v2-pivot-audit.md`](main-model-v2-pivot-audit.md) | N1 转向审计（四块 0 GPU-h）+ 冻结随机 Z 可证伪臂 | 已完成（两 seed 反号 → `cannot-distinguish`，只提议 N2d） |

@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 50; human-review candidates: 1
+Records: 52; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -59,6 +59,43 @@ Records: 50; human-review candidates: 1
 - CI run: `37500335847`
 - Excluded from runnable candidates: Identity/configuration reproducibility audit only, not a runnable candidate or scientific PASS.
 - Recorded metrics (not recomputed): elapsed_seconds_total=846.0601630983874, exact_field_count=5, gpu_hours=0.235, hard_cap_seconds=3600, hard_overrun_seconds=0.0, network_bytes=0, owned_cuda_reserved_peak_bytes=2409627648, per_step_loss_count=12, planned_seconds=1800, replay_driver_sha256=7e71f0409e015963c8a48e532b28fb796c8c9511d761f3fb310bcb4fe012c2c0, required_free_bytes=4557111296, restoration_accepted_sha256=3b3680057e75cbceda14f359124961faf4b9f83e0b6ee6befed86a85331cd152, soft_overrun_seconds=0.0, terminal_audit_checks=28, terminal_audit_wall_seconds=85.756, test_read=false
+
+## s3-long-rollout-screen
+
+- Outcome class: `mixed`; candidate state: `needs-review`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_LONG_ROLLOUT_SCREEN.md` (SHA256 `aeec87e66c0b60a285878dd49a847654e8655625118f079f3a607bc0c5f9ef4b`)
+- Evidence commit: `d1dcd46b8deb9591cc5e1108afef3c4b46249750`; experiment commit: `66836d29dd257a11b0c946c8af2622b35042a5ce`
+- Protocol SHA256: `a1631d9b87721c2260a28c5862ef26ae7245fdd5f7c30cd404cb05708a8d10ea`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: Complete three-seed FP32 K4 twelve-step full-BPTT screen at200 freshAdamW updates from registered ownBD1600parents. Original development primary6/12h allstrictnegative and controlgate0/45positivecells; all255RMSEcells belowD3400control, frozen decision advance-to-S4-freeze means only independentfreeze-package eligibility. Absolute t2m48/72hclimatologyskill remainsnegativein everyseed; parentrelativegate16/45positive6/12cells. NoS4/test/scientificacceptance. Independent state/765RMSErow/case/cost audit and archivedseed41exactreplay support recordedconfiguration, notgoalcompletion.
+- Limitations:
+  - Development support vsD3400control only; everyseedt2m48/72h remainsworsethantrainonlyclimatology,72h15/17variablesnegative
+  - No unseencompleteyear orseason/yearsimultaneousintervals, nointerior/edgeconfirmation and2023testnot scored
+  - Notcompute-matched; parent1600L6plus200longupdates andnewwindowselection, no cleanmechanismcausalclaim
+  - Parent-relative16gatepositivecells retained; highestconfig-reproducible, notbitwiseGPUtraining
+  - Source/norm/windowqualificationinheritedfromregisteredprobe; baselinefitfieldsnotregeneratedinreadonlyaudit; externalactualCconfignotinarchive
+  - Wholepublishedwallincludespreparation/loading/reading;publicationtail/outerexitnotindependentlytimed; auditfailedpartialandsoftoverrunretained
+- CI run: `37500335847`
+- Excluded from runnable candidates: Needs independent development/freeze-package review, not final confirmation-ready candidate. Absolute48/72hclimatology failure, incomplete-year data and missing simultaneous statistics prohibit goal/S4 test acceptance.
+- Recorded metrics (not recomputed): audit_unique_wall_seconds_before_replay=2262.372, bf16=false, candidate_lower_rmse_vs_control_cells=255, decision=advance-to-S4-freeze, delta_t2m_rmse_k={"41": {"12": -0.546425404894, "6": -0.432457996959}, "42": {"12": -0.736492184981, "6": -0.763970550907}, "43": {"12": -0.498234, "6": -0.436941976038}}, elapsed_seconds_total=8994.237921394408, gate_failures=0, gate_passed=true, gpu_hours=2.4984, hard_cap_seconds=12600, hard_overrun_seconds=0.0, lr=2e-05, mode=long_rollout, network_bytes=0, next_spawn_required_free_bytes=4582277120, owned_cuda_reserved_peak_bytes=2434793472, parent_relative_gate_failures=16, parent_updates=1600, per_seed_seconds=3600, physical_steps=12, physical_weights=[1.0, 0.5, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5], planned_seconds=6300, positive_climatology_skill_cells_of51={"12": 51, "24": 51, "48": 22, "6": 51, "72": 6}, primary_verdict=supported, reasoning_steps=4, seeds=[41, 42, 43], soft_overrun_seconds=2694.2379213944077, t2m_skill_vs_climatology_rounded={"41": [0.587811, 0.312714, 0.285808, -0.414955, -0.967931], "42": [0.587259, 0.313789, 0.267697, -0.360455, -0.788045], "43": [0.597834, 0.32985, 0.327613, -0.226734, -0.609788]}, test_read=false, updates_per_seed=200, validation_case_records_three_arms=20448, warmup=10, workers_exit0_reaped_no_signals=6
+
+## s3-long-rollout-screen-replay
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_LONG_ROLLOUT_SCREEN.md` (SHA256 `aeec87e66c0b60a285878dd49a847654e8655625118f079f3a607bc0c5f9ef4b`)
+- Evidence commit: `d1dcd46b8deb9591cc5e1108afef3c4b46249750`; experiment commit: `66836d29dd257a11b0c946c8af2622b35042a5ce`
+- Protocol SHA256: `e1ca165ceda0c3dc06303bcf51cd1bc95a2f58666d2dc2f3f6b8cddb37daa789`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: Archived exact66836d2 seed41fivefullvalleads regenerated:15CSVhashesidentical,2272casesand38624physicalMSEscalars exact,all3savedreadingscanonicaldigest matchedarchivedcollector. Mandatoryindependentpins, safeverifiedbytearchiveimports, ownedboundedworkersandknownpeakguards. Whole1935.462220s softoverrun135.462220s,ceil1936secondsfullycharged0.5378GPUh. Independent153checksconfirm directnumbers; auditoptionaldoctypefinalizationhardoverrun3.402sreportednotbudgetcompliant. No training/test/newscienceclaim.
+- Limitations:
+  - Actualforecastreplayseed41only; remainingseedsrecordedmetric/stateaudit, no training replay
+  - ObservedexactCSV/configurationnotcrossplatformbitwisetrainingreproducibility or scientificconfirmation
+  - Collector publishes recomputeddigestnotfullpayload; independentterminalauditdidnotreruncollector
+  - Coreauditterminalchecks569.297sunderhard600butoptionalnumericdocfinalization603.402sovershot3.402s; notallbudgetcompliant
+  - ExternalactualCconfiguration/sourcefield/chunkqualification limitsretained
+- CI run: `37500335847`
+- Excluded from runnable candidates: Identity/configuration reproducibility audit only; no newscientificcandidate orPASS. Auditbudgetexceptionretained.
+- Recorded metrics (not recomputed): audit_checks=153, audit_final_wall_seconds=603.402, audit_hard_overrun_seconds=3.402, audit_soft_overrun_seconds=303.402, collector_canonical_sha256=aa65dac1117c0ba6f109a70cf383a825f95bbeda3918f179cefc4c47da5f09cc, conservative_ceil_seconds=1936, elapsed_seconds_total=1935.4622196508572, exact_case_count=2272, exact_csv_count=15, gpu_hours=0.5378, hard_cap_seconds=3600, hard_overrun_seconds=0.0, mse_difference_count=0, network_bytes=0, physical_mse_scalar_count=38624, planned_seconds=1800, replay_driver_sha256=495fdff90c55237131faa350f966da7dc37201b8301fc32a22ad347a85259ff1, restoration_accepted_sha256=734a6746555c15c91f93e2c21565c7393975cf2da57bc0e29d55770c450e642c, soft_overrun_seconds=135.46221965085715, test_read=false
 
 ## s3-v3-numerical-errata
 
