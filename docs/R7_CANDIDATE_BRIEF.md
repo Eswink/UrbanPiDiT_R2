@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 41; human-review candidates: 1
+Records: 43; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -82,6 +82,24 @@ Records: 41; human-review candidates: 1
 - Excluded from runnable candidates: Same-data control rebuild only: retrains the actual-C process incumbent on the v2 train split to produce the comparison readings later candidate screens pair against. It enters no verdict, is not itself a candidate, and makes no climatology-superiority claim; the D4 screen and the S4 gate have their own protocols.
 - Recorded metrics (not recomputed): cohorts={"12": 468, "24": 460, "48": 444, "6": 472, "72": 428}, elapsed_seconds_total=3955.3, first_spawn_to_last_reap_seconds=3936.4, gpu_hours=1.0987, hard_cap_seconds=10800.0, initial_state_sha256={"41": "a79ea47fa098bfc4dce651e2ea6c8fd18d996e4ff88a0e8503832645a29f1c47", "42": "ec5bb5ef581e1cfe4923b938f60635fd5c79aaebd0f3f1fb37f01524ea3a26d0", "43": "844bd23402cabb3f0cfb961efa4ba2e854207a06c51b51d32fba89e6e358efdf"}, initialization_matches_archived_actual_c_bitwise=true, mode=l6, network_bytes=0, planned_seconds=5400.0, positive_seed_cells_of_51={"12": 49, "24": 47, "48": 6, "6": 51, "72": 0}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, t2m_full_skill_vs_same_data_climatology={"41": {"12": -0.1655, "24": -0.2907, "48": -1.7115, "6": 0.2143, "72": -2.6343}, "42": {"12": -0.0697, "24": -0.1088, "48": -1.3401, "6": 0.2754, "72": -2.0742}, "43": {"12": 0.0037, "24": 0.0526, "48": -1.2948, "6": 0.3262, "72": -2.2304}}, test_read=false, train_windows_usable=468, updates_per_seed=400
 
+## s3-v3-d3-incumbent
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `96` (not a scientific score)
+- Evidence: `docs/R7_S3_V3_D3_INCUMBENT.md` (SHA256 `f992d5b449b160758ad9d16041d2e4c7a0ec120ac531e179783987257d7f0619`)
+- Evidence commit: `984e85af39b070134c150cc4b16b62b4ef69229c`; experiment commit: `984e85af39b070134c150cc4b16b62b4ef69229c`
+- Protocol SHA256: `9912a67ff3f3c1ae35f743cb956aab80fea43c39ecc61eecf32760d9e0621bbe`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: v3 incumbent control retrained on the five-year train split: three seeds reproduced the archived actual-C initialization bitwise on CPU, trained 400 L6 updates to the frozen endpoint and scored the full per-lead val cohorts (472/468/460/444/428) against the five-year train-only climatology. t2m/full skill is positive at 6h for every seed (+0.4148/+0.2610/+0.4248) and at 12h for two of three (+0.0285/-0.0805/+0.0756); 24h is one positive; 48-72h remain negative. Descriptively the near-lead shape improves on the v2 single-year control (6h all seeds higher, 12h two positive vs one), consistent with the data-expansion direction but not a controlled comparison. Whole round 5404.5 s vs planned 5400 (soft overrun 4.5 s recorded per decision 0030) and hard 10800 untouched; 1.5012 conservative GPU-h; co-resident GPU0 with read-only gates; zero network; test unread. These per-lead CSVs are the pinned control the v3 budget-dose screen pairs against.
+- Limitations:
+  - screening control only: one instance (2017-2021 train / 2022 val, one ROI, 17 channels); no significance or SOTA claim
+  - three seeds are consistency evidence, not a significance test
+  - K4 is an inference-depth probe on the same K4-trained checkpoint, not an independent model
+  - cross-instance (v2 vs v3) comparisons are descriptive, not controlled
+  - GPU runs are co-resident; latency/memory observations include neighbor load
+  - validation split only; the test split stays sealed until the S4 preregistered read
+- Excluded from runnable candidates: Same-data control rebuild only: it enters no candidate verdict and makes no climatology-superiority claim. The v3 budget-dose screen and the S4 gate have their own protocols.
+- Recorded metrics (not recomputed): cohorts={"12": 468, "24": 460, "48": 444, "6": 472, "72": 428}, elapsed_seconds_total=5404.5, final_loss={"41": 0.06114, "42": 0.08334, "43": 0.13406}, first_spawn_to_last_reap_seconds=5331.8, gpu_hours=1.5012, hard_cap_seconds=10800, initialization_matches_archived_actual_c_bitwise=true, mode=l6, network_bytes=0, planned_seconds=5400, positive_seed_cells_of_51={"12": 50, "24": 45, "48": 2, "6": 51, "72": 0}, seed_count=3, soft_overrun_seconds=4.5, t2m_skill_vs_v3_climatology={"41": {"12": 0.0285, "24": 0.0218, "48": -1.1453, "6": 0.4148, "72": -2.1142}, "42": {"12": -0.0805, "24": -0.1359, "48": -1.4017, "6": 0.261, "72": -2.0213}, "43": {"12": 0.0756, "24": -0.0418, "48": -1.0692, "6": 0.4248, "72": -1.7365}}, test_read=false, updates_per_seed=400
+
 ## s0-incumbent-gap-audit
 
 - Outcome class: `audit`; candidate state: `needs-review`
@@ -149,6 +167,22 @@ Records: 41; human-review candidates: 1
   - five train years vs one does not by itself establish that more data improves pattern skill; that is the v3 screens' hypothesis
 - Excluded from runnable candidates: Data preparation only: this record is not a runnable candidate and produces no skill number. The controls, the budget-dose screen and (if a candidate survives development) the unseen-year confirmation round run on this instance under their own frozen protocols.
 - Recorded metrics (not recomputed): build_wall_seconds_approx=509, combine_determinism_replay_seconds=41.1, combined_source_bytes=540856239, combined_source_sha256=bc2ff9cfadcce604fc243bb999b3c430d5164d17fcf1de201273716a5db065f8, gpu_hours=0.0, hard_cap_seconds=3600, network_bytes=0, planned_seconds=1200, raw_gib_cap=3.0, raw_state_gib=0.8990317583084106, sidecar_identities={"change_scale": "f76c373da82073e627cb2bed9300b1e6146aafe9c4a15dec368e06e9d455d595", "process_scale": "0e87fe406764663c3cc59289bbc3c04a8e18adbc4d99a3e9cf59ac52cf8545a4", "typed_evidence": "6f9bedbf79237c3724358377f49ec7a6d571bfd7e3b0a1a69ef4bc231008dbde"}, stamps=3360, test_read=false, test_windows=472, train_windows=2360, val_windows=472
+
+## s3-v3-d2-baselines
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `95` (not a scientific score)
+- Evidence: `docs/R7_S3_V3_D2_BASELINES.md` (SHA256 `ea1e26478ca881c1d0f6e8da7d81d5c0cc4965483fce365776889a7fc5cba583`)
+- Evidence commit: `984e85af39b070134c150cc4b16b62b4ef69229c`; experiment commit: `984e85af39b070134c150cc4b16b62b4ef69229c`
+- Protocol SHA256: `a14dd1b2900ba964337a21dd06debffcd47ab8435a0a8412ee31a96ccffb1ed8`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: v3 baselines rebuilt on the expanded confirmation instance (train 2017-2021 / val 2022 / test 2023): the train-only climatology now fits five train years (2400 steps, 16 buckets x 150) and persistence reruns on the unchanged 2022 val split; both scored through the identical evaluate_local path on full per-lead cohorts 472/468/460/444/428. t2m climatology RMSE 3.5171/3.4889/3.4375/3.3534/3.3184 K, persistence 4.5470/5.9235/3.1633/4.1795/4.7269 K; persistence skill vs the five-year climatology is positive only at 24h (+0.1531). Whole round 992.4 s vs planned 1800 / hard 3600 with zero overrun, zero network, zero GPU; test never opened. The five-year climatology is slightly stronger than the v2 single-year one (6h -0.0233 K), which raises the bar any same-instance model must clear.
+- Limitations:
+  - parameter-free reference scoring only: no model result and no skill claim
+  - one ROI, five train years plus one eval year, 17 channels; val is 2022 only
+  - the climatology is a train-only (month,hour) grid-cell mean, not a WeatherBench2 reproduction
+  - the v2/v3 numerical comparison is descriptive across instances, not a controlled comparison
+- Excluded from runnable candidates: Data preparation (baselines) only: this record is not a runnable candidate and produces no model skill number. The v3 incumbent control and the budget-dose screen consume it under their own frozen protocols.
+- Recorded metrics (not recomputed): climatology_n_selected_steps=2400, climatology_training_years=[2017, 2018, 2019, 2020, 2021], cohorts={"12": 468, "24": 460, "48": 444, "6": 472, "72": 428}, elapsed_seconds_total=992.4, gpu_hours=0.0, hard_cap_seconds=3600, network_bytes=0, persistence_skill_t2m={"12": -1.8825, "24": 0.1531, "48": -0.5533, "6": -0.6714, "72": -1.0291}, planned_seconds=1800, t2m_rmse_climatology_k={"12": 3.4889, "24": 3.4375, "48": 3.3534, "6": 3.5171, "72": 3.3184}, t2m_rmse_persistence_k={"12": 5.9235, "24": 3.1633, "48": 4.1795, "6": 4.547, "72": 4.7269}, test_read=false
 
 ## s3-batch2-20222023-acquisition
 

@@ -131,10 +131,22 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
     combine 重放字节确定；store 窗口 2360/472/472、17 通道、`raw_state_GiB` 0.899；
     三 sidecar `f76c373d…`/`0e87fe40…`/`6f9bedbf…` 绑定 data identity `2564eeaf…`；
     全流程约 509s（planned 1200/hard 3600）；v2 保留不取代；GPU 0、网络 0；test 未读）。
-- **未做**：D5 S4 冻结包（三候选轮均未过守门合取）；#79 typed-evidence 的 needs-review
-  处置（留作 S3 内可选候选，须新协议才可再筛）；v3 上的控制重建与预算读数（下一动作）。
-- **下一动作**：在 v3 实例上重建同数据 climatology 与 persistence（D2-analog，CPU 零 GPU，
-  逐 lead 全覆盖）与 400 更新 incumbent 控制（D3-analog，三 seed 逐位初始化保真），
-  再以预算读数（单因素，1600 或按 5× 数据量重定标）检验「数据扩年提升 pattern skill」假设；
-  节点软预算已超（6.5104 vs 2.5），按决策 0030 记 overrun 继续，硬上限 12.0 内；
-  通过合取则 D5 冻结 S4 包。
+  - v3-D2 同数据基线重建（`docs/R7_S3_V3_D2_BASELINES.md`，索引记录
+    `record:s3-v3-d2-baselines`；五年 train-only 气候态 2400 步/16 桶各 150、persistence
+    重跑；逐 lead 全覆盖 472/468/460/444/428；t2m 气候态 RMSE 3.5171/3.4889/3.4375/3.3534/
+    3.3184 K（较 v2 单年 6h −0.0233 K 略强）；整轮 992.4s、planned 1800/hard 3600、
+    overrun 0、网络 0、GPU 0；test 未读）。
+  - v3-D3 same-data incumbent 重训（`docs/R7_S3_V3_D3_INCUMBENT.md`，索引记录
+    `record:s3-v3-d3-incumbent`；三 seed 初始化逐位复现 actual C、400 L6 updates×3、
+    v3 train 2360/2340 窗口；整轮 5404.5s、planned 5400/hard 10800、**软超 4.5s 记录**、
+    GPU-h 1.5012；t2m 6h skill +0.4148/+0.2610/+0.4248（三 seed 全正且高于 v2-D3 对应
+    seed）、12h +0.0285/−0.0805/+0.0756、24h 一正、48–72h 全负；正 seed-cell 51/50/45/2/0；
+    test 未读）。
+- **未做**：D5 S4 冻结包（三候选轮均未过守门合取；v3 预算剂量轮为当前在跑的最后一候选）；
+  #79 typed-evidence 的 needs-review 处置（留作 S3 内可选候选，须新协议才可再筛）。
+- **下一动作**：v3 预算剂量筛选（`outputs/r7_s3_v3_budget_dose_20261006_attempt01`，
+  l6×1600 对 v3-D3 控制；协议在运行开始时冻结并通过盘上重读校验，digest 记入该 attempt 的
+  protocol.json；离线跑；主格 t2m 6h/12h 三 seed + u10/v10/mslp 守门合取，预声明对照同时含
+  v2-BC 的 17 守门 cell）；通过合取则 D5 冻结 S4 包，否则如实登记读数并回到独立开发
+  （长 lead 机制 / 数据制度分析）。节点软预算已超（8.0116 vs 2.5），按决策 0030 记 overrun
+  继续，硬上限 12.0 内。
