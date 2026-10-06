@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 39; human-review candidates: 1
+Records: 40; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -98,6 +98,23 @@ Records: 39; human-review candidates: 1
   - The process vs matched_generic separation remains unresolved and is not re-adjudicated here.
 - Excluded from runnable candidates: Read-only identity and gap audit of an already-frozen archive; it produces no new candidate and must not be launched as a run. Any follow-up training needs a new frozen protocol.
 - Recorded metrics (not recomputed): cells_recomputed=6885, gpu_hours=0.0, incumbent=process/K4/400updates, max_relative_deviation=6.629694519880788e-16, network_requests=0, positive_seed_cells_of_255=118, t2m_12h_skill_seed_mean=-0.1911, t2m_6h_skill_seed_mean=0.2073, t2m_72h_skill_seed_mean=-3.4061, test_read=false
+
+## s3-batch3-20182021-acquisition
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `95` (not a scientific score)
+- Evidence: `docs/R7_S3_BATCH3_ACQUISITION.md` (SHA256 `277bd3df1668b9a0ade36610d41ec003620d1644d9ba6317f043836b8d0fe0e3`)
+- Evidence commit: `7a225038122fa7383d2924a4ac30d2a1540b01a0`; experiment commit: `7a225038122fa7383d2924a4ac30d2a1540b01a0`
+- Protocol SHA256: `df9cc22b75f608ef4493c8165ffc65ae66d8d5adb7b9aed8c925c92e790772c5`; data identity: `not recorded`
+- Reason: Batch-3 four-season regional ERA5 acquisition (2018-2021) completed for the expanded v3 train split: 16/16 parts downloaded real under the frozen per-part budgets with zero failures, network 57,084,203,564 bytes (98.4% of the 58 GB plan, 53.2% of the 100 GiB hard cap), and the merged 1920-stamp source 97d29bca... with exact-union timestamp re-validation. The per-part watchdog (timeout -k 60 -s TERM 1860) and the 16 GiB decode cap inherited from the batch-2 fixes were never triggered across all 16 parts - consistent with the fixes but not an independent validation of the original failure root causes. This is the registered response to the S3-UB/S3-BC budget readings: on one train year the update budget saturates, so the next capability investment is data. No part was deleted, no resume is claimed, no synthetic substitute exists, and test (2023) was never opened.
+- Limitations:
+  - one ROI (27-43N/107-123E) at 0.25 degrees; each season block is a 30-day sample, not a full season
+  - acquisition only: no store is built here, no model is trained or scored, and no scientific claim is made
+  - the per-part watchdog was never actually triggered, so its effectiveness is preventive, not demonstrated
+  - the batch did not reproduce either batch-2 failure mode, so it cannot confirm those root causes were eliminated
+  - the network readings are host-level recv-byte deltas and include minor non-process traffic (same method as batch-2)
+- Excluded from runnable candidates: Data acquisition only: this record produces no model result and no skill number. It feeds the v3 confirmation instance build (train 2017-2021 / val 2022 / test 2023); any scientific comparison requires its own frozen protocol under the S4 gate.
+- Recorded metrics (not recomputed): download_seconds_successful_parts=20709.0, gpu_hours=0.0, hard_cap_seconds=43200, merged_source_bytes=309074574, network_bytes=57084203564, network_hard_cap_bytes=107374182400, parts_failed_kept=0, parts_successful=16, per_part_deadline_seconds=1800.0, per_part_decoded_gib_cap_final=16.0, planned_network_bytes=58000000000, planned_seconds=21600, stamps=1920, synthetic_fallback=false, test_read=false
 
 ## s3-confirmation-instance-v2
 

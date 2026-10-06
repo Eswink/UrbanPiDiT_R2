@@ -171,6 +171,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3-D4 R-C lead-coverage 候选筛选（注册负结果） | 0.8472 | 4.0378 | `docs/R7_S3_D4_RC_CANDIDATE.md`（索引记录 `record:s3-d4-rc-candidate`）；`outputs/r7_s3_d4_rc_candidate_20261005_attempt01/`（two_step×200 更新 vs D3 l6×400，FLOP 匹配比2.0018；整轮 3050.1s，planned 5400/hard 10800，overrun 0；主格 worsened 6h +0.9202/+1.0247/+0.9263、12h +1.3219/+1.4587/+1.2365；守门 34 个正 cell；候选停当轮；test未读） |
 | S3-UB 更新预算筛选 l6×800（主格 supported / 守门未过，注册混合） | 1.1010 | 5.1388 | `docs/R7_S3_UB_UPDATE_BUDGET.md`（索引记录 `record:s3-ub-update-budget`）；`outputs/r7_s3_update_budget_20261006_attempt01/`（l6×800 vs D3 l6×400，训练 FLOP 比 2.0；整轮 3963.6s，planned 5400/hard 10800，overrun 0；主格 supported 6h −0.6170/−0.5144/−0.3985、12h −0.6191/−0.5105/−0.3487，全 lead 15/15 负；t2m skill 6h +0.49/+0.50/+0.50、12h +0.18/+0.21/+0.19、24h +0.08/+0.12/+0.16；守门 48h/72h 13 个正 cell 未过→不进 S4；test未读） |
 | S3-BC 预算曲线 l6×1600（主格 supported / 守门 17 cell，注册混合） | 1.3716 | 6.5104 | `docs/R7_S3_BUDGET_CURVE.md`（索引记录 `record:s3-budget-curve`）；`outputs/r7_s3_budget_curve_20261006_attempt01/`（l6×1600 vs D3 l6×400，训练 FLOP 比 4.0；整轮 4937.6s，planned 5400/hard 10800，overrun 0；主格 supported 6h −0.6427/−0.7454/−0.9084、12h −0.6195/−0.7667/−0.9339；t2m seed 均值 skill 6h +0.595/12h +0.333/24h +0.226；守门 48h/72h 17 个正 cell 比 800 更差→预算响应判归数据；test未读） |
+| S3 batch-3 四季 2018–2021 获取（0 GPU） | 0.0000 | 6.5104 | `docs/R7_S3_BATCH3_ACQUISITION.md`（索引记录 `record:s3-batch3-20182021-acquisition`）；`outputs/r7_s3_batch3_20182021/`（16/16 part 成功、零失败、无重试；网络 57,084,203,564 字节=计划 98.4%、硬上限 53.2%；16 part 合计 20,709.0s（planned 21600/hard 43200）；合并源 `97d29bca…` 1920 stamps；batch-2 两项修正（16 GiB 解码上限、per-part 看门狗）本批未被触发；test未读） |
 | **合计已用** | **6.5104** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费；S3 节点软预算 2.5 已超 4.0104（按决策 0030 软超继续并记录），硬上限 12.0 未触 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
@@ -185,9 +186,11 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   三年度、三 sidecar、决策 0039 修正）已发布；D2（同数据气候态/persistence，0 GPU）、
   D3（同数据 incumbent 重训，1.0987 GPU-h）、D4（R-C 候选筛选，0.8472 GPU-h，注册负结果）、
   UB（更新预算筛选，1.1010 GPU-h，注册混合）与 BC（预算曲线，1.3716 GPU-h，注册混合）
-  已完成并登记；batch-3（2018–2021 四季，train 扩年）获取进行中；S3 轮次目标见
-  `docs/goals/s3-confirmation-baselines-and-candidate.md`（同数据基线 + incumbent 重训 +
-  R-C 候选筛选 + S4 冻结包）。
+  已完成并登记；batch-3（2018–2021 四季，train 扩年）获取**已完成并登记**（16/16 part、
+  零失败、57,084,203,564 字节、合并源 `97d29bca…` 1920 stamps，见
+  `docs/R7_S3_BATCH3_ACQUISITION.md`）；下一步是在三源合并的 v3 实例上重建控制与预算读数。
+  S3 轮次目标见 `docs/goals/s3-confirmation-baselines-and-candidate.md`（同数据基线 + incumbent
+  重训 + R-C 候选筛选 + S4 冻结包）。
 - **S3-D2/D3 已做并实核**：D2 在 v2 val 上重建 train-only (month,hour) 气候态（480 步 fit、
   16 桶各 30、fail-closed）与 persistence，逐 lead 全覆盖 472/468/460/444/428，墙钟 553.1s
   （planned 1800/hard 3600、overrun 0、网络 0）。D3 三 seed 从**逐位复现 actual C 的初始化**

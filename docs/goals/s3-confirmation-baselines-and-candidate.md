@@ -120,11 +120,17 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
     12h −0.077→+0.196→+0.333、24h −0.116→+0.120→+0.226（400/800/1600）；守门 48h/72h 正 cell
     13→17 恶化 → 预声明预算响应判归「单年数据预算饱和，下一投资是数据」；整轮 4937.6s、
     overrun 0、GPU-h 1.3716；test 未读）。
+  - batch-3 四季 2018–2021 获取（`docs/R7_S3_BATCH3_ACQUISITION.md`，索引记录
+    `record:s3-batch3-20182021-acquisition`；**16/16 part 成功、零失败、无重试**；
+    网络 57,084,203,564 字节 = 计划 98.4%、硬上限 53.2%；16 part 合计 20,709.0s；
+    合并源 `97d29bca…`、1920 stamps、时间 2018-01-01T00→2021-10-30T18；batch-2 的
+    16 GiB 解码上限与 per-part 看门狗两项修正本批未被触发（预防性约束，非独立验证）；
+    GPU 0、付费 0；test 未读）。
 - **未做**：D5 S4 冻结包（三候选轮均未过守门合取）；#79 typed-evidence 的 needs-review
   处置（留作 S3 内可选候选，须新协议才可再筛）。
-- **下一动作**：batch-3（2018–2021 四季）正在获取（16 part、每 part +30 天四季块，watchdog
-  1860s；协议 `df9cc22b…`、preflight/review 已冻结）。完成后按 multi_year_source 合并、
-  经 prepare_r7_local 只读 preflight 与自审后向全新路径 --write 建 **train 2017-2021 /
+- **下一动作**：按 multi_year_source 把三个已注册源（S1 2017 `3b2c2dad…` 480 stamps +
+  batch-3 `97d29bca…` 1920 与 batch-2 `44a24ca0…` 960，共 3360 stamps）合并，经
+  prepare_r7_local 只读 preflight 与自审后向全新路径 --write 建 **train 2017-2021 /
   val 2022 / test 2023** 扩年实例（v3），并在其上重建同数据 climatology 与 incumbent/控制，
   再以预算读数（1600 或按 v3 数据量重定标）做单因素候选筛选；节点软预算已超（6.5104 vs 2.5），
   按决策 0030 记 overrun 继续，硬上限 12.0 内；通过合取则 D5 冻结 S4 包。
