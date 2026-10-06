@@ -109,12 +109,11 @@ PARAM_MAX = 8
 FILE_LOC_HARD_MAX = 600
 FUNC_BODY_HARD_MAX = 200
 
-# R-009 AST baseline: 2026-10-05 S1 data prep 1600/4355 -> 1622/4404 (+22/+49).
-# New counterproofs: S1 season-plan/merge/failure-receipt guards (11) and the
-# #77 position-encoding band discriminators (11); nothing removed.
-# Prior: 2026-10-04 campaign-state 1574/4299 -> 1586/4333 (+12/+34).
-# Full tests scan: 160 tracked test_*.py plus conftest.py; not pytest instances.
-# Campaign paths/ledger/evidence counterproofs; updates in docs/rules/CHANGELOG.md.
+# R-009 AST baseline: 2026-10-06 S3 same-case gap 1843/4896 -> 1867/4992 (+24/+96).
+# New metadata/identity/physical-metric/owned-deadline counterproofs and wheel check.
+# Prior recorded baseline: 1622/4404; intervening S2/S3 additions retained.
+# Full scan: 182 tracked tests Python files; not parameterized pytest instances.
+# Only baseline constants/comments change; rules and exceptions stay unchanged.
 # 2026-09-28 (#71/#72 round two): 715/1778 -> 722/1795. Seven test instances were
 # added in one file (the pooled-query capacity control: the bitwise-flat read at every
 # position and its uneven counterpart, pooling taken before the position encoding,
@@ -195,8 +194,8 @@ FUNC_BODY_HARD_MAX = 200
 # that no call site carries a second copy of the step, three-path agreement, the role
 # marker criterion, poisoned future fields against both the forward and the halting
 # selection, checkpoint round trip, BF16). Nothing was removed.
-TEST_FUNCTION_BASELINE = 1622
-ASSERT_BASELINE = 4404
+TEST_FUNCTION_BASELINE = 1867
+ASSERT_BASELINE = 4992
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")

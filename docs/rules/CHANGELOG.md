@@ -2,6 +2,24 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-06 — S3同case差距诊断的新增覆盖与实测基线同步
+
+新增独立core/driver及两套CPU正反证，原heldout-only evaluator/model/data/科学合同不改；
+判读核冻结24case顺序/单位/全源scope-path-bytes/strict双端点modelcode与原climatology，
+从逐case MSE重算RMSE/skill、equal-case组和train-val gap。原owned watchdog/每spawn共驻余量复用。
+新core566、driver377、测试593/306行，600/200硬限及全部冻结例外不变；C类实测marker
+R-019b1008→1025、R-02063→64、R-02180→82、R-02261→64、R-02343→44如实登记。
+
+R-009只读AST：起点HEAD **1843/4896** → 暂存树 **1867/4992**（+24函数/+96断言，182个测试Python文件）。
+两新文件13+11函数、72+23断言，已有installed-wheel新增1条成员断言及子进程模块来源核验；
+无删弱旧测试。原登记1622/4404到本轮起点的+221/+492来自既有S2/S3提交，全部保留但不冒称本轮工作。
+`tools/check_conventions.py`仅更新基线常量与既有说明，testing/MIGRATION同步；
+判定函数/规则级别/规模阈值/例外清单未改，基线与源码计数不等于运行通过或天气真值。
+
+qualification失败保留：Process接口错误`forecaster`→实际`backbone`仅修调用，
+synthetic协议共享dict由deepcopy修隔离；停止/未完整或并行改fixture失败不冒称PASS。
+真实诊断要等完整回归、独立prelaunch与精确代码/协议冻结，本条不产生科学接受。
+
 ## 2026-10-05 深夜 — 源指纹契约修正：去 64 MiB 降级（决策 0039）
 
 `data/preprocess/r7_preflight.py` 的 `source_fingerprint()` 删除 `max_hash_bytes=64*2**20`

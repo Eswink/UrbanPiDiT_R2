@@ -124,6 +124,7 @@ main/issue关闭/force/mirror、常驻/cron；不自裁goal complete。
   冻结证据 `docs/R7_S3_LONG_ROLLOUT_SCREEN.md`，replay soft1800/hard3600、spawn≥4370MiB。
 - 600条training norm全部clip前>1，四50更新块末vs首改善但41/43块3→4反弹，样本不同不判收敛；
   零GPU摘要已登记证据§8，不能据此盲目加剂量。
-- 下一具体动作：核本轮登记精确SHA CI，再在S3设计/冻结同case train/val差距诊断或数据制度分析，
+- 下一具体动作：核本轮登记85ae0ea精确CI37535580456，再沿新当前轮
+  `docs/goals/s3-same-case-gap-diagnostic.md`在S3设计/冻结同case train/val差距诊断，
   不碰test、不无限重复本剂量、不把advance-to-S4-freeze当科学接受、不自行complete。
   原failed/negative保持，不做optimizer更新于probe，不读val/test评分，不自行complete。
