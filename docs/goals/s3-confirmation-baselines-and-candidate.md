@@ -151,7 +151,7 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
     planned 6300/hard 12600、**soft overrun 583.9s**、GPU-h 1.9122；test 未读）。
 - **未做**：D5 S4 冻结包（四候选轮——D4 R-C、UB、BC、v3-BD——均未过守门合取）；
   #79 typed-evidence 的 needs-review 处置（留作 S3 内可选候选，须新协议才可再筛）；
-  rollout微调完整三seed读数（attempt01失败，只得两seed部分证据）。
+  直接48/72h长物理监督的新协议/可行性/训练（尚未执行）；短rollout三seed完整读数已完成负结果。
 - **新增失败登记**：rollout微调attempt01接续v3-BD1600、two_step×200/LR2e-5；seed41/42完整，
   43最新checkpoint60但无endpoint/评估。合作式deadline超射：planned4200/hard7200，实际9473.920853s；
   failed/partial无三seed verdict，全部2.6316GPU-h累计12.5554，原输出保留不续跑。
@@ -159,9 +159,13 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
 - **已核勘误**：v3-D3 seed42 6h并未优于v2；v3-BD正气候态skill51/51/50/4/0与优于D3的
   51/51/50/22/14分开；同剂量守门未过不证明体量因果或收敛。
   见 `docs/R7_S3_V3_NUMERICAL_ERRATA.md`（原证据页和digest保留，终态不变）。
-- **下一动作**：新路径attempt02仅单次重执行同一科学配方，不合并旧seed；冻结soft5400/hard10800/
-  per-seed3600，GPU1 UUID `GPU-9d1624af-9d77-aa7c-0620-b6cb778f4ced`默认共驻，父进程仅对自己
-  启动的直接Popen实施TERM/KILL/reap；准备/训练/评估/判读全计时限。先CPU故障反证与独立代码核验，
-  再冻结完整身份协议并离线运行；真实错误即停，不自动retry。0030/0038无总GPU-h许可上限，
-  12.0仅旧会计标尺；前瞻cap16.0/used12.5554/remaining3.4446，旧协议不可回改。
-  若微调合取仍未过则登记该假说剂量负结果，返回真正不同长lead机制；不挑seed、不读test。
+- **attempt02已完成并登记**：新路径单次同配方重执行，不合并旧seed；三seed各200更新、全部val
+  评分齐，主格supported但守门13/45仍正→registered-negative，不進S4。4222.618677s（soft5400/
+  hard10800/perseed3600），overrun0、五workerexit0/reaped/no-signals，保守1.1729GPU-h。
+  独立765格核算与seed41归档代码五lead15CSV精确重放已做；两个评分前重放失败保留，全重放0.3871。
+  `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md`；索引 `record:s3-v3-rollout-ft-attempt02` 与
+  `record:s3-v3-rollout-ft-replay`，方向累计14.1154，cap16.0/remaining1.8846仅会计字段。
+  精确执行SHA8466c2d的CI37468877656 completed/success；fullsuite3758passed/3skipped。
+- **下一动作**：短双步剂量终结，不再retry。直接覆盖48/72h生成历史的独立监督机制先做新train-only
+  metadata preflight、CPU全BPTT梯度/目标隔离反证及有界FP32 12步可行性；可行后新协议/新输出
+  冻结三seed训练。0030/0038无总GPU-h许可上限，不改旧协议/判据，不挑seed、不读test。

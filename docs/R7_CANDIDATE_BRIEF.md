@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 46; human-review candidates: 1
+Records: 48; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -56,6 +56,40 @@ Records: 46; human-review candidates: 1
 - CI run: `37437569014`
 - Excluded from runnable candidates: Failed partial attempt. No S4 promotion, in-place resume, or combining seeds with a future attempt.
 - Recorded metrics (not recomputed): elapsed_seconds_total=9473.920853041112, gpu_hours=2.6316, hard_cap_seconds=7200, hard_overrun_seconds=2273.920853041112, network_bytes=0, partial_gate_failure_cells_on_two_completed_seeds=8, planned_seconds=4200, seed43_latest_saved_update=60, seeds_completed=[41, 42], soft_overrun_seconds=5273.920853041112, status=failed-incomplete, test_read=false
+
+## s3-v3-rollout-ft-attempt02
+
+- Outcome class: `mixed`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md` (SHA256 `3148ca389bde923fa905f4ebb316db55bd139e7efad53733db65c4229f9a6ac8`)
+- Evidence commit: `9eed6aea30e64b21b0a11c5f85120fecaed180a4`; experiment commit: `8466c2def5df04276cc70db530d667ba9b674d44`
+- Protocol SHA256: `f02fec53283154aed8c123435f3f415ca31b653dd86df35e6152a5922581ae37`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: Complete three-seed FP32 short rollout continuation of registered v3-BD1600 endpoints:200 two_step updates with fresh AdamW, LR2e-5,K4. Primary6/12h supported on all seeds; same-data zero-tolerance u10/v10/mslp gate still13/45 positive cells (48h5,72h8), so unchanged conjunction is registered-negative. Parent gate17->13, not cleared. t2m climatology skill positive6/12/24h but allnegative48/72h. Whole round4222.618677s, soft5400/hard10800 unexceeded;1.1729GPU-h. Test unscored; no old-seed combining. Independent artifact audit and archived code replay validate identity and numbers, not scientific acceptance.
+- Limitations:
+  - Development full-region point estimates on one ROI and four30-day season blocks per year, not full-year confirmation
+  - Same-data400-update control pinned, not retrained; fieldedrecipe costs5.000889xcontrol FLOPs, not compute-matched
+  - Highest config-reproducible; no bitwise training, significance or convergence claim
+  - t2m48/72h remains worse than climatology and gate remains negative
+  - Original failed attempt01 costs preserved separately
+- CI run: `37468877656`
+- Excluded from runnable candidates: Frozen conjunction negative: primary supported but13gate failures; short two-step dose stopped, noS4/test/goal acceptance.
+- Recorded metrics (not recomputed): candidate_vs_parent_gate_failures=3, decision=registered-negative, elapsed_seconds_total=4222.618676601909, evaluation_loop_seconds=2337.532753434032, fielded_flop_ratio_vs_400_control=5.000889131555414, fine_tune_updates=200, gate_failures={"by_lead": {"48": 5, "72": 8}, "by_seed": {"41": 3, "42": 5, "43": 5}, "total": 13}, gate_passed=false, gpu_hours=1.1729, hard_cap_seconds=10800, hard_overrun_seconds=0.0, lambda12=0.5, lower_rmse_vs_incumbent_cells_of_51={"12": 51, "24": 51, "48": 32, "6": 51, "72": 18}, lr=2e-05, mode=two_step, network_bytes=0, parent_gate_failures=17, parent_updates=1600, planned_seconds=5400, positive_skill_vs_climatology_cells_of_51={"12": 51, "24": 51, "48": 5, "6": 51, "72": 0}, primary_verdict=supported, seed_count=3, seed_mean_t2m_skill={"12": 0.3314290588573388, "24": 0.2738378251991728, "48": -0.5574060415928729, "6": 0.5969316038321609, "72": -1.337276897688223}, soft_overrun_seconds=0.0, t2m_skill_vs_climatology={"41": {"12": 0.319684013168843, "24": 0.27046129443648403, "48": -0.4948879469079752, "6": 0.5915128000455058, "72": -1.1015964750729772}, "42": {"12": 0.3303053093514684, "24": 0.24523729026654306, "48": -0.6943867545963651, "6": 0.5962876919072397, "72": -1.7119073294075333}, "43": {"12": 0.3442978540517051, "24": 0.30581489089449143, "48": -0.4829434232742782, "6": 0.6029943195437373, "72": -1.1983268885841585}}, test_read=false, training_seconds=295.6816603280604
+
+## s3-v3-rollout-ft-replay
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md` (SHA256 `3148ca389bde923fa905f4ebb316db55bd139e7efad53733db65c4229f9a6ac8`)
+- Evidence commit: `9eed6aea30e64b21b0a11c5f85120fecaed180a4`; experiment commit: `8466c2def5df04276cc70db530d667ba9b674d44`
+- Protocol SHA256: `a0a9b50088223f5917d6681fccc22bc99d87982aca7830d8991d4ddf87f6933e`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: Archived exact8466c2d seed41 five full-val lead replay:15CSV hashes identical, per-case MSE maxdifference0.0; archived three-seed collector exact JSON representation hash matches. Two preforecast wrapper failures retained; numerical-sort/string-sort attribution independently verified and oneULP/decision mutations rejected. Successful1375.732820s plusfailed8.888093/8.885239s all charged0.3871GPU-h. Not a scientific confirmation or new candidate.
+- Limitations:
+  - Seed41 only actual forecast replay; otherseeds artifact-audited, no retraining
+  - Exact observed bytes on same machine do not establish cross-platform bitwise reproducibility
+  - Failed wrapper attempts and immutable originalrun outputs preserved
+- CI run: `37468877656`
+- Excluded from runnable candidates: Identity/configuration reproducibility audit only, not new scientific evidence or candidate.
+- Recorded metrics (not recomputed): archived_collector_json_sha256=3b6b9af8a0cb343685713ec817bf22def9675461e3e0b2a12bc8363aa8a6c7b7, case_max_relative_mse_difference=0.0, elapsed_seconds_failed_replays=[8.888092823326588, 8.88523946981877], elapsed_seconds_successful_replay=1375.7328200042248, exact_csv_count=15, failed_preforecast_replays=2, gpu_hours=0.3871, hard_cap_seconds_each=3600, hard_overrun_seconds=0.0, network_bytes=0, planned_seconds_each=1800, soft_overrun_seconds=0.0, successful_replays=1, test_read=false
 
 ## s3-ub-update-budget
 
