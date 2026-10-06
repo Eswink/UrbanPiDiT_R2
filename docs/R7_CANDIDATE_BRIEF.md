@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 48; human-review candidates: 1
+Records: 50; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -25,6 +25,40 @@ Records: 48; human-review candidates: 1
   - this is the final declared budget dose on the v2 instance; further budget questions move to the batch-3 expanded instance
 - Excluded from runnable candidates: 混合筛选结果：第二剂（也是 v2 实例最后一剂）更新预算因子。主格 t2m/full 6h/12h 三 seed 同号 supported（6h −0.6427/−0.7454/−0.9084 K、12h −0.6195/−0.7667/−0.9339 K，24h 亦全负），近三 lead 的 skill 单调改善（seed 均值 6h +0.595、12h +0.333、24h +0.226）；但 u10/v10/mslp 守门在 48h/72h 有 17 个正 cell（比 800 更新的 13 个更差），按冻结合取规则不进 S4。预声明的预算响应读数据此判为「单年数据下预算饱和」：下一能力投资是数据（batch-3 扩年在并行获取）而非继续加预算。不构成任何科学声明。
 - Recorded metrics (not recomputed): budget_response=t2m improves monotonically at 6/12/24h through 1600 updates while the long-lead gate cost grows 13->17 cells; on one train year the budget is saturating and the next capability investment is data, candidate_updates=1600, control_updates=400, correction_evidence=docs/R7_S3_V3_NUMERICAL_ERRATA.md, delta_t2m_full_rmse_vs_incumbent={"41": {"12": -0.9339, "6": -0.9084}, "42": {"12": -0.7667, "6": -0.7454}, "43": {"12": -0.6195, "6": -0.6427}}, dose=2, elapsed_seconds_total=4937.6, first_spawn_to_last_reap_seconds=4884.4, gate_failures=17, gate_failures_by_lead={"48": 8, "72": 9}, gpu_hours=1.3716, hard_cap_seconds=10800.0, mode=l6, network_bytes=0, planned_seconds=5400.0, positive_seed_cells_of_51={"12": 51, "24": 51, "48": 7, "6": 51, "72": 2}, primary_verdict={"12": "supported", "6": "supported", "overall": "supported"}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, t2m_seed_mean_skill_12h=0.333, t2m_seed_mean_skill_24h=0.226, t2m_seed_mean_skill_6h=0.595, test_read=false, updates_ratio=4.0
+
+## s3-long-rollout-feasibility
+
+- Outcome class: `engineering-positive`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_LONG_ROLLOUT_FEASIBILITY.md` (SHA256 `90fa24c695159971961138d4e84c9a2ade3d3266a9b5f3768c219253651766ae`)
+- Evidence commit: `5abc3da3c8aaae3af76ad8d68f5a987db213b0cc`; experiment commit: `66836d29dd257a11b0c946c8af2622b35042a5ce`
+- Protocol SHA256: `78b96197cf0021f36ea326e351b3ac5e7762d753b95da00595751f53d6f27ee5`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: One train-only FP32 K4 twelve-step full-BPTT feasibility sample from registered seed41 parent1600 completed with finite loss/gradient; no optimizer update or val/test score. Independently verified source/data/window/archive/checkpoint/scope/cost identities. Whole round1605.013031s, not7.454s measured GPU section. Co-resident reservedpeak2.244GiB requires4346MiB subsequent spawn headroom. Not scientific screening or candidate acceptance.
+- Limitations:
+  - One train sample/no optimizer update, not200updates/three-seed validation or scientific confirmation
+  - Four30-day seasonal blocks peryear are not complete-year coverage; no test scored
+  - External actualC non-Python configuration remains a pinned separate dependency, absent fromcodezip; derivedchunks notexhaustively rehashed
+  - Highest config-reproducible, not bitwise training; supported aten FLOPs omitoperations; CUDA peak belongs to ownedworker
+  - Independent audit soft600 exceeded268.864359s underhard1200; costs retained
+- CI run: `37500335847`
+- Excluded from runnable candidates: Engineering feasibility only; no weather skill, no S4/test/goal acceptance. Separate compatible screen still required.
+- Recorded metrics (not recomputed): audit_soft_overrun_seconds=268.864359, audit_wall_seconds=868.864359, bf16=false, elapsed_seconds_total=1605.0130310487002, forward_backward_flops=393859201536, gpu_hours=0.4458, gradient_norm=40.788814544677734, hard_cap_seconds=3600, hard_overrun_seconds=0.0, loss=1.2537332773208618, measured_gpu_section_seconds=7.454262489452958, network_bytes=0, next_spawn_required_free_bytes=4557111296, owned_cuda_allocated_peak_bytes=2274339328, owned_cuda_reserved_peak_bytes=2409627648, physical_steps=12, physical_weights=[1.0, 0.5, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5], planned_seconds=1800, reasoning_steps=4, soft_overrun_seconds=0.0, test_read=false, train_windows_excluded=220, train_windows_input=2360, train_windows_usable=2140, workers_exit0_reaped_no_signals=3
+
+## s3-long-rollout-feasibility-replay
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_LONG_ROLLOUT_FEASIBILITY.md` (SHA256 `90fa24c695159971961138d4e84c9a2ade3d3266a9b5f3768c219253651766ae`)
+- Evidence commit: `5abc3da3c8aaae3af76ad8d68f5a987db213b0cc`; experiment commit: `66836d29dd257a11b0c946c8af2622b35042a5ce`
+- Protocol SHA256: `8f7e2f6ce24dc58b5f06f351bb5d6393c18dd47035910db87ff1c0b8f5a6c3a8`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: Archived exact66836d2 one train sample forward/backward replay completed in a separate fresh output. SampleID/loss/all12steplosses/gradientnorm/supportedFLOPs exactly equal original; source/data identities rebound inside each owned worker. Both workersexit0/reaped/nosignals. Independent terminal28checks agree. Whole846.060163s fully charged. No optimizer/val/test scoring or new scientific evidence.
+- Limitations:
+  - Single train sample, not training/evaluation/three-seed weather confirmation
+  - Observed exact arithmetic not cross-platform bitwise reproducibility; actualC externalconfiguration limit retained
+  - Terminal audit deliberately inherits previousfullsource/window/checkpointinventoryaudit, notindependent runtime tracing
+- CI run: `37500335847`
+- Excluded from runnable candidates: Identity/configuration reproducibility audit only, not a runnable candidate or scientific PASS.
+- Recorded metrics (not recomputed): elapsed_seconds_total=846.0601630983874, exact_field_count=5, gpu_hours=0.235, hard_cap_seconds=3600, hard_overrun_seconds=0.0, network_bytes=0, owned_cuda_reserved_peak_bytes=2409627648, per_step_loss_count=12, planned_seconds=1800, replay_driver_sha256=7e71f0409e015963c8a48e532b28fb796c8c9511d761f3fb310bcb4fe012c2c0, required_free_bytes=4557111296, restoration_accepted_sha256=3b3680057e75cbceda14f359124961faf4b9f83e0b6ee6befed86a85331cd152, soft_overrun_seconds=0.0, terminal_audit_checks=28, terminal_audit_wall_seconds=85.756, test_read=false
 
 ## s3-v3-numerical-errata
 

@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-状态：active / implementation，2026-10-06。唯一主计划仍为
+状态：active / feasibility-audited，2026-10-06。唯一主计划仍为
 `docs/goals/main-model-climatology-campaign.md`；本文件是其S3新的独立开发轮，不是S4或新方向。
 
 ## §0 Objective（单段，实测1123字符）
@@ -83,13 +83,27 @@ main/issue关闭/force/mirror、常驻/cron；不自裁goal complete。
 
 ## §8 进度与交接
 
-- 状态：active，implementation；S3未变、S4未开始。
+- 状态：active，feasibility-audited；S3未变、S4未开始。
 - 前轮negative/精确重放/全部费用已登记，来源 `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md`。
 - 新dataset/objective84、runner22、证据消费23个CPU反证加规模anti-drift，共**130 passed/172.22s**；
   metadata-only已核2140/220/window digest。独立prelaunch审阅的三项保障缺口已修复并定向复查无剩余
-  essential blocker（不代runtime/科学接受），尚未冻结或运行真实probe/screen，
-  尚未读取新增真实训练天气字段，不能预写可行性或分数。
+  essential blocker（不代runtime/科学接受）。执行提交
+  `66836d29dd257a11b0c946c8af2622b35042a5ce`已推工作分支，精确主CI
+  [37500335847](https://github.com/Eswink/UrbanPiDiT_R2/actions/runs/37500335847) completed/success，
+  conventions/campaign/index及全部测试步骤均success；17实验workflow标签未触发skipped不作实验通过。
 - 全量回归已实跑：**3887 passed、3 skipped、6 warnings，1169.72s**；三个optional真实fixture跳过
   不作天气验证通过。37阻断conventions、48条index/canonical brief、显式campaign和goal结构均通过；
   四条历史campaign notes照实保留。
-- 下一具体动作：commit/精确archive/freeze独立probe，再依冻结出口决定screen，原失败/negative保持。
+- 已冻结并启动fresh单样本FP32 probe：`outputs/r7_s3_long_rollout_probe_20261006_attempt01/`，
+  code.zip SHA256 `3d8a494587f41e0b33e6f5e1cbab9de8b23ad552433282e4dd03022cf28eabb8`；
+  planned1800/hard3600不变。三个worker均exit0/reaped/no signals，整轮1605.013031s、overrun0，
+  单样本loss1.2537332773/gradient40.788814545有限，FLOPs393859201536，reservedpeak2409627648bytes；
+  下一spawn门至少4346MiB。仅可行性，无optimizer更新或val/test评分。独立身份/成本/作用域已复核，
+  audit soft600超268.864359s而hard1200未触，审阅限制与scalar-conversion警告均保留；
+  冻结证据 `docs/R7_S3_LONG_ROLLOUT_FEASIBILITY.md`已提交5abc3da，index两record已登记。
+  归档同样本重放完整846.060163s、五测量字段精确同原值，两个workerreaped/no signals；
+  独立terminal审阅28项通过（85.756s），所有重放作用域/再现等级限制保留。原probe0.4458+replay0.2350
+  全額计费，方向累计14.7962，index现50条；没有optimizer更新或val/test评分。
+- 下一具体动作：使用同一执行archive66836d2另冻三seed一次screen，先核compatible feasibility、
+  known peak与新spawn至少4346MiB余量，再执行200更新/全部val/独立审阅和归档重放登记。
+  原failed/negative保持，不做optimizer更新于probe，不读val/test评分，不自行complete。

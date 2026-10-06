@@ -180,14 +180,16 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 v3 rollout 微调 attempt01（failed / partial，全部计费） | 2.6316 | 12.5554 | `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT01.md`（索引 `record:s3-v3-rollout-ft-attempt01`）；planned4200/hard7200，实际9473.920853s（软超5273.920853、硬超2273.920853），seed41/42完整、seed43仅最新checkpoint60，无三seed verdict；合作式deadline迟延，阻塞根因未确认；旧attempt保留不续跑 |
 | S3 v3 rollout 微调 attempt02（完整 registered-negative） | 1.1729 | 13.7283 | `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md`（索引 `record:s3-v3-rollout-ft-attempt02`）；三seed200双步，主格supported、守门13/45未过，不进S4；4222.618677s，planned5400/hard10800，overrun0，五worker均reaped、无signals，test未评分 |
 | S3 v3 rollout 归档重放（含两次评分前失败） | 0.3871 | 14.1154 | `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md` §7（索引 `record:s3-v3-rollout-ft-replay`）；1375.732820s成功+8.888093/8.885239s失败全额计费；seed41五lead15CSV精确相同，三seedcollector JSON表示精确匹配；非新科学确认 |
-| **合计已用** | **14.1154** | — | 本方向基数0，历史V2不重复计费，所有失败全额登记；前瞻cap20.0/remaining5.8846为会计字段，不是总GPU-h许可上限（0030/0038）；原cap16.0保留历史，短双步剂量终结，不再retry；新长监督probe soft1800/hard3600、可行后screen soft6300/hard12600/perseed3600前瞻冻结 |
+| S3 12步FP32可行性probe（单train样本，无optimizer/评分） | 0.4458 | 14.5612 | `docs/R7_S3_LONG_ROLLOUT_FEASIBILITY.md`（索引 `record:s3-long-rollout-feasibility`）；1605.013031s、soft1800/hard3600、overrun0；有限loss/gradient，reservedpeak2.244GiB，全部3workerreaped/no signals；独立身份/窗口/费用核验，非科学通过 |
+| S3 12步probe归档单样本重放（精确同配置再现） | 0.2350 | 14.7962 | `docs/R7_S3_LONG_ROLLOUT_FEASIBILITY.md` §5（索引 `record:s3-long-rollout-feasibility-replay`）；846.060163s、overrun0，两workerreaped/no signals；sample/loss/12steploss/gradient/FLOPs精确一致，非训练/val/test确认 |
+| **合计已用** | **14.7962** | — | 本方向基数0，历史V2不重复计费，所有失败全额登记；前瞻cap20.0/remaining5.2038为会计字段，不是总GPU-h许可上限（0030/0038）；原cap16.0及旧累计保持历史，短双步剂量终结，不再retry；长监督可行性/重放已实核登记，下一screen soft6300/hard12600/perseed3600另冻 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-long-rollout-supervision.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 14.1154, "remaining_gpu_h": 5.8846, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-long-rollout-supervision.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 14.7962, "remaining_gpu_h": 5.2038, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -254,7 +256,11 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   新长监督前瞻会计cap20.0/remaining5.8846不作许可闸门；文献仅为假说，见
   `docs/R7_S3_ROLLOUT_TRAINING_SOURCES.md`。新轮次goal
   `docs/goals/s3-long-rollout-supervision.md`：新12步train窗口2140/220、全BPTT CPU反证、
-  严格状态/协议消费已实现，probe/screen仍未执行，先全量回归及独立工程审阅。
+  严格状态/协议消费已实现，全量3887passed/3skipped与独立工程审阅已过（均非科学接受）。
+  执行SHA66836d2精确主CI37500335847success；单样本FP32 probe完整且独立身份/成本已核，
+  1605.013031s、reservedpeak2.244GiB、无optimizer更新/评分。归档重放846.060163s且五字段精确相同，
+  独立terminal审阅28项通过，证据5abc3da/index50条已登记，合计0.6808GPU-h加入累计14.7962。
+  下一spawn至少4346MiB；screen未启动，不自裁科学通过。
 - **S3-D4 已做并实核（注册负结果）**：R-C lead-coverage 候选（two_step l6+0.5·l12）在 FLOP 匹配
   下（比 2.0018、相对差 0.09%）以 200 更新对 D3 的 400 更新 l6 incumbent 做单因素筛选；预注册主格
   t2m/full 6h/12h 三 seed 全部同号为正（6h +0.9202/+1.0247/+0.9263 K、12h +1.3219/+1.4587/
@@ -349,6 +355,11 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 - **下一动作（S3，2026-10-06）**：短 rollout attempt02 的独立审阅、归档重放与全额登记已完成，
   实际三seed主格supported但守门13/45未过→registered-negative，不再重执行短双步配方。
   新轮 `docs/goals/s3-long-rollout-supervision.md` 已实现直接48/72h监督和12步全BPTT，
-  train-only metadata实测2140窗口/220排除，CPU反证/独立静态修复齐；先完成全量回归、
-  精确commit/archive后冻结单样本FP32可行性，可行后再新冻结三seed一次筛选。
+  train-only metadata实测2140窗口/220排除，CPU反证/独立静态修复与全量回归齐；
+  精确commit/archive66836d2已完成且主CI37500335847success。fresh单样本FP32 probe在
+  `outputs/r7_s3_long_rollout_probe_20261006_attempt01/`完整，1605.013031s、soft1800/hard3600、
+  overrun0、全额0.4458GPU-h已加入索引/账本，单train样本有限loss/gradient、reservedpeak2.244GiB，
+  独立身份/成本/作用域已核。归档probe重放846.060163s/0.2350GPU-h、五测量字段精确相同，
+  独立terminal核验和全額登记齐，当前累计14.7962。下一动作另冻三seed一次screen，
+  沿原权重/预算/判读不变，先核compatible feasibility及下一spawn余量至少4346MiB。
   v3-D2/D3已登记，不重复重建；S4/test未启动，现有四季30日块不等于完整未见全年确认。
