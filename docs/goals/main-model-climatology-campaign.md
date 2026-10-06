@@ -176,14 +176,16 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 v3-D2 同数据基线重建（train-only 五年气候态，CPU 零 GPU） | 0.0000 | 6.5104 | `docs/R7_S3_V3_D2_BASELINES.md`（索引记录 `record:s3-v3-d2-baselines`）；`outputs/r7_s3_v3_d2_baselines_20261006_attempt01/`（气候态 2400 步、16 桶各 150；逐 lead 全覆盖 472/468/460/444/428；t2m RMSE 3.5171/3.4889/3.4375/3.3534/3.3184 K；整轮 992.4s，planned 1800/hard 3600，overrun 0；网络 0；test未读） |
 | S3 v3-D3 同数据 incumbent 重训（GPU 3 seed） | 1.5012 | 8.0116 | `docs/R7_S3_V3_D3_INCUMBENT.md`（索引记录 `record:s3-v3-d3-incumbent`）；`outputs/r7_s3_v3_d3_incumbent_20261006_attempt01/`（三 seed 初始化逐位复现 actual C；400 L6 updates×3；整轮 5404.5s，planned 5400/hard 10800，**软超 4.5s 已记录**；t2m 6h skill +0.4148/+0.2610/+0.4248、12h +0.0285/−0.0805/+0.0756；正 seed-cell 51/50/45/2/0；test未读） |
 | S3 v3 预算剂量 l6×1600（主格 supported / 守门 17 cell 持平，注册负结果） | 1.9122 | 9.9238 | `docs/R7_S3_V3_BUDGET_DOSE.md`（索引记录 `record:s3-v3-budget-dose`）；`outputs/r7_s3_v3_budget_dose_20261006_attempt01/`（l6×1600 vs v3-D3 l6×400，FLOP 比 4.0；整轮 6883.9s，planned 6300/hard 12600，**soft overrun 583.9s 记录**；主格 supported 6h −0.4328/−0.7607/−0.4444、12h −0.5351/−0.7199/−0.5158；守门 17 cell（24h 1/48h 7/72h 9）与 v2-BC 同剂量持平→数据响应判「长 lead 不由体量单独修复」，不进 S4；test未读） |
-| **合计已用** | **9.9238** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费；S3 节点软预算 2.5 已超 7.4238（按决策 0030 软超继续并记录），硬上限 12.0 内、余 2.0762 |
+| S3 v3 数值语义独立勘误（只读，零 GPU） | 0.0000 | 9.9238 | `docs/R7_S3_V3_NUMERICAL_ERRATA.md`（索引 `record:s3-v3-numerical-errata`）；正气候态 skill 格数与优于控制的格数分开，seed42 跨实例方向纠正，旧输出/证据 digest 不改；非新实验 |
+| S3 v3 rollout 微调 attempt01（failed / partial，全部计费） | 2.6316 | 12.5554 | `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT01.md`（索引 `record:s3-v3-rollout-ft-attempt01`）；planned4200/hard7200，实际9473.920853s（软超5273.920853、硬超2273.920853），seed41/42完整、seed43仅最新checkpoint60，无三seed verdict；合作式deadline迟延，阻塞根因未确认；旧attempt保留不续跑 |
+| **合计已用** | **12.5554** | — | 本方向基数0，历史V2不重复计费；失败全额登记。旧12.0会计标尺已超0.5554，不是总许可上限（0030/0038）；下一独立attempt02冻结soft5400/hard10800/seed3600，会计标尺前瞻16.0、剩余3.4446，原协议不改 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-confirmation-baselines-and-candidate.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 12.0, "used_gpu_h": 9.9238, "remaining_gpu_h": 2.0762, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-confirmation-baselines-and-candidate.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 16.0, "used_gpu_h": 12.5554, "remaining_gpu_h": 3.4446, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -215,11 +217,11 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   train-only (month,hour) 气候态（2400 步、16 桶各 150、fail-closed）并重跑 persistence，
   逐 lead 全覆盖 472/468/460/444/428；整轮 992.4s（planned 1800/hard 3600、overrun 0、网络 0、
   GPU 0）；t2m 气候态 RMSE 3.5171/3.4889/3.4375/3.3534/3.3184 K——五年气候态比 v2 单年略强
-  （6h −0.0233 K），抬高了同实例模型需越过的横杆。v3-D3 三 seed 同样从**逐位复现 actual C 的
+  （6h精确差−0.0232 K；48/72h略弱），不能说全lead更强。v3-D3 三 seed 同样从**逐位复现 actual C 的
   初始化**出发，在 v3 train（2360/2340 窗口）上完成 400 次 L6 更新并评 val 全 cohort；整轮
   5404.5s（planned 5400/hard 10800，**软超 4.5s 按决策 0030 记录**），保守 GPU-h 1.5012，
   邻居共驻未 signal。**同数据 t2m/full skill**：6h 三 seed 全正（+0.4148/+0.2610/+0.4248，
-  全部高于 v2-D3 对应 seed），12h 两正一负（+0.0285/−0.0805/+0.0756，v2 为一正），24h 一正，
+  seed41/43 高于 v2-D3、seed42 低于 v2-D3 的0.2754），12h 两正一负（+0.0285/−0.0805/+0.0756，v2 为一正），24h 一正，
   48–72h 仍全负；全 17 变量正 seed-cell 计数 51/50/45/2/0。跨实例数值为描述性（非受控比较），
   但近 lead 形状的改善与「扩数据是下一投资方向」的预判方向一致。两页均带索引记录
   （`record:s3-v3-d2-baselines`、`record:s3-v3-d3-incumbent`），test 全程未读。
@@ -227,12 +229,22 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   （三 seed、val-only、FLOP 比 4.0）。主格 t2m/full 6h/12h 三 seed 同号 supported
   （6h −0.4328/−0.7607/−0.4444 K、12h −0.5351/−0.7199/−0.5158 K，24h 亦全负）；但守门
   u10/v10/mslp **17 个正 cell（24h 1、48h 7、72h 9）与 v2-BC 同剂量完全持平**——预声明的
-  数据响应分支判「长 lead 退化不是单靠训练体量在这个剂量上能修复的」；同剂量 seed 均值
-  skill 对各自气候态几乎不变（6h +0.595→+0.5915、12h +0.333→+0.3171、24h +0.226→+0.2082），
-  扩年的近端收益主要体现在 400 更新控制端。按冻结合取规则 `registered-negative` →
+  数据响应分支的观察为「同剂量全45格仍17个失败」；但≥48h实际17→16，不做训练体量因果推断。
+  同剂量 seed 均值skill对各自气候态（6h +0.595→+0.5915、12h +0.333→+0.3171、24h +0.226→+0.2082）
+  只是跨实例描述；v3-BD正气候态skill格数为51/51/50/4/0，优于D3为51/51/50/22/14。
+  已登记独立勘误 `docs/R7_S3_V3_NUMERICAL_ERRATA.md`。按冻结合取规则 `registered-negative` →
   候选停当轮、不进 D5/S4。整轮 6883.9s（planned 6300/hard 12600，**soft overrun 583.9s 记录**），
   保守 GPU-h 1.9122；共驻 GPU0、三 gate 全过；test 未读。索引记录
   `record:s3-v3-budget-dose`。
+- **S3 v3 rollout微调attempt01（失败已登记）**：two_step×200接续v3-BD1600；41/42训练评估完整，
+  43仅update20/40/60、无endpoint，实际9473.920853s超冻结hard7200。原attempt/driver不改，
+  无三seed verdict；全额2.6316GPU-h计入累计12.5554。独立审阅核身份/40评估组匹配，
+  两seed partial守门仍8格反例；不升级S4、不与未来attempt拼seed。合作式deadline缺少外部看门狗，
+  阻塞根因未确认。证据 `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT01.md`。
+- **前瞻接续**：同配方仅一次attempt02重执行；soft5400/hard10800/seed3600、GPU1共驻，
+  父own-Popen看门狗只终止自己的子PID，CPU准备/训练/评估/判读均受截止约束；CPU反证与独立审查先行。
+  原12.0会计标尺到达不是许可闸门（0030/0038），前瞻会计cap16.0/used12.5554/remaining3.4446，
+  不改原协议。文献只为假说，实际引用核对见 `docs/R7_S3_ROLLOUT_TRAINING_SOURCES.md`。
 - **S3-D4 已做并实核（注册负结果）**：R-C lead-coverage 候选（two_step l6+0.5·l12）在 FLOP 匹配
   下（比 2.0018、相对差 0.09%）以 200 更新对 D3 的 400 更新 l6 incumbent 做单因素筛选；预注册主格
   t2m/full 6h/12h 三 seed 全部同号为正（6h +0.9202/+1.0247/+0.9263 K、12h +1.3219/+1.4587/

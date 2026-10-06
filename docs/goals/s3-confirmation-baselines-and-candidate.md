@@ -134,13 +134,13 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
   - v3-D2 同数据基线重建（`docs/R7_S3_V3_D2_BASELINES.md`，索引记录
     `record:s3-v3-d2-baselines`；五年 train-only 气候态 2400 步/16 桶各 150、persistence
     重跑；逐 lead 全覆盖 472/468/460/444/428；t2m 气候态 RMSE 3.5171/3.4889/3.4375/3.3534/
-    3.3184 K（较 v2 单年 6h −0.0233 K 略强）；整轮 992.4s、planned 1800/hard 3600、
+    3.3184 K（6h精确差−0.0232 K，近3lead略强但48/72h略弱）；整轮 992.4s、planned 1800/hard 3600、
     overrun 0、网络 0、GPU 0；test 未读）。
   - v3-D3 same-data incumbent 重训（`docs/R7_S3_V3_D3_INCUMBENT.md`，索引记录
     `record:s3-v3-d3-incumbent`；三 seed 初始化逐位复现 actual C、400 L6 updates×3、
     v3 train 2360/2340 窗口；整轮 5404.5s、planned 5400/hard 10800、**软超 4.5s 记录**、
-    GPU-h 1.5012；t2m 6h skill +0.4148/+0.2610/+0.4248（三 seed 全正且高于 v2-D3 对应
-    seed）、12h +0.0285/−0.0805/+0.0756、24h 一正、48–72h 全负；正 seed-cell 51/50/45/2/0；
+    GPU-h 1.5012；t2m 6h skill +0.4148/+0.2610/+0.4248（三seed全正，41/43高于v2-D3、
+    42低于其0.2754）、12h +0.0285/−0.0805/+0.0756、24h 一正、48–72h 全负；正 seed-cell 51/50/45/2/0；
     test 未读）。
   - v3 预算剂量筛选（`docs/R7_S3_V3_BUDGET_DOSE.md`，索引记录
     `record:s3-v3-budget-dose`；l6×1600 vs v3-D3 l6×400，FLOP 比 4.0；**注册负结果**：
@@ -150,10 +150,18 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
     （6h +0.595→+0.5915、12h +0.333→+0.3171、24h +0.226→+0.2082）；整轮 6883.9s、
     planned 6300/hard 12600、**soft overrun 583.9s**、GPU-h 1.9122；test 未读）。
 - **未做**：D5 S4 冻结包（四候选轮——D4 R-C、UB、BC、v3-BD——均未过守门合取）；
-  #79 typed-evidence 的 needs-review 处置（留作 S3 内可选候选，须新协议才可再筛）。
-- **下一动作**：回到独立开发（冻结规则：候选停当轮）。v2/v3 两个实例、四剂读数的一致图案是
-  「近端（6–24h）t2m 稳健优于同数据控制与气候态，远端（48–72h）风场守门持续失败且不被
-  预算或数据扩年修复」——下一候选应针对长 lead 本身（固定 1600 剂量下的单因素：更长 lead
-  的深监督 / 损失空间加权 / 误差增长结构），仍须先冻结新协议再跑，可负担空间为剩余
-  2.0762 GPU-h（cap 12.0 − 已用 9.9238）；若无法在剩余预算内得到过合取的候选，
-  节点以「注册负结果齐全 + S4 尚未就绪」收口并如实交接。
+  #79 typed-evidence 的 needs-review 处置（留作 S3 内可选候选，须新协议才可再筛）；
+  rollout微调完整三seed读数（attempt01失败，只得两seed部分证据）。
+- **新增失败登记**：rollout微调attempt01接续v3-BD1600、two_step×200/LR2e-5；seed41/42完整，
+  43最新checkpoint60但无endpoint/评估。合作式deadline超射：planned4200/hard7200，实际9473.920853s；
+  failed/partial无三seed verdict，全部2.6316GPU-h累计12.5554，原输出保留不续跑。
+  `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT01.md`、`record:s3-v3-rollout-ft-attempt01`。
+- **已核勘误**：v3-D3 seed42 6h并未优于v2；v3-BD正气候态skill51/51/50/4/0与优于D3的
+  51/51/50/22/14分开；同剂量守门未过不证明体量因果或收敛。
+  见 `docs/R7_S3_V3_NUMERICAL_ERRATA.md`（原证据页和digest保留，终态不变）。
+- **下一动作**：新路径attempt02仅单次重执行同一科学配方，不合并旧seed；冻结soft5400/hard10800/
+  per-seed3600，GPU1 UUID `GPU-9d1624af-9d77-aa7c-0620-b6cb778f4ced`默认共驻，父进程仅对自己
+  启动的直接Popen实施TERM/KILL/reap；准备/训练/评估/判读全计时限。先CPU故障反证与独立代码核验，
+  再冻结完整身份协议并离线运行；真实错误即停，不自动retry。0030/0038无总GPU-h许可上限，
+  12.0仅旧会计标尺；前瞻cap16.0/used12.5554/remaining3.4446，旧协议不可回改。
+  若微调合取仍未过则登记该假说剂量负结果，返回真正不同长lead机制；不挑seed、不读test。
