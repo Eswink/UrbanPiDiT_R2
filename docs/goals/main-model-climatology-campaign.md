@@ -180,14 +180,14 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 v3 rollout 微调 attempt01（failed / partial，全部计费） | 2.6316 | 12.5554 | `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT01.md`（索引 `record:s3-v3-rollout-ft-attempt01`）；planned4200/hard7200，实际9473.920853s（软超5273.920853、硬超2273.920853），seed41/42完整、seed43仅最新checkpoint60，无三seed verdict；合作式deadline迟延，阻塞根因未确认；旧attempt保留不续跑 |
 | S3 v3 rollout 微调 attempt02（完整 registered-negative） | 1.1729 | 13.7283 | `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md`（索引 `record:s3-v3-rollout-ft-attempt02`）；三seed200双步，主格supported、守门13/45未过，不进S4；4222.618677s，planned5400/hard10800，overrun0，五worker均reaped、无signals，test未评分 |
 | S3 v3 rollout 归档重放（含两次评分前失败） | 0.3871 | 14.1154 | `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md` §7（索引 `record:s3-v3-rollout-ft-replay`）；1375.732820s成功+8.888093/8.885239s失败全额计费；seed41五lead15CSV精确相同，三seedcollector JSON表示精确匹配；非新科学确认 |
-| **合计已用** | **14.1154** | — | 本方向基数0，历史V2不重复计费，所有失败全额登记；cap16.0/remaining1.8846为会计字段，不是总GPU-h许可上限（0030/0038）；短双步假说剂量终结，不再retry，下一独立长lead监督协议前瞻冻结 |
+| **合计已用** | **14.1154** | — | 本方向基数0，历史V2不重复计费，所有失败全额登记；前瞻cap20.0/remaining5.8846为会计字段，不是总GPU-h许可上限（0030/0038）；原cap16.0保留历史，短双步剂量终结，不再retry；新长监督probe soft1800/hard3600、可行后screen soft6300/hard12600/perseed3600前瞻冻结 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-confirmation-baselines-and-candidate.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 16.0, "used_gpu_h": 14.1154, "remaining_gpu_h": 1.8846, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-long-rollout-supervision.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 14.1154, "remaining_gpu_h": 5.8846, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -251,8 +251,10 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   两次评分前失败也保留，全重放另记0.3871，累计14.1154。证据
   `docs/R7_S3_V3_ROLLOUT_FT_ATTEMPT02.md`，索引两个record均已登记。执行SHA8466c2d精确CI
   37468877656 completed/success，全量3758passed/3skipped（不是科学接受），2023未评分。
-  现会计cap16.0/remaining1.8846不作许可闸门；文献仅为假说，见
-  `docs/R7_S3_ROLLOUT_TRAINING_SOURCES.md`。
+  新长监督前瞻会计cap20.0/remaining5.8846不作许可闸门；文献仅为假说，见
+  `docs/R7_S3_ROLLOUT_TRAINING_SOURCES.md`。新轮次goal
+  `docs/goals/s3-long-rollout-supervision.md`：新12步train窗口2140/220、全BPTT CPU反证、
+  严格状态/协议消费已实现，probe/screen仍未执行，先全量回归及独立工程审阅。
 - **S3-D4 已做并实核（注册负结果）**：R-C lead-coverage 候选（two_step l6+0.5·l12）在 FLOP 匹配
   下（比 2.0018、相对差 0.09%）以 200 更新对 D3 的 400 更新 l6 incumbent 做单因素筛选；预注册主格
   t2m/full 6h/12h 三 seed 全部同号为正（6h +0.9202/+1.0247/+0.9263 K、12h +1.3219/+1.4587/
@@ -344,8 +346,9 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   发布 process-scale sidecar（S4 incumbent 契约的必需输入）——按决策 0039 修 `source_fingerprint`
   为总是全文哈希（更强身份，非放宽），v2 与 v1 的天气字节逐位相同，v1 缺陷构建保留不删。
   详情 `docs/R7_S3_CONFIRMATION_INSTANCE.md`；修正提交 8fa6e0c。
-- **下一动作（S3，2026-10-06）**：完成 rollout attempt02 的独立审阅、归档代码临时重放与全额登记。
-  实际三 seed 主格 supported，但守门13/45未过，按原规则registered-negative；不再重执行短双步配方。
-  登记后转向直接覆盖48/72h生成历史的独立监督假说：新train-only多目标精确时间preflight、
-  CPU全BPTT/泄漏反证和有界FP32可行性先行，可行后才另冻结三seed训练。
+- **下一动作（S3，2026-10-06）**：短 rollout attempt02 的独立审阅、归档重放与全额登记已完成，
+  实际三seed主格supported但守门13/45未过→registered-negative，不再重执行短双步配方。
+  新轮 `docs/goals/s3-long-rollout-supervision.md` 已实现直接48/72h监督和12步全BPTT，
+  train-only metadata实测2140窗口/220排除，CPU反证/独立静态修复齐；先完成全量回归、
+  精确commit/archive后冻结单样本FP32可行性，可行后再新冻结三seed一次筛选。
   v3-D2/D3已登记，不重复重建；S4/test未启动，现有四季30日块不等于完整未见全年确认。
