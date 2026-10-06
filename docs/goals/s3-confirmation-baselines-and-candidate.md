@@ -126,11 +126,15 @@ outputs；不合成数据；不付费/租卡/独占；不 main 合并/force/--mi
     合并源 `97d29bca…`、1920 stamps、时间 2018-01-01T00→2021-10-30T18；batch-2 的
     16 GiB 解码上限与 per-part 看门狗两项修正本批未被触发（预防性约束，非独立验证）；
     GPU 0、付费 0；test 未读）。
+  - v3 扩年确认实例（`docs/R7_S3_CONFIRMATION_INSTANCE_V3.md`，索引记录
+    `record:s3-confirmation-instance-v3`；三源合并 `bc2ff9cf…` 3360 stamps、
+    combine 重放字节确定；store 窗口 2360/472/472、17 通道、`raw_state_GiB` 0.899；
+    三 sidecar `f76c373d…`/`0e87fe40…`/`6f9bedbf…` 绑定 data identity `2564eeaf…`；
+    全流程约 509s（planned 1200/hard 3600）；v2 保留不取代；GPU 0、网络 0；test 未读）。
 - **未做**：D5 S4 冻结包（三候选轮均未过守门合取）；#79 typed-evidence 的 needs-review
-  处置（留作 S3 内可选候选，须新协议才可再筛）。
-- **下一动作**：按 multi_year_source 把三个已注册源（S1 2017 `3b2c2dad…` 480 stamps +
-  batch-3 `97d29bca…` 1920 与 batch-2 `44a24ca0…` 960，共 3360 stamps）合并，经
-  prepare_r7_local 只读 preflight 与自审后向全新路径 --write 建 **train 2017-2021 /
-  val 2022 / test 2023** 扩年实例（v3），并在其上重建同数据 climatology 与 incumbent/控制，
-  再以预算读数（1600 或按 v3 数据量重定标）做单因素候选筛选；节点软预算已超（6.5104 vs 2.5），
-  按决策 0030 记 overrun 继续，硬上限 12.0 内；通过合取则 D5 冻结 S4 包。
+  处置（留作 S3 内可选候选，须新协议才可再筛）；v3 上的控制重建与预算读数（下一动作）。
+- **下一动作**：在 v3 实例上重建同数据 climatology 与 persistence（D2-analog，CPU 零 GPU，
+  逐 lead 全覆盖）与 400 更新 incumbent 控制（D3-analog，三 seed 逐位初始化保真），
+  再以预算读数（单因素，1600 或按 5× 数据量重定标）检验「数据扩年提升 pattern skill」假设；
+  节点软预算已超（6.5104 vs 2.5），按决策 0030 记 overrun 继续，硬上限 12.0 内；
+  通过合取则 D5 冻结 S4 包。

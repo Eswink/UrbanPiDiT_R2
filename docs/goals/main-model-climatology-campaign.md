@@ -172,6 +172,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3-UB 更新预算筛选 l6×800（主格 supported / 守门未过，注册混合） | 1.1010 | 5.1388 | `docs/R7_S3_UB_UPDATE_BUDGET.md`（索引记录 `record:s3-ub-update-budget`）；`outputs/r7_s3_update_budget_20261006_attempt01/`（l6×800 vs D3 l6×400，训练 FLOP 比 2.0；整轮 3963.6s，planned 5400/hard 10800，overrun 0；主格 supported 6h −0.6170/−0.5144/−0.3985、12h −0.6191/−0.5105/−0.3487，全 lead 15/15 负；t2m skill 6h +0.49/+0.50/+0.50、12h +0.18/+0.21/+0.19、24h +0.08/+0.12/+0.16；守门 48h/72h 13 个正 cell 未过→不进 S4；test未读） |
 | S3-BC 预算曲线 l6×1600（主格 supported / 守门 17 cell，注册混合） | 1.3716 | 6.5104 | `docs/R7_S3_BUDGET_CURVE.md`（索引记录 `record:s3-budget-curve`）；`outputs/r7_s3_budget_curve_20261006_attempt01/`（l6×1600 vs D3 l6×400，训练 FLOP 比 4.0；整轮 4937.6s，planned 5400/hard 10800，overrun 0；主格 supported 6h −0.6427/−0.7454/−0.9084、12h −0.6195/−0.7667/−0.9339；t2m seed 均值 skill 6h +0.595/12h +0.333/24h +0.226；守门 48h/72h 17 个正 cell 比 800 更差→预算响应判归数据；test未读） |
 | S3 batch-3 四季 2018–2021 获取（0 GPU） | 0.0000 | 6.5104 | `docs/R7_S3_BATCH3_ACQUISITION.md`（索引记录 `record:s3-batch3-20182021-acquisition`）；`outputs/r7_s3_batch3_20182021/`（16/16 part 成功、零失败、无重试；网络 57,084,203,564 字节=计划 98.4%、硬上限 53.2%；16 part 合计 20,709.0s（planned 21600/hard 43200）；合并源 `97d29bca…` 1920 stamps；batch-2 两项修正（16 GiB 解码上限、per-part 看门狗）本批未被触发；test未读） |
+| S3 确认实例 v3 发布（train 2017–2021 五年扩年，0 GPU） | 0.0000 | 6.5104 | `docs/R7_S3_CONFIRMATION_INSTANCE_V3.md`（索引记录 `record:s3-confirmation-instance-v3`）；`outputs/r7_s3_confirmation_train2017_2021_v3/`（三源合并 `bc2ff9cf…` 3360 stamps、combine 重放字节确定；store 窗口 2360/472/472、17 通道、`raw_state_GiB` 0.899；三 sidecar `f76c373d…`/`0e87fe40…`/`6f9bedbf…` 绑定 data identity `2564eeaf…`；全流程约 509s，planned 1200/hard 3600；v2 保留不取代；test未读） |
 | **合计已用** | **6.5104** | — | 本方向起始会计基数0.0000；历史V2的9.9139保留在旧master，不复制重复计费；S3 节点软预算 2.5 已超 4.0104（按决策 0030 软超继续并记录），硬上限 12.0 未触 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
@@ -188,7 +189,10 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   UB（更新预算筛选，1.1010 GPU-h，注册混合）与 BC（预算曲线，1.3716 GPU-h，注册混合）
   已完成并登记；batch-3（2018–2021 四季，train 扩年）获取**已完成并登记**（16/16 part、
   零失败、57,084,203,564 字节、合并源 `97d29bca…` 1920 stamps，见
-  `docs/R7_S3_BATCH3_ACQUISITION.md`）；下一步是在三源合并的 v3 实例上重建控制与预算读数。
+  `docs/R7_S3_BATCH3_ACQUISITION.md`）；**v3 扩年确认实例已发布并登记**（train 2017–2021 /
+  val 2022 / test 2023，三源合并 `bc2ff9cf…` 3360 stamps、窗口 2360/472/472、三 sidecar
+  绑定 data identity `2564eeaf…`，见 `docs/R7_S3_CONFIRMATION_INSTANCE_V3.md`）；下一步是在
+  v3 上重建控制（气候态/persistence、400 更新 incumbent）并跑预算读数。
   S3 轮次目标见 `docs/goals/s3-confirmation-baselines-and-candidate.md`（同数据基线 + incumbent
   重训 + R-C 候选筛选 + S4 冻结包）。
 - **S3-D2/D3 已做并实核**：D2 在 v2 val 上重建 train-only (month,hour) 气候态（480 步 fit、

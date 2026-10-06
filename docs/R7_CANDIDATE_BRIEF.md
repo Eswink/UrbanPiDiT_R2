@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 40; human-review candidates: 1
+Records: 41; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -132,6 +132,23 @@ Records: 40; human-review candidates: 1
   - sidecar counts differ by definition (change-scale 476 train pairs; process-scale 480 history+target frames; typed-evidence 476 pairs over 4.02M field values), all bound to the same data identity
 - Excluded from runnable candidates: Data preparation and identity correction only: this record is not a runnable candidate and produces no skill number. The fair confirmation on this instance requires its own frozen protocol under the S4 gate.
 - Recorded metrics (not recomputed): combined_source_bytes=231865649, combined_source_sha256=e0b51616a7c31f29b9832221e74522f8b5cad4b36b72b0d7586d140787e3b42d, gpu_hours=0.0, hard_cap_seconds=3600, network_bytes=0, planned_seconds=1200, raw_gib_cap=3.0, raw_state_gib=0.3853, sidecar_identities={"change_scale": "6fd9e77456de6378b2c3116a16614541d771c81c2e24871e267c178cce311465", "process_scale": "b28300145a2d9785099fdce1358b9f142470bddb54683eb092c2e3e531d7cd7e", "typed_evidence": "8760894aa4c83ba38761111d044e37518d5b4d1a82860bd443a9b0cb25bc4495"}, stamps=1440, test_read=false, test_windows=472, train_windows=472, v1_defect_build_kept=true, v2_wall_seconds_approx=123, val_windows=472, weather_bytes_identical_to_v1=true
+
+## s3-confirmation-instance-v3
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `95` (not a scientific score)
+- Evidence: `docs/R7_S3_CONFIRMATION_INSTANCE_V3.md` (SHA256 `1449a1c5f8ed222d360d44fbd058f2f6d826c87b84f515d2d95cdc82d29a5915`)
+- Evidence commit: `b9f1ae90dec3f9d049b876469c822a69f80800dd`; experiment commit: `b9f1ae90dec3f9d049b876469c822a69f80800dd`
+- Protocol SHA256: `2151c91e79865541a5235854e077cc206e6865346e52ccdeb32e03a965d2461a`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: S3 confirmation instance v3 published: three verified four-season batches (2017 S1, 2018-2021 batch-3, 2022/2023 batch-2) combined into one 3360-stamp source (bc2ff9cf..., byte-deterministic on re-run) and built into a year-split store (train 2017-2021 / val 2022 / test 2023) with train-only normalization and process diagnostics. This is the registered response to the S3-UB/S3-BC budget readings: on one train year the update budget saturates, so the next capability investment is data. All three train-only sidecars (change-scale f76c373d..., process-scale 0e87fe40..., typed-evidence 6f9bedbf...) are published, load back through their strict loaders, and bind one data identity 2564eeaf.... Whole build about 509 s vs planned 1200 / hard 3600, zero network, zero GPU, test never scored.
+- Limitations:
+  - one ROI (27-43N/107-123E) at 0.25 degrees, 17 channels; season blocks are 30-day samples, not full seasons
+  - store preparation only: no model result and no scientific claim; the test split is never scored
+  - the fingerprint audit attests source byte identity, not the scientific adequacy of the source
+  - v2 and v3 instance trees coexist; any formal run must point explicitly at its own root (mixed identities are refused)
+  - five train years vs one does not by itself establish that more data improves pattern skill; that is the v3 screens' hypothesis
+- Excluded from runnable candidates: Data preparation only: this record is not a runnable candidate and produces no skill number. The controls, the budget-dose screen and (if a candidate survives development) the unseen-year confirmation round run on this instance under their own frozen protocols.
+- Recorded metrics (not recomputed): build_wall_seconds_approx=509, combine_determinism_replay_seconds=41.1, combined_source_bytes=540856239, combined_source_sha256=bc2ff9cfadcce604fc243bb999b3c430d5164d17fcf1de201273716a5db065f8, gpu_hours=0.0, hard_cap_seconds=3600, network_bytes=0, planned_seconds=1200, raw_gib_cap=3.0, raw_state_gib=0.8990317583084106, sidecar_identities={"change_scale": "f76c373da82073e627cb2bed9300b1e6146aafe9c4a15dec368e06e9d455d595", "process_scale": "0e87fe406764663c3cc59289bbc3c04a8e18adbc4d99a3e9cf59ac52cf8545a4", "typed_evidence": "6f9bedbf79237c3724358377f49ec7a6d571bfd7e3b0a1a69ef4bc231008dbde"}, stamps=3360, test_read=false, test_windows=472, train_windows=2360, val_windows=472
 
 ## s3-batch2-20222023-acquisition
 
