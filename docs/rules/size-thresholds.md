@@ -7,7 +7,17 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=970 R-020=59 R-021=74 R-022=57 R-023=40 -->
+<!-- measured: R-019=0 R-019b=970 R-020=61 R-021=75 R-022=57 R-023=41 -->
+
+**2026-10-06 S3 v3 筛查驱动复算（暂存后实测）**：R-020 **59→61**、R-021 **74→75**、R-023 **40→41**，
+归因于 v3 三驱动与共享模块：`scripts/study_r7_s3_v3_budget_dose.py`（438 行，R-021 命中其一；
+`run_seed` 与 `main` 在 400 目标线间，R-052 的 200 行硬上限内）、
+`scripts/study_r7_s3_v3_d3_incumbent.py`（`protocol_payload` 100 行）与
+`training/r7_s3_v3_screen.py`（`contract_for` 10 个参数，R-023 的 8 参数目标是 C 类报告）；
+其余新文件（`scripts/study_r7_s3_v3_d2_baselines.py`、`tests/test_r7_s3_v3_studies.py`）
+无新命中；R-019=0/R-019b=970/R-022=57 保持。数字取自暂存树上 checker 实跑
+（与 `test_size_report_counts_match_the_checker` 同一调用路径），不放宽任何阈值、
+规则或冻结例外清单。
 
 **2026-10-06 S3 budget-curve 筛查复算（暂存后实测）**：R-020 **58→59**、R-021 **73→74**，归因于
 新筛查脚本 `scripts/study_r7_s3_budget_curve.py`（594 行，其 `run_seed` 与 `main` 均在 200 行内；
