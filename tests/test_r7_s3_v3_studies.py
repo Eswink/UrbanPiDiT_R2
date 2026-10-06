@@ -32,6 +32,7 @@ def _load(name):
 d2v3 = _load("study_r7_s3_v3_d2_baselines")
 d3v3 = _load("study_r7_s3_v3_d3_incumbent")
 bdv3 = _load("study_r7_s3_v3_budget_dose")
+rft3 = _load("study_r7_s3_v3_rollout_ft")
 
 from training import r7_s3_v3_screen as screen  # noqa: E402
 
@@ -179,3 +180,84 @@ def test_verdict_bindings_match_the_shared_implementation():
         "advance-to-S4-freeze"
     assert bdv3.advance_decision({"overall": "worsened"}, {"passed": True}) == \
         "registered-negative"
+
+
+def test_rollout_ft_frozen_constants():
+    assert rft3.FT_MODE == "two_step"
+    assert (rft3.FT_UPDATES, rft3.FT_LAMBDA12, rft3.FT_WARMUP) == (200, 0.5, 10)
+    assert rft3.FT_LR == 2e-5
+    assert rft3.PARENT_ENDPOINT_UPDATES == 1600
+    assert rft3.PARENT_GATE_FAILURES_VS_CONTROL == 17
+    assert rft3.PRIMARY_LEADS == (6, 12)
+    assert rft3.GATE_TOLERANCE == 0.0
+    assert rft3.SEEDS == (41, 42, 43)
+    assert rft3.PLANNED_SECONDS_ROUND < rft3.HARD_CAP_SECONDS_ROUND
+    # the round must fit the remaining campaign cap at freeze: worst case below 12.0 GPU-h
+    assert 9.9238 + rft3.HARD_CAP_SECONDS_ROUND / 3600.0 <= 12.0
+
+
+def test_rollout_ft_response_text_binds_the_registered_reading():
+    assert "17 positive cells" in rft3.ROLLOUT_RESPONSE_TEXT
+    assert "never a pass/fail" in rft3.ROLLOUT_RESPONSE_TEXT
+    assert "1600" in rft3.PRIMARY_DECISION_TEXT or "rollout_ft" in rft3.PRIMARY_DECISION_TEXT
+    assert "relative MSE change" in rft3.GATE_DECISION_TEXT
+
+
+def test_rollout_ft_parent_pins_reject_missing_and_drift(tmp_path, monkeypatch):
+    monkeypatch.setattr(rft3, "PARENT_RUN", tmp_path / "absent")
+    with pytest.raises(FileNotFoundError):
+        rft3.pinned_parent(41)
+    with pytest.raises(FileNotFoundError):
+        rft3.parent_pins()
+    fake_run = tmp_path / "parent"
+    directory = fake_run / "seed41" / "training" / "candidate"
+    directory.mkdir(parents=True)
+    (directory / "update_0001600.pt").write_bytes(b"not the registered endpoint")
+    (fake_run / "result.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(rft3, "PARENT_RUN", fake_run)
+    with pytest.raises(RuntimeError, match="drifted"):
+        rft3.pinned_parent(41)
+    with pytest.raises(RuntimeError, match="drifted"):
+        rft3.parent_pins()
+
+
+def test_rollout_ft_parent_pins_match_the_registered_files():
+    result = rft3.PARENT_RUN / "result.json"
+    if not result.is_file():
+        pytest.skip("registered v3-BD parent is not present on this machine")
+    import hashlib
+    assert hashlib.sha256(result.read_bytes()).hexdigest() == rft3.PARENT_RESULT_SHA256
+    for seed in rft3.SEEDS:
+        path, observed = rft3.pinned_parent(seed)
+        assert observed == rft3.PARENT_CHECKPOINT_SHA256[seed]
+
+
+def test_rollout_ft_contract_uses_the_declared_two_step_mode():
+    spec = {"architecture": "window", "in_channels": 17, "out_channels": 17,
+            "history_steps": 2, "dim": 8, "depth": 1, "heads": 2, "window_size": 4,
+            "patch_size": 2, "anchored_processes": 8, "free_processes": 8}
+    initialization = {"parent_checkpoint": "registered", "parent_endpoint_updates": 1600}
+    contract = screen.contract_for(41, spec, initialization, "ab" * 32, "cd" * 32,
+                                   {"excluded_sample_ids": [], "window_sha256": "0" * 64},
+                                   source_sha256=screen.V3_SOURCE_SHA256, mode=rft3.FT_MODE,
+                                   lambda12=rft3.FT_LAMBDA12, arm="candidate")
+    assert contract["autoregression"]["mode"] == "two_step"
+    assert contract["autoregression"]["lambda12"] == 0.5
+    assert contract["initialization"] == initialization
+    # counterproof: the declared constants are load-bearing for the assembled contract
+    control = screen.contract_for(41, spec, initialization, "ab" * 32, "cd" * 32,
+                                  {"excluded_sample_ids": [], "window_sha256": "0" * 64},
+                                  source_sha256=screen.V3_SOURCE_SHA256, mode="l6",
+                                  lambda12=rft3.FT_LAMBDA12, arm="candidate")
+    assert control["autoregression"]["mode"] == "l6"
+    assert control["autoregression"]["lambda12"] == 0.0
+
+
+def test_rollout_ft_key_windows_require_l12():
+    report = {"losses": [{"l12": float(i)} for i in range(1, 101)]}
+    windows = rft3._key_windows(report, "l12", size=50)
+    assert windows == {"1-50": 25.5, "51-100": 75.5}
+    with pytest.raises(RuntimeError, match="l12"):
+        rft3._key_windows({"losses": [{"l12": 1.0}, {"l12": None}]}, "l12")
+    with pytest.raises(RuntimeError, match="missing"):
+        rft3._key_windows({"losses": [{"loss": 1.0}]}, "l12")
