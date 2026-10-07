@@ -50,6 +50,10 @@ None梯度对已inactive参数保留显式mask及数学零，不假定全155张�
 4. fresh有界CPUmetadata准备，四病例协议发布后首例梯度测peak；按实测门再启动其余固定病例。
 5. 全四receipts/精确设置/finite/state invariance与读数核；任一真error停该attempt、保留所有费用。
 6. 独立复核及另冻代表病例临时再现，E/index/brief/master和精确CI登记才选择后续不同假说。
+   代表病例在原结果未读前固定为case index0（2021-01-14T12:00:00，January lower median），不是按梯度结果挑选。
+   重放另冻whole soft1800/hard3600、cleanup90s、prepare→measurement两个owned worker及parent纯scalar判读；
+   原全四case先核，case0完整JSON只排除新protocol摘要、elapsed和两项owned peak，其余数值/typed结构要求精确匹配。
+   匹配失败保留failed-restoration与成本，不改容差；config-reproducible不升格raw梯度逐位GPU复现。
 
 ## §5 预算与停止
 
@@ -83,9 +87,15 @@ planner实读返回草稿，但误用model.eval违反actual trainobjective、以
 
 - 状态active/preparation，S3，上一轮同case54index/19.1089账本已登记；登记commit46ddd26精确CI37553027758已completed/success，全部必要steps success。
 - 已完成：主链接口侦察、拒绝错误planner字段、校检后的自规划；临时implementation初套48CPU passed（441.63s）、补receipt acceptance后111passed（185.54s），均非天气证据。
-- 独立prelaunch第一阶段966s，soft600超366/hard1200未超，尚未qualified：确认两个essential反证，
+- 独立prelaunch第一阶段966s，soft600超366/hard1200未超，确认两个essential反证，历史未通过不回改：
   postprepare hash失败被pop后的protocol摘要KeyError掩盖、未发布failure/cost；全部前后/中间state摘要可协同替换而未锚到strict restored checkpoint。
-  两个极小修法交原实现者、保留原审阅/测试事实，待增加反证和独立定向复核，不按旧111passed冒称可运行。
   审阅两次optional guard在pytest collect前失败（合4.842s）是审阅harness缺陷非项目失败，已弃用，成本含于966s。
+- 两项极小修复已落临时bundle：先hash准备receipt再构造新protocol，失败保留旧摘要；strict CPU restore记录state anchor并绑定每例前/后/五个中间摘要。
+  最终owner实跑113CPU passed（191.20s，warnings0/skips0）；新独立定向复核181s（soft120超61/hard300未超），
+  45targeted passed/20deselected（1.60s，warnings0/skips0）及三项独立scalar核查，指定两blockers/updated acceptance范围无剩余essential。
+  定向复核不是全套113重跑，也不回改原966s审阅。不得把工程qualified写成天气/scientific通过。
+- 固定临时执行字节：driver633bccbd353a44a02bd7d96e63d1fc235dfd71011f41af83f2020dd3d5239bf8，
+  core75c6a3f4708ea74ae6700841a6ec92e2bfdca744f69ca54c7c7e1b8bd89ad351，
+  supportdbbb9785ad12e421ca9d07a92c9daad0a1b4eeaeebc8ccfdd7a5b2fe06248460；归档生产代码61e46bd保持不变。
 - 未做：本轮实际四case metadatafreeze/source新核/梯度/GPU/结果/成本/重放；不得预写通过。
-- 下一动作：临时wrapper/tests handoff后CPU qualification/独立prelaunch，冻结新protocol后测首例峰值并完整四例。
+- 下一动作：新排他outputs冻结1800soft/3600hard，CPU身份准备后发布四例protocol，首例测peak后单worker完整其余三例并纯scalar判读。
