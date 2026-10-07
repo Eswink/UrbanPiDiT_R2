@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 54; human-review candidates: 1
+Records: 58; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -25,6 +25,24 @@ Records: 54; human-review candidates: 1
   - this is the final declared budget dose on the v2 instance; further budget questions move to the batch-3 expanded instance
 - Excluded from runnable candidates: 混合筛选结果：第二剂（也是 v2 实例最后一剂）更新预算因子。主格 t2m/full 6h/12h 三 seed 同号 supported（6h −0.6427/−0.7454/−0.9084 K、12h −0.6195/−0.7667/−0.9339 K，24h 亦全负），近三 lead 的 skill 单调改善（seed 均值 6h +0.595、12h +0.333、24h +0.226）；但 u10/v10/mslp 守门在 48h/72h 有 17 个正 cell（比 800 更新的 13 个更差），按冻结合取规则不进 S4。预声明的预算响应读数据此判为「单年数据下预算饱和」：下一能力投资是数据（batch-3 扩年在并行获取）而非继续加预算。不构成任何科学声明。
 - Recorded metrics (not recomputed): budget_response=t2m improves monotonically at 6/12/24h through 1600 updates while the long-lead gate cost grows 13->17 cells; on one train year the budget is saturating and the next capability investment is data, candidate_updates=1600, control_updates=400, correction_evidence=docs/R7_S3_V3_NUMERICAL_ERRATA.md, delta_t2m_full_rmse_vs_incumbent={"41": {"12": -0.9339, "6": -0.9084}, "42": {"12": -0.7667, "6": -0.7454}, "43": {"12": -0.6195, "6": -0.6427}}, dose=2, elapsed_seconds_total=4937.6, first_spawn_to_last_reap_seconds=4884.4, gate_failures=17, gate_failures_by_lead={"48": 8, "72": 9}, gpu_hours=1.3716, hard_cap_seconds=10800.0, mode=l6, network_bytes=0, planned_seconds=5400.0, positive_seed_cells_of_51={"12": 51, "24": 51, "48": 7, "6": 51, "72": 2}, primary_verdict={"12": "supported", "6": "supported", "overall": "supported"}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, t2m_seed_mean_skill_12h=0.333, t2m_seed_mean_skill_24h=0.226, t2m_seed_mean_skill_6h=0.595, test_read=false, updates_ratio=4.0
+
+## s3-gradient-mixed-suite-resource-deviation
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` (SHA256 `627b324d60f08f442592a3430113f088bb356d4dccf1b6431cbbadc5f69bbdba`)
+- Evidence commit: `6c3bb69696b5d4855da81e9b15eb9f5dba3acbe9`; experiment commit: `aa9e4ac0c43f5f1295233d9b7446a34803736ea3`
+- Protocol SHA256: `not recorded`; data identity: `not recorded`
+- Reason: Default full pytest executed six CUDA-conditional engineering tests and4009passed/3skipped, but no dedicated startup UUID/headroom or GPU-study protocol receipt was retained. Truthfully registered as engineering test success with resource-compliance evidence incomplete; entire observed interval conservatively charged. Explicit CUDA-hidden bounded CPU repeat4003passed/9skipped does not retrospectively fix the initial gap.
+- Limitations:
+  - No dedicated GPU startup gate/protocol was retained for this default full pytest run; do not claim R-054 or bounded-study compliance for it.
+  - Entire observed pytest interval conservatively charged; raw GPU utilization and startup shell time before JUnit were not independently measured.
+  - Six CUDA-conditional engineering tests ran; passing does not establish scientific weather skill or general GPU bitwise training reproducibility.
+  - No evidence of neighbor intervention was found, but global lifetime absence of signals was not traced.
+  - A separate bounded CUDA-hidden CPU verification is underway; it does not retroactively fix the original execution gap.
+- CI run: `37559461860`
+- Excluded from runnable candidates: Engineering test accounting with resource gate/protocol evidence gap; not compliant GPU-study or scientific evidence.
+- Recorded metrics (not recomputed): conservative_ceil_seconds=1259, cpu_repeat_passed=4003, cpu_repeat_skipped=9, cpu_repeat_whole_seconds=1206.472975098528, cuda_condition_tests_executed=6, dedicated_startup_gate_receipt=false, deviation_receipt_sha256=07023eb8d925ec0ba926ec4065a174b6ba9d67215bd986a9f8a4b505bbfbcc17, elapsed_seconds_total=1258.3494682312012, gpu_hours=0.3497, passed=4009, protocol_frozen=false, reported_pytest_seconds=1257.87, skipped=3, warnings=6
 
 ## s3-long-rollout-feasibility
 
@@ -131,6 +149,56 @@ Records: 54; human-review candidates: 1
 - CI run: `37543875564`
 - Excluded from runnable candidates: Identity/configuration reproducibility audit only, no independenttest/weatherconfirmation/newcandidate orscientificPASS.
 - Recorded metrics (not recomputed): elapsed_seconds_total=2844.160050935112, fullresult_sha256=647274a1f22b273f22eb406c6c547554036219436a77762c8e6b2ecfe755fb57, gpu_hours=0.79, hard_cap_seconds=3600, hard_overrun_seconds=0.0, metadata_cases_exact=24, network_bytes=0, numeric_difference_count=0, physical_mse_cells_per_payload=6120, physical_rmse_cells_per_payload=6120, planned_seconds=1800, prelaunch_audit_seconds=292.499, projection_sha256=936b7d265f22912c21fecda8943dc13149b391667a806910df29e01dc03aa406, replay_wrapper_sha256=62a0d93f5c0a34d9f98fad7f241943de4eadf655fff343f560009a527d47a802, restoration_accepted_sha256=1a8a20d5d03bf8cd154368e8c157d39b5f41567184c2d6b82dbfe8c71b753201, soft_overrun_seconds=1044.160050935112, terminal_audit_seconds=226.115, test_read=false
+
+## s3-train-gradient-components
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` (SHA256 `627b324d60f08f442592a3430113f088bb356d4dccf1b6431cbbadc5f69bbdba`)
+- Evidence commit: `6c3bb69696b5d4855da81e9b15eb9f5dba3acbe9`; experiment commit: `61e46bd78d4d7ce49da7a87d574e40c6c18a1c99`
+- Protocol SHA256: `44b634ed478d398754dfa87bebd176cdd060048385f04e2f7f8713a827c4ddc9`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: Four predeclared train2021 seasonal same-case FP32/K4/full12 component gradients and actual total completed without optimizer, state change or held-out readers. Independent saved-fact identity/arithmetic/accounting qualification supports descriptive metrics; long-lead component norms dominate but cosine directions vary, not proof of clipping harm or underfitting. Exact representative replay failed and is registered separately, never relaxed.
+- Limitations:
+  - One endpoint and four in-sample cases; normalized all17 training objective is not physical weather skill.
+  - No causal convergence, underfitting or clipping claim; no scientific/candidate threshold added.
+  - Config-reproducible maximum. Representative replay has161 numeric-statistic differences and failed exact matching.
+  - Saved-fact audit is not raw-gradient/tensor provenance or global OS tracing; original gate receipts lack timestamps.
+  - All preparation failures/soft overruns and separate test-resource deviation remain registered.
+- CI run: `37543875564`
+- Excluded from runnable candidates: Descriptive diagnostic only, not candidate or scientific acceptance; exact gradient restoration failed.
+- Recorded metrics (not recomputed): active_total_gradient_tensors=141, cancellation_ratios=[0.66086863824846, 0.785620448927343, 0.8683714333895012, 0.8252848521038937], clip1_factors_descriptive=[0.06488679349422455, 0.07552441209554672, 0.1645030826330185, 0.08896627277135849], elapsed_seconds_total=2465.08890417777, gpu_hours=0.6847, hard_cap_seconds=3600, hard_overrun_seconds=0.0, independently_audited_files=721, network_bytes=0, next_spawn_required_free_bytes=4638900224, objective_losses=[1.29634428024292, 1.2238487005233765, 0.6454952955245972, 1.1550655364990234], optimizer_updates=0, owned_cuda_reserved_peak_bytes=2491416576, parameter_tensors=155, physical_steps=12, planned_seconds=1800, reasoning_steps=4, representative_exact_restoration=false, result_sha256=a9c7da6d1fe28c177f952ba61423b436430f6e90198f31edb86bdf654fbac11a, seed=41, selection_sha256=649c20bfa508f83a75b5cb905ac1352d3585509b63c8135a75f4d38688a0b9a4, soft_overrun_seconds=665.08890417777, test_read=false, total_gradient_norms_fp64=[15.41145594365589, 13.240752040249031, 6.078913099940799, 11.24021256746771], train_cases=4, unused_total_gradient_tensors=14, val_manifest_read=false
+
+## s3-train-gradient-replay-attempt01
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` (SHA256 `627b324d60f08f442592a3430113f088bb356d4dccf1b6431cbbadc5f69bbdba`)
+- Evidence commit: `6c3bb69696b5d4855da81e9b15eb9f5dba3acbe9`; experiment commit: `61e46bd78d4d7ce49da7a87d574e40c6c18a1c99`
+- Protocol SHA256: `9e8480f7dbaa9b9196a4bbbfc88b046de9fecda22d527caaab24c0b889d2a571`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: Code-archive fixture manifest copying was rejected by strict basename guard before actual fields or model qualification. Failed attempt retained; later Python-only extraction repair did not revive it.
+- Limitations:
+  - Failed restoration is not a pass; all cost charged and failed root retained.
+  - No comparator tolerance relaxation, field exclusion expansion, in-place retry or attempt03.
+  - No independent test or scientific confirmation; exact identity/arithmetic does not establish raw GPU gradient bits.
+- CI run: `37543875564`
+- Excluded from runnable candidates: Failed-restoration; no numerical acceptance marker, candidate or scientific PASS.
+- Recorded metrics (not recomputed): elapsed_seconds_total=1.8343665357679129, failure_sha256=c7b8fc4410cc4e128f2a5ae96c746bc2066b682bf99d90e333b86d954af8825d, gpu_hours=0.0005, hard_cap_seconds=3600, hard_overrun_seconds=0.0, network_bytes=0, numeric_difference_count=0, planned_seconds=1800, recorded_worker_signals=[[]], recorded_workers_reaped=true, restoration_accepted=false, soft_overrun_seconds=0.0, status=failed-restoration, test_read=false, val_manifest_read=false
+
+## s3-train-gradient-replay-attempt02
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` (SHA256 `627b324d60f08f442592a3430113f088bb356d4dccf1b6431cbbadc5f69bbdba`)
+- Evidence commit: `6c3bb69696b5d4855da81e9b15eb9f5dba3acbe9`; experiment commit: `61e46bd78d4d7ce49da7a87d574e40c6c18a1c99`
+- Protocol SHA256: `6610be1d74747317ef091dc2a74c293ff2bc88e0be1b0e0c541597caefee1b17`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: Two owned workers regenerated January case under pinned code/source/checkpoint/state/recipe, but full native JSON exact restoration failed on161 numeric leaves. Losses, state, RNG, masks and FP32 clip stats exact; Gram-derived metrics and residual norm differ. Independent characterization preserves negative exact restoration, no tolerance or attempt03.
+- Limitations:
+  - Failed restoration is not a pass; all cost charged and failed root retained.
+  - No comparator tolerance relaxation, field exclusion expansion, in-place retry or attempt03.
+  - No independent test or scientific confirmation; exact identity/arithmetic does not establish raw GPU gradient bits.
+- CI run: `37543875564`
+- Excluded from runnable candidates: Failed-restoration; no numerical acceptance marker, candidate or scientific PASS.
+- Recorded metrics (not recomputed): elapsed_seconds_total=1569.81766172871, failure_sha256=5b994e3511f2501ad51aac1e44bee48635dfc3680830f3cb8b10ce09772ced2f, gpu_hours=0.4361, hard_cap_seconds=3600, hard_overrun_seconds=0.0, network_bytes=0, numeric_difference_count=161, planned_seconds=1800, recorded_worker_signals=[[], []], recorded_workers_reaped=true, restoration_accepted=false, soft_overrun_seconds=0.0, status=failed-restoration, test_read=false, val_manifest_read=false
 
 ## s3-v3-numerical-errata
 

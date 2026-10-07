@@ -186,14 +186,28 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 12步screen归档seed41全val重放（15CSV精确、单独全额计费） | 0.5378 | 17.8324 | `docs/R7_S3_LONG_ROLLOUT_SCREEN.md` §7（索引 `record:s3-long-rollout-screen-replay`）；1935.462220s、soft1800超135.462220/hard3600超0，ceil1936秒；15CSV及2272case精确、三seedcollector摘要一致，审阅optional文档收尾hard超3.402s如实保留，非科学确认 |
 | S3 同case train/val诊断（20in-sample+4开发，无optimizer） | 0.4865 | 18.3189 | `docs/R7_S3_SAME_CASE_GAP.md`（索引 `record:s3-same-case-gap-diagnostic`）；1751.421197s、soft1800/hard3600超0；父相对t2m全lead改善但train/val48/72h气候态仍负，独立fsum审阅FAILED保留、另冻NumPy精确补充，无科学确认 |
 | S3 同case归档全payload重放（原code/气候态/端点） | 0.7900 | 19.1089 | `docs/R7_S3_SAME_CASE_GAP.md` §6（索引 `record:s3-same-case-gap-replay`）；2844.160051s、soft1800超1044.160051/hard3600超0；24病例/6120MSE及全组/gap身份精确一致、三workerreaped无记录信号，最高config-reproducible |
-| **合计已用** | **19.1089** | — | 本方向基数0，历史V2不重复计费，所有失败全额登记；cap20.0/remaining0.8911是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。长监督200剂量已完整且只开发门清零，正式气候态/全年/同时区间未过；同case失败亦见train，下个独立train信号诊断另冻，不无限重复同剂量 |
+| S3 四季固定train梯度分量诊断（无optimizer，描述性） | 0.6847 | 19.7936 | `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md`（索引 `record:s3-train-gradient-components`）；whole2465.088904s、soft1800超665.088904/hard3600超0，四workerexit0/reaped、记录signals空；state锚不变，长lead norm占比大但cosine依病例变化，不证明clip伤害/欠拟合，test未评分 |
+| S3 默认全套混合CUDA测试（取卡证据缺口另计） | 0.3497 | 20.1433 | `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` §5（索引 `record:s3-gradient-mixed-suite-resource-deviation`）；4009passed/3skipped含六CUDA条件test，未留该套专用UUID/余量/协议，不能称有界GPU合规；JUnit至log1258.349468s、ceil1259全记账；另冻明确CPU全套4003passed/9skipped，0GPU，不追认原缺口 |
+| S3 梯度代表例replay attempt01（prepare工程失败） | 0.0005 | 20.1438 | `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` §6（索引 `record:s3-train-gradient-replay-attempt01`）；1.834367s、soft/hard超0，fixture manifest归档复制被guard拒绝，未进实际字段/GPU；exit1/reaped，failed保留不复活 |
+| S3 梯度代表例replay attempt02（精确恢复negative） | 0.4361 | 20.5799 | `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` §6（索引 `record:s3-train-gradient-replay-attempt02`）；1569.817662s、soft1800/hard3600超0，两workerexit0/reaped、signals空但161numeric leaves不精确，loss/state/RNG/activity相同；独立差异确认，failed-restoration、无accepted，不加容差/attempt03 |
+| **合计已用** | **20.5799** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−0.5799是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。科学气候态/全年/同时区间仍未过；固定train梯度信号有且相消不同，但非clip/欠拟合因果证明，不无限重复同剂量或精确replay |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-train-gradient-components.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 19.1089, "remaining_gpu_h": 0.8911, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+- **2026-10-07接续（仍S3）**：固定train四季梯度诊断完成且独立saved-fact/math/cost审阅；
+  原155张量141active/14unused、state不变，48/72hweighted norm占比76.0–86.1%，cosine随病例变化，
+  不作clip/欠拟合/收敛因果声明。代表Jan精确replay attempt01归档prepare失败，attempt02身份/fields执行齐但161numeric leaves不同，
+  两failed保留，无RESTORATION_ACCEPTED、不加epsilon/rtol/重复到偶然精确。证据6c3bb696、
+  `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` SHA627b324d...、index58条、四行新增1.4710GPU-h，累计20.5799。
+  默认mixed-CUDA全量4009passed的取卡/协议证据缺口另计0.3497，明确CPU全量4003passed/9skipped另核，skip不算通过。
+  精确prelaunch CIaa9e4ac/37559461860success；本次登记精确CI待核。test/S4/r/终极科学接受不变。
+  下一动作仍在S3：完成本轮注册精确CI后，按固定train病例的原目标响应信息设计不同的小范围learnability探针，
+  不凭梯度范数调clip或重复bulk剂量；planner只读草稿待核，不执行尚未冻结的新训练。
+
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-train-gradient-components.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 20.5799, "remaining_gpu_h": -0.5799, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023

@@ -97,5 +97,51 @@ planner实读返回草稿，但误用model.eval违反actual trainobjective、以
 - 固定临时执行字节：driver633bccbd353a44a02bd7d96e63d1fc235dfd71011f41af83f2020dd3d5239bf8，
   core75c6a3f4708ea74ae6700841a6ec92e2bfdca744f69ca54c7c7e1b8bd89ad351，
   supportdbbb9785ad12e421ca9d07a92c9daad0a1b4eeaeebc8ccfdd7a5b2fe06248460；归档生产代码61e46bd保持不变。
-- 未做：本轮实际四case metadatafreeze/source新核/梯度/GPU/结果/成本/重放；不得预写通过。
-- 下一动作：新排他outputs冻结1800soft/3600hard，CPU身份准备后发布四例protocol，首例测peak后单worker完整其余三例并纯scalar判读。
+- 实际attempt01已由统一父调度启动：`outputs/r7_s3_train_gradient_components_20261007_attempt01/`，
+  原code.zip与临时bundle字节先冻；CPU prepare528.977713s、exit0/reaped、记录signals为空，full source/schema/train/endpoint资格后发布四例final protocol。
+  probe972.787152s、exit0/reaped、signals空，case0完整且state anchor不变；其内测量5.068407s不是整worker成本。
+  reservedpeak2489319424B高于旧known2434793472B，携带新peak的cases worker已启动，余量门≥4422MiB；尚无四例终态，不预写通过/最终费用。
+- 代表例replay临时实现已handoff：11syntheticCPU passed（2.038s）；准备1203s、soft600超603/hard1200超约3s，
+  已停止且不是preparation PASS或launch-ready。新独立prelaunch另冻soft600/hard1200，保留原超时事实；不修改原实验预算。
+  独立saved-fact审计helper已准备（11syntheticCPU tests），567s、soft300超267/hard600未超，未审实际终态。
+- 本轮governance定向93passed（0.58s），节点/goal/index54/37blocking检查通过；prelaunch文档aa9e4ac已推工作分支，精确CI37559461860尚in_progress时读取。
+- attempt01四例完整终态：2465.088904s，soft超665.088904/hard超0，保守0.684746918GPU-h（登记舍入0.6847），
+  四worker elapsed528.977713/972.787152/956.780425/2.472022s，均exit0/reaped、记录signals空；reserved最大2491416576B。
+  final protocol44b634ed478d398754dfa87bebd176cdd060048385f04e2f7f8713a827c4ddc9，result a9c7da6d1fe28c177f952ba61423b436430f6e90198f31edb86bdf654fbac11a。
+  terminal assignment f8bb95d93c28494fc63a26c4c0f9eecbf3d662afa1ec4f7cc84b7dbeeab6e0fd已交独立saved-fact审阅，未冒称raw梯度或科学确认。
+- 全量本地4009passed/3skipped/6warnings（1257.87s，4012JUnit、0failure/error）；skips为未跟踪optional真数据fixture，不算通过。
+  该默认全量测试未隐藏CUDA，实际六项CUDA条件测试执行，不是CPU-only；未留该套专用启动UUID/余量记录，是执行证据缺口，不能称R-054/有界GPU合规。
+  JUnit起点至最终log1258.349468s，ceil1259保守计0.3497GPU-h；deviation回执07023eb8d925ec0ba926ec4065a174b6ba9d67215bd986a9f8a4b505bbfbcc17保留，不回写原诊断cost。
+  另冻明确CUDA_VISIBLE_DEVICES空的CPU全套soft1500/hard3000：4003passed/9skipped/6warnings（1202.81s），
+  whole1206.472975s、soft/hard超0、ownedexit0/reaped、signals空、0GPU-h，不能追认原取卡纪律。
+  aa9e4ac0c43f5f1295233d9b7446a34803736ea3精确CI37559461860 completed/success，全部必要steps success；17实验标签门控skip未当实跑。
+- 代表例独立prelaunch被provider INTERNAL_ERROR中断，未取得verdict；保留partial审阅，另冻恢复soft300/hard600接续已有工作，不冒称通过。
+- 独立terminal saved-fact复核完成：721文件起终pin一致、四例全scalar/设置/身份/state/cost/gate资格齐，326.754s、soft300超26.754/hard600超0。
+  audit_report fa5b43c8fb56791e84546c790f3f9b07f3cf240ed3055c09b672feeac82047c4；不冒称rawtensor/OS生命周期/全年科学确认。
+- 代表例工具另发现bootstrap失败无cost，历史not-qualified保留；最小修复157s soft180/hard360未超，owner15syntheticpassed。
+  新独立定向255.218s（soft120超135.218/hard300超0），15currenttests及4B1反证/25文件saved integration齐，工程qualified；
+  原1203s准备hard超3、provider中断及恢复446.991s软超146.991均保留。
+  qualified replay driver586c3f4e8b31546c3573b4a2a56df46219fa5b64541e09d822aefa50f1b9392d，
+  support431e9ad1f89ebd0b24b9b2f02de8ccb0abc572b4c643f9766cd6569f00b7bf7c，
+  必需25files/pins0c3b754e0909fb0a83d6f8adc11ef93ae81269b50d0816dbe422beecaeb1587f，CPUprepare之后才允许Jan字段测量。
+- 代表例实际attempt01已失败且停止：prepare归档写入fixture val/test manifest basename被read守卫拒绝，未进入实际天气场/CPU恢复或GPU梯度。
+  whole1.834366536s、soft/hard超0、0.000509546GPU-h（四位0.0005）；prepare exit1/reaped、signals空，后续未spawn。
+  failure c7b8fc4410cc4e128f2a5ae96c746bc2066b682bf99d90e333b86d954af8825d，旧failedoutputs与包字节保留。
+  只修归档复制/实际manifest READ禁边界，原资格没覆盖全ZIP guarded extraction的缺口保留；原数值/science判据不改。
+- 最小replay-only extraction adapter保留完整ZIP身份/全部692Python，跳过非Pythonfixture，原guard READ/write禁不变。
+  owner16tests通过但399s超hard360约39s，历史not-qualified保留；独立新阶段16tests/真实exactZIP guarded extraction/两次tinyProcess/full12/digest和mutation齐，
+  314.312s soft180超134.312/hard360未超，snapshot工程qualified。driver仍586c3f4e...，support新ab1e7609a811a593219c78e1fa27eec6352438f29b0091f55725832f551f238c。
+  attempt02必需pins1ecc06c80a5e63e7be44390ea6ae0a918cca7a7d7123bad998aa6f338d30189a，旧attempt01/原pin保留不改。
+- attempt02完成CPU身份准备/Jan梯度，却在完整JSON精确匹配失败：161个梯度统计/派生numeric leaves不同；loss/state/RNG/activity相同为主链初读，独立差异审阅待核。
+  whole1569.817662s、soft/hard超0、0.436060462GPU-h（四位0.4361）；prepare545.355336/measurement1021.508986s，exit0/reaped、signals空，但terminal failed-restoration非pass。
+  failure5b994e3511f2501ad51aac1e44bee48635dfc3680830f3cb8b10ce09772ced2f，recomputed fcfec322597a217b9883db42002ccd4c861e684918c59e45ba6a85b7af47f381；无RESTORATION_ACCEPTED。
+  frozen匹配判据不改，不设epsilon/tolerance、不启动attempt03到偶然精确；最高config-reproducible，不能从原loss相同冒称raw梯度逐位恢复。
+- 独立negative-replay terminal复核已齐：161numeric leaves（Gram/派生重复值，不是161独立测量）与主diff全同，cosine符号保持但不挽救精确门。
+  原/重算loss/state/RNG/activity/FP32clip/maximumresidual精确，配置/math资格齐；浮点autograd非确定性是相容解释非唯一确证rootcause。
+  1462文件end-rehash零不符，whole373.965s、soft300超73.965/hard600未超；两个failed和marker缺失均核。
+- 本轮描述性/failed证据已冻结commit6c3bb69696b5d4855da81e9b15eb9f5dba3acbe9，
+  `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` SHA627b324d60f08f442592a3430113f088bb356d4dccf1b6431cbbadc5f69bbdba，
+  finalfactreview143.126s（soft120超23.126/hard300未超）无mustfix；原注册页hash保持。
+  index54→58四记录（原诊断/audit，两replaynegative，mixedtests资源缺口/audit）；主账本19.1089+1.4710=20.5799，remaining−0.5799会计字段。
+- 未做：代表例精确恢复（实际未过）、本次登记精确CI；test/S4/optimizer仍未做；不自裁科研goal complete。
+- 下一动作：完成注册精确CI，S3内另冻固定病例原目标响应诊断的设计，不改clip/loss、不重复bulk剂量或原replay到偶然精确。
