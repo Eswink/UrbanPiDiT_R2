@@ -143,5 +143,7 @@ planner实读返回草稿，但误用model.eval违反actual trainobjective、以
   `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` SHA627b324d60f08f442592a3430113f088bb356d4dccf1b6431cbbadc5f69bbdba，
   finalfactreview143.126s（soft120超23.126/hard300未超）无mustfix；原注册页hash保持。
   index54→58四记录（原诊断/audit，两replaynegative，mixedtests资源缺口/audit）；主账本19.1089+1.4710=20.5799，remaining−0.5799会计字段。
-- 未做：代表例精确恢复（实际未过）、本次登记精确CI；test/S4/optimizer仍未做；不自裁科研goal complete。
-- 下一动作：完成注册精确CI，S3内另冻固定病例原目标响应诊断的设计，不改clip/loss、不重复bulk剂量或原replay到偶然精确。
+- 登记提交70fe46ea0a78f10f08ac1a6c765336b305648d45精确CI37569443913 completed/success，全部必要steps success；17标签门控skip不当实跑。
+  D1–D3原四例描述性证据已登记，D4代表例精确恢复明确negative并独立归因，非成功复现；没有科学PASS或旧failed回改。
+- 未做：代表例精确恢复（实际未过）、test/S4/optimizer；不自裁科研goal complete。
+- 下一动作：S3内另冻固定病例原目标响应诊断，沿 `docs/goals/s3-fixed-case-objective-response.md`；不改clip/loss、不重复bulk剂量或原replay到偶然精确。

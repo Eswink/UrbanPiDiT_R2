@@ -203,11 +203,13 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   两failed保留，无RESTORATION_ACCEPTED、不加epsilon/rtol/重复到偶然精确。证据6c3bb696、
   `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` SHA627b324d...、index58条、四行新增1.4710GPU-h，累计20.5799。
   默认mixed-CUDA全量4009passed的取卡/协议证据缺口另计0.3497，明确CPU全量4003passed/9skipped另核，skip不算通过。
-  精确prelaunch CIaa9e4ac/37559461860success；本次登记精确CI待核。test/S4/r/终极科学接受不变。
-  下一动作仍在S3：完成本轮注册精确CI后，按固定train病例的原目标响应信息设计不同的小范围learnability探针，
-  不凭梯度范数调clip或重复bulk剂量；planner只读草稿待核，不执行尚未冻结的新训练。
+  精确prelaunch CIaa9e4ac/37559461860success；登记70fe46ea0a78f10f08ac1a6c765336b305648d45精确CI37569443913
+  completed/success、全部必要steps success。test/S4/r/终极科学接受不变。
+  下一动作仍在S3：新前瞻goal `docs/goals/s3-fixed-case-objective-response.md`，固定Jan训练病例、原目标/clip1/80updates/freshoptimizer，
+  只问有限同病例响应不冒泛化/容量因果；soft3600/hard7200及endpoint0/20/80先声明。
+  planner草稿已校结构但跳preflight/筛slow/事后扩MSE等拒绝；先TEMP实际CPU反证和独立prelaunch，不执行未qualified真实训练。
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-train-gradient-components.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 20.5799, "remaining_gpu_h": -0.5799, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-fixed-case-objective-response.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 20.5799, "remaining_gpu_h": -0.5799, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
