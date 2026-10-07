@@ -2,9 +2,9 @@
 
 <!-- round-node: S3 -->
 
-状态active / preparation，2026-10-07。仍属唯一主计划
+状态active / 真实80更新与独立三端点精确反算完成、证据登记收尾，2026-10-07。仍属唯一主计划
 `docs/goals/main-model-climatology-campaign.md` 的S3，不进入S4或独立test确认。
-本轮只前置设计；尚未运行80更新或产生新checkpoint，不预写效果。
+恰80更新及标准0/20/80端点已产生，固定病例响应仅为描述性；不预写未完成的反算或科学效果。
 
 ## §0 Objective（单段，实测1087字符）
 
@@ -111,7 +111,8 @@ verified:true/fence_stripped:false；主链已实读long runner116-173、update7
 
 ## §8 进度与交接
 
-- 状态active/preparation，S3；上一轮梯度证据/negative replay/资源缺口已登记index58、方向20.5799GPU-h。
+- 状态active/evidence-closeout，S3；上一轮梯度证据/negative replay/资源缺口已登记index58、方向20.5799GPU-h。
+  下列按发生顺序保留准备、失败、资格与完成事件；早期“未做/await”是当时状态，不替代最后交接。
 - 本轮已做：planner实际只读委派、结构校检与主链API抽查，拒绝上述危险/不适用建议，goal前瞻冻结。
   TEMP实现已隔离委派，只许静态代码/固定ZIP的合成CPU接线，preparation soft600/hard1200；不得自行实际数据/GPU或仓库修改。
 - 文档4e4b8880a73fe97fb08adf6309487f8e208e49de精确CI37571159799 completed/success，全部必要steps success。
@@ -203,4 +204,42 @@ verified:true/fence_stripped:false；主链已实读long runner116-173、update7
   `/tmp/r7_independent_readback_review_20261007_3sn0den2/stage_receipt.json` SHA `fe839dd7616d60312543d114c61a479383c57eb09842e52e840b610d49c5cdd9`；
   whole1966.954969s、900/2400 soft超1066.954969/hard0/收尾余433s，oldguard拒cleanup失败另保留。
   仅最小scope修复另300/900冻，required实际producer科学/heldoutfalse与存在optional严格typedfalse，缺字段不伪造defaultFalse证据，原精确/source门不放宽；真实readback继续禁止。
-- 下一动作：独立终态807pins/新checkpoint/math/cost审阅；readback4scope最小修复和定向复核齐后才另冻真实三端点反算，再登记完整证据与费用。
+- 初次terminal审阅JSON部分完整：807文件first/end hashes/bytes无mismatch，完整pre→finalbody/80行FP32/LR/maskcounts/端点/gates/cost独立重算。
+  CPUcheckpoint worker因只剩14s cleanup余量被ownedSIGTERM/rc−15/reaped、未完成，审阅不能算通过；whole1964.930446s在900/1800硬超164.930446，保留审阅预算失败。
+  partial `/tmp/r7_s3_terminal_audit_20261007_g_82xjz1/audit_result.json` SHA `a36090911cb6017ecd95b92a4b7a8216ebb8c294453ce34ef281eef4e2f2aec1`，
+  final failure receipt SHA `ec3248263fd8b54df70b9dbe61b21eae95b6d46448aad927020f4be7a122feec`；合成schema及合法空logs/py adapter修复只在新TEMP，未改producer/pins。
+  未完成三checkpoint另冻600/1200纯CPU补齐，actual13.571614s、soft/hard超0：standard ordinaryloader+独立state/constructor/inventory/FP32finite/native41完整CUDA列表/AdamWslots steps moments全部核，0/20/80slot0/141/141。
+  `/tmp/r7_fixed_case_checkpoint_finish_20261007_attempt01/completion_receipt.json` SHA `b2c0276818f4aa188b4afe82c686c31e87a334c375e463dfe5eacbd4661d5ad2`，rc0/reaped/signals空，oldtimeout不追认。
+- readback4scope最小修复owner失败：whole1082.041479s超hard900的182.041479、full50/deep未运行，receipt SHA `681d272206dddd5b919246500c1e9ec125f3835208aae8ce6f1daf64259d2bf2`保持failed。
+  新support `f4408d2ed919998c04f901b92fac3ac800c9de2aa35452f62767ce1bb22f685d`另独立真实full50/14scope双入口28拒绝/deep validproducer缺optionalpositive及独立三合成端点精确0差通过，
+  receipt `/tmp/r7_independent_readback_scope_qual_20261007_plb6zr_0/stage_receipt.json` SHA `f16d86bde72a5a7cf3b8c9357ebe7fe2af54e62f171953e8395c3ea0268d8610`，
+  whole630.870804s、600/1800 soft超30.870804/hard0；只当前pins工程资格，原失败/negative不追认。
+- 实际readback attempt01已向全新排他 `outputs/r7_s3_fixed_case_readback_20261007_attempt01/`启动，原whole1800/3600/reserve90不改。
+  mandatory115父files+完整new80body外锚pins `/tmp/r7_fixed_case_readback_attempt01_pins_20261007.json` SHA `0285b166ecc637ebee02f3852ebbe16823de7ca306cf7f4daf0edf14f1404507`，
+  driver `4df86db1f6ea8c4a7f7d4b6e0e4c42259e3c8d4e64fda80419e231e7b07fe517`+新support严格绑定。尚未结果，不标PASS。
+- 三真实端点独立反算已完整：0/20/80全部12loss/total/state与typed原合同projection一致、每端点difference_count0/合计0，无epsilon/allclose/重试。
+  final canonical `6b9be74b035a19f47407eb74158e342ec15e7c4f37bfe0f4271c6eb9920801a6`，protocol bytes SHA `b549223f235a038ffb997ce0dd856c54979ce01d52e1fc9fd8489651fe0f9560`，
+  result SHA `663e085a2c27514beb9af6eb5740264361307101876333047e372c3077585372`、attempt SHA `e1e23874d804bf3a7ce255b7f9633970809f917592eaeecb2832fd7e69218a8e`。
+  three workersprepare458.022557/readback988.174495/reading12.850960s皆exit0/reaped/recordedsignals空，whole1467.480233s在1800/3600内，soft/hard0。
+  reserved2409627648B继续携带higherknown2491416576，readingfree25280118784B，其余14253293568B；nooptimizer/heldout，sourceendhash checked。
+  725readback+807parent外锚assignment SHA `57f4cd1bf1ea57e92e303e8e7f98e8251e0bc2b6872cb4c6ab4006c9bf4759cb`，轻量独立终态300/900审阅进行中。
+  训练0.4300+反算0.4078=0.8378GPU-h均待本页完整证据登记；当前账本仍20.5799不冒已入账，最高config复现不自宣bit/science。
+- 反算终态首独立审阅1532pins/fullprojection/processcost已完成但whole948.497180s超hard900的48.497180，FAIL/NOT_QUALIFIED保留。
+  receipt SHA `775607a268588603f9094d4f2cfeb27e6ae333879fb433179faada5a7d194de0`，不以完成算术追认预算合规。
+  独立stdllibhelper原byteSHA `01b1e0724bda10a012023cdd64731703ea8469230a90362685f025a1febe183b`在新排他fresh/tmp另300/900实际5.029937s重核成功，
+  1532first/endhash与完整projection/diff0/process/gate/cost一致；completion SHA `fa8d67c2d52f41224140decbacd68effc46111c3fa52bf1b91afb67ec651fd62`，soft/hard0，旧失败不追认。
+  新证据页 `docs/R7_S3_FIXED_CASE_OBJECTIVE_RESPONSE.md`草稿独立事实复核另180/600；科学接受未完成。
+- 首次文档事实审阅核主要数字并指出第7节过期标题，whole581.968135s、soft超401.968135/hard600未超，但收尾仅余18.031865s<90、当前逐JSON末hash未齐，issues/not-qualified。
+  receipt `/tmp/r7_s3_final_fact_review_20261007_7sh_3tle/final_fact_review.json` SHA `b60ad6c2063d7296f33e98efe955c9ac4b3621c499f548b0069cc52e44e5936e`保留。
+  标题与失败表已修正，新doc SHA `fbfd83ee84ceecdcaac8f93250e564fde9e0ac57c3d71f87b0ae4cb3f68e0742`，17个限定doc/JSON/receipt外锚另冻300/1500/reserve90只读复核，不重做GPU或追认旧stage。
+  新限定复核 `qualified-document-assigned-saved-facts`、issues=[]，237行当前docSHA `fbfd83ee84ceecdcaac8f93250e564fde9e0ac57c3d71f87b0ae4cb3f68e0742`；17/17first/end SHA和bytes一致。
+  `/tmp/r7_final_document_fact_review_20261007_3778271_1791366514546912817/final_fact_review.json` SHA `b1ae94ff2c5971224f7787d59c52cf58a0b8f9d4b44d4c6b00cea80bbfe4af6c`；whole763.191438s/300/1500、soft超463.191438/hard0，report余736.801410s满足reserve90。
+  只读限定保存事实、未重跑GPU/天气/1532/91/50或checkpoint语义；继承范围明确，不是scientific/goal/verifier接受，原首次文档失败不追认。
+  新CPU完整仓库验证独立实跑完成：4003passed/9skipped/6warnings、JUnit4012total/0fail/errors，whole1239.821378s在planned1500/hard3600内、soft/hard超0、reserve90满足、workerexit0/reaped/signals空、0GPU-h。
+  显式CUDA不可见/出网拒绝/无筛选；6项CUDA与3项未跟踪真实fixture skip不算通过，不合成替代，不把新CPU结果当GPU/天气接受。
+  `/tmp/r7_fixed_case_cpu_full_verification_20261007_attempt01/attempt.json` SHA `6bbfc820bedd364398c28fc2216cc0fa72982461e69a11409be0a5f866c1bea8`；protocol canonical `7e2622eca1be1cdaa92a64609e3ab5c7ebf7a380567686af679275961fe6dfd4`，JUnit SHA `8b203f0e1d081120c5b98706b8dd05b64aa451e639ae56e4c92985d4980f69dc`。
+- 新证据已冻结commit `6b2e3db541797708dc1ebb916b39ea7d9c02b91a`，SHA `fbfd83ee84ceecdcaac8f93250e564fde9e0ac57c3d71f87b0ae4cb3f68e0742`；两record `s3-fixed-case-objective-response`/`s3-fixed-case-objective-response-readback`均audit/not-candidate。
+  index58→60、旧58字节prefixSHA `3ad00bd4980ef318263f55927287d62fa49146abf2a83b389b3d6e49a42c1abd`及54prefix与已注册证据不变，brief原render直接同步；receipt `/tmp/r7_fixed_case_registration_receipt_20261007.json`。
+  训练0.4300/反算0.4078独立入账，累计21.4177、cap20.0/remaining−1.4177仅会计无总GPU-h许可上限；S3/previousS2/r0/test未评分不变。
+- 登记后治理93passed/0skip，37阻断规则、旧N5/新S3双campaign、两goal结构、60条index/canonicalbrief与空白均核通过；新CPU全量已实跑，不冒称GPU全套。
+- 下一动作：提交登记至工作分支并核精确CI；下一独立科研问题按共同多病例响应与最终物理评分之间的对应关系设计，不由本单病例诊断自宣接受。

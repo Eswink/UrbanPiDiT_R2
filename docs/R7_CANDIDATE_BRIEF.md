@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 58; human-review candidates: 1
+Records: 60; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -25,6 +25,43 @@ Records: 58; human-review candidates: 1
   - this is the final declared budget dose on the v2 instance; further budget questions move to the batch-3 expanded instance
 - Excluded from runnable candidates: 混合筛选结果：第二剂（也是 v2 实例最后一剂）更新预算因子。主格 t2m/full 6h/12h 三 seed 同号 supported（6h −0.6427/−0.7454/−0.9084 K、12h −0.6195/−0.7667/−0.9339 K，24h 亦全负），近三 lead 的 skill 单调改善（seed 均值 6h +0.595、12h +0.333、24h +0.226）；但 u10/v10/mslp 守门在 48h/72h 有 17 个正 cell（比 800 更新的 13 个更差），按冻结合取规则不进 S4。预声明的预算响应读数据此判为「单年数据下预算饱和」：下一能力投资是数据（batch-3 扩年在并行获取）而非继续加预算。不构成任何科学声明。
 - Recorded metrics (not recomputed): budget_response=t2m improves monotonically at 6/12/24h through 1600 updates while the long-lead gate cost grows 13->17 cells; on one train year the budget is saturating and the next capability investment is data, candidate_updates=1600, control_updates=400, correction_evidence=docs/R7_S3_V3_NUMERICAL_ERRATA.md, delta_t2m_full_rmse_vs_incumbent={"41": {"12": -0.9339, "6": -0.9084}, "42": {"12": -0.7667, "6": -0.7454}, "43": {"12": -0.6195, "6": -0.6427}}, dose=2, elapsed_seconds_total=4937.6, first_spawn_to_last_reap_seconds=4884.4, gate_failures=17, gate_failures_by_lead={"48": 8, "72": 9}, gpu_hours=1.3716, hard_cap_seconds=10800.0, mode=l6, network_bytes=0, planned_seconds=5400.0, positive_seed_cells_of_51={"12": 51, "24": 51, "48": 7, "6": 51, "72": 2}, primary_verdict={"12": "supported", "6": "supported", "overall": "supported"}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, t2m_seed_mean_skill_12h=0.333, t2m_seed_mean_skill_24h=0.226, t2m_seed_mean_skill_6h=0.595, test_read=false, updates_ratio=4.0
+
+## s3-fixed-case-objective-response
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_FIXED_CASE_OBJECTIVE_RESPONSE.md` (SHA256 `fbfd83ee84ceecdcaac8f93250e564fde9e0ac57c3d71f87b0ae4cb3f68e0742`)
+- Evidence commit: `6b2e3db541797708dc1ebb916b39ea7d9c02b91a`; experiment commit: `61e46bd78d4d7ce49da7a87d574e40c6c18a1c99`
+- Protocol SHA256: `699ee5e5fbb67369185ea7824d9e5f33a14b3dce3cf9226dac3facffd0a0fa0f`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: One predeclared January2021 in-sample train case completed exactly80 fresh AdamW updates under the original all17 normalized deep-K/K4/12-step full-BPTT objective and clip1. Endpoints0/20/80 total1.29634428024292/0.774080753326416/0.5330567359924316; every12-step loss decreases across endpoints. Full external contract, seed41 native RNG and original per-parameter activity anchors,80-row arithmetic/schedule/activity, three standard checkpoint semantics and saved whole-process/cost facts checked. This finite response is descriptive, not generalization, climatology skill, convergence or clipping causality.
+- Limitations:
+  - Single in-sample cached case and seed41; normalized objective is not physical weather RMSE or climatology skill.
+  - New80 cosine schedule and fresh AdamW, not seamless resume of original200 schedule; parent optimizer/cursor/RNG not imported.
+  - No proof of generalization, total capacity, underfitting, convergence or clipping harm; no scientific/candidate threshold added.
+  - Non-atomic private exclusive checkpoint publication retains partial files on failure; ordinary loader and original guards unchanged.
+  - All interrupted/negative/over-hard/reserve-failed engineering reviews remain failed; new bounded completion never ratifies old stages.
+  - Saved-fact/CPU semantic checks are not global OS or GPU lifetime tracing; gate timestamps absent; reproducibility at most configuration-only.
+- CI run: `37543875564`
+- Excluded from runnable candidates: Descriptive train-only response diagnostic; not runnable candidate, S4, independent confirmation or scientific PASS.
+- Recorded metrics (not recomputed): active_parameters=141, attempt_sha256=43d18c3e493dd1496ef9de3c18a4e08457a4b634844d3b34bddbb0c833751650, checkpoint_completion_receipt_sha256=b2c0276818f4aa188b4afe82c686c31e87a334c375e463dfe5eacbd4661d5ad2, checkpoint_sha256=["298eccd8b8c4b9648c3214e7d860c2ea8dbd7a5dc620bc15931762c5dd42b6b0", "c982db31832d498f1ff08d833efc2e222402ab18833115fb699da1371f6eb846", "98cbd2d51bb5ce7c3b55d544b7b234e91397d06c02d2ed328201dce6ab35c9e9"], confirmation_r_consumed=0, elapsed_seconds_total=1547.848237130791, endpoint_per_step_losses=[[0.19521258771419525, 0.30220484733581543, 0.35116615891456604, 0.41650983691215515, 0.4893997311592102, 0.5351357460021973, 0.6573091149330139, 0.7724584341049194, 0.8372243642807007, 0.7294480800628662, 0.7245166897773743, 0.711090087890625], [0.1793542206287384, 0.2653624415397644, 0.2694452106952667, 0.295052707195282, 0.33120232820510864, 0.3478480577468872, 0.3579563498497009, 0.34115666151046753, 0.3599538207054138, 0.29754096269607544, 0.24072617292404175, 0.2878812253475189], [0.1504697948694229, 0.1961665004491806, 0.1869969666004181, 0.20198631286621094, 0.2431214153766632, 0.2563667893409729, 0.2488587349653244, 0.21179020404815674, 0.2569209337234497, 0.24375811219215393, 0.1668146699666977, 0.15523090958595276]], endpoint_total_losses=[1.29634428024292, 0.774080753326416, 0.5330567359924316], endpoint_updates=[0, 20, 80], final_document_review_sha256=b1ae94ff2c5971224f7787d59c52cf58a0b8f9d4b44d4c6b00cea80bbfe4af6c, gpu_hours=0.43, hard_cap_seconds=7200.0, hard_overrun_seconds=0.0, independently_assigned_files=807, known_reserved_peak_bytes=2491416576, last_before_step_loss=0.5335893630981445, network_bytes=0, optimizer_state_imported=false, optimizer_updates=80, owned_cuda_reserved_peak_bytes=2434793472, physical_steps=12, planned_seconds=3600.0, preclip_gt1_rows=42, reasoning_steps=4, required_free_bytes=4638900224, result_sha256=a59614df732c0f090e26798bcc2fa084252a7ab26ab7e606939d0e483840e3b7, seed=41, soft_overrun_seconds=0.0, support_sha256=7e4540b42debde4befdda247edcbc4c18b81af25c0fa862aa5f6d297bf75ba86, test_read=false, total_decline_percent_0_to_80=58.88000247183234, train_cases=1, unused_parameters=14, val_read=false, wrapper_sha256=3073ea784dbd76a44c1f88adb1329c66ce120194235e18120425029467da97f8
+
+## s3-fixed-case-objective-response-readback
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_FIXED_CASE_OBJECTIVE_RESPONSE.md` (SHA256 `fbfd83ee84ceecdcaac8f93250e564fde9e0ac57c3d71f87b0ae4cb3f68e0742`)
+- Evidence commit: `6b2e3db541797708dc1ebb916b39ea7d9c02b91a`; experiment commit: `61e46bd78d4d7ce49da7a87d574e40c6c18a1c99`
+- Protocol SHA256: `6b9be74b035a19f47407eb74158e342ec15e7c4f37bfe0f4271c6eb9920801a6`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: All three predeclared real endpoints0/20/80 were independently recomputed from the unchanged archived training_long_rollout on the same cached train case, keeping train/all-trainableFP32/enable_grad/dropout0. Native typed exact complete12-loss/total/state-after/flags/inventory/recipe/RNG projections have zero differences without tolerance, optimizer or backward. External115 parent pins/full new80 contract/all692 archive and1532 saved-file/process/gate/cost facts checked. Whole1467.480233s costs0.4078GPU-h independently of the original training; prior terminal hard900 overrun retained, fresh byte-identical auditor qualified only assigned saved facts.
+- Limitations:
+  - Exact saved endpoint projection in this configuration is not universal bit-reproducible GPU training.
+  - One in-sample train case, no val/test/weather skill, climatology fit or scientific confirmation.
+  - Independent saved-file auditor did not reread weather/source/model tensors or rerun forward; actual execution qualified those inputs.
+  - Old scope-negative and hard/reserve failures remain negative; fresh bounded same-helper completion applies only to its declared assignment.
+  - Python offline/import/owned guards are not an OS sandbox; saved signal/headroom facts do not establish global lifetime intervention absence.
+- CI run: `37543875564`
+- Excluded from runnable candidates: Configuration reproducibility and assigned saved-facts audit only; not candidate or scientific acceptance.
+- Recorded metrics (not recomputed): attempt_sha256=e1e23874d804bf3a7ce255b7f9633970809f917592eaeecb2832fd7e69218a8e, confirmation_r_consumed=0, difference_counts_by_endpoint=[0, 0, 0], driver_sha256=4df86db1f6ea8c4a7f7d4b6e0e4c42259e3c8d4e64fda80419e231e7b07fe517, elapsed_seconds_total=1467.4802325293422, endpoint_updates=[0, 20, 80], final_document_review_sha256=b1ae94ff2c5971224f7787d59c52cf58a0b8f9d4b44d4c6b00cea80bbfe4af6c, fresh_terminal_audit_seconds=5.029937160201371, gpu_hours=0.4078, hard_cap_seconds=3600.0, hard_overrun_seconds=0.0, historical_parent_training_cost_recharged=false, known_reserved_peak_bytes=2491416576, network_bytes=0, numeric_difference_count=0, optimizer_created=false, optimizer_updates=0, original_terminal_hard_overrun_seconds=48.49717978853732, owned_cuda_reserved_peak_bytes=2409627648, parent_assigned_files=807, parent_files_pinned=115, physical_steps=12, planned_seconds=1800.0, readback_assigned_files=725, reasoning_steps=4, required_free_bytes=4638900224, result_sha256=663e085a2c27514beb9af6eb5740264361307101876333047e372c3077585372, seed=41, soft_overrun_seconds=0.0, support_sha256=f4408d2ed919998c04f901b92fac3ac800c9de2aa35452f62767ce1bb22f685d, terminal_completion_receipt_sha256=fa8d67c2d52f41224140decbacd68effc46111c3fa52bf1b91afb67ec651fd62, test_read=false, train_cases=1, val_read=false
 
 ## s3-gradient-mixed-suite-resource-deviation
 

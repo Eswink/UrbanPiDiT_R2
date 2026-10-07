@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-**状态：active（2026-10-06；S0–S2 已登记，S3 开发筛选与长 lead 机制研究进行中，S4 未启动）。**
+**状态：active（2026-10-07；S0–S2 已登记，S3 固定病例响应诊断及证据收尾，S4 未启动）。**
 本文件是新方向的**唯一主计划与 goal 长文**。科学合同见
 `docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md`；执行授权见决策 0030/0038；实施交接见计划 0016。
 旧 V2 收尾与 #70–#75 不重做，不自裁旧/新 goal complete。以后各具体实验长文由本主计划派生。
@@ -190,7 +190,9 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 默认全套混合CUDA测试（取卡证据缺口另计） | 0.3497 | 20.1433 | `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` §5（索引 `record:s3-gradient-mixed-suite-resource-deviation`）；4009passed/3skipped含六CUDA条件test，未留该套专用UUID/余量/协议，不能称有界GPU合规；JUnit至log1258.349468s、ceil1259全记账；另冻明确CPU全套4003passed/9skipped，0GPU，不追认原缺口 |
 | S3 梯度代表例replay attempt01（prepare工程失败） | 0.0005 | 20.1438 | `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` §6（索引 `record:s3-train-gradient-replay-attempt01`）；1.834367s、soft/hard超0，fixture manifest归档复制被guard拒绝，未进实际字段/GPU；exit1/reaped，failed保留不复活 |
 | S3 梯度代表例replay attempt02（精确恢复negative） | 0.4361 | 20.5799 | `docs/R7_S3_TRAIN_GRADIENT_COMPONENTS.md` §6（索引 `record:s3-train-gradient-replay-attempt02`）；1569.817662s、soft1800/hard3600超0，两workerexit0/reaped、signals空但161numeric leaves不精确，loss/state/RNG/activity相同；独立差异确认，failed-restoration、无accepted，不加容差/attempt03 |
-| **合计已用** | **20.5799** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−0.5799是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。科学气候态/全年/同时区间仍未过；固定train梯度信号有且相消不同，但非clip/欠拟合因果证明，不无限重复同剂量或精确replay |
+| S3 单固定train病例原目标80更新（描述性响应） | 0.4300 | 21.0099 | `docs/R7_S3_FIXED_CASE_OBJECTIVE_RESPONSE.md`（索引 `record:s3-fixed-case-objective-response`）；whole1547.848237s、planned3600/hard7200超0，三workerexit0/reaped、记录signals空；freshAdamW/clip1/原12步目标、标准0/20/80齐、总loss降58.8800%，单病例不等于天气泛化；旧工程失败/超hard/取消均保留 |
+| S3 单病例三端点独立精确反算（只读配置核验） | 0.4078 | 21.4177 | `docs/R7_S3_FIXED_CASE_OBJECTIVE_RESPONSE.md` §7（索引 `record:s3-fixed-case-objective-response-readback`）；whole1467.480233s、planned1800/hard3600超0，0/20/80原生typed全12loss/total/state/recipe/RNG投影diff0，1532保存事实核齐；首terminal超hard48.497180失败不追认，另同字节helper5.029937s补齐；不重复计原训练 |
+| **合计已用** | **21.4177** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−1.4177是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。科学气候态/全年/同时区间仍未过；固定病例原目标有限响应已确认但非泛化/clip/欠拟合因果证明，不无限重复同剂量或精确replay |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
@@ -219,9 +221,20 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   1032.230798s/hard1500超0、receipt a96525b1，限定CPU工程qualified，实际source/CUDA/native状态仍待attempt01 runtime严格资格。
   readback TEMP50passed但独立deepparent正例后4scope反义全链未拒→资格negative，另300/900最小scope修复，收尾余量违规保留，未获真实readback资格。
   actual fixedcase attempt01恰80更新/标准0-20-80齐、whole1547.848237s/hard7200超0、3workerexit0/reaped；同病例原目标1.296344→0.533057降58.8800%，非泛化/科学接受。
-  807files外锚与独立checkpoint/math/cost审阅另900/1800，真实readback仍待自身资格。训练0.4300GPU-h待本轮完整evidence登记，当前账本20.5799/index58不冒已入账。
+  807files独立JSON/math/cost核齐，但首次terminal whole1964.930446s超hard1800且checkpoint ownedSIGTERM取消，旧stage保留incomplete。
+  另冻600/1200 CPUcheckpoint实际13.571614s核普通loader/完整state/RNG/AdamW，三端点语义齐；旧取消与预算失败不追认。
+  readback owner scope修复1082.041479s超hard900失败保留，另独立630.870804s/hard1800 current50tests/deeppositive/14scope双入口28拒绝闭合。
+  实际三端点独立反算完整：全部12loss/total/state及typed contract projection每端点diff0，不epsilon/allclose，无optimizer/heldout。
+  whole1467.480233s在1800/3600内，默认共驻门持续known2491416576+2GiB；新0.4078GPU-h与训练0.4300分列。
+  首readback terminal1532pins算术齐但948.497180s超hard900的48.497180，旧失败保留；同独立helper原字节另300/900实际5.029937s重核savedfacts成功。
+  首文档审阅581.968135s/hard600但收尾余18.032<90且当前末hash未齐，issues/not-qualified；修标题/保留失败，限定17输入另300/1500复核。
+  新限定17输入事实复核whole763.191438s/hard1500、soft超463.191438/hard0、report余736.801410满足reserve90；17first/end SHA/bytes一致，issues=[]、仅qualified-document-assigned-saved-facts。
+  receipt SHA `b1ae94ff2c5971224f7787d59c52cf58a0b8f9d4b44d4c6b00cea80bbfe4af6c`，新证据 `docs/R7_S3_FIXED_CASE_OBJECTIVE_RESPONSE.md` 已冻结于 `6b2e3db541797708dc1ebb916b39ea7d9c02b91a`，SHA `fbfd83ee84ceecdcaac8f93250e564fde9e0ac57c3d71f87b0ae4cb3f68e0742`。
+  两条audit/not-candidate已登记index60，训练0.4300/反算0.4078分列加入累计21.4177，cap20.0/remaining−1.4177仅会计；旧58全文prefixSHA `3ad00bd4980ef318263f55927287d62fa49146abf2a83b389b3d6e49a42c1abd`、旧54及全部旧证据SHA不变，brief按renderer字节同步。
+  新CPU完整仓库验证实跑4003passed/9skipped/6warnings（JUnit4012/0fail/errors），whole1239.821378s在1500/3600内、soft/hard0、reserve90满足、workerexit0/reaped无记录signals、0GPU-h，明确CUDA不可见/离线无过滤；6CUDA+3未跟踪fixture skip不算通过。
+  attempt SHA `6bbfc820bedd364398c28fc2216cc0fa72982461e69a11409be0a5f866c1bea8`，不重用旧计数、不追认mixedCUDA资源缺口。登记后治理93passed/0skip、两个campaign/两个goal/indexbrief/空白核通过。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-fixed-case-objective-response.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 20.5799, "remaining_gpu_h": -0.5799, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-fixed-case-objective-response.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 21.4177, "remaining_gpu_h": -1.4177, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
