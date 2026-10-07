@@ -184,14 +184,16 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 12步probe归档单样本重放（精确同配置再现） | 0.2350 | 14.7962 | `docs/R7_S3_LONG_ROLLOUT_FEASIBILITY.md` §5（索引 `record:s3-long-rollout-feasibility-replay`）；846.060163s、overrun0，两workerreaped/no signals；sample/loss/12steploss/gradient/FLOPs精确一致，非训练/val/test确认 |
 | S3 12步长监督三seed screen（开发supported，绝对长lead气候态未过） | 2.4984 | 17.2946 | `docs/R7_S3_LONG_ROLLOUT_SCREEN.md`（索引 `record:s3-long-rollout-screen`）；8994.237921s、soft6300超2694.237921s/hard12600超0，六workerreaped/no signals；主格supported、控制gate0/45，但t2m48/72h气候态skill全负、parentgate16/45，test未评分 |
 | S3 12步screen归档seed41全val重放（15CSV精确、单独全额计费） | 0.5378 | 17.8324 | `docs/R7_S3_LONG_ROLLOUT_SCREEN.md` §7（索引 `record:s3-long-rollout-screen-replay`）；1935.462220s、soft1800超135.462220/hard3600超0，ceil1936秒；15CSV及2272case精确、三seedcollector摘要一致，审阅optional文档收尾hard超3.402s如实保留，非科学确认 |
-| **合计已用** | **17.8324** | — | 本方向基数0，历史V2不重复计费，所有失败全额登记；cap20.0/remaining2.1676是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。长监督200剂量已完整且只开发门清零，正式气候态/全年/同时区间未过；下一独立S3诊断先冻结，不无限重复同剂量 |
+| S3 同case train/val诊断（20in-sample+4开发，无optimizer） | 0.4865 | 18.3189 | `docs/R7_S3_SAME_CASE_GAP.md`（索引 `record:s3-same-case-gap-diagnostic`）；1751.421197s、soft1800/hard3600超0；父相对t2m全lead改善但train/val48/72h气候态仍负，独立fsum审阅FAILED保留、另冻NumPy精确补充，无科学确认 |
+| S3 同case归档全payload重放（原code/气候态/端点） | 0.7900 | 19.1089 | `docs/R7_S3_SAME_CASE_GAP.md` §6（索引 `record:s3-same-case-gap-replay`）；2844.160051s、soft1800超1044.160051/hard3600超0；24病例/6120MSE及全组/gap身份精确一致、三workerreaped无记录信号，最高config-reproducible |
+| **合计已用** | **19.1089** | — | 本方向基数0，历史V2不重复计费，所有失败全额登记；cap20.0/remaining0.8911是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。长监督200剂量已完整且只开发门清零，正式气候态/全年/同时区间未过；同case失败亦见train，下个独立train信号诊断另冻，不无限重复同剂量 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-same-case-gap-diagnostic.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 17.8324, "remaining_gpu_h": 2.1676, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-same-case-gap-diagnostic.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 19.1089, "remaining_gpu_h": 0.8911, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -373,7 +375,11 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   但长lead气候态未过；本輪2.4984+replay0.5378GPU-h及所有softoverrun/审阅预算例外均index登记。
   本登记85ae0ea精确CI37535580456已completed/success，全部必要steps success；新当前轮
   `docs/goals/s3-same-case-gap-diagnostic.md`在S3做20train+4val同case双endpoint/原climatology差距诊断，
-  先CPU反证/独立审阅再soft1800/hard3600新protocol；暂无真实诊断执行。
+  已按soft1800/hard3600完成同case真实诊断，1751.421197s/0.4865GPU-h；t2m48/72h不只val负，train pooled和每year/month亦负。
+  全24病例归档重放2844.160051s/0.7900GPU-h，soft超1044.160051/hard0，全指标/组/gap/气候态身份精确数值同原值。
+  独立NumPy51484numeric/19500typed精确，原fsum relative审阅FAILED及5082residual另立补充保留不改门；
+  三worker/no recorded signals与完整成本/限制已登记。证据09447bc、index54条，当前累计19.1089；执行61e46bd精确CI37543875564success。
+  下一独立S3问题先检查固定长权重下train损失分量/梯度方向，不凭norm>1盲目增加剂量或改clip。
   600条已保存norm全部clip前>1、四个loss块非同case不判收敛，不据此无界加预算。
   不重开短双步、不消耗未见test、不假称完整全年或科学complete。
   v3-D2/D3已登记，不重复重建；S4/test未启动，现有四季30日块不等于完整未见全年确认。

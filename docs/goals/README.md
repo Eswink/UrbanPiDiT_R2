@@ -54,7 +54,7 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 | [`s2-climatology-mechanism-screening.md`](s2-climatology-mechanism-screening.md) | S2 节点：单因素机制筛选（#77 → #78 R-A → #79 → #78 R-B） | 已完成：四项全部登记（unresolved/worsened/supported-needs-review/worsened），回主线动作明确 |
 | [`s3-confirmation-baselines-and-candidate.md`](s3-confirmation-baselines-and-candidate.md) | S3 节点：同数据基线、incumbent 重训、R-C/预算/短rollout筛选 | v3-D2/D3/BD及短rollout已登记；短rollout13/45守门negative，S4未开始，test未评分 |
 | [`s3-long-rollout-supervision.md`](s3-long-rollout-supervision.md) | S3 接续：直接12步全BPTT，监督48/72h生成历史 | S3开发screen完整：主格supported、控制gate0/45，长lead气候态仍全负；归档15CSV精确，全额登记，非S4/科学接受 |
-| [`s3-same-case-gap-diagnostic.md`](s3-same-case-gap-diagnostic.md) | S3 接续：20train+4val同case双endpoint/原climatology长lead差距 | active implementation，先CPU反证/独立审阅；train in-sample，val开发，非科学确认 |
+| [`s3-same-case-gap-diagnostic.md`](s3-same-case-gap-diagnostic.md) | S3 接续：20train+4val同case双endpoint/原climatology长lead差距 | 完整诊断与归档24case精确重放已登记；长lead失败亦见train，fsum审阅失败/互补残差保留，非科学确认 |
 | [`main-model-v2-rw-b-round.md`](main-model-v2-rw-b-round.md) | V2 第二阶段：RW-B 局部门控求解状态（#72 M2-B） | 已完成（negative，`docs/R7_72_RW_B_PILOT.md`）；含 goal 校验悬挂的恢复记录指针 |
 | [`main-model-v2-rw-b-subtraction.md`](main-model-v2-rw-b-subtraction.md) | RW-B 减法归因（(a) 门控+锚定提案 / (b) Z 递推 / (c) role 标记） | 已完成（`branch=stop-confounded-control`：负控制按构造退化，不能归因） |
 | [`main-model-v2-pivot-audit.md`](main-model-v2-pivot-audit.md) | N1 转向审计（四块 0 GPU-h）+ 冻结随机 Z 可证伪臂 | 已完成（两 seed 反号 → `cannot-distinguish`，只提议 N2d） |

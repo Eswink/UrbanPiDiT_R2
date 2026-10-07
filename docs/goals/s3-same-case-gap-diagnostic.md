@@ -86,5 +86,16 @@ source/window/codecommit混当模型/数据/checkpoint身份，lead列表变更�
 - 独立prelaunch审阅无剩余essential blocker；最终新header反证6passed/56deselected（5.04s）。
   审阅983s，soft600超383、hard1200未超；中途停止suite及并行旧fixture13failed/20passed保持非PASS。
   临时test-only metadata快照不改production读法，独立阳性使用真实本地tinyZarr而非快照缓存。
-- 尚无真实metadata24case冻结/天气字段读取/新GPU诊断/结果/费用，不预写全量工程资格或科学通过。
-- 下一动作：完成核心CPU反证与独立prelaunch终态、全量回归，commit/archive再冻结fresh有界diagnostic。
+- 全量CPU回归4003passed/9skipped/6warnings（1210.87s），六CUDA/三optional fixture skip不作通过；37conventions/213治理/goal/index齐。
+  执行61e46bd78d4d7ce49da7a87d574e40c6c18a1c99精确CI37543875564completed/success，全部必要steps success。
+- D1–D3真实24case已冻结并完整运行：canonical protocol8b336951185b092ad30b05f4ba2eb7aa6b21828ae8601378b22dba0a1c7ca216，
+  1751.421197s/0.4865GPU-h，soft1800/hard3600均未超；四workerreaped/no recorded signals，无optimizer/test。
+  t2m48/72h在train和val仍负，train每year/month亦负；父相对改善不等于气候态通过。
+- D4独立终端审阅最初fsum relative5e−14 predicateFAILED保留；另冻descriptive supplement独立NumPy全51484numeric/19500typed精确，
+  5082fsum residual如实保留（拒绝t50048h relative8.415e−14），不放宽旧门或掩盖失败。
+  归档全24case/原气候态/双endpoint再生完整，projection936b7d265f22912c21fecda8943dc13149b391667a806910df29e01dc03aa406一致、diff0；
+  replay2844.160051s/0.7900GPU-h、soft超1044.160051/hard0，三workerreaped/no recorded signals，独立terminal226.115s通过精确恢复核验。
+- 冻结证据 `docs/R7_S3_SAME_CASE_GAP.md`，commit09447bc194562f4dac80868237122084ee5745dc、SHA82f73cc6b103ce79ea96be9df16aac2ecc5ea02d1a01fe3410eea208b6eb6135，
+  新index两记录（总54）/brief/master费用齐，总19.1089GPU-h，cap20/余0.8911仅会计，登记commitCI待核。
+- 尚未梯度/optimizer更新/完整全年/三seed正式统计确认/test/S4或scientificgoal complete。最高config-reproducible。
+- 下一动作：核登记精确CI，并另冻train-only固定长损失分量/梯度方向诊断；先CPU解析/身份/不更新反证和独立prelaunch，不盲目加剂量。
