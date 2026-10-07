@@ -181,4 +181,26 @@ verified:true/fence_stripped:false；主链已实读long runner116-173、update7
 - 独立端点readback TEMP准备实际50passed，但完整deep-parent外锚happy-path尚未资格，不能实launch。
   `/tmp/r7_fixed_case_readback_stage_20261007_4ys7o7nv/stage_receipt.json` SHA `f514aed61e9ca0980ba3075932959348fdba4045dc9d54d9d18d0c06fa8237bf`；
   whole2386.537055s在1200/2400硬内，soft超1186.537055，但收尾仅硬余13.462945s，违反预留90s纪律，保留偏差/旧四失败。
-- 下一动作：新排他attempt01依原3600/7200先冻两相protocol并实核数据/CUDA，再恰80更新；readback在自身完整资格前仍禁真实运行。
+- actual attempt01已在新排他 `outputs/r7_s3_fixed_case_response_20261007_attempt01/` 启动；原3600/7200与cleanup90不改，
+  prefreeze canonical `61df2419ee52015f24980d116307613549c7d77b7201f98c1ab90cf8d5f03816`已先于metadata/fields/updates出版。
+  startup/prepare GPU1即时门通过：free14253293568B ≥known2491416576B+2GiB；共驻neighbor不干预。
+  CPUprepare实际482.201314s exit0/reaped，完整source540856239B/全2360记录及2140窗口/220排除、parent/norm/code/state资格与无字段前置齐。
+  finalprotocol canonical `699ee5e5fbb67369185ea7824d9e5f33a14b3dce3cf9226dac3facffd0a0fa0f`，文件SHA `12b5010ba65d4a7789e88e4d358d00c585b0f42cfe3eb84e610256a97cbc3b42`；
+  新80完整template绑定native41/原155参数141活动、parentoptimizer_imported:false；train spawn GPU1门free14253293568B通过。
+  07:29:03Z仍train worker资格、0已保存训练行/无firststep，尚无80真实更新结论；运行中不算PASS，失败/成本最终全留。
+  预启动治理f00a0dec0a0ae0461dd63b9c31f3faa09374f0cb精确主CI37585610390必要job/全部steps success，工程非科学接受。
+  端点readback新独立prelaunch另冻900/2400补全deepParent正向及反证，CPU自有fixture、禁止读取当前真实attempt或真实运行，原未qualified状态不追认。
+- actual attempt01已完整成功：恰80行/0-20-80标准新contractcheckpoint齐，三个worker success/exit0/reaped/recorded signals空。
+  whole1547.848237s、soft3600/hard7200超0；prepare482.201314/train1050.428733/reading11.147346s。
+  source/CUDA native41外锚及原mask155/141/14由实际worker核，owned reservedmax2434793472B低于known2491416576，reading继续携带known门，不下调余量。
+  result SHA `a59614df732c0f090e26798bcc2fa084252a7ab26ab7e606939d0e483840e3b7`，attempt SHA `43d18c3e493dd1496ef9de3c18a4e08457a4b634844d3b34bddbb0c833751650`；
+  新contract canonical `954cef09cae2a81b6933340dbe8b2e8a4aa987719dc1d14b9bceb6e6e59b6ab6`；807assigned files frozen `/tmp/r7_fixed_case_terminal_assignment_20261007_attempt01.json`
+  SHA `1218a3a0572ded85165af8172111cfb395a03a21c8fd370f20d6c710de01dc43`，独立savedfact/checkpoint/math/process/cost另900/1800审阅进行中。
+  同病例目标端点0/20/80为1.29634428024292/0.774080753326416/0.5330567359924316；80比0降58.8800%，五activelead均下降，轨迹beforestep无增加。
+  仅描述性响应，不能称泛化/气候态/容量或clip因果；独立readback还未执行，完整0.4300GPU-h待本轮证据/索引/账本一并登记，现账本仍20.5799不冒已入账。
+- readback独立完整50tests和真实结构synthetic完整parentpositive及三端点精确0差均过，但4个optional scope反义在全链被接受，资格negative：
+  result.test_read/val_read/scientific_pass=true、attempt.optimizer_state_imported=true未拒；另heldout_fields和reading.test_read已被后续拒，不能误列6项。
+  `/tmp/r7_independent_readback_review_20261007_3sn0den2/stage_receipt.json` SHA `fe839dd7616d60312543d114c61a479383c57eb09842e52e840b610d49c5cdd9`；
+  whole1966.954969s、900/2400 soft超1066.954969/hard0/收尾余433s，oldguard拒cleanup失败另保留。
+  仅最小scope修复另300/900冻，required实际producer科学/heldoutfalse与存在optional严格typedfalse，缺字段不伪造defaultFalse证据，原精确/source门不放宽；真实readback继续禁止。
+- 下一动作：独立终态807pins/新checkpoint/math/cost审阅；readback4scope最小修复和定向复核齐后才另冻真实三端点反算，再登记完整证据与费用。

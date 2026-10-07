@@ -217,7 +217,9 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   稳定包独立完整86passed但2个coherent RNG/活动真实性反证仍接受；1671.521s在900/1800内冻结negative资格。
   后续仅修seed41 native状态和已冻结case0逐参数活动的外锚，另冻600/1500；新stable4pins最终91passed且独立定向full91+2coherent闭合，
   1032.230798s/hard1500超0、receipt a96525b1，限定CPU工程qualified，实际source/CUDA/native状态仍待attempt01 runtime严格资格。
-  readback TEMP50passed但deepparent外锚未齐、收尾余量违规保留，未获真实readback资格；不把同权hash自洽当真实来源证明。
+  readback TEMP50passed但独立deepparent正例后4scope反义全链未拒→资格negative，另300/900最小scope修复，收尾余量违规保留，未获真实readback资格。
+  actual fixedcase attempt01恰80更新/标准0-20-80齐、whole1547.848237s/hard7200超0、3workerexit0/reaped；同病例原目标1.296344→0.533057降58.8800%，非泛化/科学接受。
+  807files外锚与独立checkpoint/math/cost审阅另900/1800，真实readback仍待自身资格。训练0.4300GPU-h待本轮完整evidence登记，当前账本20.5799/index58不冒已入账。
 
 <!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-fixed-case-objective-response.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 20.5799, "remaining_gpu_h": -0.5799, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
