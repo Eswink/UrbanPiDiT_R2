@@ -379,6 +379,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   全24病例归档重放2844.160051s/0.7900GPU-h，soft超1044.160051/hard0，全指标/组/gap/气候态身份精确数值同原值。
   独立NumPy51484numeric/19500typed精确，原fsum relative审阅FAILED及5082residual另立补充保留不改门；
   三worker/no recorded signals与完整成本/限制已登记。证据09447bc、index54条，当前累计19.1089；执行61e46bd精确CI37543875564success。
+  登记46ddd262fdfdfb60319bc455ac428a61c170dade精确CI37553027758亦completed/success，全部必要steps success。
   下一独立S3问题先检查固定长权重下train损失分量/梯度方向，不凭norm>1盲目增加剂量或改clip；
   新当前轮 `docs/goals/s3-train-gradient-components.md` 固定2021四train病例、FP32/K4/原配方、无optimizer/val/test。
   先临时wrapper/tests CPU资格与独立prelaunch，再首例peak后余三例；暂未实际梯度执行，soft1800/hard3600另冻。

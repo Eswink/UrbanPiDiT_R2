@@ -96,6 +96,6 @@ source/window/codecommit混当模型/数据/checkpoint身份，lead列表变更�
   归档全24case/原气候态/双endpoint再生完整，projection936b7d265f22912c21fecda8943dc13149b391667a806910df29e01dc03aa406一致、diff0；
   replay2844.160051s/0.7900GPU-h、soft超1044.160051/hard0，三workerreaped/no recorded signals，独立terminal226.115s通过精确恢复核验。
 - 冻结证据 `docs/R7_S3_SAME_CASE_GAP.md`，commit09447bc194562f4dac80868237122084ee5745dc、SHA82f73cc6b103ce79ea96be9df16aac2ecc5ea02d1a01fe3410eea208b6eb6135，
-  新index两记录（总54）/brief/master费用齐，总19.1089GPU-h，cap20/余0.8911仅会计，登记commitCI待核。
+  新index两记录（总54）/brief/master费用齐，总19.1089GPU-h，cap20/余0.8911仅会计；登记46ddd26精确CI37553027758completed/success，全部必要steps success。
 - 尚未梯度/optimizer更新/完整全年/三seed正式统计确认/test/S4或scientificgoal complete。最高config-reproducible。
 - 下一动作：核登记精确CI，并另冻train-only固定长损失分量/梯度方向诊断；先CPU解析/身份/不更新反证和独立prelaunch，不盲目加剂量。

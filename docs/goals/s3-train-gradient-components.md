@@ -81,7 +81,11 @@ planner实读返回草稿，但误用model.eval违反actual trainobjective、以
 
 ## §8 进度与交接
 
-- 状态active/preparation，S3，上一轮同case54index/19.1089账本已登记，登记commit46ddd26精确CI待核。
-- 已完成：主链接口侦察、拒绝错误planner字段、校检后的自规划；临时implementation代理正在写wrapper/tests。
+- 状态active/preparation，S3，上一轮同case54index/19.1089账本已登记；登记commit46ddd26精确CI37553027758已completed/success，全部必要steps success。
+- 已完成：主链接口侦察、拒绝错误planner字段、校检后的自规划；临时implementation初套48CPU passed（441.63s）、补receipt acceptance后111passed（185.54s），均非天气证据。
+- 独立prelaunch第一阶段966s，soft600超366/hard1200未超，尚未qualified：确认两个essential反证，
+  postprepare hash失败被pop后的protocol摘要KeyError掩盖、未发布failure/cost；全部前后/中间state摘要可协同替换而未锚到strict restored checkpoint。
+  两个极小修法交原实现者、保留原审阅/测试事实，待增加反证和独立定向复核，不按旧111passed冒称可运行。
+  审阅两次optional guard在pytest collect前失败（合4.842s）是审阅harness缺陷非项目失败，已弃用，成本含于966s。
 - 未做：本轮实际四case metadatafreeze/source新核/梯度/GPU/结果/成本/重放；不得预写通过。
 - 下一动作：临时wrapper/tests handoff后CPU qualification/独立prelaunch，冻结新protocol后测首例峰值并完整四例。
