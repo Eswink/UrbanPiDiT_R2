@@ -484,7 +484,9 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 - planner实际认证失败（`Provider authentication failed.`、142427ms），保留原错，自规划JSON已同契约
   verified并独立内容核。web-researcher实测idle失败（`upstream stream idle for 3m0s`），按既定路由备选
   通道只读获取issue原文/官方资料，不把摘要当事实；未伪称成功。
+- 准备文档提交 `3c354e642682b3767f4f94771104ea7c7aa937b8` 已工作分支推送，精确主CI37629370467必要steps全部success；首次匿名API403检查中断完整保留，不是测试失败。固定TEMP包最小修复后producer完整CPU19/19、原指标88/88实际通过、0skip；原独立55pass/33FALSE_ACCEPT及全部修复失败不回写。最终bundle manifest `6ca336511c8eda4d2d04f8bd34806387db1af0cc3dd0546b487ca5f649714254`，独立prelaunch已另冻600/1800/reserve90正在执行；CPU资格不作天气或科学代理。
 - 此时无新optimizer/update/backward/天气字段评分/GPU-h，不重复已登记80或精确replay。
-  实际新诊断软3600/硬10800/reserve180秒待exact包CPU资格与独立prelaunch后冻结排他protocol。
-  **下一动作（S3）**：完成新薄wrapperCPU反证/独立资格，首次实跑0/20/80×原八病例的原deep-K目标及
-  最终全17×5×full/interior_1/edge_1物理评分，正负登记后按证据继续不同可证伪主模型假设。
+  实际新诊断软3600/硬10800/reserve180秒待独立prelaunch后冻结排他protocol，再实际CPUprepare核完整source/BUILD_COMPLETE/metadata/ordinary三端点。原准备clock soft已超继续、hard10800不reset；逐项证据与预算见子goal§8。
+- 独立prelaunch已限定工程PASS，receipt `600a7abf8b1e98f05a7b19ffc8e4a73e88cf2c6b9360ec5187122261a4999aff`；19CPU/38rows通过、指标91/92原环境FAIL保留并4单项补充闭环，不冒称单套allpassed。原准备时钟7178.884820s终态、soft超3578.884820/hard10800未超、0GPU。新实际诊断 `outputs/r7_s3_objective_forecast_20261007_attempt01/` 已排他冻结prefreeze `fa93763b9dbffa6190db02749e8fbeb311fdf78cc97534e19218ef301977fdc1`、planned3600/hard10800/reserve180，CPUprepare真实资格运行中，未提前称24配对完成；账本待真实终态全额登记。
+- CPUprepare实际资格已完成671.480996s、exit0/reaped/signals=[]；完整source/preflight/BUILD_COMPLETE/train/val/归档digest/三个普通pt与state外锚全部匹配，fields仍未由prepare读。final protocol `26a17743b50c159b4b5e1e70703c89c3a9dd0ee56aaf4efebe4e687663d2a59d` 已冻结，diagnostic spawn即时GPU1余量25,280,118,784B≥4,638,900,224B，配对执行中；读数未出齐不写完成，真实费用待whole终态。
+- **下一动作（S3）**：完成已冻结0/20/80×原八病例的原deep-K目标及最终全17×5×full/interior_1/edge_1物理评分，独立保存事实复核及正负登记后按证据继续不同可证伪主模型假设。
