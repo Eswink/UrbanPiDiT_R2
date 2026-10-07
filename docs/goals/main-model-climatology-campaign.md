@@ -193,7 +193,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 
 ## §8 进度块
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-same-case-gap-diagnostic.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 19.1089, "remaining_gpu_h": 0.8911, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-train-gradient-components.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 19.1089, "remaining_gpu_h": 0.8911, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -379,7 +379,9 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   全24病例归档重放2844.160051s/0.7900GPU-h，soft超1044.160051/hard0，全指标/组/gap/气候态身份精确数值同原值。
   独立NumPy51484numeric/19500typed精确，原fsum relative审阅FAILED及5082residual另立补充保留不改门；
   三worker/no recorded signals与完整成本/限制已登记。证据09447bc、index54条，当前累计19.1089；执行61e46bd精确CI37543875564success。
-  下一独立S3问题先检查固定长权重下train损失分量/梯度方向，不凭norm>1盲目增加剂量或改clip。
+  下一独立S3问题先检查固定长权重下train损失分量/梯度方向，不凭norm>1盲目增加剂量或改clip；
+  新当前轮 `docs/goals/s3-train-gradient-components.md` 固定2021四train病例、FP32/K4/原配方、无optimizer/val/test。
+  先临时wrapper/tests CPU资格与独立prelaunch，再首例peak后余三例；暂未实际梯度执行，soft1800/hard3600另冻。
   600条已保存norm全部clip前>1、四个loss块非同case不判收敛，不据此无界加预算。
   不重开短双步、不消耗未见test、不假称完整全年或科学complete。
   v3-D2/D3已登记，不重复重建；S4/test未启动，现有四季30日块不等于完整未见全年确认。
