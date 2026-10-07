@@ -242,4 +242,6 @@ verified:true/fence_stripped:false；主链已实读long runner116-173、update7
   index58→60、旧58字节prefixSHA `3ad00bd4980ef318263f55927287d62fa49146abf2a83b389b3d6e49a42c1abd`及54prefix与已注册证据不变，brief原render直接同步；receipt `/tmp/r7_fixed_case_registration_receipt_20261007.json`。
   训练0.4300/反算0.4078独立入账，累计21.4177、cap20.0/remaining−1.4177仅会计无总GPU-h许可上限；S3/previousS2/r0/test未评分不变。
 - 登记后治理93passed/0skip，37阻断规则、旧N5/新S3双campaign、两goal结构、60条index/canonicalbrief与空白均核通过；新CPU全量已实跑，不冒称GPU全套。
-- 下一动作：提交登记至工作分支并核精确CI；下一独立科研问题按共同多病例响应与最终物理评分之间的对应关系设计，不由本单病例诊断自宣接受。
+- 登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已非force推到r7/weather-reasoning；精确主CI `37606126942` completed/success，pytest job及全部必要steps success。
+  访问2026-10-07 UTC，匿名只读Actions API receipt `/tmp/r7_fixed_case_registration_ci_20261007_attempt01/receipt.json`，不下载logs/artifact、不触发实验；标签门控skipped未算实验PASS。
+- 下一动作：下一独立S3问题先冻结无新optimizer的0/20/80目标—最终物理评分对应审计，使用原四train季节病例及四val开发例，检验单Jan目标下降是否对应同例/跨例最终预报MSE，而非直接扩共同训练剂量；先核完整新80contract/普通loader/病例/气候态身份与CPU反证。原单病例本轮已完整登记，不重跑80/readback/旧gradientreplay，不自宣S4或科研接受。

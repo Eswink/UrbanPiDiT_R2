@@ -232,7 +232,9 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   receipt SHA `b1ae94ff2c5971224f7787d59c52cf58a0b8f9d4b44d4c6b00cea80bbfe4af6c`，新证据 `docs/R7_S3_FIXED_CASE_OBJECTIVE_RESPONSE.md` 已冻结于 `6b2e3db541797708dc1ebb916b39ea7d9c02b91a`，SHA `fbfd83ee84ceecdcaac8f93250e564fde9e0ac57c3d71f87b0ae4cb3f68e0742`。
   两条audit/not-candidate已登记index60，训练0.4300/反算0.4078分列加入累计21.4177，cap20.0/remaining−1.4177仅会计；旧58全文prefixSHA `3ad00bd4980ef318263f55927287d62fa49146abf2a83b389b3d6e49a42c1abd`、旧54及全部旧证据SHA不变，brief按renderer字节同步。
   新CPU完整仓库验证实跑4003passed/9skipped/6warnings（JUnit4012/0fail/errors），whole1239.821378s在1500/3600内、soft/hard0、reserve90满足、workerexit0/reaped无记录signals、0GPU-h，明确CUDA不可见/离线无过滤；6CUDA+3未跟踪fixture skip不算通过。
-  attempt SHA `6bbfc820bedd364398c28fc2216cc0fa72982461e69a11409be0a5f866c1bea8`，不重用旧计数、不追认mixedCUDA资源缺口。登记后治理93passed/0skip、两个campaign/两个goal/indexbrief/空白核通过。S3/test未评分/r0/科学未接受不变。
+  attempt SHA `6bbfc820bedd364398c28fc2216cc0fa72982461e69a11409be0a5f866c1bea8`，不重用旧计数、不追认mixedCUDA资源缺口。登记后治理93passed/0skip、两个campaign/两个goal/indexbrief/空白核通过。
+  登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
+  本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
 <!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-fixed-case-objective-response.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 21.4177, "remaining_gpu_h": -1.4177, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
