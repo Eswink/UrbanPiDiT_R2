@@ -16,12 +16,10 @@ class R7ForecastOutput:
     tendency:torch.Tensor
     context_tokens:torch.Tensor
     token_hw:tuple[int,int]
-    # The known state at the current physical time that ``forecast`` was decoded
-    # relative to. RW-B's proposal is anchored to this same tensor; re-deriving it
-    # at a call site ("the last history step, unless a baseline was supplied")
-    # would be a second definition of X_t, and a second definition of one quantity
-    # is how the step implementations drifted apart before.
+    # Physical X_t (or the historical explicit baseline), never the climatology
+    # decode prior. Typed evidence and physical history retain this meaning.
     base_state:torch.Tensor|None=None
+    climatology_anchor:torch.Tensor|None=None
 
 
 class NativeAtmosForecaster(nn.Module):
@@ -31,7 +29,8 @@ class NativeAtmosForecaster(nn.Module):
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
                  default_lead_hours:float=6.,spacetime_inputs:bool=False,
                  spacetime_field_mode:str='fields',known_context_inputs:bool=False,
-                 change_scale_mode:str='identity',change_scale_ratio=None):
+                 change_scale_mode:str='identity',change_scale_ratio=None,
+                 climatology_anchor_spec=None):
         super().__init__()
         if type(known_context_inputs) is not bool:
             raise ValueError('known_context_inputs must be boolean')
@@ -77,8 +76,19 @@ class NativeAtmosForecaster(nn.Module):
                 self.known_context=KnownContextConditioning(
                     dim,self.history_steps,patch_size,periodic_width=periodic_width,
                     field_mode=self.spacetime_field_mode)
+        # Fixed zero buffers, constructed after every existing weight; no RNG draw.
+        self.climatology_anchor=None
+        if climatology_anchor_spec is not None:
+            from .climatology_anchor_r7 import TrainClimatologyAnchor
+            self.climatology_anchor=TrainClimatologyAnchor(climatology_anchor_spec)
+            if self.climatology_anchor.table.shape[1]!=self.out_channels:
+                raise ValueError('climatology_anchor channels must match out_channels')
+            if self.in_channels!=self.out_channels:
+                raise ValueError('climatology_anchor requires all input dynamic channels as outputs')
 
     def forward(self,batch:Mapping[str,torch.Tensor])->R7ForecastOutput:
+        if self.climatology_anchor is not None and 'atmos_baseline' in batch:
+            raise ValueError('climatology_anchor is incompatible with atmos_baseline')
         history=batch['coarse_history']
         if history.ndim!=5:
             raise ValueError('coarse_history 必须为 [B,T,C,H,W]')
@@ -96,5 +106,10 @@ class NativeAtmosForecaster(nn.Module):
         base=batch.get('atmos_baseline')
         if base is None:
             base=history[:,-1,:self.out_channels]
+        if self.climatology_anchor is not None:
+            climate=self.climatology_anchor(batch,history,
+                default_lead_hours=self.default_lead_hours)
+            forecast,tendency=self.head(context,token_hw,(H,W),climate)
+            return R7ForecastOutput(forecast,tendency,context,token_hw,base,climate)
         forecast,tendency=self.head(context,token_hw,(H,W),base)
         return R7ForecastOutput(forecast,tendency,context,token_hw,base)

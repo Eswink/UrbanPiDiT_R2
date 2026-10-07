@@ -39,7 +39,8 @@ def _validate_switches(*, spatial_solver_feedback, spacetime_inputs,
                        solver_state_recurrence, solver_gate_proposal,
                        draft_query_feedback, source_position_markers,
                        known_context_inputs, use_forecast_feedback,
-                       position_encoding_mode):
+                       position_encoding_mode, climatology_anchor_spec,
+                       anomaly_feedback):
     """Reject switch combinations nothing reads; one definition for every arm.
 
     Extracted from the constructor so the constructor stays inside R-052 while
@@ -57,9 +58,14 @@ def _validate_switches(*, spatial_solver_feedback, spacetime_inputs,
                        (solver_gate_proposal,'solver_gate_proposal'),
                        (draft_query_feedback,'draft_query_feedback'),
                        (source_position_markers,'source_position_markers'),
-                       (known_context_inputs,'known_context_inputs')):
+                       (known_context_inputs,'known_context_inputs'),
+                       (anomaly_feedback,'anomaly_feedback')):
         if type(value) is not bool:
             raise ValueError(f"{name} must be boolean")
+    if anomaly_feedback and climatology_anchor_spec is None:
+        raise ValueError('anomaly_feedback requires climatology_anchor_spec')
+    if anomaly_feedback and not use_forecast_feedback:
+        raise ValueError('anomaly_feedback requires use_forecast_feedback=True')
     if source_position_markers and not positional_process_readout:
         raise ValueError('source_position_markers requires positional_process_readout=True')
     require_position_encoding_mode(position_encoding_mode,
@@ -153,6 +159,8 @@ class ProcessForecastCoReasoner(nn.Module):
         change_scale_ratio=None,
         typed_evidence_mode:Optional[str]=None,
         typed_evidence=None,
+        climatology_anchor_spec=None,
+        anomaly_feedback:bool=False,
     ):
         super().__init__()
         _validate_switches(
@@ -168,7 +176,9 @@ class ProcessForecastCoReasoner(nn.Module):
             source_position_markers=source_position_markers,
             known_context_inputs=known_context_inputs,
             use_forecast_feedback=use_forecast_feedback,
-            position_encoding_mode=position_encoding_mode)
+            position_encoding_mode=position_encoding_mode,
+            climatology_anchor_spec=climatology_anchor_spec, anomaly_feedback=anomaly_feedback)
+        self.anomaly_feedback=anomaly_feedback
         self.spatial_solver_feedback=spatial_solver_feedback
         self.source_position_markers=source_position_markers
         self.known_context_inputs=known_context_inputs
@@ -302,6 +312,14 @@ class ProcessForecastCoReasoner(nn.Module):
             with isolated_stream():
                 self.typed_evidence=TypedEvidenceRouter(
                     dim,patch_size,mode=typed_evidence_mode,**fields)
+        # Install the fixed prior last, after all pre-existing trainable weights.
+        if climatology_anchor_spec is not None:
+            from .climatology_anchor_r7 import TrainClimatologyAnchor
+            self.backbone.climatology_anchor=TrainClimatologyAnchor(climatology_anchor_spec)
+            if self.backbone.climatology_anchor.table.shape[1]!=self.out_channels:
+                raise ValueError('climatology_anchor channels must match out_channels')
+            if self.backbone.in_channels!=self.out_channels:
+                raise ValueError('climatology_anchor requires all input dynamic channels as outputs')
 
     def initial_process_state(self, process:torch.Tensor, batch:Mapping, *,
                               anchor:torch.Tensor, draft:torch.Tensor)->torch.Tensor:
@@ -312,8 +330,8 @@ class ProcessForecastCoReasoner(nn.Module):
         the expanded ``process_queries``, operation for operation.
 
         ``anchor`` and ``draft`` are the tensors the first step itself consumes:
-        ``X_t`` is the known state the decode is anchored to and ``draft`` is the
-        initial forecast that becomes ``Y_0``. The caller passes the *same*
+        ``X_t`` is the physical known state, not the optional climatology decode
+        prior, and ``draft`` is the initial forecast ``Y_0``. The caller passes the *same*
         tensors it will step with - in the streamed trainer that is the detached
         interface leaf, so the evidence gradient accumulates on the leaf and is
         sent through the backbone exactly once by the trainer's own final
@@ -408,6 +426,10 @@ class ProcessForecastCoReasoner(nn.Module):
 
         if self.draft_query_feedback and not feedback_flag:
             raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
+        if self.anomaly_feedback and not feedback_flag:
+            raise ValueError('anomaly_feedback requires use_forecast_feedback=True')
+        if self.local_solver_state and not feedback_flag:
+            raise ValueError('local_solver_state requires use_forecast_feedback=True')
 
         process=self.process_queries.expand(B,-1,-1)
         process=self.initial_process_state(process,batch,anchor=base.base_state,draft=draft)
@@ -419,7 +441,7 @@ class ProcessForecastCoReasoner(nn.Module):
         for step in range(steps):
             result=process_reasoning_step(
                 self,
-                ProcessStepInput(process,context,draft),
+                ProcessStepInput(process,context,draft,base.climatology_anchor),
                 token_hw,
                 solver_state=solver_state,
                 step_index=step,

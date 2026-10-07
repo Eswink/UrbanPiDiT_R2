@@ -65,3 +65,4 @@
 | [0037](0037-issue-closeout-window-scope.md) | N5收尾轮：#70–#75具名有条件关闭的范围、判定口径与代价 | accepted | 2026-10-04 |
 | [0038](0038-autonomous-research-and-data-expansion.md) | 主模型超气候态方向自主研究；免费区域多年度/四季数据与自审preflight后新路径派生发布授权 | accepted | 2026-10-04 |
 | [0039](0039-complete-source-fingerprint-for-prepare.md) | 源指纹必须完整：preflight 不再对大文件降级为 stat-only | accepted | 2026-10-05 |
+| [0040](0040-explicit-valid-time-climatology-anchor.md) | default-off train-only valid-time 解码锚与异常反馈；物理状态分离和显式权重迁移 | accepted | 2026-10-07 |

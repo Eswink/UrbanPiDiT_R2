@@ -125,7 +125,8 @@ class AdaptiveProcessForecaster(nn.Module):
         return base, process
 
     def reasoning_step(self, process, context, draft, token_hw, *,
-                       solver_state=None, step_index: int = 0, anchor=None):
+                       solver_state=None, step_index: int = 0, anchor=None,
+                       climatology_anchor=None):
         """One step of the fixed R7.3 recurrence, through its single implementation.
 
         ``ProcessForecastCoReasoner``'s step used to be copied here; it is now
@@ -136,8 +137,8 @@ class AdaptiveProcessForecaster(nn.Module):
         """
         from .process_step_r7 import ProcessStepInput, process_reasoning_step
         return process_reasoning_step(
-            self.forecaster, ProcessStepInput(process, context, draft), token_hw,
-            solver_state=solver_state, step_index=step_index, anchor=anchor)
+            self.forecaster, ProcessStepInput(process, context, draft, climatology_anchor),
+            token_hw, solver_state=solver_state, step_index=step_index, anchor=anchor)
 
     @torch.no_grad()
     def forward(self, batch: Mapping[str, torch.Tensor], *, max_steps: int = 4,
@@ -155,6 +156,7 @@ class AdaptiveProcessForecaster(nn.Module):
 
         base, process = self.initial_state(batch)
         context, draft = base.context_tokens, base.forecast
+        climate = getattr(base, 'climatology_anchor', None)
         process = process.clone()
         batch_size = draft.shape[0]
         solver_state = None
@@ -172,7 +174,8 @@ class AdaptiveProcessForecaster(nn.Module):
             result = self.reasoning_step(
                 process[selected], context[selected], draft[selected], base.token_hw,
                 solver_state=None if solver_state is None else solver_state[selected],
-                step_index=step - 1, anchor=base.base_state[selected])
+                step_index=step - 1, anchor=base.base_state[selected],
+                climatology_anchor=None if climate is None else climate[selected])
             p, y, delta, prediction = (result.process, result.draft,
                                        result.correction, result.prediction)
             process[selected] = p.to(process.dtype)

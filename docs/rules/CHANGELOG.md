@@ -2,6 +2,24 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-07 — 独立反证发现的local-solver反馈守卫修复（`[model-digest-change]`）
+
+首固定source独立审阅 **NOT_QUALIFIED_MANDATORY_ISSUES**：187既有新模块与29独立反证通过，但4个关闭forecast feedback反证失败。缺失守卫在起点HEAD已存在，不能归为新气候态引入；支持的anchor-only/local_solver配置仍须拒绝per-call false，K0也不能绕过。原receipt SHA `16284e6a0ed1ad329a74d9e1c82dfee5bd8ac7466ae1104b298e9c1ff85bc116`、全491source首末与失败JUnit留存，不追认为通过。
+
+原完整CPU/wheel实跑4190passed/9skipped/0fail/error，receipt SHA `a1c9e38cb554e78b75be931f8ea4f8ca03a9ce4c904cc7f40663fd8f12e2b405`；六CUDA/三可选真实fixture skip逐项nonpass，工程完成不覆盖缺失反证。两个原source hold结束后，仅在Process fixed forward与shared step加与generic相同的local_solver_state反馈拒绝，不改合法feedback-on计算/权重/state/RNG/科学门。新24参数化反证先在未修源码实跑24failed/0error/skip，独立验证守卫能失败；首TEMP收集被/tmp旧包污染及第一修复拒绝优先级5failed均保留。只调整守卫顺序以保留原draft_query/anomaly错误，未改弱任何旧测试；最终三模块211passed/0fail/error/skip。
+
+新增 `tests/test_r7_process_feedback_guard.py` 67行，2 AST函数/3断言；**1910/5113 → 1912/5116**，185个Python测试文件。起点累计+45/+124，checker只改同长基线常量/注释，600/200与既有例外/逻辑不变；C类markers实跑与上一条相同。新model digest `d3fb58dbd0ed9efbd249fc258cb09c488d543c0a8ad77dac5689ac8f9ba77bab`，普通long-rollout training digest `6e4363d5707ea4935d5449c800e4fecefa99bf553b42a747dd4dad37f8d548db`未变。后续完整CPU/固定source独立资格须另新attempt，旧失败不改；无weather/GPU/test评分或科学接受。
+
+## 2026-10-07 — 显式气候态锚接口与新增反证（`[model-digest-change]`）
+
+按决策0040新增 default-off `climatology_anchor_spec`、Process `anomaly_feedback`，分离物理Xt与train-only valid-time C；初始decode/RW-Bproposal锚C、feedback可编码draft−C，最终absoluteYK与物理history保持。表为persistent FP32/ready buffer，forward不fit/I/O，普通顶层recursive load验证表身份；正式input白名单/digest loader/科学门不变。新模式不支持partial输出通道，关闭路径不变。
+
+两新测试AST25+18函数/45+75断言及wheel成员1条，起点HEAD **1867/4992** → **1910/5113**（+43/+121，184个Python测试文件）；wheel子进程脚本installed路径另加assert不属于外层AST计数。旧测试不删不弱。checker仅基线常量/缩短已有基线注释，当前1927行，不增加冻结例外；testing/MIGRATION同步。
+
+C类size marker实际复算：R-019b1025→1026、R-02182→84、R-02264→65、R-02344→45，R-0190/R-02064保持。600/200硬限、13文件/4函数精确例外、规则级别/阈值不变。8个新测试uppercase名字被暂存后R-040/R-044拒绝，最小snake_case改名，不改断言/计数或追认改名前bytes已运行。
+
+活跃model digest由原 `3ddab46b1e4c2c7e66449e39ab8247c9c7e642f45023c1c9cc14bca8f74fd217` 改为固定新源码身份 `9ec902d8bec395cde5b5632cfbc37d3626b79d53b848612f96f7e8e8bcf87cdb`；旧产物继续用原code.zip，不放宽loader或修改旧端点。新值/完整CPU/精确CI及合法model-only迁移在当轮goal运行记录登记。本条是源码与覆盖变更，不构成任何天气支持或科学接受。
+
 ## 2026-10-06 — S3同case差距诊断的新增覆盖与实测基线同步
 
 新增独立core/driver及两套CPU正反证，原heldout-only evaluator/model/data/科学合同不改；

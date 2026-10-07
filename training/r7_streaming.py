@@ -58,7 +58,8 @@ def _validate(model, batch, steps, amp_dtype):
 
 
 def _recursive_step(model, state, context, draft, token_hw, *,
-                    solver_state=None, step_index: int = 0, anchor=None):
+                    solver_state=None, step_index: int = 0, anchor=None,
+                    climatology_anchor=None):
     """One recurrent step, through the models' own single implementations.
 
     Each branch calls its fixed-forward step; the generic adapter only converts
@@ -67,7 +68,7 @@ def _recursive_step(model, state, context, draft, token_hw, *,
     """
     if isinstance(model, ProcessForecastCoReasoner):
         return process_reasoning_step(
-            model, ProcessStepInput(state, context, draft), token_hw,
+            model, ProcessStepInput(state, context, draft, climatology_anchor), token_hw,
             solver_state=solver_state, step_index=step_index, anchor=anchor)
     result = generic_reasoning_step(
         model, GenericStepInput(state, context, draft), token_hw,
@@ -164,7 +165,8 @@ def backward_streamed_truncated(model, batch: Mapping[str, torch.Tensor], *,
             with autocast():
                 result = _recursive_step(model, state, context, draft, base.token_hw,
                                          solver_state=solver_state, step_index=step - 1,
-                                         anchor=base.base_state)
+                                         anchor=base.base_state,
+                                         climatology_anchor=getattr(base, 'climatology_anchor', None))
             state, draft, prediction = result.process, result.draft, result.prediction
             solver_state = result.solver_state
         mse = per_sample_latitude_mse(draft, target, latitude,

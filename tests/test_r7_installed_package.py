@@ -30,6 +30,7 @@ def test_built_wheel_imports_from_clean_directory(tmp_path):
         assert 'training/r7_streaming.py' in names
         assert 'training/r7_gap_diagnostic.py' in names
         assert 'model/known_context_r7.py' in names
+        assert 'model/climatology_anchor_r7.py' in names
         assert all(m+'.py' in names for m in modules)
         assert not any('/legacy' in n or '/raw/' in n or n.startswith('tests/') for n in names)
     target=tmp_path/'installed'
@@ -44,6 +45,7 @@ from pathlib import Path
 import data.preprocess.r7_era5_zarr as source
 import model.r7_halting
 import model.known_context_r7 as known_context
+import model.climatology_anchor_r7 as climate_anchor
 import training.r7_local_runner
 import training.r7_evaluate
 import training.r7_gap_diagnostic as gap
@@ -52,6 +54,7 @@ import diagnose_r7_gain, profile_r7_inference, tune_r7_halting
 import importlib.metadata as metadata
 assert "installed" in str(Path(source.__file__).resolve())
 assert "installed" in str(Path(known_context.__file__).resolve())
+assert "installed" in str(Path(climate_anchor.__file__).resolve())
 assert "installed" in str(Path(gap.__file__).resolve())
 entries=metadata.distribution("urbanpidit-r2-v6").entry_points
 assert {e.name for e in entries}>={"urbanpidit-r7-train","urbanpidit-r7-evaluate","urbanpidit-r7-prepare","urbanpidit-r7-calibrate"}

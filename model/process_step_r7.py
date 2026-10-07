@@ -18,10 +18,10 @@ Two states are threaded through a step and neither is implicit:
 - ``solver_state`` is RW-B's per-patch working state ``Z``. It is passed in and
   returned rather than stored on the module, so a caller decides how long it lives
   (across the internal steps of one physical transition, and no longer).
-- ``anchor`` is ``X_t``, the known state at the current physical time. With
-  ``local_solver_state`` on it is *required*: a proposal without its anchor is the
-  accumulating tendency that RW-B exists to replace, and silently producing that
-  would be a different method wearing the switch's name.
+- ``anchor`` is physical ``X_t`` and remains required with RW-B on. The optional
+  ``tensors.climatology_anchor`` is a distinct fixed ``C_valid`` for this physical
+  transition; enabled models require it and decode both RW-B proposals from it.
+  Neither anchor nor the absolute draft is cached or advanced during internal K.
 
 With both switches off the body below is the pre-RW-B body, operation for
 operation, which is what makes "off" the previous implementation rather than
@@ -53,6 +53,7 @@ class ProcessStepInput:
     process: torch.Tensor
     context: torch.Tensor
     draft: torch.Tensor
+    climatology_anchor: Optional[torch.Tensor] = None
 
 
 @dataclass
@@ -86,9 +87,22 @@ def process_reasoning_step(
         use_forecast_feedback)
     if model.draft_query_feedback and not feedback:
         raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
+    climate = tensors.climatology_anchor
+    if model.backbone.climatology_anchor is not None:
+        if climate is None:
+            raise ValueError('climatology_anchor mode requires C_valid at every process step')
+        if (not torch.is_tensor(climate) or climate.shape != draft.shape
+                or climate.device != draft.device or not climate.is_floating_point()
+                or climate.requires_grad or not torch.isfinite(climate).all()):
+            raise ValueError('climatology_anchor must be fixed finite floating on the draft grid/device')
+    if model.anomaly_feedback and not feedback:
+        raise ValueError('anomaly_feedback requires use_forecast_feedback=True')
+    if model.local_solver_state and not feedback:
+        raise ValueError('local_solver_state requires use_forecast_feedback=True')
     draft_tokens = None
     if feedback:
-        draft_tokens, draft_hw = model.draft_encoder(draft)
+        feedback_draft = draft - climate if model.anomaly_feedback else draft
+        draft_tokens, draft_hw = model.draft_encoder(feedback_draft)
         if tuple(draft_hw) != tuple(token_hw):
             raise ValueError(f"draft token grid {draft_hw} != context grid {token_hw}")
     process = model._reason(process, reasoning_source_key(model, context, draft_tokens, token_hw))
@@ -130,7 +144,7 @@ def process_reasoning_step(
                     conditioned, token_hw, draft.shape[-2:], draft)
                 return ProcessStepOutput(process, draft, correction, prediction, None)
             proposal, _ = anchored_proposal(model.proposal_head, solver_state, token_hw,
-                draft.shape[-2:], anchor)
+                draft.shape[-2:], climate if climate is not None else anchor)
             gate = expand_token_gate(model.solver_gate(solver_state), token_hw,
                 draft.shape[-2:], model.patch_size)
             updated = blend_forecast(draft, proposal, gate)
@@ -142,7 +156,7 @@ def process_reasoning_step(
             conditioned, token_hw, draft.shape[-2:], draft)
         return ProcessStepOutput(process, draft, correction, prediction, solver_state)
     proposal, _ = anchored_proposal(model.proposal_head, solver_state, token_hw,
-        draft.shape[-2:], anchor)
+        draft.shape[-2:], climate if climate is not None else anchor)
     gate = expand_token_gate(model.solver_gate(solver_state), token_hw,
         draft.shape[-2:], model.patch_size)
     updated = blend_forecast(draft, proposal, gate)

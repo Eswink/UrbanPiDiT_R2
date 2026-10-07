@@ -122,9 +122,15 @@ def autoregressive_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], 
             raise KeyError("known_context_inputs requires history_offsets_hours for physical rollout")
         require_history_offsets(declared["history_offsets_hours"], batch_size=b,
             history_steps=history.shape[1], device=history.device, cadence_hours=step_hours)
+    from .climatology_anchor_r7 import uses_climatology_anchor
+    climate_mode = uses_climatology_anchor(model)
+    if climate_mode and step_hours != 6:
+        raise ValueError('climatology_anchor rollout requires a fixed 6-hour transition')
+    if climate_mode and 'init_calendar_year' not in declared:
+        raise KeyError('climatology_anchor rollout requires explicit init_calendar_year')
     accumulated_lead = conditions_on_accumulated_lead(model)
     calendar = None
-    if accumulated_lead and "init_calendar_year" in declared:
+    if climate_mode or (accumulated_lead and "init_calendar_year" in declared):
         _, _, hour, day = require_spacetime_fields(batch, history_shape=(h, w), batch_size=b)
         calendar = advance_calendar_time(declared["init_calendar_year"], day, hour,
                                          history.new_zeros(b, dtype=torch.float64))

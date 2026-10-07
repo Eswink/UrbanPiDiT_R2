@@ -109,10 +109,10 @@ PARAM_MAX = 8
 FILE_LOC_HARD_MAX = 600
 FUNC_BODY_HARD_MAX = 200
 
-# R-009 AST baseline: 2026-10-06 S3 same-case gap 1843/4896 -> 1867/4992 (+24/+96).
-# New metadata/identity/physical-metric/owned-deadline counterproofs and wheel check.
-# Prior recorded baseline: 1622/4404; intervening S2/S3 additions retained.
-# Full scan: 182 tracked tests Python files; not parameterized pytest instances.
+# R-009 AST baseline: 2026-10-07 anchor+feedback guard 1867/4992 -> 1912/5116 (+45/+124).
+# New table/calendar/default-off/shared-path/ordinary-load and feedback-guard tests.
+# Prior 1867/4992 and every existing test/assertion retained; 185 tests Python files.
+# AST functions/assertions are not parameterized pytest instances or scientific evidence.
 # Only baseline constants/comments change; rules and exceptions stay unchanged.
 # 2026-09-28 (#71/#72 round two): 715/1778 -> 722/1795. Seven test instances were
 # added in one file (the pooled-query capacity control: the bitwise-flat read at every
@@ -194,8 +194,8 @@ FUNC_BODY_HARD_MAX = 200
 # that no call site carries a second copy of the step, three-path agreement, the role
 # marker criterion, poisoned future fields against both the forward and the halting
 # selection, checkpoint round trip, BF16). Nothing was removed.
-TEST_FUNCTION_BASELINE = 1867
-ASSERT_BASELINE = 4992
+TEST_FUNCTION_BASELINE = 1912
+ASSERT_BASELINE = 5116
 # R-027: how many recent commits to sample for message convention.
 COMMIT_SAMPLE_SIZE = 30
 CONVENTIONAL_COMMIT = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s")
