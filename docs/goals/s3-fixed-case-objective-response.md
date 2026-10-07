@@ -66,6 +66,11 @@
 7. 新排他protocol后CPU资格→首步峰值/完整80同batchworker→纯trace/端点资格读取；统一父每spawn核门。
    本轮设置soft3600/hard7200，任何新profile预算调整必须在后续独立协议冻结前，不能运行中缩短/放宽。
 8. 独立review按新contract和80完整trace/每step/nohiddenupdates核出口，全部负面/成本登记才选后续不同假说。
+9. 训练成功后另冻三端点0/20/80只读readback：wholeplanned1800/hard3600，source/归档/完整新contract外锚/原病例资格、同cached batch/原training_long_rollout独立重算。
+   原模型train/alltrainableFP32/enable_grad/dropout0保持，不改requires_grad/module flags或恢复optimizer；无backward/step/heldout。
+   比较total和全12原生loss/state等精确字段；有差异即保留failed-exact-readback完整数值，不加allclose/epsilon/重复到偶然相同，最高configuration-only。
+   每spawn核UUID与maxknown/实际训练或readbackreserved加2GiB，不能用多次最大free或缩小margin替代即时门。
+   此规划经实际planner返回与主链两处API核对修订，工作态 `/tmp/r7_fixed_case_readback_coordinator_plan_20261007.json`已校结构；TEMP准备另1200/2400，不冒已执行。
 
 ## §5 预算与停止
 
@@ -94,6 +99,8 @@ verified:true/fence_stripped:false；主链已实读long runner116-173、update7
 - `pytest -k not slow` 不采用，明确CPU全套不弱化/过滤测试；CUDA验证只能另冻门/预算后执行。
 - 根据dry-run慢而运行中改soft/hard不采用；原budget预先冻结，真error/hard保持失败。
 - planner没有权限给“邻居冲突”信号或控制权，共驻仅UUID/余量门，不干预外部PID。
+- 后续readback planner草稿错误receipt字段、只凭signature、改requires_grad/dropout、把BatchNorm train说成推理、取三次最大显存/allclose及序列化误差猜测均拒绝。
+  完整new80外锚、原module flags/alltrainableFP32、即时余量门和原生精确比较替代；其JSON工作态摘要结构verified但不当作证据。
 
 ## §7 明确不做
 
@@ -131,5 +138,30 @@ verified:true/fence_stripped:false；主链已实读long runner116-173、update7
   该阶段标 `interrupted-unqualified`；精确停时/elapsed/soft及hard超量未知，不编造PASS或费用时长。
   新独立TEMP修复另冻planned600/hard1200，从新执行者实际接单时钟计，保留旧阶段，不reset旧deadline。
   只闭完整contract/RNG/实测梯度活动与AdamW/report/trace及child cache，原guard和非原子partial留痕不改。
+- 新TEMP修复05:22:26.749104Z起、hard05:42:26.749104Z，stable receipt于05:43:34.756668Z冻结；
+  whole1268.007564s、soft超668.007564/hard超68.007564，标partial-hard-budget-overrun-not-qualified，不reset或追认。
+  `/tmp/r7_fixed_case_repair_newstage_20261007_c7a9ztro/stable_handoff_receipt.json`
+  SHA `74d12e81ad533545b2d8d7fa75190a7fff038892a5630ff1c78a3b84dcce2ff8`。
+  稳定driver `1d0378cb70cba7319981f818bcf636c8a9e8f8c98ec2a83252847e413c3afc8a`(373行/max92)，
+  support `2062f8b380ef93e994cbff4f9e26b576f3239680267fb24d95815956320e6cf0`(516/max94)，
+  tests `ea1c5368958403b3ff0d9ebedcb411da207476b09303de863f320e408dad2588`(457/max52)，
+  新negative tests `a9104aadbd8b2e616da0a525bb68b2303e17057a4ba4160e6950b6d1590d42a0`(310/max47)。
+  实际35全过、完整35+51共86过/无skip；最后仅watchdog childcache编辑后最终35全过，最终完整86仍待独立实跑。
+  原guard tinyProcess80与fresh CPUreader已做，实测81active/4unused非生产141/14；额外guardedfailure进程被deadline终止并reaped，未完成不算通过。
+  `train_cached/read_training`新增必需expected_contract；完整template/finalbody、RNG/AdamW、逐行实测活动与独立累计及精确目录出口均已接入，尚待独立资格。
+- 独立复核准备stage soft180/hard360，receipt冻结372.154166s、hard超12.154166；未含此前开场与最终report，精确总时长未知。
+  `/tmp/r7_prelaunch_recovery_prep_20261007_nso0in66/preparation_receipt.json`仅路线/合成mask helper，未判资格，保留预算违规。
+  稳定新包另冻独立qualification planned900/hard1800（含tests/读取/endhash/报告），无实际source/GPU/outputs访问。
+- 文档恢复提交 `39a7aba7a0a037dd0fb5e5e3fa7823d8d3123040` 精确主CI37576366667 completed/success、全部必要steps success；17标签门控实验skipped不是实验PASS。
+  治理79 tests通过、索引58条及brief同步，旧gradient/same-case证据SHA与前54行index前缀不变；工程检查非科学接受。
 - 未做：实际source/heldout字段/GPU/80真实updates/新真实checkpoint/结果/费用/endpoint重算；科研目标未完成。
-- 下一动作：取得新稳定handoff，完整CPU与独立原16反证/新contract和失败出口复核后才允许新协议真实训练。
+- 新独立qualification实际完整86passed/0skip，但独立coherent合法nativeCPU RNG替换及端点声明/checkpointbytehash一致改写仍被reader complete接受；
+  `/tmp/r7_fixed_case_independent_qualification_20261007_y7_b0pq9/independent_owned/essential_blocker_rng.json`
+  有有效正例且非缺receipt假拒绝。该stable包有essential blocker，真实launch继续禁止；独立复核尚在原900/1800内收尾。
+  独立native hooks又确认：真实unused参数在全部80行mask/count、optimizer及端点一致改写为active后仍被接受（81→82），也是完整同权活动证据缺外锚。
+  qualification冻结receipt SHA `23d0805dd8cd60fc938b84d8ef097804b7ba74b801f6d34fa0f39c39fadb23a9`，result SHA `ad0251b88c7ae3b2c03d7ef9519b9d417ee469074b44b03508eb3dfb4c76840e`，
+  whole1671.521s、soft超771.521/hard超0，原900/1800不reset；全部86/旧16/guarded80及freshreader、保存失败6例/unsafe路径/driver失败费用出口实跑。
+  后续仅修2项：把独立seed41 native RNG状态外锚到CPUprepare/finalcontract，逐更新核不变；把已冻结原case0逐参数total_unused作为预声明活动mask外锚，逐行实测核。
+  tiny CPU从独立初始同目标autograd推导活动，不能硬码生产数量；真实mask变化必须failed保留，不放宽。不能抹空CUDA、只增加同权自洽hash或声称OS敌对producer保证。
+  新最小2anchor修复另冻planned600/hard1500，实际接单开始含全部tests/末hash/receipt，硬截止前留90s；旧partial/negative不追认。
+- 下一动作：闭合两个新独立coherent外锚反证，核全部必要出口与预算后，才允许新协议真实训练。
