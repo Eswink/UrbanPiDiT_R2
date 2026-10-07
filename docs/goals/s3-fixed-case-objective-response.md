@@ -164,4 +164,21 @@ verified:true/fence_stripped:false；主链已实读long runner116-173、update7
   后续仅修2项：把独立seed41 native RNG状态外锚到CPUprepare/finalcontract，逐更新核不变；把已冻结原case0逐参数total_unused作为预声明活动mask外锚，逐行实测核。
   tiny CPU从独立初始同目标autograd推导活动，不能硬码生产数量；真实mask变化必须failed保留，不放宽。不能抹空CUDA、只增加同权自洽hash或声称OS敌对producer保证。
   新最小2anchor修复另冻planned600/hard1500，实际接单开始含全部tests/末hash/receipt，硬截止前留90s；旧partial/negative不追认。
-- 下一动作：闭合两个新独立coherent外锚反证，核全部必要出口与预算后，才允许新协议真实训练。
+- 最小2anchor新stage06:18:46.601222Z起、hard06:43:46.601222Z；06:39:16.720434Z冻结whole1230.119210s、soft600超630.119210/hard1500超0，硬余269.880790s。
+  receipt `/tmp/r7_fixed_case_two_anchor_repair_20261007_ujfp0mdb/stable_handoff_receipt.json` SHA `c06491e29e669996932376e9d759fadced09b4b9bc23fa482fb0a9e1b90dfca8`；旧partial/negative未reset。
+  稳定driver `3073ea784dbd76a44c1f88adb1329c66ce120194235e18120425029467da97f8`(375/max93)，support `7e4540b42debde4befdda247edcbc4c18b81af25c0fa862aa5f6d297bf75ba86`(564/max97)，
+  tests `bbe4df7cf7d1f92e33770ead0a536880fd26e96d778d240faffe6ecdee0caf42`(466/max52)，negative `d80d6f068ba0a9e2d0ec273c7f60e3d713c7b89bf3ff854ea0a442b8dbda4ccc`(403/max47)。
+  最终同pins完整91passed（原86+新5）、0fail/error/skip、无过滤，process182.724s exit0/reaped；原guard tiny80/freshreader动态81/4齐。
+  `build_contract`新增必需activity_anchor；native41与originalcase活动入fulltemplate外锚，runtime变更failed留partial；实际CUDA/数据链尚未核。
+  新稳定包已委派独立定向requalification planned600/hard1500，完整91及两完整coherent反证/外锚接线必核，不把owner suite当独立科学裁定。
+- 双外锚进度文档提交 `14b94b203303099fb92420f39ad831a026ac00fc` 主CI37581732547 completed/success、全部必要steps success，17标签实验skip未算PASS。
+  用户.zcode/config.json与.zcodeignore hash未变；另有外部修改的.zcode/agents/web-researcher.md未纳入本任务提交。
+- 新定向独立资格已冻结：`/tmp/r7_fixed_case_targeted_requalification_20261007_p9cqpkcw/targeted_qualification_receipt.json`
+  SHA `a96525b108b7921e1479108d5ce81bc8ffed49b8bb2cd7a5a058552f9b0fc0c4`，result SHA `5a4c92fe77a2725e33840cdf3cd0fbb933b137cb939c074a9ba9e83cece9d377`。
+  最终full91/0skip/errors/failures、190.072s进程exit0/reaped，两完整coherent及同权body改写拒绝、真实RNG/mask变化partial留痕，24endhash未变。
+  whole1032.230798s、soft600超432.230798/hard1500超0、硬余467.769202；限定四newpins合成CPU工程qualified，不含实际数据/CUDA/OS敌对保证或科学资格。
+  主链`/tmp/r7_fixed_case_prelaunch_qualified_20261007.json`组合前完整审阅+新定向闭合，旧negative/partial不追认；runtime真实身份和nativeCUDA对模板仍必核。
+- 独立端点readback TEMP准备实际50passed，但完整deep-parent外锚happy-path尚未资格，不能实launch。
+  `/tmp/r7_fixed_case_readback_stage_20261007_4ys7o7nv/stage_receipt.json` SHA `f514aed61e9ca0980ba3075932959348fdba4045dc9d54d9d18d0c06fa8237bf`；
+  whole2386.537055s在1200/2400硬内，soft超1186.537055，但收尾仅硬余13.462945s，违反预留90s纪律，保留偏差/旧四失败。
+- 下一动作：新排他attempt01依原3600/7200先冻两相protocol并实核数据/CUDA，再恰80更新；readback在自身完整资格前仍禁真实运行。

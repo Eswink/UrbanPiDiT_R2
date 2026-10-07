@@ -215,7 +215,9 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   独立路线准备372.154166s超hard12.154166亦保留，不冒称合规。稳定包另冻独立qualification900/1800s复核，真实80更新仍未开始。
   恢复文档39a7aba精确主CI37576366667 completed/success、全部必要steps success；账本20.5799/index58/旧hash不变。
   稳定包独立完整86passed但2个coherent RNG/活动真实性反证仍接受；1671.521s在900/1800内冻结negative资格。
-  后续仅修seed41 native状态和已冻结case0逐参数活动的外锚，另冻600/1500，真实训练依旧未放行；不把同权hash自洽当真实来源证明。
+  后续仅修seed41 native状态和已冻结case0逐参数活动的外锚，另冻600/1500；新stable4pins最终91passed且独立定向full91+2coherent闭合，
+  1032.230798s/hard1500超0、receipt a96525b1，限定CPU工程qualified，实际source/CUDA/native状态仍待attempt01 runtime严格资格。
+  readback TEMP50passed但deepparent外锚未齐、收尾余量违规保留，未获真实readback资格；不把同权hash自洽当真实来源证明。
 
 <!-- campaign-state: {"current_node": "S3", "previous_node": "S2", "current_round_goal": "docs/goals/s3-fixed-case-objective-response.md", "previous_round_goal": "docs/goals/s2-climatology-mechanism-screening.md", "previous_round_evidence": "docs/R7_S2_79_TYPED_EVIDENCE.md", "cap_gpu_h": 20.0, "used_gpu_h": 20.5799, "remaining_gpu_h": -0.5799, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
