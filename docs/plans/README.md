@@ -52,3 +52,4 @@
 | [0014](0014-v2-autoregressive-engineering-and-query-repair.md) | 独立自回归工程与显式草稿query修正 | 工程616b029/精确CI37133487340成功，3107CPU通过9跳过；真实precision8updates通过、B实际运行，未作科学结论 | 2026-10-03 |
 | [0015](0015-complete-known-context-contract.md) | 原known-context/source-key验收补齐；B先封印、新C独立公平确认 | 原文缺口与0035/合法最小计划已核；B期间无源码修改，补齐/C尚未执行 | 2026-10-03 |
 | [0016](0016-main-model-climatology-campaign.md) | 主模型超气候态新campaign：科学合同、数据扩围、自主研究及子代理/技能路由 | 文档与校检支持交接；研究S0–S4未执行，0GPU-h，无下载/发布/commit/push；实测验证见文内 | 2026-10-04 |
+| [0017](0017-climatology-s3-long-term-handoff.md) | 主模型超气候态长期goal：从真实S3接续，自主探索与最终提示词 | 本轮仅四文档交接、0新增GPU-h；既定科学门/证据/索引/账本不改，无研究或提交推送，实际验证见文内 | 2026-10-07 |
