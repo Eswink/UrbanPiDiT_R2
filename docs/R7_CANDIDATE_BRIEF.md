@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 60; human-review candidates: 1
+Records: 61; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -151,6 +151,26 @@ Records: 60; human-review candidates: 1
 - CI run: `37500335847`
 - Excluded from runnable candidates: Identity/configuration reproducibility audit only; no newscientificcandidate orPASS. Auditbudgetexceptionretained.
 - Recorded metrics (not recomputed): audit_checks=153, audit_final_wall_seconds=603.402, audit_hard_overrun_seconds=3.402, audit_soft_overrun_seconds=303.402, collector_canonical_sha256=aa65dac1117c0ba6f109a70cf383a825f95bbeda3918f179cefc4c47da5f09cc, conservative_ceil_seconds=1936, elapsed_seconds_total=1935.4622196508572, exact_case_count=2272, exact_csv_count=15, gpu_hours=0.5378, hard_cap_seconds=3600, hard_overrun_seconds=0.0, mse_difference_count=0, network_bytes=0, physical_mse_scalar_count=38624, planned_seconds=1800, replay_driver_sha256=495fdff90c55237131faa350f966da7dc37201b8301fc32a22ad347a85259ff1, restoration_accepted_sha256=734a6746555c15c91f93e2c21565c7393975cf2da57bc0e29d55770c450e642c, soft_overrun_seconds=135.46221965085715, test_read=false
+
+## s3-objective-forecast-diagnostic
+
+- Outcome class: `mixed`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_OBJECTIVE_FORECAST_DIAGNOSTIC.md` (SHA256 `ff02acac4fb87160bbb1eafd82bdbd1465fd4e724b5c5ded1afec0ac55a35a58`)
+- Evidence commit: `0befd262f971318cacbcae627d62a16a6e5723b4`; experiment commit: `61e46bd78d4d7ce49da7a87d574e40c6c18a1c99`
+- Protocol SHA256: `26a17743b50c159b4b5e1e70703c89c3a9dd0ee56aaf4efebe4e687663d2a59d`; data identity: `2564eeaf5ac3b9d0bb47670149e6d3e16ecbb55a4c504e0a410d5a840c010cac`
+- Reason: Complete no-update0/20/80xoriginal four2021train+four2022development paired objective/final-score diagnostic under original archived deepK and ordinary eval paths. Fitted January objective falls58.8800% with83/85 final cells improved at80, but all other3train and4val objectives increase; val t2m allfive pooled leads worsen and48/72 climatology skill remains negative. All24 train/evalfinal tensor hashes exactly agree in this run. Independently checked saved24pairs/288 native losses/24480 draft cells/1530 aggregate cells per path, allsource/protocol/case/state/count/mse/acc/gate/cost receipts,754file first/end hashes, no mismatch. Full whole-cost0.5256GPU-h, not candidate or generalization.
+- Limitations:
+  - Eight already exposed representative cases and one seed are descriptive; no independent annual confirmation, statistical significance or scientific acceptance.
+  - Single-case fitting response with cross-case negative response does not identify memory, capacity, optimization or seasonal-interference cause.
+  - NativeFP32 objective versus FP64 decomposition retains arithmetic residuals, not universal bit reproducibility; configuration-only.
+  - Independent terminal auditor read only allowed saved bytes, not true weather/source/store/checkpoints or new forward; runtime workers separately qualified real inputs.
+  - Original33FALSE_ACCEPT, reviewer environment failure, helper schema failure and provider errors remain preserved; new limited qualification does not relabel prior runs.
+  - Whole supervisorGPU-h includes metadata/checkpoint/field/scoring/inventory/reaping overhead; CPU preparation/review separately reported, not added as fabricated GPU cost.
+  - Python network/import/owned guards are accidental-use protection; signals/gates do not establish global absence of neighbor interference.
+- CI run: `37543875564`
+- Excluded from runnable candidates: No development support for single-case80 as a performance candidate; fitted-case response only, othertrain/val majority negative. Remain S3 and test/r unchanged.
+- Recorded metrics (not recomputed): backward_calls=0, bundle_manifest_sha256=6ca336511c8eda4d2d04f8bd34806387db1af0cc3dd0546b487ca5f649714254, cleanup_reserve_seconds=180, confirmation_r_consumed=0, elapsed_seconds_total=1891.3772793579847, endpoint_updates=[0, 20, 80], external_pins_sha256=31b7d5d8a4afc2c24cc4728c65391e8c91022e1156914ebba441027544a70959, fitted_case_80_improved_full_cells=83, fitted_case_80_worsened_full_cells=2, gpu_hours=0.5256, hard_cap_seconds=10800, hard_overrun_seconds=0, historical_case80_or_readback_recharged=false, inner_attempt_elapsed_seconds=1888.921116472222, known_reserved_peak_bytes=2491416576, lead_hours=[6, 12, 24, 48, 72], minimum_free_bytes=4638900224, objective_change_0_to80_by_case=[-0.5888000247183234, 0.5623749620971819, 0.14178963349940266, 0.1825658410765092, 0.38310849583872586, 0.935123141808105, 0.08912729696596933, 0.744223936074957], optimizer_created=false, optimizer_updates=0, other_train_80_improved_full_cells=73, other_train_80_worsened_full_cells=182, owned_reserved_peak_bytes=2409627648, pairs=24, physical_steps=12, planned_seconds=3600, prelaunch_receipt_sha256=600a7abf8b1e98f05a7b19ffc8e4a73e88cf2c6b9360ec5187122261a4999aff, preparation_gpu_hours=0, reading_receipt_sha256=5bdb162152b736beba1436e377df2a7a3acc94ceee1862c2b1979330ef5922f4, reasoning_steps=4, regions=["full", "interior_1", "edge_1"], result_sha256=ca8919139c6999d9a7c2532ee91e2e2eae6dd37fb830f424ab5d5a12999e9d9a, seed=41, soft_overrun_seconds=0, source_network_requests=0, terminal_allowed_files=754, terminal_receipt_sha256=c60add04a8cd1952b637524fb8b0383b0183dd6a8dfd07c3adec2ec7f83eff0e, terminal_result_sha256=62df597aab9c1c5bf7db19fd51bc34251c433d92533cd08a392f851b79ab2f4d, test_read=false, train_cases=4, train_eval_final_max_abs=0, val_80_improved_full_cells=99, val_80_worsened_full_cells=241, val_cases=4, val_read=true, val_t2m_80_improved_case_lead_cells=2, val_t2m_80_worsened_case_lead_cells=18, val_t2m_rmse_update0_K=[1.9374453033540768, 2.041813066488836, 2.6784736372973894, 3.744068532894296, 4.411827847107436], val_t2m_rmse_update80_K=[1.9826350170853602, 2.096059658504984, 3.331547886686013, 5.5678146122562415, 7.367494364417267], val_t2m_skill_update0=[0.3888808281097974, 0.2405101800727535, 0.4379609958099575, -0.3353602427262241, -1.2087627404722974], val_t2m_skill_update80=[0.3600404092851308, 0.19961806378928681, 0.13047149565592742, -1.953115244876117, -5.159586763509309]
 
 ## s3-same-case-gap-diagnostic
 
