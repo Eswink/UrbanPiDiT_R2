@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-**状态：active（2026-10-07；S0–S2 已登记，S3 固定病例响应诊断及证据收尾，S4 未启动）。**
+**状态：active（2026-10-07；S0–S2 已登记，S3 等病例曝光ordering已完整登记negative，S4 未启动）。**
 本文件是新方向的**唯一主计划与 goal 长文**。科学合同见
 `docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md`；执行授权见决策 0030/0038；实施交接见计划 0016。
 旧 V2 收尾与 #70–#75 不重做，不自裁旧/新 goal complete。以后各具体实验长文由本主计划派生。
@@ -217,7 +217,8 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 单固定train病例原目标80更新（描述性响应） | 0.4300 | 21.0099 | `docs/R7_S3_FIXED_CASE_OBJECTIVE_RESPONSE.md`（索引 `record:s3-fixed-case-objective-response`）；whole1547.848237s、planned3600/hard7200超0，三workerexit0/reaped、记录signals空；freshAdamW/clip1/原12步目标、标准0/20/80齐、总loss降58.8800%，单病例不等于天气泛化；旧工程失败/超hard/取消均保留 |
 | S3 单病例三端点独立精确反算（只读配置核验） | 0.4078 | 21.4177 | `docs/R7_S3_FIXED_CASE_OBJECTIVE_RESPONSE.md` §7（索引 `record:s3-fixed-case-objective-response-readback`）；whole1467.480233s、planned1800/hard3600超0，0/20/80原生typed全12loss/total/state/recipe/RNG投影diff0，1532保存事实核齐；首terminal超hard48.497180失败不追认，另同字节helper5.029937s补齐；不重复计原训练 |
 | S3 原目标—最终评分配对诊断（无更新，mixed/not-candidate） | 0.5256 | 21.9433 | `docs/R7_S3_OBJECTIVE_FORECAST_DIAGNOSTIC.md`（索引 `record:s3-objective-forecast-diagnostic`）；0/20/80×原四train/四val24pairs、576transitions，parentwhole1891.377279s，planned3600/hard10800/reserve180超0；原Jan目标−58.8800%/最终83of85改善，但其余3train/4val目标全升、val最终241of340变差；train/evalfinal同hash，独立754files/math/cost核齐，原失败保留，test未评分/r0 |
-| **合计已用** | **21.9433** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−1.9433是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。科学气候态/全年/同时区间仍未过；固定病例响应与跨病例负响应已分开登记，不作泛化/clip/欠拟合因果证明，不无限重复同剂量或精确replay |
+| S3 等病例曝光ordering小试验（完整negative/not-candidate） | 0.6848 | 22.6281 | `docs/R7_S3_CASE_INTERLEAVING_PILOT.md`（索引 `record:s3-case-interleaving-pilot`）；同original0/freshAdamW/seed41，两臂80各case20曝光、16endpoint80×原四train/四dev，whole2464.990661s/soft5400/hard14400/reserve180超0，五workerexit0/reaped/signals=[]；interleaved四train目标均降但开发support=false，t2m仅72h对both好/其他6–48h差于blocked、u10全lead对0差；独立947files/math/cost齐，所有工程失败/误绿不追认，test未评分/r0 |
+| **合计已用** | **22.6281** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−2.6281是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。科学气候态/全年/同时区间仍未过；固定病例/ordering开发负读数分别登记，不作泛化/clip/欠拟合/遗忘因果证明，不无限重复同剂量或精确replay |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
@@ -261,7 +262,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-case-interleaving-pilot.md", "previous_round_goal": "docs/goals/s3-objective-forecast-score-diagnostic.md", "previous_round_evidence": "docs/R7_S3_OBJECTIVE_FORECAST_DIAGNOSTIC.md", "cap_gpu_h": 20.0, "used_gpu_h": 21.9433, "remaining_gpu_h": -1.9433, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-case-interleaving-pilot.md", "previous_round_goal": "docs/goals/s3-objective-forecast-score-diagnostic.md", "previous_round_evidence": "docs/R7_S3_OBJECTIVE_FORECAST_DIAGNOSTIC.md", "cap_gpu_h": 20.0, "used_gpu_h": 22.6281, "remaining_gpu_h": -2.6281, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -494,3 +495,5 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 - 诊断登记精确提交 `3533483df9d8cafd9064ddf561335e64bfb3d102` 主CI `37645924906` completed/success，pytest `112876528185` 五必要steps及所有实际steps均success；首次908.967591秒读取旧post-checkout in_progress/null快照被拒，原failed-incomplete留存，后精确HTTP200终态齐，不改checker或CI。工程绿非科学接受。
 - 下一独立同S3子goal `docs/goals/s3-case-interleaving-pilot.md` 已冻结准备：同original0/freshAdamW、原四2021train每例20次/每臂80update，blocked连续20each对interleavedcycle4；只改序列，不加Jan剂量。原bulk确为randperm(seed+epoch)+cursor，人工blocked压力对照不冒称历史失败原因。自规划同契约verified、Explore事实核/独立设计4项必修已写，TEMP实现与CPU反证调度中；prepare3600/10800/reserve180、实际5400/14400/reserve180，未本轮真实训练。
 - **下一动作（S3）**：完成等曝光ordering薄wrapper完整CPU与独立prelaunch、完整新contract及逐病例LR曝光冻结后真实两臂train/原八dev评分，unsupported止本实例而不自动增加剂量或扩完整val。旧negative、test/S4/r/最终科学接受不变。
+
+- **2026-10-07等曝光ordering完整登记（仍S3）**：两臂original0/freshAdamW/seed41、batch1各80/四季case各20曝光，原deepK/K4/full12/FP32/clip1及globalLR不变。人工blocked连续四块vsinterleaved循环；不是旧bulk randperm或已证明worstcase。五worker完整exit0/reaped/signals=[]、16endpoint80×原8case train/eval score与8shared0合法复用齐，whole2464.990661s/soft5400/hard14400/reserve180超0，完整0.6848GPU-h加累计22.6281。四train目标共同下降，interleaved最终302/340traincell改善，但devsupport=false：t2m72对both好，其余6/12/24/48比blocked差、48/72气候态仍负，u10五lead对0全差；登记negative/not-candidate、终结本ordering实例，不加dose/seed/fullval。独立947allowedfiles首末hash/160rows/17×5×3数学/contract/calendar/RNG/scope/五gate/process/cost齐。原prelaunch四FALSE_ACCEPT修新bytes后49/49qualified；helper预算失败、calendar失败与出版误绿exit0仍FAILED，新72回归及terminal03实际result/digest齐，原失败全保留。证据冻结commit `9dde48de1666de88035e2c677f20c70ede33ed48`、页SHA `7043fa608de5a74d1ecb2b10c52475419e5f937278460248a8dd6c65d85a63bb`；index62、旧61prefixSHA `7f7da26686aaaf2c5f714e1d25945c870e5555e09603a216750b90b3857dee7b`逐字保留、brief canonicalrenderer。资格提交a1c9639精确CI37664236520成功；最终登记CI待精确提交查询，不冒此页已CI通过。test科学评分0/r0、S4/最终接受不变。下一动作（S3）：完成此登记精确CI闭环；已只读Explore确认train-only valid-time climate output-anchor/异常feedback有新接入面，但未实现/未测效，另冻结方案与身份迁移/CPU资格后才允许新的不同试验，不因orderingnegative改变科学门或重跑原因素。

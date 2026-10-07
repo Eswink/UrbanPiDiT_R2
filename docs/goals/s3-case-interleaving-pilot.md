@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-状态 active / 真实执行中，2026-10-07。唯一主计划
+状态 active / 本ordering实例已登记negative，最终科学goal未完成，2026-10-07。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接原目标—最终评分诊断的跨病例负响应，
 不重做单Jan80更新或精确反算，不进入S4。
 
@@ -126,5 +126,6 @@ Explore确认randperm/cursor而非bulk seasonblock，以及原_update每次zero_
 - 独立实际terminal03已核160行/160更新、16新pair+8共同0、947allowedfiles首末hash、FP32目标/FP64 draft/17×5×3物理/std²/ACCpool/null/geometry/契约/calendar/RNG/scope/五processgate/cost齐。独立necessarysupport=false与producer一致：t2m仅72h对blocked/shared0都严格好，6/12/24/48比blocked差；u10无满足both的lead，v10只6/12/48，mslp只72。单seed八病例不科学/候选；登记negative并终结本ordering实例，不扩dose/seed/fullval。
 - actualhelper terminal01错将eval原生FP64小时/INT64年日当train编码而失败；修独立clone后terminal02结果发布重复keyword且success提前置真，虽exit0/receiptcomplete但failure存在/无result，明确FAILED保留。另仅publication修复success后置/exceptfalse及dictmerge，新完整72实跑0fail/error/skip后terminal03真正result存在/无failure/digest齐。原helper54ef/原hard失败/资格runner失败/两actual失败不追认，不改producer/输出/科学。新helper manifest `ff88929bbde22765c0aa3d514ae6ab7a78c7137b5ecb801700e0ffb259116da6`，terminal03 result `0cca2beacc0e88cbb78b6b37f4cc874d23f44e7cdb3c458d52b47cc621c22cfd`、receipt `44a6e844662790b38740c4158a74bc274907137057b541b4b5cc4fab13a405c2`；整个同terminalstage1053.426838秒/soft600超453.426838/hard1800超0/reserve90、三ownedchildrenreaped/signals=[]，0model/weather/GPU/network，仅4新pt字节hash。
 - 文档数值首审先核1530unique CSV行/7650保存metric值0mismatch，但收尾hard900耗尽，elapsed1054.037306秒/hard超154.037306，20first/end0，FAILED不qualified，回执SHA `b52649158adc16363778947f0171390e5e5254487cf63e6e415f2624194da5a4`。只将residual明确为16新pair最大及24含shared0最大；另180/600/reserve90限定source-bound supplement实跑0.382062秒、20first/end一致、normalized新页还原仅该两行后旧SHA相同，prior numericstats按旧首hash绑定而不重跑7650，issues=[]，qualified仅该限定范围，回执 `b602d2c79e84961ed6466a7bd20af0266b81472fdbd9f9a0062805ed9c9c3c3e`。不追认首预算失败，不冒称独立重核CI或全科学接受。
-- 未做：证据页冻结commit/index62/canonicalbrief/masterledger与最终登记精确CI；实际两臂与独立终态已做，test科学评分/r0/S4/最终接受未变。
-- 下一动作（S3）：冻结 `docs/R7_S3_CASE_INTERLEAVING_PILOT.md` 并登记negative/not-candidate/完整0.6848GPU-h，独立文档数字对照后同步index/brief/master及精确CI；本ordering实例终结。另只读探查主模型显式train-only气候态锚/异常场表达的实质不同路径，不把它假称已支持的新候选。
+- 证据页已冻结于 `9dde48de1666de88035e2c677f20c70ede33ed48`，SHA `7043fa608de5a74d1ecb2b10c52475419e5f937278460248a8dd6c65d85a63bb`；index62新增 `s3-case-interleaving-pilot` negative/not-candidate，旧61prefix SHA `7f7da26686aaaf2c5f714e1d25945c870e5555e09603a216750b90b3857dee7b`逐字保留。index新SHA `f691d4f1eda9f3877813404af12990d155dda1449de5cb9fe101626ef4e92716`、brief按canonicalrenderer SHA `5ec6f30a58099298ac5b3e6b6180a09ad125b93c185dd0ac34a217178205e70e`；master新0.6848GPU-h/累计22.6281/remaining−2.6281仅会计，scientific/test/r不变。
+- 未做：最终登记精确CI；新的气候态锚/异常feedback架构只读接入探查已做，尚未方案冻结/实现/CPU或真实run，不声称有效。科学年度/四季/3seed/同时区间与最终接受未做，test评分0/r0/S4未变。
+- 下一动作（S3）：完成登记提交与精确CI闭环，本ordering实例终结；主模型显式train-only valid-time输出锚/异常feedback有实质不同路径，须另冻结新方案、合法old0权重迁移/新code身份和CPU资格再run，不偷塞atmos_baseline/绕旧digest、不因negative扩本实例dose/seed/fullval。
