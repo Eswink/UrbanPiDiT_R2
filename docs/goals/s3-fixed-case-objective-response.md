@@ -107,5 +107,17 @@ verified:true/fence_stripped:false；主链已实读long runner116-173、update7
 - 状态active/preparation，S3；上一轮梯度证据/negative replay/资源缺口已登记index58、方向20.5799GPU-h。
 - 本轮已做：planner实际只读委派、结构校检与主链API抽查，拒绝上述危险/不适用建议，goal前瞻冻结。
   TEMP实现已隔离委派，只许静态代码/固定ZIP的合成CPU接线，preparation soft600/hard1200；不得自行实际数据/GPU或仓库修改。
-- 未做：TEMP implementation/CPU tests/独立prelaunch/实际source新核/80updates/新checkpoint/结果/成本/重算；不得预写PASS。
-- 下一动作：写薄TEMP wrapper的完整身份/新contract与singlecase80更新接线，CPU tinyProcess与反证后独立prelaunch；未qualified不启动真实训练。
+- 文档4e4b8880a73fe97fb08adf6309487f8e208e49de精确CI37571159799 completed/success，全部必要steps success。
+- TEMP初步CPU实现handoff，原runner `_update` 未改；actual tinyProcess合成80update/newcontract/标准0/20/80已执行，非天气证据。
+  早期collection失败与28passed/7failed（schedule literal及synthetic缺字段）保留；最后全套34passed/1failed/0skip（48.89s）是guardedAdamW lazyimport错误。
+  后独立fresh子进程原guard/all692Python/exactarchive+两真实update/checkpoint0普通load成功，显式torch._dynamo预加载补入wrapper，**最终编辑包未全套重跑**。
+  preparation1234s、soft600超634/hard1200超34，保留hard-budget breach/not-PASS，editing停止，未launch-ready。
+- 临时snapshot：driverb4ed5e4cdcd06aa2f4ccebdd79fafcf6528a258fefc78a9e8d5a5b75af9b01d6，
+  support464f9f674b7ec926e8778058cb93f4e0c3b388d330d5f97c3573301ea8b61099，
+  tests5c1c5c472d900726c28ebe1a049e868cab4ca13bb8e346946d1c5726b3bf9c0e。
+  checkpoint IO薄adapter使用xb/flush/fsync不放宽原guard，保持标准payload/普通strict loader，但非旧temp/link原子发布，partial可能保留；
+  injected-save/fsync failure、完整RNG/部分bootstrap/refreeze资格未齐，不能冒称安全atomic或完整prelaunch。
+- 独立静态checkpoint设计审阅291.265s（soft180超111.265/hard360未超）已指出瞬时nlink2守卫冲突、ordinaryloader不校完整state/RNG。
+  新独立prelaunch另冻soft600/hard1200执行合成CPU完整/失败留痕/state/RNG/driver边界，不修改owner或实际输入。
+- 未做：实际source/heldout字段/GPU/80真实updates/新真实checkpoint/结果/费用/endpoint重算；科研目标未完成。
+- 下一动作：闭合独立prelaunch真实反证/最终全套资格；任何essential未修不启动训练。
