@@ -119,5 +119,17 @@ verified:true/fence_stripped:false；主链已实读long runner116-173、update7
   injected-save/fsync failure、完整RNG/部分bootstrap/refreeze资格未齐，不能冒称安全atomic或完整prelaunch。
 - 独立静态checkpoint设计审阅291.265s（soft180超111.265/hard360未超）已指出瞬时nlink2守卫冲突、ordinaryloader不校完整state/RNG。
   新独立prelaunch另冻soft600/hard1200执行合成CPU完整/失败留痕/state/RNG/driver边界，不修改owner或实际输入。
+- 独立prelaunch初读/实跑确认essential false-accept：checkpoint RNG缺失/坏形状可接受；AdamW漏active slot/伪inactive slot/负二阶矩/step错误及recipe flags未核；
+  report反义scope/failed_training sentinel/extra update81仍被complete接受；coherent重签source为零而保持protocol/wrapper也通过，full新contract须锚冻结期待body。
+  当前包not-qualified，实际source/GPU尚未启动。重跑35suite仍34pass1fail（45.73/45.80s），child编译cache未隔离是测试自身缺陷，不能伪称全套通过。
+  独立自定义guarded实际tiny80完整/0-20-80普通load/注入save-fsync-load失败留partial且无endpoint/report/原binding恢复已核；
+  xb非原子但私有owned路径失败不得发布成功，不新增ctypes/audit旁路或放宽nlinkguard。
+  新修复另冻soft600/hard1200处理上述反证，保留旧1234s超hard34和原suite失败，修复中只许TEMP/合成CPU。
+- 05:00:53Z起、hard截止05:20:53Z的修复任务在会话恢复后不可联系，未收到完整测试或稳定handoff。
+  05:21:27Z排他保留 `/tmp/r7_fixed_case_repair_interrupted_snapshot_20261007/` 三文件快照与interruption_receipt；
+  driver/test仍为初版，support部分修复SHA `a8638cee505ace5be7c40260fd2f151498c0d26efe50293474bf8bfb386acf4c`。
+  该阶段标 `interrupted-unqualified`；精确停时/elapsed/soft及hard超量未知，不编造PASS或费用时长。
+  新独立TEMP修复另冻planned600/hard1200，从新执行者实际接单时钟计，保留旧阶段，不reset旧deadline。
+  只闭完整contract/RNG/实测梯度活动与AdamW/report/trace及child cache，原guard和非原子partial留痕不改。
 - 未做：实际source/heldout字段/GPU/80真实updates/新真实checkpoint/结果/费用/endpoint重算；科研目标未完成。
-- 下一动作：闭合独立prelaunch真实反证/最终全套资格；任何essential未修不启动训练。
+- 下一动作：取得新稳定handoff，完整CPU与独立原16反证/新contract和失败出口复核后才允许新协议真实训练。
