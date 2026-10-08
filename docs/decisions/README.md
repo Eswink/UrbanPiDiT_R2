@@ -66,3 +66,4 @@
 | [0038](0038-autonomous-research-and-data-expansion.md) | 主模型超气候态方向自主研究；免费区域多年度/四季数据与自审preflight后新路径派生发布授权 | accepted | 2026-10-04 |
 | [0039](0039-complete-source-fingerprint-for-prepare.md) | 源指纹必须完整：preflight 不再对大文件降级为 stat-only | accepted | 2026-10-05 |
 | [0040](0040-explicit-valid-time-climatology-anchor.md) | default-off train-only valid-time 解码锚与异常反馈；物理状态分离和显式权重迁移 | accepted | 2026-10-07 |
+| [0041](0041-saved-readback-role-json-size.md) | 保存读回角色 JSON 单文件上限统一为 64 MiB，免去仅为 2 MiB 限制的格式工程 | accepted | 2026-10-08 |
