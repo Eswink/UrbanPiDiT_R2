@@ -33,8 +33,8 @@ PHYSICAL_WEIGHTS = (1., .5, 0., .5, 0., 0., 0., .5, 0., 0., 0., .5)
 UPDATES, LR, WARMUP = 800, 2e-5, 10
 PLANNED_SECONDS, HARD_CAP_SECONDS, PER_SEED_SECONDS = 9000., 18000., 4200.
 PROBE_PLANNED_SECONDS, PROBE_HARD_SECONDS = 1800., 3600.
-DEFAULT_PROBE = ROOT / "outputs/r7_s3_rollout_dose_probe_20261009_attempt01"
-DEFAULT_SCREEN = ROOT / "outputs/r7_s3_rollout_dose_20261009_attempt01"
+DEFAULT_PROBE = ROOT / "outputs/r7_s3_rollout_dose_probe_20261009_attempt02"
+DEFAULT_SCREEN = ROOT / "outputs/r7_s3_rollout_dose_20261009_attempt02"
 MIGRATED_PARENT_RUN = ROOT / "outputs/r7_s3_rollout_dose_parent_migrated_20261009_attempt02"
 MIGRATED_PARENT_SHA256 = {
     41: "fba27e26e24a1f20bc227c6ba23c7f223e41cfe8b721b56c42fd6412d39ddf4c",
