@@ -23,6 +23,7 @@
   超软预算继续并记 overrun，仅硬上限因时长截断，不算科学通过；无总 GPU-h 上限，账本只记账。
 - 主模型超气候态方向的**决策 0038**具名扩围：方向内免费合法区域天气数据（可多年度/多季节）分批下载、执行者自审只读 preflight 后向**全新排他 `outputs/` 路径** `--write` 派生发布已授权，不逐批等人；每批数字范围/字节/磁盘/软硬时长先冻结，完整源身份/单位/schema/`BUILD_COMPLETE` 不豁免。旧受保护数据与归档只读；付费/租卡/独占/main 合并/破坏性仍保留。新方向唯一主计划 `docs/goals/main-model-climatology-campaign.md`，旧 V2 历史不改。
 - 本机 GPU **默认共驻**；启动前与每次子进程 spawn 前只读核对余量门槛，**禁止**对非本实验进程发送任何信号或实现冻结/终止自动化；独占须先取具名授权（决策 0026、`docs/rules/gpu-resources.md`）。
+- 并行科研须先过**准入判断**（七 gate：假设独立/产物隔离/计算资源/数据实例/可变状态/可独立验证/多重比较，任一不满足即串行）；资料/CPU/只读检索/独立复核可并行，GPU 仍由统一父调度按共驻余量**串行**。并行子代理**不依赖 hook 兜底**（子会话可能不跑 hook，E-187 推测），默认只读、写只写各自排他 `outputs/`。见 `.agents/skills/parallel-research-workflow/SKILL.md`（决策 0042）。
 - **禁止**未实跑就写 PASS；skip 不算通过；被取消或排队的运行不算通过。
 - **禁止**为了让报告好看而删除、跳过或弱化测试与断言，也**禁止**事后放宽已冻结的判据。
 - **禁止**绕过 checkpoint / 数据身份校验（`model_code_sha256`、source SHA256、`BUILD_COMPLETE`）；
@@ -98,6 +99,7 @@
 | 多步方案设计 / 迭代计划 / 大改动前风险评估 | `.agents/skills/planner-delegation/SKILL.md` |
 | 写/推进一个 goal 目标（或 goal 模式不可用、不想用它） | `.agents/skills/goal-loop/SKILL.md` |
 | 需要本仓以外的公开事实（库用法 / 版本 / 论文 / 报错） | `.agents/skills/web-research/SKILL.md` |
+| 要并行推进多个互不依赖的研究线 / 编排 workflow | `.agents/skills/parallel-research-workflow/SKILL.md` |
 | 成品该放哪（计划 / 决策 / 目标 / 工具态） | `docs/rules/artifact-storage.md` |
 | 新文件/模块/函数该叫什么 | `docs/rules/naming.md` |
 | 全部能力清单与触发条件 | `docs/skills/README.md` |

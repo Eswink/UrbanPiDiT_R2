@@ -22,6 +22,13 @@ ZCode 的 skill 发现路径，模型会按 `description` 里的触发条件自�
 | [`planner-delegation`](../../.agents/skills/planner-delegation/SKILL.md) | 多步方案设计、迭代计划/TODO 撰写、架构选型、大改动前风险评估 | 委派只读 planner → JSON 过契约校验 → 由 agent 转成目标产物；含降级路径 | `tools/check_planner_plan.py` 36 个测试（含自洽与防漂移）；决策 0012 |
 | [`goal-loop`](../../.agents/skills/goal-loop/SKILL.md) | 要写/推进一个 goal 目标；harness 的 goal 模式不可用或用户不要它而要按会话手工推进 | 长文骨架 + objective 压缩（≤4000、单段、自带交付物清单）→ 过校检器 → 选驱动（harness / 手工循环）→ 独立复核替代 | 两份目标长文同一形状（`docs/goals/m1-and-rw-a-iteration.md` §6、`v2-round-two-attribution.md` §6）；会话驱动纪律 `R7_MANUAL_ITERATION.md:8-30`；决策 0015 |
 | [`web-research`](../../.agents/skills/web-research/SKILL.md) | 需要本仓以外的公开事实（库用法、版本变更、API 参考、论文、报错信息） | 委派 web-researcher → 回收并回一手来源核对 → 留痕（URL + 访问日期）→ 不可用时降级 curl | 可用性纪律与「摘要≠证据」先例（E-184）；可达性实测（E-188）；R-049/R-050（决策 0018） |
+| [`parallel-research-workflow`](../../.agents/skills/parallel-research-workflow/SKILL.md) | 要在一条 campaign 里同时推进多个互不依赖的研究线、把资料/CPU 准备与实验重叠，或用 workflow 脚本编排多个子代理 | 并行准入七 gate → 编排形态选择（串行/普通扇出/dynamic workflow）→ 隔离与安全 → 科学完整性 → 每臂独立登记 | **前瞻立 SOP**（见下表后准入例外）：并行已被计划 ≥3 次（`docs/plans/0004-r7-main-model-v2.md:183`、`docs/goals/s2-climatology-mechanism-screening.md:54`、`docs/goals/n4-m5-confirmation.md:75`），父调度原则 `docs/plans/0016-main-model-climatology-campaign.md:78`、`docs/plans/0017-climatology-s3-long-term-handoff.md:106`；决策 0042 |
+
+**准入例外（决策 0042）**：`parallel-research-workflow` 属**前瞻立 SOP**。项目准入要求能力「已重复发生 ≥2 次
+**且步骤顺序固定**」（`:9`），而本能力目前只有「并行已被**计划** ≥3 次」的先例，**尚无 ≥2 次实际并行执行**。
+依据是用户明确要求项目支持 workflow 与并行科研设计，故按决策 0042 前瞻准入，并强制**首次真实并行轮必须留痕
+验证**（写进 goal §8 / 计划）；若实践显示步骤不固定或并行不可行，应修订或撤下本行与对应技能，不得让它长期
+停留在未验证状态。
 
 ## 未立为 SOP 的候选（仅观察）
 

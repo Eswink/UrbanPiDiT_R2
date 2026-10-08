@@ -2,6 +2,29 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-08 — 并行科研与 workflow 编排能力（决策 0042 / 计划 0018）
+
+用户要求项目支持 workflow 与并行科研设计（「能并行才并行，并行之前需要思考能否并行」）。新增能力
+`.agents/skills/parallel-research-workflow/SKILL.md`：并行准入七 gate（假设独立/产物隔离/计算资源/
+数据实例/可变状态/可独立验证/多重比较纪律）→ 编排形态分级（串行/普通 Agent 扇出/dynamic workflow 脚本，
+仅在确有控制流时）→ 安全隔离（子代理可能不跑 hook，E-186/E-187 推测；默认只读、写只写各自排他 `outputs/`；
+GPU 仍由统一父调度按共驻余量串行 R-054）→ 科学完整性（每臂独立 protocol/digest/证据/index record；
+并行≠共享预算；test 封存与 r/alpha 不放宽）→ 降级（workflow/planner 不可用退回串行扇出）。
+
+登记于 `docs/skills/README.md` 能力表与 `AGENTS.md` 任务路由表；`AGENTS.md` 硬约束补一条并行准入。
+准入依据是并行已在计划/目标中重复出现：`docs/plans/0004-r7-main-model-v2.md:183`、
+`docs/goals/s2-climatology-mechanism-screening.md:54`、`docs/goals/n4-m5-confirmation.md:75`
+（满足 `docs/skills/README.md:9` 的 ≥2 次要求）。本决策**不加机械检查器**（留待真实并行轮次后另立），
+不改生产模型/训练代码、不改科学判据或冻结证据。dynamic workflow 通道在本仓从未使用（E-163/E-164），
+首次使用必须留痕验证。
+
+同轮机械同步：master 账本补 index63（真实 id `s3-climatology-anomaly-anchor`，0.6859 → 累计
+**23.3140**，remaining −3.3140），修正此前「索引已登记而账本缺行」的漂移；`check_campaign_state.py`
+的 C-02/C-03 只校验**已存在行**的算术与指针，**发现不了缺行**，该限制已写入技能与决策的代价清单
+（本轮 C-03 另抓到一次记录 id 误引用并已修正）。§0 objective 刷新为从 S3 接续并写入并行纪律，
+落盘单段实测 **3964 code points**；§4 技能表增至 12 项。本轮 0 新增 GPU-h，无研究/下载/发布/clone/
+GPU 查询、未跑全量 suite/wheel/远端 CI，未提交推送；治理层改动仍须提交后才对干净克隆可用。
+
 ## 2026-10-07 — 独立反证发现的local-solver反馈守卫修复（`[model-digest-change]`）
 
 首固定source独立审阅 **NOT_QUALIFIED_MANDATORY_ISSUES**：187既有新模块与29独立反证通过，但4个关闭forecast feedback反证失败。缺失守卫在起点HEAD已存在，不能归为新气候态引入；支持的anchor-only/local_solver配置仍须拒绝per-call false，K0也不能绕过。原receipt SHA `16284e6a0ed1ad329a74d9e1c82dfee5bd8ac7466ae1104b298e9c1ff85bc116`、全491source首末与失败JUnit留存，不追认为通过。
