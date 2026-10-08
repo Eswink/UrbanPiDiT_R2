@@ -123,8 +123,13 @@ def freeze(output, *, kind, started, deadline, code_archive, code_commit, code_s
             "per_seed_seconds": PER_SEED_SECONDS, "identity": "metadata prepared in bounded CPU worker below",
             "code_archive_input": str(code_archive), "code_commit": code_commit,
             "code_zip_sha256": code_sha256,
-            "hypothesis": "The registered 200-update rollout screen had already annealed to the 0.1x LR floor, so its dose is not bounded; at the same parent, weights, LR and objective a four-times longer rollout phase keeps lowering generated-history error at 48/72h",
-            "difference": "One factor only: 800 rollout updates instead of 200 at the identical LR 2e-5, warmup 10, 12-step physical weights, v3-BD 1600 parent, FP32, K4, batch 1 and clip 1",
+            "hypothesis": ("The registered 200-update rollout screen had already annealed to the 0.1x LR "
+                           "floor, so its dose is not bounded; at the same parent, weights, LR and "
+                           "objective a four-times longer rollout phase keeps lowering generated-history "
+                           "error at 48/72h"),
+            "difference": ("One factor only: 800 rollout updates instead of 200 at the identical LR "
+                           "2e-5, warmup 10, 12-step physical weights, v3-BD 1600 parent, FP32, K4, "
+                           "batch 1 and clip 1"),
             "decision": {"primary": {"variable": "t2m", "region": "full", "leads_hours": [6, 12],
                                        "text": recipe.PRIMARY_DECISION_TEXT},
                          "gate_pre_screen": {"variables": ["u10", "v10", "mslp"],
@@ -132,7 +137,8 @@ def freeze(output, *, kind, started, deadline, code_archive, code_commit, code_s
                              "text": recipe.GATE_DECISION_TEXT}},
             "limitations": ["Development full-region screening, not independent scientific confirmation",
                             "Four30-day season blocks per year are not complete-year coverage",
-                            "The 800-update dose is not compute-matched to the 400-update l6 control or to the registered 200-update rollout screen",
+                            "The 800-update dose is not compute-matched to the 400-update l6 control "
+                            "or to the registered 200-update rollout screen",
                             "No test access, no scientific/bitwise training claim; failures fully charged"]}
     if feasibility is not None:
         body["feasibility"] = feasibility
@@ -195,7 +201,8 @@ def validate_protocol(output):
         if sha256_file(ROOT / name) != expected:
             raise RuntimeError("execution source changed: " + name)
     for split, manifest in (("train", recipe.TRAIN_MANIFEST), ("val", recipe.VAL_MANIFEST)):
-        if body[split + "_manifest"] != str(manifest) or dataset_identity(manifest)[0] != body[split + "_data_identity"]:
+        if (body[split + "_manifest"] != str(manifest)
+                or dataset_identity(manifest)[0] != body[split + "_data_identity"]):
             raise RuntimeError("dataset identity changed")
     if model_code_digest() != body["model_code_sha256"] or training_code_digest() != body["training_code_sha256"]:
         raise RuntimeError("model/training source identity changed")
@@ -300,8 +307,10 @@ def _probe(output, body):
                "loss": float(result.loss.detach()), "per_step_losses": result.per_step_losses.detach().cpu().tolist(),
                "gradient_norm": float(gradient), "elapsed_seconds": time.perf_counter() - started,
                "flop_convention": "supported aten grad-enabled FP32 operations; omitted elementwise/normalization",
-               "connection_probe_note": "CPU counterproofs establish early-step gradient connectivity; this probe measures full loss backward",
-               "limitations": ["One train sample forward/backward feasibility only, no optimizer update or val/test scoring"]}
+               "connection_probe_note": ("CPU counterproofs establish early-step gradient connectivity; "
+                                         "this probe measures full loss backward"),
+               "limitations": ["One train sample forward/backward feasibility only, "
+                               "no optimizer update or val/test scoring"]}
     write_exclusive(output / "feasibility_receipt.json", receipt)
 
 
@@ -325,7 +334,8 @@ def _seed(output, body, seed, deadline):
         parent_weights=state, physical_weights=PHYSICAL_WEIGHTS, updates=UPDATES, lr=LR, warmup=WARMUP,
         seed=seed, device_name="cuda:0", deadline=deadline)
     receipt = {"seed": seed, "training_dir": str(folder), "checkpoint": str(checkpoint),
-               "checkpoint_sha256": sha256_file(checkpoint), "training_report_sha256": sha256_file(folder / "training_report.json"),
+               "checkpoint_sha256": sha256_file(checkpoint),
+               "training_report_sha256": sha256_file(folder / "training_report.json"),
                "parent_checkpoint_sha256": parent_sha, "elapsed_seconds": report["elapsed_seconds"], "evaluations": {}}
     for lead in recipe.EVALUATION_LEADS:
         destination = output / f"seed{seed}/evaluation/candidate/lead_{lead:03d}h"
@@ -351,7 +361,8 @@ def worker(output, phase, seed, deadline):
     body = validate_protocol(output)
     if phase == "probe" and body["kind"] != "probe" or phase in ("seed", "reading") and body["kind"] != "screen":
         raise RuntimeError("worker phase differs from frozen execution kind")
-    if deadline is None or not math.isfinite(deadline) or deadline > body["deadline_perf_counter"] or deadline <= time.perf_counter():
+    if (deadline is None or not math.isfinite(deadline)
+            or deadline > body["deadline_perf_counter"] or deadline <= time.perf_counter()):
         raise RuntimeError("worker deadline outside frozen round")
     recipe._shared().pin_declared_gpu(GPU_UUID)
     if phase == "probe":
@@ -403,7 +414,8 @@ def run_attempt(output, *, code_archive, code_commit, code_sha256, probe=False, 
     try:
         if not probe:
             source = Path(feasibility_root).resolve()
-            if source == output or any(p.is_symlink() for p in (Path(feasibility_root), *Path(feasibility_root).parents)):
+            if (source == output
+                    or any(p.is_symlink() for p in (Path(feasibility_root), *Path(feasibility_root).parents))):
                 raise ValueError("separate nonlinked feasibility evidence required")
             prior = json.loads((source / "attempt.json").read_text(encoding="utf-8"))
             fit = json.loads((source / "feasibility_receipt.json").read_text(encoding="utf-8"))
@@ -445,7 +457,8 @@ def run_attempt(output, *, code_archive, code_commit, code_sha256, probe=False, 
                 receipt = json.loads((output / f"seed{seed}_receipt.json").read_text(encoding="utf-8"))
                 receipts[str(seed)] = receipt
                 peak = max(peak, receipt["owned_cuda_reserved_peak_bytes"])
-            print(json.dumps({"phase_done": phase, "seed": seed, "elapsed_seconds": time.perf_counter() - started}), flush=True)
+            print(json.dumps({"phase_done": phase, "seed": seed,
+                              "elapsed_seconds": time.perf_counter() - started}), flush=True)
         elapsed = time.perf_counter() - started
         if elapsed >= hard:
             raise RuntimeError("round hard deadline passed before publication")

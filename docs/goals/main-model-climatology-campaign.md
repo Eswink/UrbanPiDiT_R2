@@ -224,7 +224,10 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 原目标—最终评分配对诊断（无更新，mixed/not-candidate） | 0.5256 | 21.9433 | `docs/R7_S3_OBJECTIVE_FORECAST_DIAGNOSTIC.md`（索引 `record:s3-objective-forecast-diagnostic`）；0/20/80×原四train/四val24pairs、576transitions，parentwhole1891.377279s，planned3600/hard10800/reserve180超0；原Jan目标−58.8800%/最终83of85改善，但其余3train/4val目标全升、val最终241of340变差；train/evalfinal同hash，独立754files/math/cost核齐，原失败保留，test未评分/r0 |
 | S3 等病例曝光ordering小试验（完整negative/not-candidate） | 0.6848 | 22.6281 | `docs/R7_S3_CASE_INTERLEAVING_PILOT.md`（索引 `record:s3-case-interleaving-pilot`）；同original0/freshAdamW/seed41，两臂80各case20曝光、16endpoint80×原四train/四dev，whole2464.990661s/soft5400/hard14400/reserve180超0，五workerexit0/reaped/signals=[]；interleaved四train目标均降但开发support=false，t2m仅72h对both好/其他6–48h差于blocked、u10全lead对0差；独立947files/math/cost齐，所有工程失败/误绿不追认，test未评分/r0 |
 | S3 气候态锚实例（negative/not-candidate，含保存读回） | 0.6859 | 23.3140 | `docs/R7_S3_CLIMATOLOGY_ANOMALY_ANCHOR.md`（索引 `record:s3-climatology-anomaly-anchor`）；candidate80 恰80更新、原 deep-K/K4/full12/FP32；开发 support=false：t2m 48/72h 优于两控制而 6/12/24h 与 u10/v10 守门退化；whole2468.177771s、soft5400/hard14400/reserve180 超0；保存读回 v6 链 1500/1500 准入、1,946,575,475B、三原哈希与 13futureEND 相等、0 模型执行/0 网络；原 attempt03/04/05 与被阻 v5 链失败保留不追认，test 未评分/r0 |
-| **合计已用** | **23.3140** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−3.3140是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。**2026-10-08 补记 index63，修正「索引已登记而账本缺行」的漂移**；该漂移现有校检器发现不了（C-02/C-03 只校验已存在行）。科学气候态/全年/同时区间仍未过；固定病例/ordering/anchor 开发负读数分别登记，不作泛化/clip/欠拟合/遗忘因果证明，不无限重复同剂量或精确replay |
+| S3 rollout-dose 可行性 probe attempt01（父 digest 未迁移，失败保留） | 0.4808 | 23.7948 | `docs/R7_S3_ROLLOUT_DOSE.md` §8；prepare/archive success、probe 阶段被 `load_checkpoint` 以模型身份变更拒绝；1730.858695s、planned1800/hard3600 超0；失败不追认，未登记独立 index record |
+| S3 rollout-dose 可行性 probe attempt02（成功） | 0.4706 | 24.2654 | `docs/R7_S3_ROLLOUT_DOSE.md` §8；FLOPs 393,859,201,536、reserved peak 2,409,627,648 与注册 probe 逐位相同；1694.289826s、超0；未登记独立 index record |
+| S3 rollout-dose screen l6-rollout×800（开发 supported/守门过，reading 阶段失败保留） | 3.3251 | 27.5905 | `docs/R7_S3_ROLLOUT_DOSE.md`（索引 `record:s3-rollout-dose`）；三 seed 800 更新自注册 v3-BD 1600 父（12 步权重/LR2e-5/FP32/K4/控制不变）；冻结函数判 primary supported（t2m/full 6h/12h 三 seed 对 v3-D3 控制全负）、守门 0/45、decision advance-to-S4-freeze；绝对气候态 48h −0.1191/72h −0.4309 仍未过；相对注册 200 screen 24/48/72h RMSE 低 0.154/0.325/0.465 K 而 6/12h 持平，48h/72h ACC 0.329/0.153→0.367/0.189；整轮 11970.334049s（planned9000、soft overrun 2970.334049、hard 0），六 worker reaped/signals=[]；reading 阶段因共享收集器 parent-pin 缺陷失败；只读复算 CPU 7.95s/0GPU；test 未读/r0 |
+| **合计已用** | **27.5905** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−7.5905是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。**2026-10-08 补记 index63，修正「索引已登记而账本缺行」的漂移**；该漂移现有校检器发现不了（C-02/C-03 只校验已存在行）。**2026-10-09 记 index64（rollout-dose，三行合计 4.2765）**。科学气候态/全年/同时区间仍未过；固定病例/ordering/anchor/rollout-dose 开发负或 mixed 读数分别登记，不作泛化/clip/欠拟合/遗忘/收敛因果证明，不无限重复同剂量或精确replay |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
@@ -268,7 +271,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-climatology-anomaly-anchor.md", "previous_round_goal": "docs/goals/s3-case-interleaving-pilot.md", "previous_round_evidence": "docs/R7_S3_CASE_INTERLEAVING_PILOT.md", "cap_gpu_h": 20.0, "used_gpu_h": 23.314, "remaining_gpu_h": -3.314, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-rollout-dose.md", "previous_round_goal": "docs/goals/s3-climatology-anomaly-anchor.md", "previous_round_evidence": "docs/R7_S3_CLIMATOLOGY_ANOMALY_ANCHOR.md", "cap_gpu_h": 20.0, "used_gpu_h": 27.5905, "remaining_gpu_h": -7.5905, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -536,3 +539,48 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   描述性独立43项核4080cell/20gate/32目标/155活动/五phase/费用算术，15input FIRST/END实际5384466B逐字/stat相同，1516.116925秒/soft超616.116925/hard0/noreset，只支持export/document。勘误时间104.064806是finalreceiptconstruct采样而非terminalwhole，bodyready104.062374分列，whole未观测；optionalACC每path661末位差异为reviewer猜测算法harness失败保留，不变数学/epsilon或认导出坏。index62/22.6281、test0/r0/S3与本anchor实例停止不变。
 - ACKroot最小修复另先冻900/2700/reserve90，560.848443秒/超0/noreset闭合；17,202,843B observed与58,770,040B显式allowance分列。新f95682e5 productionfreeze/sourceAST仅binding/root/clockliteral，input_rows实际合成接受正确新ACK、拒旧ACK/bootstrap且零originalfileopen；postguard与13newbindingEND mutation核、corrected29pass/0skip，24immutable源身份后reuse原305/76/25/notfresh435。handoffb58e7d26/close4706897b主链核实际字节，newparent9db7/bootstrap89a9原29+22完整pass。正确新ACKroot独立review在6215887.957373先冻1800/5400/reserve180/meter，guard10/newACK3/原sourceproof完成；fullownedtoy03 directrc0/reaped验证真实stdin外部pins/guard/immutableAPI/3pass/13END，toy01/02自身path/HEAD夹具错误保留，toycontextSHA为合成非生产；118独立反证实际拒绝、后续gate/END尚待。实际原保存reader当时未启动、未ACK登记、成本0.6859仍待资格/index63，no新GPU/test/S4/r。
 - 固定f956 source独立限定ACK9dfec237在4959.773620秒/soft超3159.773620/hard0/noreset/总charge2038708167B闭合，250source+47native首末同、trueguard/stdin+exact immutable合成API、composedsourcebound测试完毕；archive_check仅原body/inherited-test资格非actual调用，toy合成HEAD/自身harness及provider全部失败保留。真实saved-reader随后MAIN01先冻start6221024.783868065/1800/5400/res180，stat/FIRST/preEND/完整scope/inventory/五外部rawpins/一次stdin权威已实跑，但data角色pretty6443132B>冻结2MiB拒绝，child2515933 rc1/reaped/no signals、whole32.095591秒，failure4075a3b7保留/terminal数值未qualify，第三END/13futureEND/archive_check未做。compact3205394B仍超门，diagnostic86bb3bb8证明sameJSON zlib9为215095B；新排他lossless_role_storage_repair01先冻1200/3600/res120仅修7role无损wire存储、有界展开/完整types/canonical/byte双hash，raw2MiB/JSON64MiB/decodedaggregate14MiB/global1500/2GiB与数学/科学不改。新MAIN02只防覆盖旧失败，源资格与下一真实读回尚待；no新训练/GPU/test/r/S4，原weathernegative止实例与账本/index62不变。
+
+### 2026-10-09 rollout 监督剂量 200 → 800（单因素；登记 mixed/needs-review）
+
+- **动机**：注册的 S3 long-rollout screen 在 200 更新时余弦日程已退到 0.1× 下限，只界定一个剂量点。
+  本轮只改更新数（200→800），父、12 步物理权重、LR 2e-5、warmup 10、FP32、K4、batch 1、clip 1、
+  控制与判定形式全部不变。
+- **模型身份变更的合法处理**：父 checkpoint 由修订 `66836d2`（`model_code_sha256 3ddab46b…`）训练，
+  climatology-anchor 修订把它改成 `d3fb58db…`，受审计的 `load_checkpoint` 因此按设计拒绝。
+  新增 `scripts/export_r7_parent_state.py`（在归档修订下用其自身 loader 导出 state，
+  `export_sha256 d1d9886a…`）与 `scripts/migrate_r7_parent_state.py`（复核源 SHA pin、导出 state
+  digest、张量 key/shape/dtype 与模块语义 digest 后写新 `r7-local-v1` + 归档 provenance，
+  不带 optimizer/cursor/RNG；receipt `23daf794…`）。惰性证据：模块树只多两个默认属性、源码 diff 中
+  所有新分支都以它们为门、**固定合成 batch 在两修订下的 FP32 forward 逐位相同**。
+- **冻结判读**（`primary_verdict`/`gate_verdict`/`advance_decision` 三个同一冻结函数）：
+  **primary supported**（t2m/full 6h 与 12h 三 seed 对 v3-D3 控制增量 −0.401/−0.727/−0.429 与
+  −0.532/−0.718/−0.508 K）、**守门 0/45**（最大 −0.104401）、**decision advance-to-S4-freeze**
+  （与 200 更新 screen 同形，只表示可另备冻结包）。
+- **绝对门仍未过**：t2m/full seed 均值 skill 6h **+0.5816**、12h **+0.3151**、24h **+0.3668**、
+  48h **−0.1191**、72h **−0.4309**；ACC 0.7953/0.6651/0.6525/0.3671/0.1894，ACC²（线性重标定上限）
+  0.6326/0.4425/0.4259/**0.1355**/**0.0366**——完全校准也过不了 48/72h 门。
+- **剂量仍在付但递减**：相对注册 200 更新 screen，24/48/72h RMSE 低 0.1536/0.3248/0.4653 K，
+  6h/12h 持平（高 0.0254/0.0076 K）；48h/72h 的 ACC 由 0.329/0.153 升到 0.367/0.189——增益是
+  **pattern** 而非仅幅度；幅度比 σ_f/σ_o 由 200 轮的 0.99/1.05 落到 0.87/0.87。全 17 变量在
+  24/48/72h 对控制相对 MSE 变化全负。
+- **失败与偏离（保留）**：screen 的 `prepare/archive/seed41/seed42/seed43` 五阶段全 success、
+  worker 全 reaped/signals=[]，唯 `reading` 阶段 rc=1——共享 `training/r7_rollout_evidence.py::_references`
+  要求协议 parent pin 等于注册 v3-BD receipt 记录的原始 checkpoint，同时又要求 `load_checkpoint`
+  能加载它，两者在 model-only 迁移后不可能同时成立；这是**身份记账管线缺陷**，非训练/评分失败。
+  未改共享判定代码，另立只读工具 `scripts/report_r7_rollout_dose.py`（委托同一冻结函数，
+  偏离写在产物 `deviation` 字段；CPU 7.95 s、0 GPU）。probe attempt01（0.4808）与 screen 的
+  `failure.json` 全额计费保留。
+- **独立复核**：独立子代理以自有脚本从原始产物复算 14 项（阶段/失败根因/协议 digest/损失行与加权
+  恒等/checkpoint pin/cohort 与 provenance/配对增量/守门 45 格/primary 符号/skill 与 ACC/剂量差/
+  迁移 pin/成本算术/test 封存）**14/14 CONFIRMED，无 REFUTED/UNCERTAIN**。
+- **成本**：0.4808 + 0.4706 + 3.3251 = **4.2765 GPU-h**，累计 **27.5905**（cap20/remaining −7.5905
+  仅会计）；网络 0、无下载/发布/clone、未改 model/ 与科学合同、未 signal 邻居；test 未读/r0。
+- **规模登记**：执行后对 `scripts/study_r7_s3_rollout_dose.py` 只做一次纯格式改动（10 处 >120 字符
+  行换行到 ≤120，语义不变、AST 复核通过），使 R-019b 不增；因此工作树当前字节与运行用 `code.zip`
+  （`bec1edd5…`，494 行版本）不同，运行的执行身份仍由协议 `execution_files_sha256` 与归档
+  `code.zip` 完整固定，重放走归档。`docs/rules/size-thresholds.md` 记 R-021 84→85、
+  R-019=0/R-019b=1026 未增，并把 CI 红过的 `tests/test_check_conventions.py::
+  test_size_report_counts_match_the_checker` 修回绿。
+- **下一动作（S3）**：修共享 `_references` 对迁移父的表达（或把迁移注册为可 pin 的父记录），
+  然后以"提高 pattern 相关"为下一杠杆；最可证伪的一支是扩大区域/引入域外大尺度上下文
+  （旧实测显示 ARCO ERA5 的 ROI 放大几乎不增成本），并重建同数据气候态与 incumbent 后再比较。

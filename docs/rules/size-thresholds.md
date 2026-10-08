@@ -7,7 +7,14 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=1026 R-020=64 R-021=84 R-022=65 R-023=45 -->
+<!-- measured: R-019=0 R-019b=1026 R-020=64 R-021=85 R-022=65 R-023=45 -->
+
+**2026-10-09 rollout-dose screen 复算（暂存集合实测）**：R-021 **84→85**；R-019=0、R-019b=1026、
+R-020=64、R-022=65、R-023=45 保持。净增长只来自新实验入口 `scripts/study_r7_s3_rollout_dose.py`
+（507 行，在 R-051 600 行硬限内；最长函数体在 R-052 200 行硬限内）。它是注册 long-rollout screen
+入口的单因素 800 更新变体，不是新平台。另三个新工具 `scripts/report_r7_rollout_dose.py`、
+`scripts/export_r7_parent_state.py`、`scripts/migrate_r7_parent_state.py` 均在 400 行目标内；
+全部新源码行已换行到 ≤120 字符，未引入 R-019/R-019b 命中。
 
 **2026-10-07 feedback守卫修复复算（暂存集合实测）**：C类marker仍为0/1026/64/84/65/45，无净增长。Process fixed forward与shared step各加2行，Process482行、shared163行、独立新test67行，constructor不改。新增24参数化反证对应2 AST函数/3断言；硬阈值与全部例外不变。
 
