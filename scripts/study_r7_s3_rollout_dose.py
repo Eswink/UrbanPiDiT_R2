@@ -35,7 +35,15 @@ PLANNED_SECONDS, HARD_CAP_SECONDS, PER_SEED_SECONDS = 9000., 18000., 4200.
 PROBE_PLANNED_SECONDS, PROBE_HARD_SECONDS = 1800., 3600.
 DEFAULT_PROBE = ROOT / "outputs/r7_s3_rollout_dose_probe_20261009_attempt01"
 DEFAULT_SCREEN = ROOT / "outputs/r7_s3_rollout_dose_20261009_attempt01"
-ENTRY_FILES = (*short_worker.EXECUTION_ENTRY_FILES, "scripts/study_r7_s3_rollout_dose.py")
+MIGRATED_PARENT_RUN = ROOT / "outputs/r7_s3_rollout_dose_parent_migrated_20261009_attempt02"
+MIGRATED_PARENT_SHA256 = {
+    41: "fba27e26e24a1f20bc227c6ba23c7f223e41cfe8b721b56c42fd6412d39ddf4c",
+    42: "5d4b05ed78718ff35f9447c5acc0f08b7f9f7fda3a0befc638472104a8055ed0",
+    43: "becc3d782d2daff466ff2f0b02908de29adc930577a1f740ca0a0519878a6c73",
+}
+MIGRATION_RECEIPT = MIGRATED_PARENT_RUN / "migration_receipt.json"
+MIGRATION_TOOLS = ("scripts/export_r7_parent_state.py", "scripts/migrate_r7_parent_state.py")
+ENTRY_FILES = (*short_worker.EXECUTION_ENTRY_FILES, "scripts/study_r7_s3_rollout_dose.py", *MIGRATION_TOOLS)
 
 
 def write_exclusive(path, body):
@@ -61,6 +69,27 @@ def _identity():
     parent_result = json.loads((recipe.PARENT_RUN / "result.json").read_text(encoding="utf-8"))
     parent["evaluations"] = {seed: data["evaluations"] for seed, data in parent_result["seeds"].items()}
     parent["parent_result_path"] = str(recipe.PARENT_RUN / "result.json")
+    migration = json.loads(MIGRATION_RECEIPT.read_text(encoding="utf-8"))
+    if migration["archived_model_code_sha256"] == migration["current_model_code_sha256"]:
+        raise RuntimeError("migration receipt does not record a model identity change")
+    for seed in recipe.SEEDS:
+        record = migration["seeds"][str(seed)]
+        if (record["migrated_path"] != str(pinned_parent(seed)[0])
+                or record["migrated_sha256"] != MIGRATED_PARENT_SHA256[seed]
+                or record["source_checkpoint_sha256"] != recipe.PARENT_CHECKPOINT_SHA256[seed]
+                or record["state_digest"] == ""):
+            raise RuntimeError(f"migration receipt disagrees with the pinned parent for seed {seed}")
+    parent["checkpoints"] = {str(seed): {"path": str(pinned_parent(seed)[0]),
+                                        "sha256": MIGRATED_PARENT_SHA256[seed]} for seed in recipe.SEEDS}
+    parent["model_only_migration"] = {
+        "receipt_path": str(MIGRATION_RECEIPT), "receipt_sha256": sha256_file(MIGRATION_RECEIPT),
+        "export_sha256": migration["export_sha256"],
+        "archived_code_commit": migration["archived_code_commit"],
+        "archived_model_code_sha256": migration["archived_model_code_sha256"],
+        "current_model_code_sha256": migration["current_model_code_sha256"],
+        "operation": "archived-revision export, then strict current-code install; no optimizer/cursor/RNG",
+        "forward_equivalence": "bit-identical FP32 forward on a fixed synthetic batch under both revisions",
+    }
     control = recipe.control_pins()
     control["d3_result_path"] = str(recipe.D3_RESULT)
     windows = preflight_long_rollout_windows(recipe.TRAIN_MANIFEST, physical_steps=len(PHYSICAL_WEIGHTS))
@@ -208,10 +237,24 @@ def validate_protocol(output):
     return body
 
 
+def pinned_parent(seed):
+    """Resolve and SHA-verify the migrated model-only parent checkpoint for one seed."""
+    from training.r7_arm_harness import sha256_file
+    if seed not in recipe.SEEDS:
+        raise ValueError(f"declared seeds are {recipe.SEEDS}; {seed} is not among them")
+    path = MIGRATED_PARENT_RUN / f"seed{seed}" / "parent_update_0001600.pt"
+    if not path.is_file():
+        raise FileNotFoundError(f"migrated parent checkpoint missing: {path}")
+    observed = sha256_file(path)
+    if observed != MIGRATED_PARENT_SHA256[seed]:
+        raise RuntimeError(f"migrated parent checkpoint drifted from its pinned SHA256: {path}")
+    return path, observed
+
+
 def _parent_model(body, seed):
     from training.r7_experiment import load_checkpoint, make_model
     from training.r7_arm_harness import sha256_file
-    path, expected = recipe.pinned_parent(seed)
+    path, expected = pinned_parent(seed)
     if sha256_file(path) != expected or body["arms"]["parent"]["pins"]["checkpoints"][str(seed)]["sha256"] != expected:
         raise RuntimeError("parent checkpoint pin changed")
     saved = load_checkpoint(path)
