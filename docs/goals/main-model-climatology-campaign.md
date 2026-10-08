@@ -581,6 +581,18 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   `code.zip` 完整固定，重放走归档。`docs/rules/size-thresholds.md` 记 R-021 84→85、
   R-019=0/R-019b=1026 未增，并把 CI 红过的 `tests/test_check_conventions.py::
   test_size_report_counts_match_the_checker` 修回绿。
+- **父修订的识别方式（精确）**：v3-BD 运行**没有**记录 `code.zip` 或 `code_commit`，因此 66836d2
+  不是"记录的 pin"而是**按 digest 相等识别**的修订：`model_code_digest()` 在 66836d2 等于父
+  checkpoint 归档的 `model_code_sha256 3ddab46b…`，导出在该修订下由该修订自己的 `load_checkpoint`
+  接受，故导出所用 model 代码与训练父者逐字相同；任何其他共享该 model digest 的修订同样成立。
+  这条限制写在迁移 receipt 的 provenance 字段里，读回路径不依赖"66836d2 是唯一可能修订"。
+- **可复现等级**：**config-reproducible**（协议/源/代码/控制 pin 齐、归档 code.zip 可重放），
+  GPU 训练非逐位可复现；不声称 bit-reproducible。
+- **验证与 CI（精确）**：本机完整 CPU 套件 `4214 passed, 9 skipped, 3 warnings in 1208.02 s`
+  （CUDA 隐藏、离线）。证据提交 `73459af` 的主 CI **失败**（唯一红点即上面的 size-marker 测试，
+  已在 8aedd5a 修复；该失败不回改、不追认）；登记提交
+  `8aedd5a16f47cf76ed6f579c9e723e7eb1e87b3b` 的主 CI `37854151641` **completed/success**。
+  17 条标签门控实验 workflow 显示 skipped 是设计行为，不是通过。
 - **下一动作（S3）**：修共享 `_references` 对迁移父的表达（或把迁移注册为可 pin 的父记录），
   然后以"提高 pattern 相关"为下一杠杆；最可证伪的一支是扩大区域/引入域外大尺度上下文
   （旧实测显示 ARCO ERA5 的 ROI 放大几乎不增成本），并重建同数据气候态与 incumbent 后再比较。
