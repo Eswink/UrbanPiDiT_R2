@@ -68,3 +68,4 @@
 | [0040](0040-explicit-valid-time-climatology-anchor.md) | default-off train-only valid-time 解码锚与异常反馈；物理状态分离和显式权重迁移 | accepted | 2026-10-07 |
 | [0041](0041-saved-readback-role-json-size.md) | 保存读回角色 JSON 单文件上限统一为 64 MiB，免去仅为 2 MiB 限制的格式工程 | accepted | 2026-10-08 |
 | [0042](0042-parallel-research-workflow.md) | 并行科研与 workflow 编排能力：并行准入七 gate、编排形态分级、隔离与科学完整性；限治理层 | accepted | 2026-10-08 |
+| [0043](0043-self-iterating-continuous-goal.md) | 自迭代连续 goal：每轮交接四件套后立刻续跑、不等 verifier（含 fail-open 实测）、停止条件封闭三条、防空转与 CI 不阻塞；接入 `dynamic-workflows`（/workflow 落地技能） | accepted | 2026-10-09 |

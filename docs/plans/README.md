@@ -54,3 +54,4 @@
 | [0016](0016-main-model-climatology-campaign.md) | 主模型超气候态新campaign：科学合同、数据扩围、自主研究及子代理/技能路由 | 文档与校检支持交接；研究S0–S4未执行，0GPU-h，无下载/发布/commit/push；实测验证见文内 | 2026-10-04 |
 | [0017](0017-climatology-s3-long-term-handoff.md) | 主模型超气候态长期goal：从真实S3接续，自主探索与最终提示词 | 本轮仅四文档交接、0新增GPU-h；既定科学门/证据/索引/账本不改，无研究或提交推送，实际验证见文内 | 2026-10-07 |
 | [0018](0018-parallel-research-workflow.md) | 并行科研能力改造与终极 goal 提示词（workflow 编排） | 新增 `parallel-research-workflow` 技能与决策 0042、刷新 §0 objective 至 3964 字符、机械同步 index63 账本；0新增GPU-h，无研究或提交推送 | 2026-10-08 |
+| [0019](0019-self-iterating-continuous-goal.md) | 自迭代连续 goal 提示词（含 workflow）：分析会话自停原因（DB 证据）并让目标自己一轮接一轮跑 | 文档与本地验证中；master §0 换自迭代 objective（实测 4000 字符）、新增自迭代契约/§5 CI 纪律/§8 交接块、goal-loop 补节、决策 0043；0 新增 GPU-h，无研究或提交推送 | 2026-10-09 |

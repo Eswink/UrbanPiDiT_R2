@@ -2,6 +2,31 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-09 — 自迭代连续 goal 与 workflow 接入（决策 0043 / 计划 0019）
+
+用户要求：分析连续任务会话 `sess_1d199296-0818-4484-a384-786216eabbe0`「跑了一会儿自己停了」的原因，
+并给出能**自我迭代**（一轮输出作为下一轮输入）且能用 ZCode workflow（`/workflow`）的 goal 提示词。
+
+只读查库定位到**真实停止原因**：轮末 goal 完成校验（独立非流式、`tools:[]`）provider 报错
+（`status='error'`、31157 ms、0 token），harness **fail-open** 记 `payload.status='failed_closed'` 却令
+`verification.passed=true`、`session_target.status='complete'`，而科学门一条未过（r=0、test 未评分、
+S4 未启动）。据此：
+
+- master `docs/goals/main-model-climatology-campaign.md`：`§0` 换成**自迭代 objective**（单段、实测
+  **4000 code points**，13/13 技能名、5/5 代理、D1–D6 齐全）；新增「连续自我迭代契约」节；`§5` 补
+  CI 不阻塞纪律；`§8` 追加本轮 0 GPU-h 交接块。
+- `.agents/skills/goal-loop/SKILL.md` 补「连续自我迭代（不等 verifier）」节（含本次 fail-open 实测与
+  DB 只读核查命令）；该技能 260 行，未超 R-051 的 600 行。
+- 新增决策 **0043** 与计划 **0019**；技能清单由 12 项增至 **13 项**（加入 `dynamic-workflows`，
+  即 `/workflow` 的落地技能；未加载时 `CreateWorkflow` 直接拒绝运行；为 ZCode bundled 技能，不属本仓
+  `.agents/skills/`，故不进 `docs/skills/README.md` 能力表）。
+- 本轮**不加机械检查器**（自迭代是流程约定，无稳定 AST 判据）；不改生产模型/训练代码、科学合同、
+  冻结证据、index/brief、账本历史行、用户配置与安全 hook；0 GPU-h、不提交推送。
+
+DB 文档漂移留痕：`session_entry` 真实列为 `id/session_id/type/time_created/time_updated/data`，状态在
+`json_extract(data,'$.payload.status')`；`docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` 里用 `payload` 列的
+示例 SQL 与库不符（该文档本轮不改）。
+
 ## 2026-10-08 — 并行科研与 workflow 编排能力（决策 0042 / 计划 0018）
 
 用户要求项目支持 workflow 与并行科研设计（「能并行才并行，并行之前需要思考能否并行」）。新增能力

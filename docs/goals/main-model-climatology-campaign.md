@@ -7,9 +7,38 @@
 `docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md`；执行授权见决策 0030/0038；实施交接见计划 0016。
 旧 V2 收尾与 #70–#75 不重做，不自裁旧/新 goal complete。以后各具体实验长文由本主计划派生。
 
-## §0 Objective（可粘贴；单段，实测 3970 字符）
+## §0 Objective（可粘贴；单段，实测 4000 字符）
 
-> 在/data/esw/UrbanPiDiT_R2的r7/weather-reasoning继续UrbanPiDiT可思考/递归主模型长期研究。读docs/goals/main-model-climatology-campaign.md、docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md、决策0030/0038/0039/0042及最新§8，核HEAD/status、身份与issue评论。本次实际推进研究，不交计划等我。当前S3/index63/累计23.3140GPU-h、2023test未评分r0、模型身份已变更（旧checkpoint经pins+model-only迁移复用），启动时复核；不重启S0–S2、旧#70–#75、单病例80更新或精确反算。cap20/remaining−3.3140仅会计。目标是持续优化本主模型，公平稳定超过train-only climatology并独立确认；工程绿、单例loss下降、关闭issue非科学成功。我下放方向内实验设计、架构/方法/训练信号/优化、数据源/区域/年份/变量、免费合法真实下载、自审preflight与新outputs发布--write、GPU训练评估、seed/更新/规模、时长预算、普通决策/排障、下一实验及节点推进权；不逐项询问、不逐轮等触发，时长/GPU-h自主增加并简报，通知非等批准，无总GPU-h上限。付费/租卡、GPU独占、方向改变、main合并/发版和破坏性仍须具名许可；新issue关闭/main写入不继承旧六issue许可。并行先加载parallel-research-workflow并过准入七gate（假设独立/产物隔离/无共享可变状态/可独立验证等），不满足即串行写理由；能并行才并行，资料/CPU/只读检索/独立复核可并行，GPU仍由统一父调度按共驻余量串行；每臂独立protocol/digest/证据/index record，并行≠共享预算，test封存与r/alpha不放宽；workflow脚本仅确有控制流时用，首次留痕验证。D1用既有0/20/80端点、原四季train/四val开发例/同train气候态，冻结无新optimizer或更新的原deep-K目标对最终17变量×五lead物理评分诊断；核归档code.zip/新80contract/普通loader/案例/单位/CPU反证，不重训练或失败replay，正负登记，不以小样本称泛化。目标降而最终输出不改善查监督聚合/草稿/最终头/评分路径；只同病例好查记忆/跨例干扰/数据制度；开发例有支持才扩完整val，不默认加剂量。D2据#76–#79及后续issue评论与现有正负证据提可反驳假设；GPT6PRO建议仅参考，旧PE/scale/typed/ordering/anchor不无理由重跑，issue顺序非永久matrix。允许主模型架构、表达、目标/优化、可推理诊断信息组织和数据制度探索；每试写实质差异、正负控制、预期信息、新protocol/输出、停止/饱和出口及回主线动作。先解析/CPU接线与小规模真实train/val，支持后扩；性能与机制归因分开，matched_generic是同图等价控制非必须赢baseline，typed须同信息无类型/有类型对照，future真值仅监督。无收益主动查官方论文/源码、梯度/最终预测/优化/数据瓶颈，转不同可证伪假设；不无限调开关/seed/训练量，不换外部大模型冒充主线。已否定假设停，旧negative/failed/paused保持，独立主线继续。D3允许分批下载免费合法公开区域天气数据，含更长训练期、多年度/季节和独立确认年；先核旧源复用，不默认全球全集。每批先冻source/snapshot/license、范围/单位/网格/half-open split、网络/解码字节/磁盘余量、planned/hard时长与恢复策略，pilot测速/schema再扩。复用带预算下载器，慢网自主排障/分片/核hash复用或换合法真实源；不假称续传/合成回退，失败留failed-no-fallback。自审prepare_r7_local只读preflight留digest后才--write至全新非嵌套排他outputs，完整sourceSHA256/单位/schema/finite/sidecar/BUILD_COMPLETE不省。旧data/raw|interim|processed、store、归档不改，不删部分输出复活。统计只fit train，跨split历史/目标窗剔除隔离；数据变公平重建气候态及必要incumbent，不拿新模型打旧弱基线。准备联网、实验R028离线；下载慢可并行独立CPU/资料。D4用train/val选架构/K/loss/checkpoint，分报信息/样本/updates/参数/FLOPs/GPU-h，不把同updates当同算力。最终配置/checkpoint/baseline/cases/split、统计法/块长/重采样/RNG/seed及数字预算全锁后才评分新test。验收固定t2m/full的6/12/24/48/72h：至少3预声明seed，各seed在确认总集/各年/四季组skill=1−MSE模型/MSE气候态均>0，seed均值全部primary同时区间下界>0；u10/v10/mslp对同数据incumbent在同组/lead每seed相对MSE变化≤0且同时区间上界≤0，容忍0，undefined不通过。至少一个完整真正未见年份及四季，配对分层时间块bootstrap同重采样病例/变量/lead/seed，不把像素/重叠窗/seed当独立天气样本；不足块不能过门。首次test标签评分消耗确认r，partial也计，alpha_r=0.05/(r*(r+1))、累计≤0.05、首轮97.5%同时区间；失败留曝光/全部分组，不换名重置/复封旧test/反复看test练到赢。全17变量×五lead×full/interior/edge、物理RMSE/MSEskill/ACC及坏变量照报，不跨单位平均或挑赢家。未达门返回独立开发，门过封印证据并提请验收，不保证必胜、不自宣SOTA或complete。D5实际调度代理与技能：未知路径/调用链/证据扫仓用Explore并给范围，主链不重复搜索；多步依赖/架构/大改用planner配planner-delegation，JSON过check_planner_plan及事实核，科学门只引用不外委；服务端/额度失败留原错，自规划过同契约并独立内容审阅，不算委派完成也不停研究。外部论文/官方源码/API/报错用web-researcher配web-research，不可用切web-researcher-backup，仍失败才curl留因；一手核URL/访问日/版本，不拿摘要作证据。准备期可clone源码至outputs/reference_sources/<project>/<commit>/，锁commit/license/hash并标注引用与未搬范围；镜像只读隔离，不import或执行上游安装训练。general-purpose做无冲突实现、候选升级/最终独立只读复核，不代最终verifier。命中先实际加载（不能只列名字）：goal-loop、parallel-research-workflow、planner-delegation、decision-record、issue-lifecycle、real-data-acquisition、environment-rebuild、web-research、bounded-study-run（有界CPU，非GPU通用SOP）、pinned-artifact-replay、result-freeze、ci-workflow-triage。D6每运行先冻protocol/digest、范围/失败处理、planned_seconds软预算/hard_cap_seconds宽硬限与收尾余量，整轮含准备/启动/训练/评分/核验/清理。软超继续记overrun，硬截止/真错停attempt全额留失败，下一独立protocol可加时，不运行中改硬限或重试至偶然通过。复用先核合法pins，不以反复复验代研究；节点前后核campaign/goal、身份/账本/前置出口/独立审阅，实跑定向反证，源码变跑完整回归，登记index/brief/空白与精确SHA必要CI；skip/cancel/queued/partial非PASS。登记全部假设/负面、code/data/protocol/resultsdigest、复现等级、scientific_claim:false/limitations与GPU-h/网络/磁盘/墙钟/overrun成本。普通环境/网络/工程/身份/统计/CI阻塞自主查因、合法修活跃代码、独立复核后继续，不以“负结果/有阻塞等你决定”交差；仅保留权限或无法安全克服的外部硬依赖停相关动作，其余继续。禁止改冻结门、伪造PASS、删弱测试、绕身份、安全降门/改用户配置/绕hook、force/mirror、凭据外发、cron/守护或会话外续跑；上下文压缩按最新进度恢复，终止留可审计交接。结束汇报模型/数据改动、全部实验与失败、代理技能使用、科学/机制限制、验证/精确CI、接口/凭据/依赖影响、成本与issue状态及未做项；不要自行宣布最终goal完成。
+> 在/data/esw/UrbanPiDiT_R2的r7/weather-reasoning继续UrbanPiDiT可思考/递归主模型长期研究。先读docs/goals/main-model-climatology-campaign.md（含§8与“连续自我迭代契约”）、docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md、决策0030/0038/0039/0042/0043，核HEAD与issue评论。本次实际推进研究，不交计划等我。当前S3/index65/27.5905GPU-h、2023test未评分r0、S4未启动；从§8“下一动作”恢复，不重复已登记的rollout-dose与宽区域pilot轮。cap20/remaining−7.5905仅会计。自迭代契约：每轮写完四件套（§8下一动作、账本行、index record、campaign-state）后立即进下一轮，不等我触发、不等goal校验；只在保留授权边界、冻结停止条件、或确无可安全推进的独立工作才停，停下须在§8写“为何停+恢复命令”。本客户端goal校验会provider报错并fail-open把目标标complete（2026-10-09实测failed_closed却passed=true），若见complete而科学门未过，按§8恢复。防空转：同一假设连续无收益就换或停，不重复同一test、不加seed/剂量练赢；CI后台轮询不阻塞整轮。用workflow：先加载dynamic-workflows技能（即/workflow；未加载时CreateWorkflow拒绝运行），再按准入判断；只有过parallel-research-workflow七gate才用CreateWorkflow，可复用脚本存.zcode/workflows/<name>.dwf.ts，一次性用inline；GPU由统一父调度按余量串行。我下放方向内实验设计、架构/方法、训练信号/优化、数据源/区域/年份/变量、GPU训练评估、seed/更新/规模、时长预算、普通决策/排障、下一实验与节点推进权；不逐项询问、不逐轮等触发，时长/GPU-h自主增加并简报，无总GPU-h上限。付费/租卡、GPU独占、方向改变、main合并/发版、破坏性仍须具名许可；新issue关闭/main写入不继承旧六issue许可。D1接续宽区域：129×129（中心65×65即冻结目标盒）已建并pilot（放大ROI只花存储、中心块与v3源逐位一致、18/18判据过、0GPU-h）；下一轮按§8用宽区域数据做单因素真实train/val，检验“冻结16°盒缺长lead所需信息”可否证伪，同配方同预算对照65×65，据证据定是否进S4冻结包；核归档code.zip/新contract/loader/案例/单位/CPU反证，不重训练/失败replay，正负登记，不以小样本称泛化；D2据#76–#79及后续issue评论与现有正负证据提可反驳假设；GPT6PRO建议仅参考，旧PE/scale/typed/ordering/anchor/rollout-dose不无理由重跑，issue顺序非永久matrix。允许主模型架构、表达、目标/优化、可推理信息组织和数据制度探索；每试写实质差异、正负控制、预期信息、新protocol/输出、停止/饱和出口与回主线动作。先解析/CPU接线与小规模真实train/val，支持后扩；性能与机制归因分开，matched_generic是同图等价控制非必须赢baseline，typed须同信息无类型/有类型对照，future真值仅监督。无收益查官方论文/源码、梯度/最终预测/优化/数据瓶颈，转可证伪假设；不无限调开关/seed/训练量，不换外部大模型冒充主线；已否定假设停，旧negative/failed/paused保持，独立主线继续。D3允许分批下载免费合法公开区域天气数据，含更长训练期、多年季节和独立确认年；先核旧源复用，不默认全球全集。每批先冻source/snapshot/license、范围/单位/网格/half-open split、网络/解码字节/磁盘余量、planned/hard与恢复策略，pilot测速/schema再扩。复用带预算下载器，慢网自主排障/分片/核hash复用或换合法源；不假称续传/合成回退，失败留failed-no-fallback。自审prepare_r7_local只读preflight留digest后--write至全新非嵌套排他outputs，完整sourceSHA256/单位/schema/finite/sidecar/BUILD_COMPLETE不省。旧data/raw|interim|processed、store、归档不改，不删部分输出复活。统计只fit train，跨split历史/目标窗剔除隔离；数据变公平重建气候态及必要incumbent，不拿新模型打旧弱基线。实验离线(R028)；下载慢可并行独立CPU/资料。D4用train/val选架构/K/loss/checkpoint，分报信息/样本/updates/参数/FLOPs/GPU-h，同updates非同算力；最终配置/checkpoint/baseline/cases/split、统计法/块长/重采样/RNG/seed及数字预算全锁后才评分新test。验收固定t2m/full的6/12/24/48/72h：至少3预声明seed，各seed在确认总集/各年/四季组skill=1−MSE模型/MSE气候态均>0，seed均值全部primary同时区间下界>0；u10/v10/mslp对同数据incumbent在同组/lead每seed相对MSE变化≤0且同时区间上界≤0，容忍0，undefined不通过。至少一个完整真正未见年份及四季，配对分层时间块bootstrap同重采样病例/变量/lead/seed，不把像素/重叠窗/seed当独立样本；不足块不过门。首次test标签评分消耗确认r，partial也计，alpha_r=0.05/(r*(r+1))、累计≤0.05、首轮97.5%同时区间；失败留曝光/全部分组，不换名重置/复封旧test/反复看test练到赢。全17变量×五lead×full/interior/edge、物理RMSE/MSEskill/ACC及坏变量照报，不跨单位平均或挑赢家。未达门返独立开发，门过封印证据并提请验收，不保证必胜、不自宣SOTA或complete。D5实际调度代理与技能：未知路径/调用链/证据扫仓用Explore并给范围，主链不重复搜索；多步依赖/架构/大改用planner配planner-delegation，JSON过check_planner_plan及事实核，科学门只引不外委；planner失败留原错，自规划过同契约并独立内容审阅。外部论文/官方源码/API/报错用web-researcher配web-research，不可用切web-researcher-backup，仍失败才curl留因；一手核URL/访问日/版本，不以摘要为证。准备期可clone源码至outputs/reference_sources/<project>/<commit>/，锁commit/license/hash并标注引用与未搬范围；镜像只读，不import或执行上游训练。general-purpose做无冲突实现、候选升级/最终独立只读复核，不代最终verifier。命中先实际加载（不能只列名字）：goal-loop、parallel-research-workflow、dynamic-workflows、planner-delegation、decision-record、issue-lifecycle、real-data-acquisition、environment-rebuild、web-research、bounded-study-run（有界CPU，非GPU通用SOP）、pinned-artifact-replay、result-freeze、ci-workflow-triage。D6每运行先冻protocol/digest、范围/失败处理、planned软预算/hard宽硬限与收尾余量，整轮含准备/启动/训练/评分/核验/清理。软超继续记overrun，硬截止/真错停attempt全额留失败，下一独立protocol可加时，不运行中改硬限或重试至偶然通过。节点前后核campaign/goal、身份/账本/前置出口/独立审阅，实跑定向反证，源码变跑完整回归，登记index/brief与精确SHA必要CI；skip/cancel/queued/partial非PASS。登记全部假设/负面、code/data/protocol/resultsdigest、复现等级、scientific_claim:false/limitations与GPU-h/网络/磁盘/墙钟/overrun。普通环境/网络/工程/身份/统计/CI阻塞自主查因、合法修活跃代码、独立复核后继续，不以“负结果/有阻塞等你决定”交差；仅保留权限或无法安全克服的外部硬依赖停相关动作。禁止改冻结门、伪造PASS、删弱测试、绕身份、安全降门/改用户配置/绕hook、force/mirror、凭据外发、cron/守护或会话外续跑；上下文压缩按最新进度恢复，终止留交接。结束汇报改动、实验与失败、技能/代理使用、验证与精确CI、成本与issue状态及未做项；不要自行宣布最终goal完成。
+
+### 连续自我迭代契约（2026-10-09 新增；objective 引用本节）
+
+**定位**：把「一轮结束 → 等用户/goal 校验 → 再开下一轮」改成「一轮结束 → 立刻开下一轮」。适用于本主计划
+每一次执行轮；与 §5 的预算/停止规则并用，**不放松任何科学门**。
+
+1. **每轮交接四件套**（缺一不可，写在同一批交付里）：
+   - §8 追加一个进度块：本轮做了什么、证据与 digest、**下一动作（可执行的第一条命令）**；
+   - §7 账本新增一行（含实际 GPU-h / 网络 / 磁盘 / 墙钟 / overrun 口径）；
+   - `docs/R7_EVIDENCE_INDEX.jsonl` 新增 record（无独立 record 时如实写明原因）；
+   - `<!-- campaign-state: ... -->` 注释更新 `current_node` / `current_round_goal` / `used_gpu_h` 等字段。
+2. **立刻续跑**：写完四件套即进入下一轮，**不等用户触发、不等 goal 完成校验**。下一轮起点由 §8 的
+   「下一动作」与 `campaign-state` 共同定义，**不重复已登记轮次**。
+3. **不等 verifier（实测依据）**：轮次结束时客户端会发起**独立非流式** goal 完成校验
+   （`query_source='target_completion_verification'`、`tools:[]`）。2026-10-09 实测该调用 provider 报错
+   （`status='error'`、31157 ms、0 token），harness **fail-open**：`payload.status='failed_closed'` 却
+   `verification.passed=true`、`session_target.status='complete'`，而科学门（r=0、2023 test 未评分、
+   S4 未启动）**一条都没过**。故：**若目标被标 `complete` 而 §8 科学门未过，一律按 §8「下一动作」恢复
+   继续，不把 harness 的 complete 当科学完成**。两种失败形态（provider 拒答 `failed_closed`；无超时挂起）
+   见 `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md`。
+4. **停止条件（仅三种）**：(a) 触保留授权边界（付费/租卡/独占/方向改变/main 合并/破坏性/无法安全克服的
+   外部硬依赖）；(b) 达到已冻结的科学停止条件；(c) 确无可安全独立推进的工作。停时必须在 §8 写
+   「**为何停 + 恢复第一条命令**」，否则视为未完成交接。
+5. **防空转**：同一假设连续无收益就换假设或停；不重复同一 test；不加 seed/剂量练到赢；不做「无新信息的
+   复验」冒充进度。
+6. **CI 不阻塞**：登记/验证 CI 用**后台轮询**，同时推进其他工作（见 §5）；不得用阻塞式长 `sleep` 占用整轮。
+7. **0 GPU-h 文档轮的例外**：无实验机器核数的文档轮**不新增** index record 与账本行（不编造机器核数行），
+   按 §7「无 index 支撑的文档 0 成本行如实列 note（如列出）」处理，但必须在 `§8` 写清
+   「本轮 0 GPU-h、无独立 record 及原因」。
 
 ## §1 起点、交接与已知差距
 
@@ -131,13 +160,17 @@ S1下载慢时并行CPU/资料工作，不让联网下载与离线实验隔离�
 | result-freeze | 结果引用/报告/归档，digest/重放等级/登记 |
 | ci-workflow-triage | CI失败/pending/取消、精确SHA所有必要步骤核验 |
 | parallel-research-workflow | 多个互不依赖的研究线并行推进、或需 workflow 脚本编排多个子代理；先过准入判断 |
+| dynamic-workflows | 需 ZCode workflow 编排（`/workflow`）：先加载再按七 gate 判断是否并行；未加载时 `CreateWorkflow` 拒绝运行 |
 
 GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的通用GPU技能。新能力需要重复事实后
 才独立立SOP，不为本轮多造平台。#76–#79建议不是固定必须跑全部格子的matrix。
 
 并行前先过**准入判断**（七 gate：假设独立/产物隔离/计算资源/数据实例/可变状态/可独立验证/多重比较，
 任一不满足即串行）；能并行才并行，资料/CPU/只读检索/独立复核可并行，GPU 仍由统一父调度按共驻余量串行。
-详见 `.agents/skills/parallel-research-workflow/SKILL.md`（决策 0042，本轮新增为第 12 项技能）。
+详见 `.agents/skills/parallel-research-workflow/SKILL.md`（决策 0042，当时新增为第 12 项技能）。
+
+本表共 **13 项**：其中 12 项为本仓 `.agents/skills/` 能力，**第 13 项**为 ZCode **bundled 技能 `dynamic-workflows`**
+（`/workflow` 的落地技能，2026-10-09 纳入；不属本仓 `.agents/skills/`，故不进 `docs/skills/README.md` 能力表）。
 
 ## §5 时长、下载、停止与恢复
 
@@ -154,6 +187,8 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   free-space门、软硬秒数、重试/分片恢复写定；先小pilot。仅hash/身份核齐可重用完成分片，不假称续传。
 - 准备期可联网，实验R028离线；默认GPU共驻，启动/spawn只读UUID/余量，不能signal邻居。等待余量时
   继续合法CPU工作或安排新符合余量的协议，不降门/抢卡。承载CI timeout须大于hard+收尾余量。
+- **CI 不阻塞轮次（2026-10-09）**：登记/验证用的 CI 只做**后台轮询**，不得用阻塞式长 `sleep` 占用整轮；
+  轮次推进与 CI 等待并行，CI 结果在下一轮开工前回写精确绑定（见 §8 与 `goal-loop` 技能「连续自我迭代」节）。
 - ordinary环境/网络/接口/身份/统计/CI/登记阻塞自主查因、修活跃实现/另立修复再独立核，不直接问
   用户“下一步”。不修改用户配置/安全门/冻结校验。工具失败按skill合法降级，不冒称调用成功。
 - 真实错误/硬截止停该attempt、全额记账保留；已否定假设停止，不让新独立研究机械冻结。
@@ -597,3 +632,17 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 - **下一动作（S3）**：修共享 `_references` 对迁移父的表达（或把迁移注册为可 pin 的父记录），
   然后以"提高 pattern 相关"为下一杠杆；最可证伪的一支是扩大区域/引入域外大尺度上下文
   （旧实测显示 ARCO ERA5 的 ROI 放大几乎不增成本），并重建同数据气候态与 incumbent 后再比较。
+
+- **2026-10-09 连续自我迭代契约轮（0 GPU-h 文档轮）**：用户报告上一连续任务会话
+  `sess_1d199296-0818-4484-a384-786216eabbe0`「跑了一会儿自己停了」。只读查 `~/.zcode/cli/db/db.sqlite`
+  定位**真实停止原因**：轮次总结后触发的 goal 完成校验 provider 报错（`status='error'`、31157 ms、
+  0 token），harness fail-open 令 `payload.status='failed_closed'` 而 `verification.passed=true`、
+  `session_target.status='complete'`；科学未完成（r=0、2023 test 未评分、S4 未启动）。**不是**用户打断、
+  **不是**科研完成。据此把 §0 objective 换成**自迭代版**（单段、实测 4000 字符），新增本节所属的
+  「连续自我迭代契约」与 §5 的 CI 不阻塞纪律，并在 `goal-loop` 技能补「连续自我迭代（不等 verifier）」。
+  技能清单由 12 项增至 **13 项**（加入 `dynamic-workflows`；`/workflow` 的落地技能，未加载时
+  `CreateWorkflow` 拒绝运行；为 ZCode bundled 技能，不进 `docs/skills/README.md` 的本仓能力表）。本轮 **0 GPU-h、0 test 读取、r=0**，不新增 index record 与账本行
+  （无实验机器核数，按 §7「无 index 支撑的文档 0 成本行如实列 note」处理）；不启动实验/下载/发布/clone/GPU，
+  不 commit/push。决策 0043、计划 0019 记录本契约。**下一动作**：从本轮之前 S3 的「下一动作」继续——
+  用已建并 pilot 的宽区域（129×129，中心 65×65 = 冻结目标盒）数据做**单因素真实 train/val**，证伪
+  「冻结 16° 盒缺长 lead 所需信息」，同配方同预算对照 65×65，再据证据决定是否进 S4 冻结包。

@@ -158,6 +158,38 @@ goal 的「完成校验」是**回合结束之后**的一次独立模型调用�
 
 **不要依赖自动结项**：校验失败或取消时目标状态不会被判定。
 
+## 连续自我迭代（不等 verifier，2026-10-09 新增）
+
+一个已授权的 goal **不必**每轮结束都停下来等用户、等 goal 校验：它可以自己一轮接一轮跑，
+**上一轮的输出就是下一轮的输入**。落地形态是「每轮交接四件套 + 立刻续跑」，规范正文见
+`docs/goals/main-model-climatology-campaign.md` 的「连续自我迭代契约」节（决策 0043）。
+
+**每轮交接四件套**（缺一不可）：① 长文 `§8` 追加进度块（含**下一动作第一条命令**）；② 账本新增一行
+（含实际 GPU-h / 网络 / 磁盘 / 墙钟 / overrun）；③ 证据索引新增 record（无独立 record 时如实写明原因）；
+④ `<!-- campaign-state: ... -->` 更新节点 / 轮次目标 / 已用 GPU-h。四件套写完**立即**进入下一轮。
+
+**不等 verifier**：轮末的完成校验是独立非流式调用（`query_source='target_completion_verification'`、
+`tools:[]`），**会 fail-open**。2026-10-09 实测：provider 报错（`status='error'`、31157 ms、0 token）后，
+harness 记 `payload.status='failed_closed'` 却令 `verification.passed=true`、`session_target.status='complete'`，
+而科学门一条未过。所以：**看到目标被标 `complete` 而 `§8` 科学门未过，一律按 `§8`「下一动作」恢复继续**，
+不把 harness 的 `complete` 当科学完成。三处终态核验见上一节。
+
+**只在三种情况停**：(a) 触保留授权边界（付费/租卡/独占/方向改变/main 合并/破坏性/无法安全克服的外部硬依赖）；
+(b) 达已冻结的科学停止条件；(c) 确无可安全独立推进的工作。停时必须在 `§8` 写
+「**为何停 + 恢复第一条命令**」，否则算未完成交接。
+
+**防空转**：同一假设连续无收益就换假设或停；不重复同一 test；不加 seed/剂量练到赢；不做「无新信息的
+复验」冒充进度。**CI 用后台轮询**，不用阻塞式长 `sleep` 占用整轮。
+
+只读核查（真实 schema：`session_entry` 列为 `id/session_id/type/time_created/time_updated/data`，
+状态在 `json_extract(data,'$.payload.status')`；`docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` 里用 `payload`
+列的示例 SQL 与库不符）：
+
+```bash
+sqlite3 ~/.zcode/cli/db/db.sqlite \
+  "select json_extract(data,'$.payload.status') from session_entry where session_id='<sid>' order by id desc limit 3;"
+```
+
 ## 完成判据
 
 - `§2` 的交付物逐条有证据（精确 SHA、run id、digest 或测试名与结果），未做的写明"未做"；
