@@ -2,9 +2,10 @@
 
 <!-- round-node: S3 -->
 
-状态 **进行中**（2026-10-09）：pilot 已登记（index65），全量获取正在执行。唯一主计划
-`docs/goals/main-model-climatology-campaign.md`；承接 `docs/goals/s3-wide-region.md` §6 的
-"下一动作"与主计划 §8 的最后一条"下一动作"。不重跑已登记的 rollout-dose 与宽区 pilot 轮，
+状态 **已完成（本轮数据制度部分）**（2026-10-09）：28 part 获取、合并、v4 store 与宽区 train-only
+气候态均已完成并登记（index66）。唯一主计划 `docs/goals/main-model-climatology-campaign.md`；
+承接 `docs/goals/s3-wide-region.md` §6 的"下一动作"与主计划 §8 的最后一条"下一动作"。单因素
+train/val 是**下一轮**的事（设计已在 §3 冻结）。不重跑已登记的 rollout-dose 与宽区 pilot 轮，
 不进入 S4，不自行宣布最终 goal 完成。
 
 ## §0 Objective（单段）

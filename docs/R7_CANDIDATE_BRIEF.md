@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 65; human-review candidates: 1
+Records: 66; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -379,6 +379,27 @@ Records: 65; human-review candidates: 1
 - CI run: `37468877656`
 - Excluded from runnable candidates: Identity/configuration reproducibility audit only, not new scientific evidence or candidate.
 - Recorded metrics (not recomputed): archived_collector_json_sha256=3b6b9af8a0cb343685713ec817bf22def9675461e3e0b2a12bc8363aa8a6c7b7, case_max_relative_mse_difference=0.0, elapsed_seconds_failed_replays=[8.888092823326588, 8.88523946981877], elapsed_seconds_successful_replay=1375.7328200042248, exact_csv_count=15, failed_preforecast_replays=2, gpu_hours=0.3871, hard_cap_seconds_each=3600, hard_overrun_seconds=0.0, network_bytes=0, planned_seconds_each=1800, soft_overrun_seconds=0.0, successful_replays=1, test_read=false
+
+## s3-wide-region-full
+
+- Outcome class: `engineering-positive`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_WIDE_REGION_FULL.md` (SHA256 `44a19a4b5b76c24527cd6c76eb8ad79375d1b8df363dbf18bea5ad058b01b467`)
+- Evidence commit: `123097b0a13d4f330782025e274b3f6c739b4c3f`; experiment commit: `123097b0a13d4f330782025e274b3f6c739b4c3f`
+- Protocol SHA256: `be50afbc100091d55aee7117baaf623927bfded8a27fed4246da29fb1a1cf8c5`; data identity: `2360d42b7393cd6f53cd6f48961abc7bcd62948d3c2fa69b2d810d798d137c12`
+- Reason: S3 wide-region (lateral-context) full acquisition, v4 store and wide train-only climatology. The S3 rollout-dose round left the 48/72h wall as pattern correlation (t2m/full ACC 0.367/0.189, linear-rescaling ceiling ACC^2 only +0.1355/+0.0366), and at 10 m/s a synoptic system travels ~2600 km (23 deg) in 72h, more than the frozen 16-degree box, so 'the box lacks the information the long leads need' is the recorded, still-untested hypothesis. This round changes one factor only - the read region, 65x65 (27-43N/107-123E) to 129x129 (19-51N/99-131E) - whose central 65x65 block is asserted to be the frozen target box. It acquires the 28 (year, season) parts the registered v3 instance covers (train 2017-2021, val 2022, test 2023; 3360 stamps), merges them into source.nc (SHA256 6bc9a1a2...), publishes a v4 store [3360,17,129,129] with the same splits and window counts as v3 (2360/472/472), and scores the train-only climatology and persistence on val 2022 with boundary_margins=(32,), whose interior_32 region is exactly the frozen 65x65 box (4225 points). The wide instance's interior_32 t2m climatology and persistence RMSE match the registered v3-D2 values to ~1e-10, so the single-factor comparison's skill denominator is the registered one. Along the way the committed wide acquisition path was found unrunnable - four defects left by the R-021 module split, including a receipt writer that referenced its caller's local and crashed after a part had fully downloaded - and was repaired with two regression guards (a scope walk that reports all seven pre-fix undefined names, and a receipt-composition test). Two parts (winter_2020, winter_2022) hit the frozen 1800 s per-part deadline, wrote no artifact, and were re-fetched under the _r2 name; both failures are kept. CPU only: 0 GPU-hours, the test manifest is built but never opened.
+- Limitations:
+  - data acquisition, a published store and a parameter-free reference only: no model was trained or scored, and no skill claim follows
+  - the wide region is a development instance; the frozen 16-degree target box is unchanged
+  - network_body_bytes is a host-wide /proc/net/dev counter over each part's read window, so under pool 4 each part's figure includes sibling traffic (~4x inflated); the per-part 'within 25% of the pilot' criterion could not be evaluated as written and is recorded as a deviation, with the batch total measured separately
+  - two parts overran the frozen 1800 s per-part deadline at pool 4; both wrote no artifact, are preserved as failed-no-fallback, and were re-fetched under the _r2 name
+  - the acquisition ran at the measured-safe pool of 4; six concurrent readers of this icechunk store deadlock with frozen CPU and idle sockets
+  - the batch network total (~101 GB) combines measured host-wide windows with part-window bounds; it is an estimate, not one continuous measurement
+  - the store build reused the region-agnostic v3 build config, so the split contract is identical to v3 by construction
+  - no test-split byte was read; the 2023 manifest is built but sealed
+- CI run: `37974234521`
+- Excluded from runnable candidates: 工程/数据制度轮：它获取数据、发布 store 并给出参数自由基线，不训练、不评分任何模型，因此不构成候选，也不进入 S4。宽区是否带来长 lead 收益由下一轮单因素 train/val 判定。
+- Recorded metrics (not recomputed): batch_wall_seconds=12223.0, climatology_interior32_t2m_rmse_k={"12": 3.488909, "24": 3.437473, "48": 3.353443, "6": 3.517116, "72": 3.318361}, d2_baselines_seconds=2461.6, disk_peak_gib=6.6, gpu_hours=0.0, interior_32_points=4225, network_bytes_estimate=101000000000, network_hard_cap_bytes=161061273600, parts_new=27, parts_retried=2, parts_reused=1, parts_total=28, persistence_interior32_t2m_rmse_k={"12": 5.92348, "24": 3.163328, "48": 4.179511, "6": 4.547019, "72": 4.726945}, pool=4, source_bytes=2003552683, stamps_per_part=120, stamps_total=3360, store_build_seconds=168.8, store_shape=[3360, 17, 129, 129], test_read=false, v3_d2_interior_match_max_abs_diff=6e-10, validation_part_seconds=1218.5
 
 ## s3-wide-region-pilot
 
