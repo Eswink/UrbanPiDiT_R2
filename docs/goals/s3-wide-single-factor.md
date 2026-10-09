@@ -79,9 +79,25 @@
 - 已完成（CPU 准备）：驱动 `scripts/study_r7_s3_wide_single_factor.py`（599 行）+ 测试
   `tests/test_r7_s3_wide_single_factor.py`（7 测试全过、37 条阻断规则 0 失败），提交 `968f48c`。
 - 宽 val cohort 实测 = 注册 v3 cohort（472/468/460/444/428），已在驱动内 pin。
-- **下一动作**：见 §7（本轮交接）。
+- 已完成（真实 train/val）：六阶段 `prepare → archive → seed41 → seed42 → seed43 → reading`
+  全部 `success`（`returncode=0`、`signals=[]`、`reaped=true`），whole 12,721.940569 s。
+  证据页 `docs/R7_S3_WIDE_SINGLE_FACTOR.md`，读数 `outputs/r7_s3_wide_single_factor_20261009_attempt01/readings.json`。
+- **结果（null）**：宽臂在五个 lead 上 seed 均值 delta 全部为正（6h +0.0013、12h +0.0147、
+  24h +0.0189、48h +0.0121、72h +0.0231 K），48/72h 绝对气候态门仍未过且略差于窄臂
+  （−0.1271/−0.4485 vs −0.1191/−0.4309）。**不支持**"冻结 16° 盒缺长 lead 所需信息"，
+  但也**不构成反证**（全 129×129 监督使信息增益与监督稀释混淆）。
+- 工程缺陷（本轮发现并修复）：开轮提交 `13f3c44` 的主 CI `37985102030` 在 pytest 步骤失败，
+  唯一红点是 `test_size_report_counts_match_the_checker` 报
+  `R-019b: size-thresholds.md says 1026, the checker reports 1028`——新驱动引入 2 条
+  120–200 字符长行与 1 个 >400 行文件，C 类 marker 必须随实测同步。已在 `de64697` 修回
+  （R-019b 1026→1028、R-021 85→86，**未改任何阈值/规则级别/冻结例外**），
+  其主 CI `37990463998` completed/success、全部必要步骤 success。
 
 ## §7 本轮交接
 
-待本轮 attempt 完成后填写：实际 GPU-h / 网络 / 磁盘 / 墙钟 / overrun 口径、配对读数与可证伪读法、
-以及**下一轮可执行的第一条命令**。
+- 成本：whole 12,721.940569 s → **3.5339 GPU-h**（soft overrun 3,721.94 s、hard overrun 0）；
+  网络 0（离线）；产物磁盘 4.6 GiB。累计 27.5905 → **31.1244**。
+- **下一动作（S3）**：做**分离稀释与信息增益**的单因素对照——宽 129×129 输入 +
+  **只在 `interior_32` 上监督**（与已登记窄臂同监督域），对照仍是已登记的窄 65×65 臂；
+  先 CPU 写新 protocol/新输出目录/新 `code.zip`/停止出口与定向反证，再按共驻余量申请 GPU。
+  test 未读、r=0、S4 未启动不变；**不进入 S4 冻结包**（本轮证据不支持封印配置）。
