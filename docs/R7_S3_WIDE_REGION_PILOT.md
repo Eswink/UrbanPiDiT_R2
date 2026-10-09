@@ -73,7 +73,7 @@ S3 接续。它是**数据制度可行性**证据，不产生任何 skill/ACC/�
 - 两个工具都带"故意违规必须报错"的反证：错状态、合成回退、读计划漂移、快照漂移、stamp 数少、
   时次覆盖错、形状退回 65×65、层轴漂移、通道数错、缺通道、通道非 finite、digest 缺失、
   网络/解码超预算、墙钟超时、控制回执被替换、中心块单格被扰动、中心块外扰动不得误报、单位被改、
-  stamp 对齐错位。合计 43 个新测试用例。
+  stamp 对齐错位。三个新测试文件合计 **45** 个用例（`test_r7_wide_region_acquisition.py` 17、`test_r7_wide_target_block_check.py` 8、`test_r7_wide_pilot_receipt_check.py` 20）。独立复核另用变异反证：把 `TARGET_MARGIN_CELLS` 改成 30 后 5 个几何/协议用例失败、协议 digest 由 `d5618cbf…` 变为 `7c4137a6…`，证明断言确实承重。
 
 ## 5. 工程缺陷与修正（诚实记录）
 
@@ -99,7 +99,7 @@ S3 接续。它是**数据制度可行性**证据，不产生任何 skill/ACC/�
 | 只读 preflight（含 1 stamp） | ~1 分钟，网络少量 | 读元数据 + 1 个 stamp，0 GPU |
 | pilot 实跑（120 stamp） | 1223.141 s | soft 1800 / watchdog 1860 未触；exit 0 |
 | 判据核验 + 中心块核验（CPU 只读） | 数分钟 | 0 网络、0 GPU |
-| **GPU-h** | **0.0000** | 采集与核验全为 CPU/网络 |
+| **GPU-h** | **0.0000** | 采集与核验全为 CPU/网络；下载路径自身不引用 torch/CUDA，但 `read_plan_frozen` 经 `training.r7_experiment.canonical_digest` 传递 import torch，因此"0 GPU-h"的依据是**未打开 CUDA 设备**（`torch.cuda.is_initialized()` 仍为 False），不是"未 import torch" |
 | 网络 | 3,565,096,475 B | 与目标框 part 比 1.0029 |
 | 磁盘（保留） | 70,207,133 B | 已计入新排他 `outputs/` 路径；无删除、无复活 |
 
@@ -123,6 +123,6 @@ S3 接续。它是**数据制度可行性**证据，不产生任何 skill/ACC/�
   需另议更大的半宽与其算力代价。
 - 本轮 0 GPU-h，因此不改变任何模型/机制结论；账本只加网络与磁盘成本。
 - 下一动作（S3）：按实测成本冻结全量批次协议（train 2017–2021 + val 2022 = 24 part，
-  预计网络 ~85 GB、墙钟 ~8.6 h 串行或按网络/磁盘预算并行分片），随后用 `prepare_r7_local.py`
+  预计网络 ~85.6 GB、墙钟 ~8.2 h 串行（24 × 1223.141 s）或按网络/磁盘预算并行分片），随后用 `prepare_r7_local.py`
   建 v4 store 与 sidecar，重建同数据气候态与 incumbent，再以 `interior_32` 掩码与旧 65×65
   读数逐格比较。全量协议必须另立并冻结，不沿用本 pilot 的数字。test 未读、r=0、S4 未启动不变。
