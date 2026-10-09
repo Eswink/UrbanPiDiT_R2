@@ -33,9 +33,12 @@
 
 ## §3 判据与开发读法
 
-pilot 的判据在下载前写进 `acquisition_protocol.json` 的 `success_criteria`，由只读工具
+科学门与验收形式只来自 `docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md`（本合同第 4/5 节）
+与 `docs/goals/main-model-climatology-campaign.md` §8；本轮**不触碰**其中任何阈值。pilot 的
+工程判据在下载前写进 `acquisition_protocol.json` 的 `success_criteria`，由只读工具
 `scripts/check_r7_wide_pilot_receipt.py` 逐条对照实测回执执行（缺字段算失败，不算跳过），
-另由 `scripts/verify_r7_wide_target_block.py` 核中心块身份。两者都有"故意违规必须报错"的反证测试。
+另由 `scripts/verify_r7_wide_target_block.py` 核中心块身份；两者的读法与结果记在
+`docs/R7_S3_WIDE_REGION_PILOT.md`。两个工具都有"故意违规必须报错"的反证测试。
 本轮不产生任何 skill/ACC/气候态读数：它是**数据制度可行性**，不是模型结果。
 
 ## §4 数字预算与停止
