@@ -46,6 +46,11 @@ S3 接续。它是**数据制度可行性**证据，不产生任何 skill/ACC/�
 | 产物 | `part_winter_2018.nc` 70,207,133 B，SHA `b05f216353c2d71abfd649d46b603522fba33851565aa06bafd01775881b12fc` |
 | 预算 | per-part soft 1800 s、watchdog TERM 1860 s、`--max-decoded-gib 16`、planned network 4.0e9 B、disk peak 6.0e8 B、margin 2.0e10 B |
 | test | 未读（未出现 test manifest；2023 仍封存） |
+| 许可/引用 | `CC-BY-4.0`（license URL）、DOI `10.24381/cds.adbb2d47`、registry `https://registry.opendata.aws/earthmover-era5/`，2026-10-09 从该源自身 registry 页一手读取（R-050） |
+
+**关于 citation 字段的时间顺序（如实记录）**：本轮 pilot 的 part 回执写于该字段加入**之前**，
+因此它只有 `license` 与 `reference`；`citation`（含 DOI 与访问日）自本轮登记的后续提交起对
+**所有后续 part** 生效，全量批次会带上它。这不是把后加字段追认成 pilot 已有的证据。
 
 ## 3. 区域设计与"中心块 = 冻结目标框"
 
@@ -99,6 +104,7 @@ S3 接续。它是**数据制度可行性**证据，不产生任何 skill/ACC/�
 | 只读 preflight（含 1 stamp） | ~1 分钟，网络少量 | 读元数据 + 1 个 stamp，0 GPU |
 | pilot 实跑（120 stamp） | 1223.141 s | soft 1800 / watchdog 1860 未触；exit 0 |
 | 判据核验 + 中心块核验（CPU 只读） | 数分钟 | 0 网络、0 GPU |
+| 许可/引用一手核对（curl registry 页） | 1 次请求 | 只读元数据，0 GPU |
 | **GPU-h** | **0.0000** | 采集与核验全为 CPU/网络；下载路径自身不引用 torch/CUDA，但 `read_plan_frozen` 经 `training.r7_experiment.canonical_digest` 传递 import torch，因此"0 GPU-h"的依据是**未打开 CUDA 设备**（`torch.cuda.is_initialized()` 仍为 False），不是"未 import torch" |
 | 网络 | 3,565,096,475 B | 与目标框 part 比 1.0029 |
 | 磁盘（保留） | 70,207,133 B | 已计入新排他 `outputs/` 路径；无删除、无复活 |

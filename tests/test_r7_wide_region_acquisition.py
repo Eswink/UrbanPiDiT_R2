@@ -185,6 +185,25 @@ def test_wide_dataset_attributes_state_the_wide_region_without_d1_prose():
     assert attrs["interpolation"] == "none"
 
 
+def test_the_source_licence_and_doi_are_recorded_first_hand():
+    # real-data-acquisition step 5 asks a download receipt to carry the licence
+    # and the DOI. Both were read from the source's own registry page on
+    # 2026-10-09 (R-050), so they are pinned here rather than left to a later
+    # reader's guess.
+    from data.download.earthmover_wide_io import source_citation
+
+    citation = source_citation()
+    assert citation["license"] == "CC-BY-4.0"
+    assert citation["license_url"].startswith("https://creativecommons.org/licenses/by/4.0")
+    assert citation["doi"] == "10.24381/cds.adbb2d47"
+    assert citation["registry"] == "https://registry.opendata.aws/earthmover-era5/"
+    assert citation["accessed"] == "2026-10-09"
+    attrs = __import__("data.download.earthmover_spatial_w1",
+                       fromlist=["_wide_dataset_attributes"])._wide_dataset_attributes("SNAP")
+    for key in ("license", "license_url", "source_doi", "citation_accessed"):
+        assert attrs[key] == citation[{"source_doi": "doi", "citation_accessed": "accessed"}.get(key, key)]
+
+
 def test_wide_cli_exposes_plan_preflight_write_merge_without_network(tmp_path, capsys):
     from data.download.earthmover_spatial_w1 import main
 

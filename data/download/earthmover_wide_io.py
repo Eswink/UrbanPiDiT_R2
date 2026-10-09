@@ -188,15 +188,46 @@ def validate_wide_namespace(root, times_requested, budget):
     }
 
 
+# Provenance read first-hand from the source's own registry page on 2026-10-09
+# (R-050): the license and its URL, and the DOI the page publishes for the
+# Copernicus C3S/ECMWF ERA5 products this edition is derived from. The page
+# lists both the single-level and the pressure-level products under that DOI,
+# and this path reads both, so the citation is recorded verbatim rather than
+# attributed to one of the two by guesswork.
+SOURCE_LICENSE = "CC-BY-4.0"
+SOURCE_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
+SOURCE_REGISTRY_URL = "https://registry.opendata.aws/earthmover-era5/"
+SOURCE_DOI = "10.24381/cds.adbb2d47"
+SOURCE_CITATION_ACCESSED = "2026-10-09"
+
+
+def source_citation():
+    """The published licence, DOI and registry reference for this source."""
+    return {
+        "license": SOURCE_LICENSE,
+        "license_url": SOURCE_LICENSE_URL,
+        "doi": SOURCE_DOI,
+        "registry": SOURCE_REGISTRY_URL,
+        "accessed": SOURCE_CITATION_ACCESSED,
+        "note": ("read from the source's own registry page; the page cites the Copernicus "
+                 "C3S/ECMWF ERA5 products under this DOI and lists both the single-level and "
+                 "the pressure-level products, and this path reads both"),
+    }
+
+
 def _wide_dataset_attributes(snapshot_id):
     """Snapshot provenance for the wide segment; no D1 prose is inherited."""
+    citation = source_citation()
     return {
         "source": SOURCE,
         "source_snapshot_id": snapshot_id,
-        "license": "CC-BY-4.0",
+        "license": citation["license"],
+        "license_url": citation["license_url"],
+        "source_doi": citation["doi"],
+        "citation_accessed": citation["accessed"],
         "attribution": ("Copernicus C3S/ECMWF ERA5; NSF NCAR historical archive; "
                         "Earthmover Icechunk edition"),
-        "reference": "https://registry.opendata.aws/earthmover-era5/",
+        "reference": citation["registry"],
         "native_grid_spacing_deg": SPACING_DEG,
         "interpolation": "none",
         "spatial_resampling": "none",

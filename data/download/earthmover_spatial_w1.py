@@ -32,6 +32,7 @@ from .earthmover_wide_io import (  # noqa: F401 - re-exported for the CLI and te
     _assemble_wide_dataset,
     _wide_dataset_attributes,
     preflight_wide,
+    source_citation,
     validate_wide_namespace,
 )
 from .read_plan_wide import (
@@ -82,6 +83,7 @@ def extract_wide_part(out_nc, receipt_json, *, years, seasons,
         "snapshot_id": SNAPSHOT,
         "access": "anonymous-public-s3-icechunk",
         "layout": "earthmover-spatial-namespace (one global field per time)",
+        "citation": source_citation(),
         "read_plan_format": protocol["format"],
         "read_plan_protocol_sha256": protocol["protocol_sha256"],
         "region": protocol["region"],
