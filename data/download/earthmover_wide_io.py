@@ -31,6 +31,7 @@ from .earthmover_spatial_d1 import (
     stamp_plan,
 )
 from .read_plan_wide import (
+    SOURCE_DTYPE_BYTES,
     SPACING_DEG,
     TARGET_POINTS,
     WIDE_EAST,
@@ -42,6 +43,18 @@ from .read_plan_wide import (
     wide_frozen_protocol,
 )
 from .season_plan_s1 import _planned_stamps, season_plan
+
+
+def per_stamp_field_bytes(field_reads):
+    """Uncompressed bytes of one stamp's touched spatial chunks (one global field each).
+
+    Every source variable is stored as one whole-globe chunk, so a stamp's decoded
+    cost is ``field_reads`` chunks of the frozen spatial geometry and does not depend
+    on the retained ROI. ``field_reads`` is the (variable, level) read count, not the
+    output channel count: 4 surface variables plus 5 pressure variables at 3 stored
+    levels = 19. This is the figure the pilot's read-only preflight measured.
+    """
+    return int(field_reads) * int(np.prod(SPATIAL_SURFACE_CHUNKS)) * SOURCE_DTYPE_BYTES
 
 
 def attest_wide_fields(groups, fields, surface_coordinates, level_count):
@@ -179,7 +192,7 @@ def validate_wide_namespace(root, times_requested, budget):
         "times": times[stamps], "level_attestation": attestation,
         "observed_units": observed_units, "grid_spacing_deg": float(spacing),
         "per_stamp_field_reads": int(read_count),
-        "per_stamp_field_bytes": int(read_count * surface_chunk_bytes),
+        "per_stamp_field_bytes": per_stamp_field_bytes(read_count),
         "roi": {"south": WIDE_SOUTH, "north": WIDE_NORTH, "west": WIDE_WEST,
                 "east": WIDE_EAST, "points": [WIDE_POINTS, WIDE_POINTS],
                 "spacing_deg": SPACING_DEG},

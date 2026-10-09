@@ -169,6 +169,133 @@ def test_wide_downloader_reuses_the_audited_helpers_verbatim():
     assert wide.preflight_wide is wide_io.preflight_wide
 
 
+def test_wide_stamp_field_bytes_matches_the_frozen_cost_model():
+    # Regression for a latent NameError: the pre-split ``validate_wide_namespace``
+    # referenced an undefined ``surface_chunk_bytes`` and was never exercised, so
+    # both ``--preflight`` and ``--write`` raised before any download. The value
+    # is the (variable, level) read count (19), not the output channel count (17),
+    # times one whole-globe chunk of the frozen geometry.
+    from data.download import earthmover_wide_io as wide_io
+
+    assert wide_io.per_stamp_field_bytes(19) == read_plan_wide.stamp_cost(1)["decoded_bytes"]
+    assert wide_io.per_stamp_field_bytes(19) == 19 * 721 * 1440 * 4
+    assert wide_io.per_stamp_field_bytes(19) == 78906240
+    # The channel count is NOT the field-read count; confusing them is the bug.
+    assert wide_io.per_stamp_field_bytes(17) != wide_io.per_stamp_field_bytes(19)
+
+
+def _ast_bind_statement(node, bound):
+    """Add the names one simple top-level statement binds (no body to descend)."""
+    import ast
+
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        bound.add(node.name)
+    elif isinstance(node, (ast.Import, ast.ImportFrom)):
+        bound.update((a.asname or a.name).split(".")[0] for a in node.names)
+    elif isinstance(node, ast.Assign):
+        for target in node.targets:
+            bound.update(n.id for n in ast.walk(target) if isinstance(n, ast.Name))
+    elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+        bound.add(node.target.id)
+
+
+def _ast_module_globals(tree):
+    """Top-level bindings only (module scope, not function scope).
+
+    Descending into function bodies here was a hole: it made every assignment
+    anywhere look like a module global, so a helper referencing its caller's local
+    (``_wide_part_receipt`` used ``started``) passed.
+    """
+    import ast
+
+    compound = (ast.If, ast.For, ast.While, ast.With, ast.AsyncWith, ast.Try)
+    bound = set()
+    pending = list(tree.body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, compound):
+            pending += list(node.body) + list(node.orelse)
+            pending += [stmt for handler in getattr(node, "handlers", []) or []
+                        for stmt in handler.body]
+            pending += list(getattr(node, "finalbody", []) or [])
+        else:
+            _ast_bind_statement(node, bound)
+    return bound
+
+
+def _ast_function_locals(fn):
+    import ast
+
+    bound = {a.arg for a in fn.args.args + fn.args.posonlyargs + fn.args.kwonlyargs}
+    for name in (fn.args.vararg, fn.args.kwarg):
+        if name is not None:
+            bound.add(name.arg)
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            bound.add(node.id)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            bound.update((a.asname or a.name).split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            bound.add(node.name)
+        elif isinstance(node, ast.arg):
+            bound.add(node.arg)
+    return bound
+
+
+def test_wide_modules_have_no_undefined_global_names():
+    # Regression for the R-021 split, which moved helpers into earthmover_wide_io /
+    # earthmover_spatial_d1 but left earthmover_spatial_w1 referencing them without
+    # importing: the committed ``--preflight`` and ``--write`` both raised NameError
+    # and were never exercised (the pilot ran pre-split). A tiny scope walk over each
+    # module refuses any global name that no import, definition or local binds.
+    import ast
+    import builtins
+
+    known = set(dir(builtins))
+    for name in ("earthmover_spatial_w1.py", "earthmover_wide_io.py", "read_plan_wide.py"):
+        tree = ast.parse((REPO / "data/download" / name).read_text(encoding="utf-8"))
+        globals_bound = _ast_module_globals(tree)
+        for fn in [n for n in ast.walk(tree)
+                   if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]:
+            loads = {n.id for n in ast.walk(fn)
+                     if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+            undefined = loads - _ast_function_locals(fn) - globals_bound - known
+            assert not undefined, f"{name}:{fn.name} references undefined names {sorted(undefined)}"
+
+
+def test_wide_part_receipt_composes_from_its_own_arguments(tmp_path):
+    # Regression: the receipt writer referenced `started`, a local of its caller, so a
+    # fully downloaded part crashed at the receipt step (data written, no receipt).
+    # It must build the receipt from `artifact` and `measured` alone.
+    import datetime
+
+    from data.download.earthmover_spatial_w1 import _wide_part_receipt
+
+    nc = tmp_path / "part_winter_2018.nc"
+    nc.write_bytes(b"x" * 10)
+    plan_read = {
+        "observed_units": {"2m_temperature": "K"},
+        "level_attestation": {"shared_levels": [250, 500, 850]},
+        "shared_levels": [250, 500, 850],
+        "times": [datetime.datetime(2018, 1, 1, 0), datetime.datetime(2018, 1, 1, 6)],
+        "latitude": [27.0, 27.25],
+        "longitude": [107.0, 107.25],
+    }
+    budget = type("B", (), {"limit": 20, "used": 30, "reads": 40})()
+    measured = {"estimated": 11, "budget": budget, "network_bytes": 50,
+                "elapsed": 6.5, "icechunk_version": "2.2.2", "zarr_version": "3.4.0"}
+    receipt = _wide_part_receipt({"part": {"years": [2018]}}, plan_read, {"t2m": {}}, ["t2m"],
+                                 (nc, "deadbeef"), measured)
+    assert receipt["status"] == "downloaded-real-source"
+    assert receipt["elapsed_seconds"] == 6.5
+    assert receipt["network_body_bytes"] == 50
+    assert receipt["local_artifact"] == {"path": "part_winter_2018.nc", "bytes": 10,
+                                         "sha256": "deadbeef"}
+    assert receipt["shape"] == [2, 3, 2, 2]
+    assert receipt["decoded_chunk_budget"]["charged_bytes"] == 30
+    assert receipt["part"] == {"years": [2018]}
+
+
 def test_wide_modules_stay_inside_the_size_target():
     for name in ("read_plan_wide.py", "earthmover_wide_io.py", "earthmover_spatial_w1.py"):
         lines = len((REPO / "data/download" / name).read_text(encoding="utf-8").splitlines())

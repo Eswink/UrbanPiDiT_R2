@@ -27,6 +27,13 @@ from pathlib import Path
 import numpy as np
 
 from .earthmover_pilot import SNAPSHOT, SOURCE, DecodedBudget
+from .earthmover_spatial_d1 import (
+    _channel_payloads,
+    _collect_frames,
+    _net_recv_bytes,
+    _open_pinned_session,
+    _write_netcdf,
+)
 from .earthmover_spatial_s1 import _merge_parts
 from .earthmover_wide_io import (  # noqa: F401 - re-exported for the CLI and tests
     _assemble_wide_dataset,
@@ -146,7 +153,7 @@ def _wide_part_receipt(result, plan_read, payloads, channel_names, artifact, mea
     out_nc, digest = artifact
     estimated, budget = measured["estimated"], measured["budget"]
     network_bytes, elapsed = measured["network_bytes"], measured["elapsed"]
-    ic, zarr = measured["icechunk_version"], measured["zarr_version"]
+    icechunk_version, zarr_version = measured["icechunk_version"], measured["zarr_version"]
     result = dict(result)
     result.update({
         "status": "downloaded-real-source",
@@ -173,11 +180,11 @@ def _wide_part_receipt(result, plan_read, payloads, channel_names, artifact, mea
         "network_body_bytes": int(network_bytes),
         "network_method": ("recv-byte delta over non-loopback /proc/net/dev interfaces "
                            "around the field reads; host-wide counter"),
-        "elapsed_seconds": round(time.monotonic() - started, 3),
+        "elapsed_seconds": round(elapsed, 3),
         "local_artifact": {"path": out_nc.name, "bytes": out_nc.stat().st_size,
                            "sha256": digest},
-        "icechunk_version": ic.__version__,
-        "zarr_version": zarr.__version__,
+        "icechunk_version": icechunk_version,
+        "zarr_version": zarr_version,
         "limitations": [
             "one wide segment; no skill, generalization or seasonal claim follows from it",
             "network bytes are host-wide interface counters, not icechunk per-request accounting",
