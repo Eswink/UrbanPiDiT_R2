@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 69; human-review candidates: 1
+Records: 70; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -419,6 +419,26 @@ Records: 69; human-review candidates: 1
 - CI run: `38023057740`
 - Excluded from runnable candidates: 开发筛选轮：对照是已登记臂的 pinned 复用（不在本协议内重训练），三 seed 只是一致性证据，没有显著性检验；收益幅度小且 48/72h 绝对气候态门未过，收益来源（域外上下文 / 监督噪声 / 梯度预算）未分离，故标 needs-review 而非 candidate，也不进 S4 冻结包。
 - Recorded metrics (not recomputed): checkpoint_sha256={"41": "590b2cc70cb441b97c4a062b310434037207bce861fae5cd20950d83e89adb85", "42": "b292865e029f9a7b3efc980f9253f7c38d8dd24f9602f7e449b6bd90dd7d94ba", "43": "8377f63d8ab8093ff9dabed3d9184c791c57f9ca49e40b74fdda96d288ac6ab7"}, code_zip_sha256=2e60dfd60449eef4af2b7947b6ff37d189a27124328f56eacdcfabebd71b2351, delta_range_t2m_k={"12": [-0.0515, -0.0259], "24": [-0.0204, 0.0138], "48": [-0.1044, 0.0111], "6": [-0.0459, -0.0141], "72": [-0.0948, 0.0152]}, disk_gib=4.6, gpu_hours=3.4655, hard_overrun_seconds=0.0, interior_t2m_skill_mean={"12": 0.3341, "24": 0.37, "48": -0.0868, "6": 0.5944, "72": -0.3996}, mean_delta_minus_narrow_t2m_k={"12": -0.0401, "24": -0.0069, "48": -0.0528, "6": -0.0348, "72": -0.0445}, model_code_sha256=d3fb58dbd0ed9efbd249fc258cb09c488d543c0a8ad77dac5689ac8f9ba77bab, narrow_t2m_skill_mean={"12": 0.3151, "24": 0.3668, "48": -0.1191, "6": 0.5816, "72": -0.4309}, network_bytes=0, previous_wide_full_grid_delta_mean={"12": 0.0147, "24": 0.0189, "48": 0.0121, "6": 0.0013, "72": 0.0231}, region_points=[129, 129], reproducibility=config-reproducible; archived code.zip replays the source identity, GPU training is not bitwise reproducible, seeds=[41, 42, 43], seeds_better_than_narrow={"12": 3, "24": 2, "48": 2, "6": 3, "72": 2}, soft_overrun_seconds=3475.851618, supervision_cells=4225, supervision_mask_sha256=4a2a576bf948b92924720fa28a44c128a61445dd29b4906805930430e0a0919a, test_read=false, training_code_sha256=8ad77d9349bdc4930e6bbba05f0c417814fe3093fe39aa921e816af197494974, updates=800, val_cohorts={"12": 468, "24": 460, "48": 444, "6": 472, "72": 428}, wall_seconds_total=12475.851618
+
+## s3-wide-long-lead-weight
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_WIDE_LONG_LEAD_WEIGHT.md` (SHA256 `0330980454371775a0e5898872bf2214fcfd7243442ac1f26c729515b8a3ee62`)
+- Evidence commit: `c0206082c030770c8386aacda43d20852297ef5a`; experiment commit: `98184febf7eacd98aa430c28053266f9607d01ac`
+- Protocol SHA256: `c8c8e79e7d265648c1dd9aa5079976e467565a4aefde33864f6b912288f157d3`; data identity: `2360d42b7393cd6f53cd6f48961abc7bcd62948d3c2fa69b2d810d798d137c12`
+- Reason: S3 long-lead physical-weight rebalance at a fixed 2400 updates: the registered 12-step weights (1,.5,0,.5,0,0,0,.5,0,0,0,.5) were changed only at the two longest leads (0.5 -> 1.0), holding the wide 129x129 input, the interior_32 supervision mask, the 2400-update budget, the recipe, the migrated v3-BD 1600 parent and the seeds fixed. The lever is essentially inert: against the pinned 2400-update interior arm the seed-mean t2m delta is +0.0129/+0.0188/+0.0140 K at 6/12/24 h (slightly worse) and -0.0054/-0.0218 K at 48/72 h (slightly better), so doubling the long-lead weight buys only about 0.02 K at 72 h. 72 h stays negative for all three seeds (skill -0.1672/-0.2614/-0.1363) while 48 h stays positive for all three (+0.0631/+0.0278/+0.1200). The predeclared exit therefore fires: the wide-input branch is closed as a solution to the long-lead deficit. Across the four wide rounds, input extent alone gave nothing, confining supervision to the target box gave a gain up to 48 h, and raising the dose pushed 48 h past climatology for all seeds, but 72 h was not moved past climatology by input extent, dose or long-lead weighting. No S4 freeze package is entered.
+- Limitations:
+  - development screening on one wide instance (129x129 input, interior_32 supervision, one ROI, 17 channels, 2017-2021 train / 2022 val); no significance, convergence, SOTA or generalization claim
+  - both references are pinned registered arms (narrow s3-rollout-dose, 2400-update interior s3-wide-interior-dose), not retrained inside this protocol; host load differed across arms
+  - doubling the long-lead weights also rescales the total loss magnitude, so this is not a pure reallocation; the first-step losses differ accordingly
+  - the 72 h absolute climatology gate still fails for all three seeds; the outer 129x129 ring is unconstrained during training
+  - whether the 72 h residual comes from 12-step autoregressive error accumulation, model capacity, or information that is simply unavailable in the box is not separated
+  - three seeds are consistency evidence, not a significance test; GPU runs are co-resident
+  - validation split only; the 2023 test split stays sealed and r is not consumed
+- CI run: `38078884049`
+- Excluded from runnable candidates: 开发筛选轮：两个对照都是已登记臂的 pinned 复用（不在本协议内重训练），三 seed 只是一致性证据，没有显著性检验；该杠杆近乎无效、72h 三 seed 仍全负，且权重翻倍同时放大总损失尺度（不是纯再分配），故标 not-candidate，也不进 S4 冻结包。
+- Recorded metrics (not recomputed): checkpoint_sha256={"41": "31aec755a7e7d801b9f3c209d1d4020d4d61dd5c76c796f3624ad624c83ff490", "42": "a2639e1fe2f29ce819e8c5657d40a18a6e841a1d6c93c7c9c3b19bfdf1f044bf", "43": "ea89100ef2ac8ae1fe0b1600e0c3a88c34bc738bcca29445ec26ca7a49ea48f7"}, code_zip_sha256=2696f7efd5c4113731c7f1c287222d78b38e4089a682c10c06bde63f838d9c78, disk_gib=14.0, gpu_hours=7.0027, hard_overrun_seconds=0.0, interior_t2m_skill={"41": {"12": 0.3155, "24": 0.4083, "48": 0.0631, "6": 0.5746, "72": -0.1672}, "42": {"12": 0.3089, "24": 0.403, "48": 0.0278, "6": 0.5707, "72": -0.2614}, "43": {"12": 0.3347, "24": 0.4283, "48": 0.12, "6": 0.5886, "72": -0.1363}}, mean_delta_minus_dose2400_t2m_k={"12": 0.0188, "24": 0.014, "48": -0.0054, "6": 0.0129, "72": -0.0218}, mean_delta_minus_narrow_t2m_k={"12": -0.0096, "24": -0.1019, "48": -0.3139, "6": 0.01, "72": -0.3524}, model_code_sha256=d3fb58dbd0ed9efbd249fc258cb09c488d543c0a8ad77dac5689ac8f9ba77bab, network_bytes=0, physical_weights=[1.0, 0.5, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], registered_weights=[1.0, 0.5, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5], reproducibility=config-reproducible; archived code.zip replays the source identity, GPU training is not bitwise reproducible, seeds=[41, 42, 43], soft_overrun_seconds=0.0, supervision_cells=4225, test_read=false, training_code_sha256=8ad77d9349bdc4930e6bbba05f0c417814fe3093fe39aa921e816af197494974, updates=2400, val_cohorts={"12": 468, "24": 460, "48": 444, "6": 472, "72": 428}, wall_seconds_total=25209.895089
 
 ## s3-wide-region-full
 
