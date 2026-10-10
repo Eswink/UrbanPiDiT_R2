@@ -124,8 +124,11 @@ def previous_arm_pins():
             record_lead = receipt["evaluations"][str(lead)]
             if record_lead["n_evaluated"] != wide.WIDE_VAL_COHORTS[str(lead)]:
                 raise RuntimeError(f"registered 800 arm seed {seed} lead {lead} cohort differs")
-            entry["leads"][str(lead)] = {"rmse_csv_sha256": record_lead["rmse_csv_sha256"],
-                                         "dir": record_lead["dir"]}
+            # This arm is scored on interior_32, so its pinned table is the boundary
+            # table; storing rmse.csv's hash here would never match at reading time.
+            entry["leads"][str(lead)] = {
+                "boundary_rmse_csv_sha256": record_lead["boundary_rmse_csv_sha256"],
+                "dir": record_lead["dir"]}
         pins["seeds_evaluations"][str(seed)] = entry
     return pins
 
@@ -290,7 +293,7 @@ def _reference_deltas(output, body, entry, lead, wide_rmse):
         raise RuntimeError("the registered narrow arm RMSE drifted from its freeze pin")
     previous_lead = previous["seeds_evaluations"][str(entry["seed"])]["leads"][str(lead)]
     previous_dir = Path(previous_lead["dir"])
-    if sha256_file(previous_dir / "boundary_rmse.csv") != previous_lead["rmse_csv_sha256"]:
+    if sha256_file(previous_dir / "boundary_rmse.csv") != previous_lead["boundary_rmse_csv_sha256"]:
         raise RuntimeError("the registered 800-update interior arm table drifted from its freeze pin")
     narrow_rmse = shared.read_rmse_table(narrow_dir / "rmse.csv")["t2m"]
     previous_rmse = wide._region_variable_rmse(previous_dir / "boundary_rmse.csv", "interior_32", "t2m")
