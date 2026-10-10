@@ -39,8 +39,30 @@ def training_code_digest():
                              for name in SOURCE_FILES})
 
 
+def _supervision_block(supervision_mask):
+    """Declarative, digestible description of the spatial supervision region."""
+    if supervision_mask is None:
+        return {"kind": "full_grid",
+                "description": "every cell of the target grid is supervised"}
+    tensor = torch.as_tensor(supervision_mask)
+    if tensor.dim() != 2:
+        raise ValueError("supervision_mask must be a 2-D [H,W] mask")
+    if not torch.isfinite(tensor).all() or bool((tensor < 0).any()):
+        raise ValueError("supervision_mask must be finite and nonnegative")
+    selected = int((tensor > 0).sum())
+    if selected == 0:
+        raise ValueError("supervision_mask selects no cell")
+    payload = json.dumps([[int(value > 0) for value in row] for row in tensor.tolist()],
+                         separators=(",", ":"))
+    return {"kind": "spatial_mask", "shape": [int(tensor.shape[0]), int(tensor.shape[1])],
+            "selected_cells": selected,
+            "mask_sha256": hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+            "normalization": "mask-and-latitude weighted mean over the selected cells"}
+
+
 def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
-              weight_decay, device, batch_size, clip, checkpoint_every, physical_weights):
+              weight_decay, device, batch_size, clip, checkpoint_every, physical_weights,
+              supervision_mask=None):
     contract = deepcopy(supplied)
     identity, _ = dataset_identity(dataset.manifest)
     if identity != contract["data_identity"]:
@@ -65,15 +87,17 @@ def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
                           "k_weights": "linspace(1,2,K+1) normalized; initial plus every K draft",
                           "physical_loss": "sum(weight_i * L_6i), no physical-axis normalization",
                           "window_sha256": dataset.summary["window_sha256"], "windows": dataset.summary,
-                          "excluded_sample_ids": dataset.summary["excluded_sample_ids"]})
+                          "excluded_sample_ids": dataset.summary["excluded_sample_ids"],
+                          "supervision": _supervision_block(supervision_mask)})
     return contract
 
 
-def _update(model, optimizer, batch, contract, device, deadline):
+def _update(model, optimizer, batch, contract, device, deadline, supervision_mask=None):
     optimizer.zero_grad(set_to_none=True)
     moved = {name: value.to(device) if torch.is_tensor(value) else value for name, value in batch.items()}
     result = training_long_rollout(model, moved, contract["steps"],
-                                  physical_weights=contract["autoregression"]["physical_weights"])
+                                  physical_weights=contract["autoregression"]["physical_weights"],
+                                  supervision_mask=supervision_mask)
     result.loss.backward()
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), contract["clip"], error_if_nonfinite=True)
     if deadline is not None:
@@ -87,7 +111,8 @@ def _update(model, optimizer, batch, contract, device, deadline):
             "gradient_norm": float(norm)}
 
 
-def _run_updates(dataset, folder, model, optimizer, contract, signature, deadline):
+def _run_updates(dataset, folder, model, optimizer, contract, signature, deadline,
+                 supervision_mask=None):
     epoch, cursor, losses, checkpoint = 0, 0, [], None
     device = next(model.parameters()).device
     for update in range(1, contract["total_updates"] + 1):
@@ -101,7 +126,7 @@ def _run_updates(dataset, folder, model, optimizer, contract, signature, deadlin
         rate = contract["lr"] * warmup_cosine_factor(update, total_updates=contract["total_updates"],
                                                    warmup_updates=contract["warmup_updates"], minimum_ratio=.1)
         optimizer.param_groups[0]["lr"] = rate
-        metrics = _update(model, optimizer, batch, contract, device, deadline)
+        metrics = _update(model, optimizer, batch, contract, device, deadline, supervision_mask)
         cursor += len(indices)
         losses.append({"update": update, "epoch": epoch, "lr": rate, "samples": len(indices), **metrics})
         if deadline is not None:
@@ -116,7 +141,8 @@ def _run_updates(dataset, folder, model, optimizer, contract, signature, deadlin
 
 def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weights, parent_weights=None,
                           steps=4, updates=200, seed=0, lr=2e-5, warmup=10, weight_decay=1e-4,
-                          deadline=None, checkpoint_every=20, device_name="cpu", batch_size=1, clip=1.):
+                          deadline=None, checkpoint_every=20, device_name="cpu", batch_size=1, clip=1.,
+                          supervision_mask=None):
     weights = validate_physical_weights(physical_weights)
     _validate_options(steps=steps, updates=updates, seed=seed, mode="two_step", lr=lr, warmup=warmup,
                       weight_decay=weight_decay, bf16=False, batch_size=batch_size, clip=clip,
@@ -138,7 +164,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
     bound = _contract(dataset, supplied, output=output, steps=steps, updates=updates, seed=seed,
                       lr=lr, warmup=warmup, weight_decay=weight_decay, device=device,
                       batch_size=batch_size, clip=clip, checkpoint_every=checkpoint_every,
-                      physical_weights=weights)
+                      physical_weights=weights, supervision_mask=supervision_mask)
     signature = canonical_digest(bound)
     if deadline is not None:
         _check_deadline(deadline)
@@ -148,7 +174,8 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
         seed_everything(seed)
         model.to(device).train()
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-        checkpoint, losses = _run_updates(dataset, folder, model, optimizer, bound, signature, deadline)
+        checkpoint, losses = _run_updates(dataset, folder, model, optimizer, bound, signature, deadline,
+                                          supervision_mask)
         if deadline is not None:
             _check_deadline(deadline)
         report = {"scientific_claim": False, "limitations": LIMITATIONS, "test_read": False,
@@ -157,6 +184,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                   "data_identity": bound["data_identity"], "optimization": "full-bptt",
                   "internal_k_detach": False, "physical_step_detach": False,
                   "objective": "deep_supervised_latitude_area_mse", "internal_deep_supervision": True,
+                  "supervision": bound["autoregression"]["supervision"],
                   "selected_checkpoint": str(checkpoint), "selected_update": updates, "total_updates": updates,
                   "selection_split": None, "selection_metric": "frozen endpoint; no validation selection",
                   "resumed_from_updates": 0, "updates_this_run": len(losses), "losses": losses,

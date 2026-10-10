@@ -10,8 +10,13 @@ def deep_supervised_forecast_mse(
     latitude:Optional[torch.Tensor]=None,
     *,
     final_weight:float=2.0,
+    mask:Optional[torch.Tensor]=None,
 )->torch.Tensor:
-    """Deep supervision over [B,S,C,H,W] forecast drafts."""
+    """Deep supervision over [B,S,C,H,W] forecast drafts.
+
+    ``mask`` restricts every draft's supervision to the same spatial region
+    (see :func:`latitude_weighted_mse`); ``None`` keeps the original objective.
+    """
     if drafts.ndim!=5:
         raise ValueError('drafts must be [B,S,C,H,W]')
     steps=drafts.shape[1]
@@ -24,7 +29,7 @@ def deep_supervised_forecast_mse(
     weights=weights/weights.sum()
     losses=[
         latitude_weighted_mse(
-            drafts[:,i],target,latitude
+            drafts[:,i],target,latitude,mask=mask
         )
         for i in range(steps)
     ]

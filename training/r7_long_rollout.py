@@ -62,7 +62,7 @@ def _physical_targets(batch, history, physical_steps):
 
 
 def training_long_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], reasoning_steps: int = 4,
-                          *, physical_weights) -> LongTrainingRolloutOutput:
+                          *, physical_weights, supervision_mask=None) -> LongTrainingRolloutOutput:
     """Weighted sum of unchanged K-axis draft losses over N physical 6 h steps.
 
     N is the number of physical weights, with no maximum horizon here. Known
@@ -70,7 +70,9 @@ def training_long_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], r
     remains 6 h and regular relative history offsets remain unchanged. History
     and forecast dtypes are promoted, never rounded down when pushing a frame.
     ``physical_targets``, compatibility targets and old ``init_year`` cannot
-    pass the existing model-input whitelist.
+    pass the existing model-input whitelist. ``supervision_mask`` optionally
+    restricts every step's supervision to a spatial region; ``None`` keeps the
+    registered objective unchanged.
     """
     weights = validate_physical_weights(physical_weights)
     inputs = _training_inputs(model, batch, reasoning_steps)
@@ -79,7 +81,8 @@ def training_long_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], r
     for step in range(len(weights)):
         forecast, drafts = _forward_final(model, inputs, reasoning_steps)
         forecasts.append(forecast)
-        losses.append(_draft_loss(forecast, drafts, targets[:, step], batch.get("latitude")))
+        losses.append(_draft_loss(forecast, drafts, targets[:, step], batch.get("latitude"),
+                                  supervision_mask))
         if step + 1 < len(weights):
             next_inputs = _advance_inputs(inputs)
             history = inputs["coarse_history"]
