@@ -105,11 +105,16 @@ def test_protocol_constants_carry_the_dose_and_the_frozen_supervision():
     assert body["scientific_claim"] is False and body["test_read"] is False
 
 
-def test_expected_candidate_is_the_registered_recipe_at_the_new_dose():
-    candidate = dose._expected_candidate()
-    assert candidate["updates"] == 2400
-    assert candidate["mode"] == "long_rollout" and candidate["steps"] == 4
-    assert candidate["model"]["kind"] == "process"
+def test_the_candidate_dose_is_the_new_one_and_the_reference_is_not():
+    # The dose must appear in the frozen candidate recipe while the pinned
+    # references keep the registered 800-update budget. Asserted from the
+    # constants rather than _expected_candidate() so this holds on a checkout
+    # with no outputs/ (that helper reads the archived protocol there).
+    body = dose.protocol_constants()
+    assert dose.UPDATES == 2400 and wide.UPDATES == 800
+    assert body["recipe"]["updates"] == dose.UPDATES
+    assert body["recipe"]["updates"] != wide.UPDATES
+    assert "2400" in body["design_decision"] and "2400" in body["hypothesis"]
 
 
 def test_previous_arm_pins_read_a_registered_run(tmp_path, monkeypatch):
