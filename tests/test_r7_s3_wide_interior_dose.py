@@ -114,7 +114,8 @@ def test_the_candidate_dose_is_the_new_one_and_the_reference_is_not():
     assert dose.UPDATES == 2400 and wide.UPDATES == 800
     assert body["recipe"]["updates"] == dose.UPDATES
     assert body["recipe"]["updates"] != wide.UPDATES
-    assert "2400" in body["design_decision"] and "2400" in body["hypothesis"]
+    assert "800 -> 2400" in body["design_decision"]
+    assert "tripling the update budget" in body["hypothesis"]
 
 
 def test_previous_arm_pins_read_a_registered_run(tmp_path, monkeypatch):
