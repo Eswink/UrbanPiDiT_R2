@@ -814,7 +814,12 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   可重放），GPU 训练非逐位可复现；不声称 bit-reproducible。
 - **验证与 CI（精确）**：本机完整 CPU 套件 **4290 passed / 3 skipped / 0 failed**；37 条阻断规则
   0 失败；`git worktree` 无 `outputs/` 复现 CI 条件下相关 222 测试全过。执行提交 `76a3d60f…`
-  的主 CI **`38027168107` completed/success**；证据页最终提交 `9fc4db2c…` 的主 CI（登记时）。
+  的主 CI **`38027168107` completed/success**；证据页最终提交 `9fc4db2c…` 的主 CI
+  **`38048807438` completed/success**（index69 的 `ci_run_id`/`ci_commit` 即 pin 于此）。
+  **登记提交 `9f6a3df02c…` 的主 CI `38050148795` 被紧随其后的下一轮推送取消——取消不算通过**；
+  其内容（index69、账本行、§8、campaign-state、下一轮目标）由下一个提交 `98184febf7…` 的树
+  完整包含，而该提交的主 CI **`38050360256` completed/success**。17 条标签门控实验 workflow
+  显示 skipped 是设计行为，不是通过。
 - **下一动作（S3）**：**固定 2400 更新**、只把 48/72 h 的物理权重从 0.5 提到 **1.0** 的单因素臂，
   对照是**本轮已登记的 2400 臂**（pinned 复用）。目标 `docs/goals/s3-wide-long-lead-weight.md`。
   预声明出口：72 h 三 seed 转正 → 提请独立验收；否则**关闭整个宽输入支**，回主线别的可证伪假设
