@@ -266,7 +266,8 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 宽区全量获取 + v4 store + 宽区气候态（工程 positive，0 GPU-h） | 0.0000 | 27.5905 | `docs/R7_S3_WIDE_REGION_FULL.md`（索引 `record:s3-wide-region-full`）；28 part（27 新 + 复用 pilot winter_2018）覆盖 train 2017–2021 / val 2022 / test 2023 共 3360 stamps；`winter_2020`/`winter_2022` 首跑超冻结 1800 s 每 part 期限、**无产物**、按新名 `_r2` 重取成功，两次失败原样保留；网络 ≈101 GB（计划 100 GB、硬上限 150 GiB 未触）、磁盘峰值 6.6 GiB、墙钟 ≈4.5 h（批次 12223 s + validation 1218.5 s + store 168.8 s + 气候态 2461.6 s）；`source.nc` SHA `6bc9a1a2…`，时间轴与 v3 **逐位相同**，中心 65×65 块在 NetCDF 与 store 两级都与 v3 **逐位相同**；v4 store `[3360,17,129,129]`、split/window 计数与 v3 相同（2360/472/472）、train-only 归一化 + process 诊断、`BUILD_COMPLETE`；`interior_32`（4225 点 = 冻结 65×65 盒）的 t2m 气候态与 persistence RMSE 与**已登记 v3-D2 在 ~1e-10 内相同**。committed 宽区路径的四处 R-021 拆分缺陷（含"下载完成后写回执崩溃"）已修并补两道反证守卫。并发实测：6 死锁 / 4 正常，故 pool 固定 4。test 未读/r0 |
 | S3 宽区域单因素 train/val（输入区域为唯一因子；null 读数） | 3.5339 | 31.1244 | `docs/R7_S3_WIDE_SINGLE_FACTOR.md`（索引 `record:s3-wide-single-factor`）；唯一改动因子 = 输入区域 65×65→129×129，配方/父/LR/warmup/权重/K/FP32/batch/clip/seed/updates 逐字沿用注册 rollout-dose，全 129×129 全监督，评分域 `boundary_masks(129,129,(32,))['interior_32']`=4225 点=冻结中心盒；对照是**已登记**窄 65×65 臂（按 `rmse_csv_sha256` 复核后复用，未重训练）；t2m seed 均值 delta（宽−窄）6h **+0.0013**、12h **+0.0147**、24h **+0.0189**、48h **+0.0121**、72h **+0.0231** K，48/72h 仅 2/3 seed 更优；`interior_32` t2m skill 均值宽 −0.1271/−0.4485 对窄 −0.1191/−0.4309（48/72h 绝对气候态门仍未过且宽臂略差）；**不支持**"冻结 16° 盒缺长 lead 所需信息"，也**不构成反证**（全监督面积 3.94× 使信息增益与稀释混淆）→ **不进 S4 冻结包**；六阶段（prepare/archive/seed41/seed42/seed43/reading）全 success、`returncode=0`、`signals=[]`、`reaped=true`；whole 12721.940569 s（planned 9000、soft overrun 3721.940569、hard 0）；协议 `d016eb7a…`、code.zip `fa5752f6…`、执行文件 182 个、model `d3fb58db…`、training `6e4363d5…`；cohort 472/468/460/444/428 逐 lead 与窄臂 pin 一致；网络 0（离线）、磁盘 4.6 GiB；开轮提交 `13f3c44` 的 CI `37985102030` 因 C 类 size marker 漂移在 pytest 失败（唯一红点），`de64697` 修回绿（CI `37990463998`）；test 未读/r0 |
 | S3 宽输入 + 内部盒监督（分离稀释与信息增益；mixed/needs-review） | 3.4655 | 34.5899 | `docs/R7_S3_WIDE_INTERIOR_SUPERVISION.md`（索引 `record:s3-wide-interior-supervision`）；唯一改动因子 = **监督域**（全 129×129 → `boundary_masks(129,129,(32,))['interior_32']` = 4225 点 = 冻结中心盒 = 已登记窄臂自己的网格），输入仍是宽 129×129，配方/父/LR/warmup/权重/K/FP32/batch/clip/seed 逐字沿用；mask 声明块（`mask_sha256 4a2a576b…`）进入绑定 contract 与 `signature`；`training/r7_losses.py` 新增 `mask=None` 关键字参数（**None 时逐位不变**），并加 8 条反证（单格受限加权均值、全 1 mask 逐位等于原目标、空/非 2-D/负值 mask 报错、驱动拒绝已存在输出与缺失 store）；**结果**：seed 均值 delta（本臂 − 窄臂）五个 lead 全为负（6h **−0.0348**、12h **−0.0401**、24h **−0.0069**、48h **−0.0528**、72h **−0.0445** K），6/12h **3/3** seed 更优，而上一轮全网格臂五个 lead 全为正 → **上一轮的 null 主要来自监督稀释**；`interior_32` t2m skill 均值 0.5944/0.3341/0.3700/−0.0868/−0.3996 全面高于窄臂（0.5816/0.3151/0.3668/−0.1191/−0.4309）与上一轮宽臂；但 48/72h **绝对气候态门仍未过**（仅 seed 43 的 48h +0.0140），故**仍不进 S4 冻结包**，改为把该臂推入剂量检验；六阶段全 success、`returncode=0`、`signals=[]`、`reaped=true`；whole 12475.851618 s（planned 9000、soft overrun 3475.851618、hard 0）；协议 `6fc50d04…`、code.zip `2e60dfd6…`、执行文件 183、model `d3fb58db…`（未变）、training `8ad77d93…`（变）；cohort 472/468/460/444/428 逐 lead 与 pin 一致；网络 0、磁盘 4.6 GiB；test 未读/r0 |
-| **合计已用** | **34.5899** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−14.5899是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。**2026-10-08 补记 index63，修正「索引已登记而账本缺行」的漂移**；该漂移现有校检器发现不了（C-02/C-03 只校验已存在行）。**2026-10-09 记 index64（rollout-dose，三行合计 4.2765）**；**2026-10-09 记 index65（宽区 pilot，0 GPU-h，网络 3.565 GB / 保留 70.2 MB 只记会计不加 GPU 账）**；**2026-10-09 记 index66（宽区全量 + v4 store + 宽区气候态，0 GPU-h，网络 ≈101 GB / 磁盘 6.6 GiB 只记会计）**；**2026-10-09 记 index67（宽区单因素 train/val，3.5339 GPU-h，网络 0 / 磁盘 4.6 GiB，null 读数）**；**2026-10-09 记 index68（宽输入 + 内部盒监督，3.4655 GPU-h，网络 0 / 磁盘 4.6 GiB，mixed/needs-review：稀释已分离、收益小、绝对门未过）**。科学气候态/全年/同时区间仍未过；固定病例/ordering/anchor/rollout-dose/宽区单因素/内部监督 开发负或 mixed 读数分别登记，不作泛化/clip/欠拟合/遗忘/收敛/稀释来源因果证明，不无限重复同剂量或精确replay |
+| S3 宽输入 + 内部盒监督剂量 800→2400（48h 三 seed 全正、72h 仍负；mixed/needs-review） | 6.6941 | 41.2840 | `docs/R7_S3_WIDE_INTERIOR_DOSE.md`（索引 `record:s3-wide-interior-dose`）；唯一改动因子 = **updates 800→2400**（宽 129×129 输入、`interior_32` 掩码、配方其余参数、迁移 v3-BD 1600 父、seed、评分域、气候态分母、cohort pin 全不变）；对照同时报**已登记窄 800 臂**与**已登记 800 内部监督臂**（均 pinned 复用、未重训练，15/15 表哈希匹配）；**结果**：相对窄臂 12/24/48/72h **3/3 seed 更优**（delta 均值 −0.0284/−0.1159/**−0.3086**/**−0.3306** K），6h 持平（−0.0029）；相对 800 内部监督臂 24/48/72h 3/3 更优（−0.1090/−0.2558/−0.2861），6/12h 略差；**48h 绝对气候态门首次三 seed 全正**（skill +0.0613/+0.0277/+0.1127），6/12/24h 亦全正；**72h 三 seed 仍全负**（−0.1746/−0.2773/−0.1562，均值 −0.2027，相对窄臂 −0.4309 已收窄）→ 冻结验收条件（48/72h 三 seed 全正）**只满足一半**，故**不进 S4 冻结包**，并按预声明**关闭剂量支**转长 lead 权重假设；attempt01 因冻结 reading 阶段 pin 错表（`rmse.csv` 哈希对 `boundary_rmse.csv`）被操作者中止，`operator_abort.json` 全额计费 **0.7517 GPU-h**（prepare 271.45 + archive 289.77 + seed41 部分 2145.0 s），修复 `0b517b3`/`76a3d60`（pin 改存 boundary 哈希 + 两个测试改用合成输出树，因同一缺陷在无 `outputs/` 的 CI 上失败过）；attempt02 六阶段全 success、`returncode=0`、`signals=[]`、`reaped=true`、whole 21392.663503 s、**soft/hard overrun 均 0**；协议 `1d8d163d…`、code.zip `0a6e0b81…`、执行文件 184、model `d3fb58db…`（未变）、training `8ad77d93…`；cohort 472/468/460/444/428 逐 lead 与 pin 一致；网络 0、磁盘 14 GiB；test 未读/r0 |
+| **合计已用** | **41.2840** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−21.2840是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。**2026-10-08 补记 index63，修正「索引已登记而账本缺行」的漂移**；该漂移现有校检器发现不了（C-02/C-03 只校验已存在行）。**2026-10-09 记 index64（rollout-dose，三行合计 4.2765）**；**2026-10-09 记 index65（宽区 pilot，0 GPU-h，网络 3.565 GB / 保留 70.2 MB 只记会计不加 GPU 账）**；**2026-10-09 记 index66（宽区全量 + v4 store + 宽区气候态，0 GPU-h，网络 ≈101 GB / 磁盘 6.6 GiB 只记会计）**；**2026-10-09 记 index67（宽区单因素 train/val，3.5339 GPU-h，null）**；**2026-10-09 记 index68（宽输入 + 内部盒监督，3.4655 GPU-h，稀释已分离）**；**2026-10-09 记 index69（内部监督剂量 800→2400，6.6941 GPU-h 含 attempt01 中止 0.7517，48h 三 seed 转正）**。科学气候态/全年/同时区间仍未过；固定病例/ordering/anchor/rollout-dose/宽区单因素/内部监督/剂量 开发负或 mixed 读数分别登记，不作泛化/clip/欠拟合/遗忘/收敛/稀释来源/剂量饱和因果证明，不无限重复同剂量或精确replay |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
@@ -310,7 +311,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-wide-interior-dose.md", "previous_round_goal": "docs/goals/s3-wide-interior-supervision.md", "previous_round_evidence": "docs/R7_S3_WIDE_INTERIOR_SUPERVISION.md", "cap_gpu_h": 20.0, "used_gpu_h": 34.5899, "remaining_gpu_h": -14.5899, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-wide-long-lead-weight.md", "previous_round_goal": "docs/goals/s3-wide-interior-dose.md", "previous_round_evidence": "docs/R7_S3_WIDE_INTERIOR_DOSE.md", "cap_gpu_h": 20.0, "used_gpu_h": 41.2840, "remaining_gpu_h": -21.2840, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -778,3 +779,43 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   对照同时报已登记窄臂与上一轮 800 内部监督臂（两者都 pinned 复用、不重训练）。目标
   `docs/goals/s3-wide-interior-dose.md`。读法：2400 后 48/72h 三 seed 全正且 seed 均值同时区间下界 > 0
   → 提请独立验收；否则按防空转纪律**停该支**、转别的可证伪假设。test 未读、r=0、S4 未启动不变。
+
+### 2026-10-09 宽输入 + 内部盒监督剂量 800→2400：48 h 首次三 seed 全为正，72 h 仍未过（mixed/needs-review；6.6941 GPU-h）
+
+- **本轮目标** `docs/goals/s3-wide-interior-dose.md`；证据页 `docs/R7_S3_WIDE_INTERIOR_DOSE.md`
+  （index69 `record:s3-wide-interior-dose`，`outcome_class mixed`、`candidate_state needs-review`）。
+- **单因素**：**updates 800 → 2400**。宽 129×129 输入、`interior_32` 掩码、配方其余参数、迁移
+  v3-BD 1600 父、seed、评分域、气候态分母、cohort pin 全部逐字不变。
+- **结果（剂量响应强且单调）**：相对**已登记窄 800 臂**，本臂在 12/24/48/72 h **3/3 seed 更优**
+  （delta 均值 −0.0284 / −0.1159 / **−0.3086** / **−0.3306** K），6 h 持平（−0.0029）。
+  相对**已登记的 800 内部监督臂**，24/48/72 h 3/3 更优（−0.1090/−0.2558/−0.2861），6/12 h 略差
+  ——即剂量把收益**集中加在长 lead**。
+- **48 h 绝对气候态门首次三 seed 全为正**：`interior_32` t2m skill **+0.0613 / +0.0277 / +0.1127**；
+  6/12/24 h 也三 seed 全正。**72 h 三 seed 仍全负**（−0.1746/−0.2773/−0.1562，均值 −0.2027，
+  相对窄臂的 −0.4309 已收窄）。
+- **判定**：冻结的验收条件（48/72 h 三 seed 全正）**只满足一半** → **不进 S4 冻结包**；
+  按上一轮预声明的防空转读法**关闭剂量支**（不再加剂量），转**长 lead 物理权重**假设
+  （注册配方 48/72 h 权重与 12/24 h 同为 0.5）。
+- **本轮的一个失败 attempt（工程缺陷，已修）**：attempt01 的冻结 reading 阶段把 800 臂的
+  `boundary_rmse.csv` 与 pin 里的 `rmse.csv` 哈希比较，**必然**在三 seed 全部训完后 `RuntimeError`。
+  发现即**中止**，未把剩余 GPU 时间花在不可能出读数的运行上；`operator_abort.json` 全额计费
+  **0.7517 GPU-h**（prepare 271.45 s + archive 289.77 s + seed41 部分 2145.0 s = 2706.22 s），
+  无 in-place resume。修复 `0b517b3`/`76a3d60`：pin 改存 `boundary_rmse_csv_sha256`，
+  并把两个依赖 `outputs/` 的测试改用**合成输出树**——**同一缺陷暴露出的第二处问题**是
+  `0b517b3` 的 CI 在无 `outputs/` 的干净 checkout 上因那两个测试失败；本地用 `git worktree`
+  复现该条件后修好。
+- **成本**：attempt01 0.7517 + attempt02 5.9424 = **6.6941 GPU-h**（口径同前：whole ÷ 3600）。
+  attempt02 whole 21,392.663503 s、**soft overrun 0 / hard overrun 0**（planned 36000 s 内）；
+  网络 **0**（离线）；磁盘 14 GiB。累计 34.5899 → **41.2840**。
+- **进程卫生**：attempt02 六阶段全 `success`、`returncode=0`、`signals=[]`、`reaped=true`；
+  每阶段 spawn 前写只读 `*_spawn_gate.json`；**未对任何非本实验进程发送信号**（邻居 GPU1 未触碰，
+  仅共享显存；seed 43 评分期间邻居占卡，故其评分秒数偏高）。
+- **可复现等级**：**config-reproducible**（协议/源/代码/父 pin 齐、归档 `code.zip` `0a6e0b81…`
+  可重放），GPU 训练非逐位可复现；不声称 bit-reproducible。
+- **验证与 CI（精确）**：本机完整 CPU 套件 **4290 passed / 3 skipped / 0 failed**；37 条阻断规则
+  0 失败；`git worktree` 无 `outputs/` 复现 CI 条件下相关 222 测试全过。执行提交 `76a3d60f…`
+  的主 CI **`38027168107` completed/success**；证据页最终提交 `9fc4db2c…` 的主 CI（登记时）。
+- **下一动作（S3）**：**固定 2400 更新**、只把 48/72 h 的物理权重从 0.5 提到 **1.0** 的单因素臂，
+  对照是**本轮已登记的 2400 臂**（pinned 复用）。目标 `docs/goals/s3-wide-long-lead-weight.md`。
+  预声明出口：72 h 三 seed 转正 → 提请独立验收；否则**关闭整个宽输入支**，回主线别的可证伪假设
+  （推理深度 K / 架构），不再加 seed、不再调权重、不重复同一 test。test 未读、r=0、S4 未启动不变。

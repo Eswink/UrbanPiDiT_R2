@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 68; human-review candidates: 1
+Records: 69; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -379,6 +379,26 @@ Records: 68; human-review candidates: 1
 - CI run: `37468877656`
 - Excluded from runnable candidates: Identity/configuration reproducibility audit only, not new scientific evidence or candidate.
 - Recorded metrics (not recomputed): archived_collector_json_sha256=3b6b9af8a0cb343685713ec817bf22def9675461e3e0b2a12bc8363aa8a6c7b7, case_max_relative_mse_difference=0.0, elapsed_seconds_failed_replays=[8.888092823326588, 8.88523946981877], elapsed_seconds_successful_replay=1375.7328200042248, exact_csv_count=15, failed_preforecast_replays=2, gpu_hours=0.3871, hard_cap_seconds_each=3600, hard_overrun_seconds=0.0, network_bytes=0, planned_seconds_each=1800, soft_overrun_seconds=0.0, successful_replays=1, test_read=false
+
+## s3-wide-interior-dose
+
+- Outcome class: `mixed`; candidate state: `needs-review`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_WIDE_INTERIOR_DOSE.md` (SHA256 `c59a0ad2a611fbfe40cf9d65af19f1587a76993aadf8cc95f7d65e91c75d872f`)
+- Evidence commit: `9fc4db2cde1827b0df62da9c508b8b9f943e97d4`; experiment commit: `76a3d60f485482268072f7c6ed03586bcd43ee9e`
+- Protocol SHA256: `1d8d163d61ce0ac34dcf2735163e515aa901d1460b47af32279209909dc5b30c`; data identity: `2360d42b7393cd6f53cd6f48961abc7bcd62948d3c2fa69b2d810d798d137c12`
+- Reason: S3 wide 129x129 input with interior_32 supervision and the update budget raised 800 -> 2400 (the only changed factor), same registered long-rollout recipe, same migrated v3-BD 1600 parent, seeds 41/42/43, scored on interior_32 against two pinned references (narrow 65x65 800 arm, index record s3-rollout-dose, and the 800-update interior arm, index record s3-wide-interior-supervision; neither retrained). The dose response is strong and monotone: the arm beats the narrow arm on the seed mean at 12/24/48/72 h with 3/3 seeds better (delta -0.0284/-0.1159/-0.3086/-0.3306 K; 6 h flat at -0.0029) and beats the 800 interior arm at 24/48/72 h with 3/3 seeds better (-0.1090/-0.2558/-0.2861). The 48 h absolute climatology gate is met per seed for the first time (interior_32 t2m skill +0.0613/+0.0277/+0.1127; 6/12/24 h also all positive), but 72 h is still negative for all three seeds (-0.1746/-0.2773/-0.1562, mean -0.2027 versus the narrow arm's -0.4309). The frozen acceptance condition (48/72 h all-positive per seed) is only half met, so no S4 freeze package is entered and the predeclared anti-spin rule closes the dose branch in favour of a long-lead physical-weight hypothesis.
+- Limitations:
+  - development screening on one wide instance (129x129 input, interior_32 supervision, one ROI, 17 channels, 2017-2021 train / 2022 val); no significance, convergence, SOTA or generalization claim
+  - both references are pinned registered arms (narrow s3-rollout-dose, 800-update interior s3-wide-interior-supervision), not retrained inside this protocol; host load differed across the three arms
+  - the 72 h absolute climatology gate still fails for all three seeds; the outer 129x129 ring is unconstrained during training
+  - whether the 72 h residual is still dose-limited, or limited by the 12-step autoregressive error accumulation or the 0.5 long-lead physical weight, is not separated
+  - the parent was trained on the narrow instance under full-grid supervision; the optimization landscape difference is not separated
+  - three seeds are consistency evidence, not a significance test; GPU runs are co-resident
+  - validation split only; the 2023 test split stays sealed and r is not consumed
+- CI run: `38048807438`
+- Excluded from runnable candidates: 开发筛选轮：两个对照都是已登记臂的 pinned 复用（不在本协议内重训练），三 seed 只是一致性证据，没有显著性检验；48h 门三 seed 全正但 72h 仍全负，且剂量是否饱和未测，故标 needs-review 而非 candidate，也不进 S4 冻结包。
+- Recorded metrics (not recomputed): checkpoint_sha256={"41": "94c472e5490ece953b86a3f019311974460ce8403dcbaa5e5cc867b84200547a", "42": "48d4990a82e58a7e7c46a2eae00c9fa10bf1d91cb81b238183bbc9cd0e5afe6d", "43": "a88a2c940d352a65eee07d3bed171477f0d888d4bee91d829ea3d5947b54af13"}, code_zip_sha256=0a6e0b81d3648dac736f6b2527a03975d61d8faaee8d8a48bc847adf563eb7b4, disk_gib=14.0, gpu_hours=6.6941, gpu_hours_attempt01_aborted=0.7517, gpu_hours_attempt02=5.9424, hard_overrun_seconds=0.0, interior_t2m_skill={"41": {"12": 0.3242, "24": 0.4159, "48": 0.0613, "6": 0.579, "72": -0.1746}, "42": {"12": 0.3176, "24": 0.4076, "48": 0.0277, "6": 0.5755, "72": -0.2773}, "43": {"12": 0.3439, "24": 0.435, "48": 0.1127, "6": 0.5936, "72": -0.1562}}, interior_t2m_skill_mean={"12": 0.3286, "24": 0.4195, "48": 0.0673, "6": 0.5827, "72": -0.2027}, mean_delta_minus_narrow_t2m_k={"12": -0.0284, "24": -0.1159, "48": -0.3086, "6": -0.0029, "72": -0.3306}, mean_delta_minus_prev800_t2m_k={"12": 0.0117, "24": -0.109, "48": -0.2558, "6": 0.0319, "72": -0.2861}, model_code_sha256=d3fb58dbd0ed9efbd249fc258cb09c488d543c0a8ad77dac5689ac8f9ba77bab, network_bytes=0, reproducibility=config-reproducible; archived code.zip replays the source identity, GPU training is not bitwise reproducible, seeds=[41, 42, 43], seeds_better_than_narrow={"12": 3, "24": 3, "48": 3, "6": 2, "72": 3}, soft_overrun_seconds=0.0, supervision_cells=4225, supervision_mask_sha256=4a2a576bf948b92924720fa28a44c128a61445dd29b4906805930430e0a0919a, test_read=false, training_code_sha256=8ad77d9349bdc4930e6bbba05f0c417814fe3093fe39aa921e816af197494974, updates=2400, val_cohorts={"12": 468, "24": 460, "48": 444, "6": 472, "72": 428}, wall_seconds_total_attempt02=21392.663503
 
 ## s3-wide-interior-supervision
 
