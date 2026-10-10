@@ -721,7 +721,8 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   85→86）且有两行 141/132 字符（120–200 带内 → R-019b 1026→1028）。C 类 marker 必须随实测同步，
   `de64697` 修回（**未改任何阈值/规则级别/冻结例外**），其主 CI **`37990463998` completed/success**、
   全部必要步骤 success；证据提交 `dcd1a86c88d97bc231508ab8c1ebd0a2161557d2` 的主 CI
-  `38005892925`（本页登记时）。
+  **`38005892925` completed/success**、全部必要 steps success；登记提交 `876cef8c…` 的主 CI
+  **`38007212799` completed/success**。17 条标签门控实验 workflow 显示 skipped 是设计行为，不是通过。
 - **成本**：whole 12,721.940569 s → **3.5339 GPU-h**（口径沿用本方向约定：whole ÷ 3600，故
   CPU-only 的 prepare/archive/reading 也按 1 GPU 当量计入，偏保守）；soft overrun 3,721.94 s、
   hard overrun 0；网络 **0**（离线）；产物磁盘 4.6 GiB。累计 27.5905 → **31.1244**。
