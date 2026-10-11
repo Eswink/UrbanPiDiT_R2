@@ -46,6 +46,15 @@ STAGE_ORDER = ("prepare", "archive", "seed", "reading")
 DRIVER_REQUIRED_NAMES = ("freeze", "SEEDS", "PER_SEED_SECONDS", "PLANNED_SECONDS", "HARD_CAP_SECONDS")
 WORKER_ENV_KEYS = ("PATH", "HOME", "LANG", "LC_ALL", "PYTHONPATH", "VIRTUAL_ENV", "TMPDIR")
 
+#: The driver's own orchestrator (``run_attempt``) promotes the prepare worker's
+#: ``prepared_protocol.json`` to ``protocol.json`` before archive/seed/reading. Run one
+#: stage at a time, this wrapper owes that promotion, or every later stage reads a file
+#: that was never written. The prepare stage's own frozen body is the one ``freeze``
+#: wrote (``preparation_protocol.json``), since ``protocol.json`` does not exist yet.
+FROZEN_PROTOCOL = "protocol.json"
+PREPARATION_PROTOCOL = "preparation_protocol.json"
+PREPARED_PROTOCOL = "prepared_protocol.json"
+
 
 def current_attempt_dir(stem: str, outputs: Path | None = None) -> Path:
     """The newest attempt directory for this round; refuse if the round never froze."""
@@ -156,6 +165,38 @@ def worker_environment(source: dict[str, str] | None = None) -> dict[str, str]:
     return {key: value for key, value in (source or os.environ).items() if key in WORKER_ENV_KEYS}
 
 
+def promote_prepared_protocol(output: Path) -> bool:
+    """Materialise ``protocol.json`` from the prepare worker's ``prepared_protocol.json``.
+
+    The driver's own ``run_attempt`` does this between prepare and archive; a per-stage
+    orchestrator must do it too. Idempotent: a no-op once ``protocol.json`` exists, and a
+    no-op before prepare has written ``prepared_protocol.json``.
+    """
+    output = Path(output)
+    prepared = output / PREPARED_PROTOCOL
+    target = output / FROZEN_PROTOCOL
+    if not prepared.is_file() or target.is_file():
+        return False
+    with target.open("x", encoding="utf-8") as handle:
+        handle.write(prepared.read_text(encoding="utf-8"))
+    return True
+
+
+def stage_protocol(output: Path, phase: str) -> dict[str, Any]:
+    """The frozen body that governs this stage's deadline and GPU gate.
+
+    Archive/seed/reading read ``protocol.json`` (promoted after prepare). The prepare
+    stage itself reads the body ``freeze`` wrote, since ``protocol.json`` is not written
+    until prepare returns.
+    """
+    output = Path(output)
+    if (output / FROZEN_PROTOCOL).is_file():
+        return read_json(output / FROZEN_PROTOCOL)
+    if phase == "prepare" and (output / PREPARATION_PROTOCOL).is_file():
+        return read_json(output / PREPARATION_PROTOCOL)
+    return read_json(output / FROZEN_PROTOCOL)
+
+
 def run_stage(
     output: Path,
     driver_rel: str,
@@ -179,7 +220,8 @@ def run_stage(
     plan = stage_plan(output, phase, seed)
     if plan["skip"]:
         return {**plan, "status": "skipped", "passed": True}
-    body = protocol if protocol is not None else read_json(output / "protocol.json")
+    promote_prepared_protocol(output)
+    body = protocol if protocol is not None else stage_protocol(output, phase)
     deadline = float(body["deadline_perf_counter"])
     per_seed = float(body["per_seed_seconds"])
     limit = min(deadline, now() + per_seed) if phase == "seed" else deadline
@@ -203,6 +245,8 @@ def run_stage(
     started = now()
     result = run(argv, base, worker_environment(), max(1.0, limit - started) + 60.0)
     elapsed = now() - started
+    if phase == "prepare" and result["exit_code"] == 0:
+        promote_prepared_protocol(output)
     tag = phase if seed is None else f"seed{seed}"
     record = {
         "phase": phase,

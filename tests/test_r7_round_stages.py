@@ -263,3 +263,85 @@ def test_push_round_pushes_without_a_refspec(support):
 
 def test_push_round_counterproof_a_rejected_push_is_not_passing(support):
     assert support.push_round(runner=_git_runner(fail_on="push"))["passed"] is False
+
+
+# --- the prepare -> protocol.json promotion (a per-stage orchestrator owes it) ---
+
+def _preparation_only(output: Path, **overrides) -> Path:
+    """Only what ``freeze`` writes: no ``protocol.json`` yet, as before prepare runs."""
+    body = {"protocol_sha256": "a" * 64, "deadline_perf_counter": 10_000.0, "per_seed_seconds": 1800.0,
+            "planned_seconds": 5400.0, "hard_cap_seconds": 7200.0, "gpu_uuid": "GPU-test",
+            "estimated_peak_bytes": 2 ** 31, "headroom_margin_bytes": 2 ** 31}
+    body.update(overrides)
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / "preparation_protocol.json"
+    target.write_text(json.dumps(body), encoding="utf-8")
+    return target
+
+def test_prepare_stage_reads_the_preparation_protocol_when_protocol_json_is_absent(support, tmp_path):
+    """The real flow: prepare runs before protocol.json exists, so it must read freeze's body."""
+    _preparation_only(tmp_path)
+    seen = {}
+
+    def runner(argv, cwd=None, env=None, timeout=None):
+        seen["argv"] = list(argv)
+        return _ok("prepared\n")
+
+    record = support.run_stage(tmp_path, "scripts/study_fake.py", "prepare", runner=runner,
+                               clock=lambda: 1000.0)
+    assert record["passed"] is True
+    assert seen["argv"][-2:] == ["--deadline", "10000.0"]
+
+def test_prepare_stage_counterproof_absent_protocols_is_not_a_silent_pass(support, tmp_path):
+    """No frozen body at all must raise, never spawn with an invented deadline."""
+    calls = []
+    with pytest.raises(FileNotFoundError):
+        support.run_stage(tmp_path, "scripts/study_fake.py", "prepare",
+                          runner=lambda *a, **k: calls.append(a) or _ok(), clock=lambda: 1000.0)
+    assert calls == []
+
+def test_prepare_stage_promotes_prepared_protocol_for_the_next_stage(support, tmp_path):
+    """After prepare returns, archive/seed/reading must find protocol.json (the run_attempt contract)."""
+    _preparation_only(tmp_path)
+
+    def runner(argv, cwd=None, env=None, timeout=None):
+        (tmp_path / "prepared_protocol.json").write_text(
+            json.dumps({"protocol_sha256": "b" * 64, "deadline_perf_counter": 10_000.0,
+                        "per_seed_seconds": 1800.0, "planned_seconds": 5400.0, "hard_cap_seconds": 7200.0,
+                        "gpu_uuid": "GPU-test", "estimated_peak_bytes": 2 ** 31,
+                        "headroom_margin_bytes": 2 ** 31}), encoding="utf-8")
+        return _ok()
+
+    record = support.run_stage(tmp_path, "scripts/study_fake.py", "prepare", runner=runner,
+                               clock=lambda: 1000.0)
+    assert record["passed"] is True
+    promoted = tmp_path / "protocol.json"
+    assert promoted.is_file()
+    assert json.loads(promoted.read_text(encoding="utf-8"))["protocol_sha256"] == "b" * 64
+
+def test_archive_stage_reads_the_promoted_protocol(support, tmp_path):
+    """A resumed round whose prepare finished earlier still promotes before archive."""
+    (tmp_path / "prepared_protocol.json").write_text(
+        json.dumps({"protocol_sha256": "b" * 64, "deadline_perf_counter": 10_000.0,
+                    "per_seed_seconds": 1800.0, "planned_seconds": 5400.0, "hard_cap_seconds": 7200.0,
+                    "gpu_uuid": "GPU-test", "estimated_peak_bytes": 2 ** 31,
+                    "headroom_margin_bytes": 2 ** 31}), encoding="utf-8")
+    seen = {}
+
+    def runner(argv, cwd=None, env=None, timeout=None):
+        seen["argv"] = list(argv)
+        return _ok()
+
+    record = support.run_stage(tmp_path, "scripts/study_fake.py", "archive", runner=runner,
+                               clock=lambda: 1000.0)
+    assert record["passed"] is True
+    assert (tmp_path / "protocol.json").is_file()
+    assert seen["argv"][2:5] == ["--worker", "archive", "--out"]
+
+def test_promotion_never_overwrites_an_existing_protocol(support, tmp_path):
+    """Idempotent: a second promotion is a no-op, so a frozen protocol.json is never rewritten."""
+    _protocol_file(tmp_path, protocol_sha256="f" * 64)
+    (tmp_path / "prepared_protocol.json").write_text(
+        json.dumps({"protocol_sha256": "b" * 64}), encoding="utf-8")
+    assert support.promote_prepared_protocol(tmp_path) is False
+    assert json.loads((tmp_path / "protocol.json").read_text(encoding="utf-8"))["protocol_sha256"] == "f" * 64
