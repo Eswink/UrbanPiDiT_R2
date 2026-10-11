@@ -872,7 +872,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   `tools/r7_round_support.py` + `tools/r7_round_stages.py`（state / reuse-plan / ledger-plan / round-guard /
   verify / attempt / stage-plan / freeze / stage / commit-round / push-round）、`tools/r7_ci_wait.py`
   （`curl` 子进程轮询，**未 import 任何 Python 网络客户端**）、`tests/test_r7_round.py` +
-  `tests/test_r7_round_stages.py` + `tests/test_r7_ci_wait.py`（**90 例全通过**，含逐字段反证）、
+  `tests/test_r7_round_reuse.py` + `tests/test_r7_round_stages.py` + `tests/test_r7_ci_wait.py`（**90 例全通过**，含逐字段反证）、
   `parallel-research-workflow` 技能新增「campaign 驱动 workflow」节、`AGENTS.md` 路由与硬约束、
   草稿 `.zcode/workflow-drafts/r7-campaign-round.dwf.ts`。
   **补记首次真实使用（此前未留痕的欠账）**：2026-10-11 已有草稿

@@ -46,7 +46,7 @@
 | D3b | 逐 stage 驱动包装（attempt 目录、skip-if-done、freeze、stage spawn、commit/push 原语） | `tools/r7_round_stages.py` |
 | D4 | 薄 CLI（`state`/`verify`/`commit-guard`/`reuse-plan`/`ledger-plan`） | `tools/r7_round.py` |
 | D5 | 匿名 CI 状态轮询（`curl` 子进程，无 Python 网络客户端） | `tools/r7_ci_wait.py` |
-| D6 | CI-safe 反证测试（90 例） | `tests/test_r7_round.py`、`tests/test_r7_round_stages.py`、`tests/test_r7_ci_wait.py` |
+| D6 | CI-safe 反证测试（90 例） | `tests/test_r7_round.py`、`tests/test_r7_round_reuse.py`、`tests/test_r7_round_stages.py`、`tests/test_r7_ci_wait.py` |
 | D7 | campaign 驱动 workflow 草稿（每轮：侦察→实现+独立复核→冻结+提交+等 CI→GPU 轮→读数+登记→交接） | `.zcode/workflow-drafts/r7-campaign-round.dwf.ts`（git-ignored） |
 | D8 | 技能与路由：新增「campaign 驱动 workflow」一节 + 硬约束一条 | `.agents/skills/parallel-research-workflow/SKILL.md`、`AGENTS.md` |
 | D9 | master §0 换成当前前沿的新提示词；§8 追加本轮块（含首次使用欠账登记） | `docs/goals/main-model-climatology-campaign.md` |
@@ -96,7 +96,7 @@
   `tools/r7_round.py`（薄 CLI，按仓库惯例用 `importlib` 载入同目录模块）、
   `tools/r7_round_stages.py`（逐 stage 包装：attempt 目录、skip-if-done、freeze、stage spawn、commit/push）、`tools/r7_ci_wait.py`
   （`curl` 子进程轮询，**未 import 任何 Python 网络客户端**，故 R-016/R-025 不受影响）；
-  `tests/test_r7_round.py` + `tests/test_r7_round_stages.py` + `tests/test_r7_ci_wait.py` 共 **90 例全通过**；草稿
+  `tests/test_r7_round.py` + `tests/test_r7_round_reuse.py` + `tests/test_r7_round_stages.py` + `tests/test_r7_ci_wait.py` 共 **90 例全通过**；草稿
   `.zcode/workflow-drafts/r7-campaign-round.dwf.ts`；技能/AGENTS/master/三处索引同步。
 - **实测**：`tools/r7_round.py state` 在真仓库输出正确（HEAD `0df159d8`、账本 49 行、合计 48.2867、
   索引 70 条、末三条 record id、§8 末条「下一动作」）；`ledger-plan 4.2867` 得 new_total 52.5734 /
@@ -106,6 +106,9 @@
   改为 `sys.executable` 前缀；② 首版 `REUSE_RECEIPT_FIELDS` 把 `seed` 拿去和 protocol 比（protocol
   没有 `seed` 字段）→ 会导致**所有** seed 被误判为漂移，改为 seed 键与 receipt 自身比对；
   ③ `tests/test_r7_round.py` 一度涨到 625 行触发 R-051 → 拆出 `tests/test_r7_round_stages.py`；
+  首版提交后 CI 的 `test_size_report_counts_match_the_checker` 变红（我的新文件把 R-019/R-019b/R-021/R-023
+  四个报告计数推高）→ 把长行折行、拆出 `tests/test_r7_round_reuse.py`、把 `run_stage` 参数降到 8 个，
+  使本轮新增文件对这些计数贡献为 0（不动 `docs/rules/size-thresholds.md`，那是另一个窗口的工作树改动）；
   ④ 独立只读审阅报 2 条必修：草稿 workflow 的 `world.run` 命令名用了运行时变量（违反 facade 的
   编译期字面量规则）→ 改为逐个 stage 展开的 7 次字面量调用；本计划的测试数与交付物表陈旧 → 已改。
 - **未跑**：全量 suite、wheel、远端 CI；**GPU 轮编排未端到端验证**（本轮不开 GPU），故首次真实使用

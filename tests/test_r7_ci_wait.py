@@ -141,9 +141,9 @@ def test_wait_polls_until_the_run_appears_then_turns_green(ciw):
 
 def test_wait_reports_budget_exhaustion_instead_of_raising(ciw):
     clock = iter([0.0, 10.0, 2000.0])
+    pending = lambda argv, cwd=None: _ok(_payload([_run(status="in_progress", conclusion=None)]))
     payload = ciw.wait_for_green(SHA, timeout_seconds=100.0, interval_seconds=5.0,
-                                 runner=lambda argv, cwd=None: _ok(_payload([_run(status="in_progress", conclusion=None)])),
-                                 sleep=lambda _: None, clock=lambda: next(clock))
+                                 runner=pending, sleep=lambda _: None, clock=lambda: next(clock))
     assert payload["passed"] is False
     assert payload["budget_exhausted"] is True
     assert payload["last"]["state"] == "pending"
@@ -162,7 +162,8 @@ def test_wait_counterproof_a_cancelled_run_never_becomes_green(ciw):
 
 
 def test_main_exit_code_is_one_when_not_green(ciw, monkeypatch, capsys):
-    monkeypatch.setattr(ciw, "default_runner", lambda argv, cwd=None: _ok(_payload([_run(status="queued", conclusion=None)])))
+    queued = lambda argv, cwd=None: _ok(_payload([_run(status="queued", conclusion=None)]))
+    monkeypatch.setattr(ciw, "default_runner", queued)
     assert ciw.main(["--ref", "HEAD", "--timeout-seconds", "0"]) == 1
     assert json.loads(capsys.readouterr().out)["passed"] is False
 

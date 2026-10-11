@@ -29,7 +29,7 @@ no in-place resume）⇒ 被打断的一轮要重付 GPU；② 驱动已是子�
   全部字面量 argv，运行时值只从 round-spec 与冻结 protocol.json 读。
 - `tools/r7_ci_wait.py`：匿名 CI 状态轮询，走 `curl` 子进程，**未 import 任何 Python 网络客户端**
   （R-016 与 R-025 不受影响）；只有 `completed` + `success` 算通过。
-- `tests/test_r7_round.py`、`tests/test_r7_round_stages.py`、`tests/test_r7_ci_wait.py`：**90 例**，
+- `tests/test_r7_round.py`、`tests/test_r7_round_reuse.py`、`tests/test_r7_round_stages.py`、`tests/test_r7_ci_wait.py`：**90 例**，
   含逐字段反证（每个复用字段单独漂移都必须拒绝）、保护分支拒绝、`cancelled/skipped/queued` 不算通过。
 - `.agents/skills/parallel-research-workflow/SKILL.md` 新增「campaign 驱动 workflow」节；`AGENTS.md`
   加一条路由与一条硬约束；草稿 `.zcode/workflow-drafts/r7-campaign-round.dwf.ts`。

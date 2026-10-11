@@ -166,7 +166,6 @@ def run_stage(
     runner: Callable[..., dict[str, Any]] | None = None,
     protocol: dict[str, Any] | None = None,
     clock: Callable[[], float] | None = None,
-    env: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Run exactly one driver stage, skipping it when its receipt already exists.
 
@@ -202,7 +201,7 @@ def run_stage(
         argv += ["--seed", str(seed)]
     run = runner or default_runner
     started = now()
-    result = run(argv, base, worker_environment(env), max(1.0, limit - started) + 60.0)
+    result = run(argv, base, worker_environment(), max(1.0, limit - started) + 60.0)
     elapsed = now() - started
     tag = phase if seed is None else f"seed{seed}"
     record = {
