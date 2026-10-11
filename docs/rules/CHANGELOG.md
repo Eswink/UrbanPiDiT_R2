@@ -27,7 +27,8 @@ argv 形状（driver + `--worker <phase>` + `--out <attempt>` + `--seed <n>`）�
 `docs/rules/testing.md` 与 `docs/rules/MIGRATION.md` 引用的数字（两处由
 `tests/test_check_conventions.py` 直接对 checker 常量断言，改一处漏一处会变红）。
 
-验证：四模块 **87 passed**；`check_conventions.py --quiet` **37 条阻断 0 失败**；自测 **120 passed**；
+验证：四模块 **87 passed**；**全量 CPU 套件 4439 passed / 3 skipped / 0 failed**（2191.34 s）；
+`check_conventions.py --quiet` **37 条阻断 0 失败**；自测 **120 passed**；
 尺寸计数与改动前一致。**未推送、未绑定 CI**（计划 0021 §6 只授权提交到工作分支）；不改已登记
 轮次的驱动（`estimated_peak_bytes` 的标定是下一轮派生驱动时的动作）。
 

@@ -44,6 +44,7 @@ workflow 时，在跑的 `world.run` 子进程被 `SIGKILL`**——seed 42 的 `
 ## 4. 验证
 
 - `pytest tests/test_r7_round_liveness.py tests/test_r7_round_stages.py tests/test_r7_round.py tests/test_r7_round_reuse.py` → **87 passed**。
+- **全量 CPU 套件** `pytest -q` → **4439 passed / 3 skipped / 0 failed**（2191.34 s；当机负载 41.8，3 个 skip 是"干净 checkout 无真实数据 fixture、禁止合成回退"的设计行为）。
 - `python tools/check_conventions.py --quiet` → **37 条阻断 0 失败**；尺寸计数 R-021=89 / R-023=45 未变。
 - `pytest tests/test_check_conventions.py` → **120 passed**（含 R-009 基线与 `size-thresholds.md`
   标记的防漂移断言）。
@@ -63,7 +64,8 @@ workflow 时，在跑的 `world.run` 子进程被 `SIGKILL`**——seed 42 的 `
 - **已落盘**：`tools/r7_round_liveness.py`（130 行）、`tools/r7_round_stages.py` 增 `already_running`
   判定与实测峰值门、`tools/r7_round.py` 增 `orphans` 子命令、`tests/test_r7_round_liveness.py`（277 行）、
   `docs/plans/0020-...md` §8 SOP、本计划、计划索引与 CHANGELOG。
-- **实测**：本地四模块 **87 passed**；`check_conventions.py --quiet` **37 阻断 0 失败**；
+- **实测**：本地四模块 **87 passed**；**全量 CPU 套件 4439 passed / 3 skipped / 0 failed**（2191.34 s）；
+  `check_conventions.py --quiet` **37 阻断 0 失败**；
   自测 **120 passed**；尺寸计数与改动前一致（R-019=0 R-019b=1028 R-020=64 R-021=89 R-022=65 R-023=45）。
 - **R-009 基线同步**：按 `docs/rules/testing.md:12` 的明文要求，把 `TEST_FUNCTION_BASELINE`/
   `ASSERT_BASELINE` 由 1912/5116 更新为实测 **2103/5607**，并同步 `testing.md` 与 `MIGRATION.md`
