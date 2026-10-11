@@ -2,6 +2,51 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-11 — campaign 驱动 workflow：归档与支持代码（决策 0044 / 0045 / 计划 0020）
+
+用户问「用 workflow 能不能搞一个特别大型的、让目标循环自迭代」。调研后确认**可表达但有界**：动态
+workflow 允许循环且 harness 无节点上限，但它归当前进程所有（退出即 `interrupted`）、子代理不能嵌套
+workflow、子代理很可能不跑本仓 hook（E-187 推测）——所以它是**有界、可恢复的批量编排器，不是守护进程**。
+
+四个硬事实：① 驱动**没有任何 resume**（产物独占创建、attempt 目录必须全新、`failure.json` 明文
+no in-place resume）⇒ 被打断的一轮要重付 GPU；② 驱动已是子进程编排器（`--worker`，seed 一次一个）；
+③ `world.run` 的 argv 必须是编译期字面量 ⇒ 架构走「文件即参数」；④ 此前没有 state / CI 轮询 / GPU
+余量探针三类工具。
+
+新增：
+
+- **决策 0044**：workflow 运行可充当本轮执行者（GPU + commit/push + 四件套登记），但必须**自跑确定性
+  闸门**（`round-guard` / `verify`）而不依赖 hook、**只推工作分支**（禁 main/force/merge/关 issue）、
+  每轮一个臂串行、自设轮数硬上限、不自宣科学完成；并裁决 `.zcode/workflows/` 的跟踪冲突——**草稿**
+  留 `.zcode/workflow-drafts/`（git-ignored，R-035），**保存命名脚本**按决策 0001 入库。
+  同条写入**六层打断抗性**（journal + `ResumeWorkflowRun` / 按单元切分 / 盘上 receipt + skip-if-done /
+  每轮落 git / 跨 attempt 复用 / 有界等待 + 写明恢复命令）。
+- **决策 0045**：跨 attempt 的 **pinned seed 复用**（有限放宽 no-in-place-resume）：白名单全等准入
+  （protocol digest / code.zip sha / data_identity / seed / K / 预算常量…）、按 seed 原子复用、
+  逐 seed 如实报告重跑还是复用、被打断那段 GPU 全额记账；**仅限同一轮的 attempt 之间**。
+- `tools/r7_round.py` + `tools/r7_round_support.py` + `tools/r7_round_stages.py`：state / reuse-plan /
+  ledger-plan / round-guard / verify / attempt / stage-plan / freeze / stage / commit-round / push-round，
+  全部字面量 argv，运行时值只从 round-spec 与冻结 protocol.json 读。
+- `tools/r7_ci_wait.py`：匿名 CI 状态轮询，走 `curl` 子进程，**未 import 任何 Python 网络客户端**
+  （R-016 与 R-025 不受影响）；只有 `completed` + `success` 算通过。
+- `tests/test_r7_round.py`、`tests/test_r7_round_stages.py`、`tests/test_r7_ci_wait.py`：**90 例**，
+  含逐字段反证（每个复用字段单独漂移都必须拒绝）、保护分支拒绝、`cancelled/skipped/queued` 不算通过。
+- `.agents/skills/parallel-research-workflow/SKILL.md` 新增「campaign 驱动 workflow」节；`AGENTS.md`
+  加一条路由与一条硬约束；草稿 `.zcode/workflow-drafts/r7-campaign-round.dwf.ts`。
+- **补记首次真实使用欠账**：2026-10-11 已有草稿与一次真实运行产物（`dwfrun-0f324485-…`）但此前无痕，
+  本轮在 master §8 留痕。
+
+**未验证项（如实登记）**：`freeze`/`stage` 的 GPU 轮编排**没有端到端跑过**（本轮不开 GPU），故决策 0044
+要求首次真实使用必须留痕验证。本轮 0 GPU-h、不跑 workflow、不改科学合同与冻结证据。
+
+## 2026-10-09 — 推理深度 K 4→8 轮：规模 marker 复算（无规则/阈值改动）
+
+新增实验入口 `scripts/study_r7_s3_reasoning_depth.py`（448 行 > 400 目标、≤600 硬限）与测试
+`tests/test_r7_s3_reasoning_depth.py`（356 行）后，C 类规模报告 marker 复算：R-021 **88→89**；
+R-019=0、R-019b=1028、R-020=64、R-022=65、R-023=45 保持。该驱动复用已注册的 2400 剂量驱动、
+只把推理深度 K 从 4 提到 8（训练 `steps=8`、评分 `reasoning_steps=8`），未引入 120–200 字符长行。
+**未改任何规则级别、判据或阈值**，400/600/200 规模上限与冻结例外清单不变。
+
 ## 2026-10-09 — 长 lead 权重轮：规模 marker 复算（无规则/阈值改动）
 
 新增实验入口 `scripts/study_r7_s3_wide_long_lead_weight.py`（443 行 > 400 目标、≤600 硬限）与测试

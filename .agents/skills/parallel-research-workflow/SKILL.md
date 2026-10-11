@@ -91,6 +91,49 @@ description: 当要在一条长期 campaign 里同时推进多个互不依赖的
 - planner 不可用 ⇒ 自规划，过 `tools/check_planner_plan.py` 同一契约并做独立内容审阅。
 - 降级不阻塞：资料/CPU 工作继续，GPU 实验按余量排队。
 
+## campaign 驱动 workflow（大型多轮编排，决策 0044 / 计划 0020）
+
+**它是什么**：一次 workflow 运行内循环 N 轮（自设硬上限），每轮做完整一轮——侦察 → 提可证伪假设 →
+从上一已登记驱动派生单因素驱动 → 独立复核（≤3）→ 冻结 → GPU 训练/评分 → 读数 → 四件套登记 → 交接。
+
+**它不是什么**：不是守护进程。运行归当前进程所有，进程退出即 `interrupted`；子代理不能嵌套 workflow；
+子代理很可能不跑本仓 hook（E-187，推测）。所以它是**有界、可恢复的批量编排器**；无人值守的永久
+自迭代仍被禁（决策 0030/0038）。
+
+**三条硬规矩**（决策 0044）：
+
+1. **自跑确定性闸门，不依赖 hook**：提交前自己跑 `tools/r7_round.py commit-guard <paths>`，
+   登记后自己跑 `tools/r7_round.py verify`；任一失败即停，不得提交。
+2. **只推工作分支**：`git push` 只允许目标 `r7/weather-reasoning`；禁 main / force / merge / 关 issue。
+3. **有界 + 不自宣完成**：脚本自设轮数硬上限；停止条件沿用决策 0043 的封闭三条；`report()` 与 CI 绿
+   都不是科学结论（决策 0024）。
+
+**文件即参数**：`world.run` 的 argv 必须是编译期字面量，所以运行时值一律落在盘上——每轮目标文件带
+`<!-- round-spec: {...} -->`（arm / driver / output_stem / control_record / seeds），helper 只读它并扫
+`outputs/` 决定 attempt 号。**不要把运行时值拼进 argv。**
+
+**六层打断抗性**：① journal + `ResumeWorkflowRun`（同 run id，已完成调用按记录重放、不再花 token）；
+② 一轮切成约十二个 `world.run` 单元而非一个巨型调用；③ 盘上 receipt + skip-if-done（**helper 实现，
+驱动本身不会**）；④ 每轮落 git，使新会话只读 §8 即可续跑；⑤ 跨 attempt 的 pinned seed 复用
+（决策 0045，白名单全等准入，任一等不齐即重跑）；⑥ 有界等待 + 干净停下 + 写明恢复命令。
+
+**恢复流程**：重启后 `ListWorkflowRuns` → 找 `interrupted` → `ResumeWorkflowRun`；run 记录没了就用
+`args.resumeFromRound` 新起一次——状态在 §8 与账本里，不在 workflow 里。
+
+**命令面**（全部字面量 argv）：
+
+```bash
+.venv/bin/python tools/r7_round.py state
+.venv/bin/python tools/r7_round.py verify
+.venv/bin/python tools/r7_round.py commit-guard <path> ...
+.venv/bin/python tools/r7_round.py reuse-plan <previous_attempt_dir>
+.venv/bin/python tools/r7_round.py ledger-plan <new_gpu_hours>
+.venv/bin/python tools/r7_ci_wait.py --ref HEAD
+```
+
+**成本**：每个子代理是一次完整模型会话。一次 5 轮运行约 30 个模型会话加 5 个 GPU 轮（约 25 GPU-h）；
+首次真实使用只跑 1 轮并留痕（决策 0044 第 4 条）。
+
 ## 检查点
 
 - **步骤 1 后**：七条 gate 能逐条写出结论吗？写不出就别并行。
@@ -106,6 +149,9 @@ description: 当要在一条长期 campaign 里同时推进多个互不依赖的
 - **把 workflow 脚本当通用加速**：脚本只解决控制流，不解决资源冲突与多重比较。
 - **只列子代理名而不实际调度**：触发条件命中就要真委派/真加载。
 - **并行当共享预算**：把两臂的时长记成一轮，掩盖真实成本。
+- **把 workflow 当守护进程**：它归当前进程所有，退出即 `interrupted`；无人值守的永久自迭代违反 0030/0038。
+- **把运行时值拼进 `world.run` 的 argv**：argv 必须是编译期字面量，动态值只能走盘上的 round-spec。
+- **靠 hook 兜底 workflow 子代理的安全**：子代理很可能不跑 hook，提交前必须自己跑 commit-guard。
 
 ## 完成判据
 
