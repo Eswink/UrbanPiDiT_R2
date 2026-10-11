@@ -2,11 +2,13 @@
 
 <!-- round-node: S3 -->
 
+<!-- round-spec: {"arm": "s3-reasoning-depth", "driver": "scripts/study_r7_s3_reasoning_depth.py", "output_stem": "r7_s3_reasoning_depth_20261009", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_reasoning_depth.py"], "commit_paths": ["docs/R7_S3_REASONING_DEPTH.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): register the S3 reasoning-depth K 4->8 single-factor arm", "code_archive": "outputs/r7_s3_reasoning_depth_code.zip"} -->
+
 状态 **未开始**（2026-10-10 交接，本轮自迭代契约的下一轮）。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接 `docs/goals/s3-wide-long-lead-weight.md`
 §9 的"下一动作"与主计划 §8 的最后一条"下一动作"。
 
-## §0 Objective（单段）
+## §0 Objective（单段，实测 999 字符）
 
 > 在 docs/goals/s3-reasoning-depth.md 接续S3/index70/48.2867GPU-h、2023test未评分r0、S4未启动。前三轮把宽输入支走完：输入 65×65→129×129 本身**没有**收益（全网格监督下 48/72h 三 seed 全负）；把监督域收回目标盒（`interior_32`）后收益出现但只到 48h（skill −0.16/−0.12/+0.01）；再把 updates 800→2400，**48h 首次三 seed 全正**（+0.06/+0.03/+0.11）而 72h 仍全负（−0.17/−0.28/−0.16）；最后把 48/72h 物理权重 0.5→1.0，**几乎无效**（72h 仅改善 ~0.02 K，仍三 seed 全负），预声明出口触发 → **宽输入支作为"长 lead 的解"关闭**。本轮回主线换一个**与输入区域无关**的可证伪假设：**72h 的残余误差是否由每次预报的推理深度不足主导**（12 步自回归里每一步只做 K=4 次内部推理）。单因素：在**已登记的最佳臂**（宽 129×129 输入 + `interior_32` 监督 + 2400 更新 + 注册物理权重 `(1,.5,0,.5,0,0,0,.5,0,0,0,.5)` + 迁移 v3-BD 1600 父 + seed 41/42/43）上，把 `reasoning_steps`/`steps` K 从 **4 提到 8**，其余全部逐字不变；对照是**已登记的 2400 剂量臂**（index `record:s3-wide-interior-dose`，pinned 复用、不重训练）与已登记窄臂。K 同时进入训练与推理，因此这是"每步更多内部推理"的单因素检验。读法：72h 三 seed 转正 → 提请独立验收；否则**关闭"靠训练配方解决 72h"这一支**，转模型容量/架构或数据方向，不再加 seed、不再调 K、不重复同一 test。本轮只报读数，**不宣布科学通过**、不称泛化/SOTA、不自行宣布最终goal完成。不paid/rental/exclusive/main/release/issueclose/force/mirror/破坏性/cron，不改科学合同/冻结证据/用户配置，不读 test。
 
