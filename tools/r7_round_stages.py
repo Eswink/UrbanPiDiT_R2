@@ -26,6 +26,11 @@ _spec = importlib.util.spec_from_file_location("r7_round_support", _SUPPORT_PATH
 support = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(support)
 
+_LIVENESS_PATH = Path(__file__).resolve().parent / "r7_round_liveness.py"
+_liveness_spec = importlib.util.spec_from_file_location("r7_round_liveness", _LIVENESS_PATH)
+liveness = importlib.util.module_from_spec(_liveness_spec)
+_liveness_spec.loader.exec_module(liveness)
+
 ROOT = support.ROOT
 PYTHON = support.PYTHON
 RoundError = support.RoundError
@@ -34,6 +39,8 @@ read_json = support.read_json
 sha256_file = support.sha256_file
 gpu_headroom = support.gpu_headroom
 next_attempt_dir = support.next_attempt_dir
+running_worker_pids = liveness.running_worker_pids
+measured_peak_bytes = liveness.measured_peak_bytes
 PROTECTED_BRANCHES = ("main", "master")
 
 #: stage name -> the file whose presence proves the stage finished
@@ -79,21 +86,37 @@ def stage_receipt(output: Path, phase: str, seed: int | None = None) -> Path:
     return Path(output) / STAGE_RECEIPTS[phase]
 
 
-def stage_plan(output: Path, phase: str, seed: int | None = None) -> dict[str, Any]:
+def stage_plan(
+    output: Path,
+    phase: str,
+    seed: int | None = None,
+    *,
+    driver_rel: str | None = None,
+) -> dict[str, Any]:
     """Decide whether a stage still has work to do.
 
     The driver itself never skips: every artifact is created exclusively, so re-running
     a finished stage fails loudly. This is the skip-if-done layer the orchestrator owes
     (decision 0044), and it is what lets a *fresh* run continue a half-done round.
+
+    A missing receipt is not enough to spawn: an interrupted orchestrator can leave its
+    worker running, so the plan also reports whether one is still alive. The liveness
+    scan needs the driver path; without it (``driver_rel is None``) the plan reports
+    only the receipt half and never claims the stage is idle.
     """
     receipt = stage_receipt(output, phase, seed)
     done = receipt.is_file()
+    live = []
+    if not done and driver_rel:
+        live = running_worker_pids(driver_rel, phase, output, seed)
     return {
         "phase": phase,
         "seed": seed,
         "receipt": str(receipt),
         "already_done": done,
         "receipt_sha256": sha256_file(receipt) if done else None,
+        "already_running": bool(live),
+        "running_pids": [item["pid"] for item in live],
         "skip": done,
     }
 
@@ -213,13 +236,21 @@ def run_stage(
     The deadline is taken from the frozen ``protocol.json``, never invented here: for a
     seed it is ``min(round_deadline, now + per_seed_seconds)``, which is what the worker
     validates. GPU stages are gated on a read-only headroom probe first.
+
+    A stage with no receipt but a **live worker** is refused, not re-run: after an
+    interruption the orphan keeps training, and a second worker on the same attempt
+    directory would fight it for the GPU and the output tree. Nothing here signals the
+    orphan — the caller waits for it, or the operator decides.
     """
     base = Path(root or ROOT)
     now = clock or time.perf_counter
     output = Path(output)
-    plan = stage_plan(output, phase, seed)
+    plan = stage_plan(output, phase, seed, driver_rel=driver_rel)
     if plan["skip"]:
         return {**plan, "status": "skipped", "passed": True}
+    if plan["already_running"]:
+        return {**plan, "status": "already-running", "passed": False,
+                "reason": "a worker for this stage is still running; wait for its receipt"}
     promote_prepared_protocol(output)
     body = protocol if protocol is not None else stage_protocol(output, phase)
     deadline = float(body["deadline_perf_counter"])
@@ -229,10 +260,14 @@ def run_stage(
         raise RoundError(f"the round's hard deadline has already passed; refusing to spawn {phase}")
     gate = None
     if phase in {"seed", "reading"}:
+        # The protocol's ``estimated_peak_bytes`` is a freeze-time guess; a finished
+        # seed's receipt carries what the run actually reserved. Gate on the larger of
+        # the two, so an already-measured footprint cannot be under-declared.
+        owned_peak = max(int(body.get("owned_reserved_peak_bytes", 0)), measured_peak_bytes(output))
         gate = gpu_headroom(
             body["gpu_uuid"],
             estimated_peak_bytes=int(body["estimated_peak_bytes"]),
-            owned_reserved_peak_bytes=int(body.get("owned_reserved_peak_bytes", 0)),
+            owned_reserved_peak_bytes=owned_peak,
             margin_bytes=int(body["headroom_margin_bytes"]),
             runner=runner,
         )

@@ -90,6 +90,41 @@
 冻结证据、index/brief、账本历史行；**不编辑另一个窗口 staged 的 K=8 驱动与测试**；不推 main、不 force、
 不 merge、不关 issue；不建 cron/守护/会话外续跑；不把 `report()` 或 CI 绿当科学结论。
 
+## 8. 打断恢复 SOP（2026-10-12 加固）
+
+一轮被打断后（workflow 被停/`interrupted`、server 重启、机器重启），按下面顺序走。**全程只读判断，
+工具链不向任何进程发送信号。**
+
+1. `tools/r7_round.py state` —— HEAD、账本、index、§8 末条「下一动作」。
+2. `tools/r7_round.py orphans` —— **只读**：哪些阶段还有存活 worker 及其 PID。空即无孤儿。
+3. `tools/r7_round.py stage-plan <phase> [<seed>]` —— 该阶段是已完成（receipt）、还是在跑
+   （`already_running`）。
+4. 决策：
+   - **已完成** → `stage` 自动跳过，什么都不用做；
+   - **在跑** → **等它跑完**（receipt 落盘后自动跳过）。`stage` 会返回
+     `status="already-running"` 而**拒绝**再 spawn 一个；这就是护栏，不要绕过它；
+   - **既无 receipt 也无 worker** → 该阶段确实失败了，可重跑；若 attempt 目录已被半成品污染，
+     新建 attempt（驱动无 resume）。
+5. 新 attempt：`reuse-plan <上一 attempt 目录>` 判定哪些 seed 可复用（白名单全等），按决策 0045
+   把已完成的 seed 子树复制进来并记 `reused_seeds`。
+6. `ResumeWorkflowRun` 续跑 workflow（已结算步骤从 journal 零 token 回放）。**`stop_reason=user`
+   的运行不擅自恢复**，只有用户明确要求才恢复。
+7. 降级路径：完全不依赖 workflow，手动按 `r7_round.py stage <phase>` 逐阶段推进，效果等价。
+
+**红线**：不向任何进程发送信号；不实现冻结/终止/抢占；不建常驻守护或 cron；不把编排搬出会话
+（决策 0044:15-16「禁会话外续跑」）；不删改任何记录/证据/index。若确需处置占卡的进程，
+**由机主本人在终端决定**，工具链不代劳、也不删痕迹。
+
+**两条实测教训（2026-10-12）**：
+
+- **停止 workflow 会 SIGKILL 在跑的 `world.run` 子进程**：实测 seed 42 收到 `exit_code=-9`、
+  `elapsed 1656.78 s`，该段 GPU 时间**全额计费**且产物不复活。⇒ **别在跑的时候停 workflow。**
+- **余量门曾低估 7 倍**：协议写 `estimated_peak_bytes=2**31`（2 GiB），实测 K=8 保留峰值
+  **13.55 GiB**（seed 41 回执 `owned_cuda_reserved_peak_bytes=14_552_137_728`）。现在 `run_stage`
+  取「协议值」与「同 attempt 内已完成 seed 的实测峰值」的较大者。**下一轮派生驱动时仍应按实测标定
+  `estimated_peak_bytes`**（K=4 **8.36 GiB**、K=8 **13.55 GiB**），不得沿用 `2**31`；
+  已登记轮次的驱动不改（R-006 与各轮 §5）。
+
 ## 实际结果
 
 - **已落盘**：ADR 0044/0045；`tools/r7_round_support.py`（确定性逻辑，全部函数可注入 runner）、

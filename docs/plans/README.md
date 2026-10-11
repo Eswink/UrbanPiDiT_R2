@@ -56,3 +56,4 @@
 | [0018](0018-parallel-research-workflow.md) | 并行科研能力改造与终极 goal 提示词（workflow 编排） | 新增 `parallel-research-workflow` 技能与决策 0042、刷新 §0 objective 至 3964 字符、机械同步 index63 账本；0新增GPU-h，无研究或提交推送 | 2026-10-08 |
 | [0019](0019-self-iterating-continuous-goal.md) | 自迭代连续 goal 提示词（含 workflow）：分析会话自停原因（DB 证据）并让目标自己一轮接一轮跑 | 文档与本地验证中；master §0 换自迭代 objective（实测 4000 字符）、新增自迭代契约/§5 CI 纪律/§8 交接块、goal-loop 补节、决策 0043；0 新增 GPU-h，无研究或提交推送 | 2026-10-09 |
 | [0020](0020-campaign-driver-workflow.md) | campaign 驱动 workflow：把「大型多轮自迭代编排」归档进仓库并写出支持代码 | 文档与支持代码交付中；ADR 0044/0045、`tools/r7_round*.py` + `tools/r7_ci_wait.py` + 90 例测试（4 个测试模块）、技能/AGENTS/master/索引同步；0 GPU-h，GPU 轮编排未端到端验证，无 workflow 运行 | 2026-10-11 |
+| [0021](0021-round-interruption-hardening.md) | 编排加固：打断后的孤儿 worker 护栏 | 已落地；`tools/r7_round_liveness.py`（只读 `/proc` 扫描）+ `run_stage` 拒绝重复 spawn + 余量门读实测峰值 + `orphans` 子命令 + 17 例反证；本地 87 passed / 37 阻断 0 失败 / 尺寸计数未变；R-009 基线同步 2103/5607；未推送未绑定 CI，0 GPU-h | 2026-10-12 |

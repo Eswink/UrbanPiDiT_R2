@@ -10,6 +10,7 @@ value comes from the round-spec block or the frozen ``protocol.json``.
     tools/r7_round.py round-guard
     tools/r7_round.py attempt
     tools/r7_round.py stage-plan <phase> [<seed>]
+    tools/r7_round.py orphans
     tools/r7_round.py freeze
     tools/r7_round.py stage <phase> [<seed>]
     tools/r7_round.py reuse-plan <previous_attempt_dir>
@@ -31,7 +32,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 TOOLS = Path(__file__).resolve().parent
-USAGE = ("usage: r7_round.py {state|verify|round-guard|attempt|stage-plan|freeze|stage|"
+USAGE = ("usage: r7_round.py {state|verify|round-guard|attempt|stage-plan|orphans|freeze|stage|"
          "reuse-plan|ledger-plan|commit-guard|commit-round|push-round}")
 
 
@@ -51,8 +52,17 @@ def load_stages() -> Any:
     return module
 
 
+def load_liveness() -> Any:
+    """Load the read-only stage-liveness module by path (tools/ is not a package)."""
+    spec = importlib.util.spec_from_file_location("r7_round_liveness", TOOLS / "r7_round_liveness.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 support = load_support()
 stages = load_stages()
+liveness = load_liveness()
 
 
 def current_goal() -> Path:
@@ -95,7 +105,24 @@ def attempt(rest: Sequence[str]) -> dict[str, Any]:
 def stage_plan(rest: Sequence[str]) -> dict[str, Any]:
     if len(rest) not in {1, 2}:
         raise support.RoundError("stage-plan needs <phase> [<seed>]")
-    return stages.stage_plan(current_attempt(), rest[0], _seed(rest))
+    spec = current_spec()
+    return stages.stage_plan(current_attempt(spec), rest[0], _seed(rest), driver_rel=spec["driver"])
+
+
+def orphans(rest: Sequence[str]) -> dict[str, Any]:
+    """``orphans`` — read-only: which stages still have a live worker.
+
+    The answer to "may I re-run this stage, or is an orphan still training?" after an
+    interruption. Never signals anything.
+    """
+    if rest:
+        raise support.RoundError("orphans takes no arguments")
+    spec = current_spec()
+    try:
+        attempt = current_attempt(spec)
+    except support.RoundError as exc:
+        return {"attempt_dir": None, "stages": [], "running": [], "reason": str(exc)}
+    return liveness.stage_liveness(spec, attempt)
 
 
 def freeze(rest: Sequence[str]) -> dict[str, Any]:
@@ -163,6 +190,7 @@ def dispatch(command: str, rest: Sequence[str]) -> dict[str, Any]:
         "round-guard": lambda: round_guard(rest),
         "attempt": lambda: attempt(rest),
         "stage-plan": lambda: stage_plan(rest),
+        "orphans": lambda: orphans(rest),
         "freeze": lambda: freeze(rest),
         "stage": lambda: stage(rest),
         "reuse-plan": lambda: reuse_plan(rest),

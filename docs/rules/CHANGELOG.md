@@ -2,6 +2,35 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-12 — 编排加固：打断后的孤儿 worker 护栏（计划 0021）
+
+2026-10-12 一次真实打断给出硬证据：**暂停 workflow 会 `SIGKILL` 在跑的 `world.run` 子进程**——
+seed 42 的 `seed42_process.json` 记 `exit_code=-9`、`elapsed_seconds=1656.78`，该段 GPU 时间全额计费。
+同时暴露第二个缺陷：恢复时会**重放 stage**，而 `run_stage` 在 spawn 前不写任何东西、`stage_plan`
+只看 receipt ⇒「孤儿仍在训练 + 恢复重放」会 spawn 出第二个 worker；余量门拦不住（协议写 2 GiB、
+实测需 13.55 GiB）。
+
+新增 `tools/r7_round_liveness.py`：**只读**扫 `/proc/<pid>/cmdline`，匹配 `run_stage` 自己拼的完整
+argv 形状（driver + `--worker <phase>` + `--out <attempt>` + `--seed <n>`），**不发任何信号**；
+`stage_plan` 报 `already_running`/`running_pids`，`run_stage` 在 receipt 缺失但 worker 存活时返回
+`status="already-running"` 并**拒绝 spawn**；余量门改取「协议值」与「同 attempt 内已完成 seed 的
+实测峰值」的较大者；`tools/r7_round.py` 增只读子命令 `orphans`。恢复 SOP 与两条实测教训写进
+计划 0020 §8。
+
+设计取舍：探测用 `/proc` 扫描而非 PID claim（孤儿恰是编排器死后的形态，且扫描完全只读）；
+存活逻辑**拆成独立模块**，因为 `run_stage` 已用满 R-023 的 8 参数预算（上一轮专门降过）且
+`r7_round_support.py` 会越过 R-021 的 400 行目标——拆开后 R-021/R-023 **均保持原值**；
+`PROC_ROOT` 做成模块属性而非第 9 个参数；只拒绝、不等待（常驻轮询被 R-054 禁止）。
+
+**R-009 基线同步**：按 `docs/rules/testing.md:12` 的明文要求（「有意增删测试时应同步更新」），
+`TEST_FUNCTION_BASELINE`/`ASSERT_BASELINE` 由 1912/5116 更新为实测 **2103/5607**，并同步
+`docs/rules/testing.md` 与 `docs/rules/MIGRATION.md` 引用的数字（两处由
+`tests/test_check_conventions.py` 直接对 checker 常量断言，改一处漏一处会变红）。
+
+验证：四模块 **87 passed**；`check_conventions.py --quiet` **37 条阻断 0 失败**；自测 **120 passed**；
+尺寸计数与改动前一致。**未推送、未绑定 CI**（计划 0021 §6 只授权提交到工作分支）；不改已登记
+轮次的驱动（`estimated_peak_bytes` 的标定是下一轮派生驱动时的动作）。
+
 ## 2026-10-11 — campaign 驱动 workflow：归档与支持代码（决策 0044 / 0045 / 计划 0020）
 
 用户问「用 workflow 能不能搞一个特别大型的、让目标循环自迭代」。调研后确认**可表达但有界**：动态
