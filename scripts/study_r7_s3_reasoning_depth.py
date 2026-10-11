@@ -41,6 +41,7 @@ FORMAT = "r7-s3-reasoning-depth-protocol-v1"
 UPDATES = 2400
 STEPS = 8            # K: internal reasoning steps bound into the training contract/signature
 REASONING_STEPS = 8  # K: internal reasoning steps used by the scoring rollout
+SEEDS = wide.SEEDS   # the round driver contract requires the driver to expose SEEDS
 PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 18000., 54000., 72000.
 DEFAULT_OUT = ROOT / "outputs/r7_s3_reasoning_depth_20261009_attempt01"
 PREVIOUS_DOSE_ARM_RUN = ROOT / "outputs/r7_s3_wide_interior_dose_20261009_attempt02"

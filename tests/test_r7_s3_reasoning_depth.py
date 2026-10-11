@@ -354,3 +354,17 @@ def test_driver_refuses_before_touching_the_store(tmp_path, monkeypatch):
     with pytest.raises(FileNotFoundError):
         depth.main(["--out", str(out)])
     assert not out.exists()
+
+
+def test_driver_exposes_the_round_driver_contract_names():
+    """The campaign round wrapper refuses a driver missing these; keep them exposed.
+
+    ``tools/r7_round_stages.py`` requires ``freeze``, ``SEEDS``, ``PER_SEED_SECONDS``,
+    ``PLANNED_SECONDS`` and ``HARD_CAP_SECONDS`` at module level, so a driver that only
+    references ``wide.SEEDS`` inside functions freezes with a RoundError instead of
+    running. This is the counterproof that the names stay exported.
+    """
+    for name in ("freeze", "SEEDS", "PER_SEED_SECONDS", "PLANNED_SECONDS", "HARD_CAP_SECONDS"):
+        assert hasattr(depth, name), name
+    assert tuple(depth.SEEDS) == (41, 42, 43)
+    assert tuple(depth.SEEDS) == tuple(wide.SEEDS)
