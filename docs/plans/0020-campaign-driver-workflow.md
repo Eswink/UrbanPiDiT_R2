@@ -111,7 +111,11 @@
   使本轮新增文件对这些计数贡献为 0（不动 `docs/rules/size-thresholds.md`，那是另一个窗口的工作树改动）；
   ④ 独立只读审阅报 2 条必修：草稿 workflow 的 `world.run` 命令名用了运行时变量（违反 facade 的
   编译期字面量规则）→ 改为逐个 stage 展开的 7 次字面量调用；本计划的测试数与交付物表陈旧 → 已改。
-- **未跑**：全量 suite、wheel、远端 CI；**GPU 轮编排未端到端验证**（本轮不开 GPU），故首次真实使用
+- **CI（精确）**：内容提交 `795bb5e` 的主 CI `38123579554` **completed/failure**——唯一红点
+  `test_size_report_counts_match_the_checker`（新文件推高四个**报告型**尺寸计数而冻结 marker 未变）；
+  该失败不回改、不追认。修复提交 `f1a218d` 的主 CI `38124858453` **completed/success**，全部必要步骤成功；
+  17 条标签门控实验 workflow 显示 skipped 是设计行为。
+- **未跑**：全量 suite、wheel；**GPU 轮编排未端到端验证**（本轮不开 GPU），故首次真实使用
   必须留痕验证（决策 0044 第 4 条）。
 - **影响**：新增治理层工具与测试、2 份 ADR、1 份计划、1 份草稿脚本、技能/AGENTS/master 与 3 处索引；
   公开接口、默认参数、模型 digest、数据与结果、依赖均无改动。

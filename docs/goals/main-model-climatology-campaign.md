@@ -880,6 +880,15 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   `.zcode/workflow-runs/dwfrun-0f324485-a59c-468e-866a-34d7bcdbfda3.mjs`（该轮做的是 K=8 驱动的实现与
   独立复核，未开 GPU、未登记）；决策 0042 与本仓技能都要求首次真实使用留痕，本条即为该留痕。
   本轮 **0 GPU-h、0 test 读取、r=0**，不新增 index record 与账本行（无实验机器核数，按 §7 处理）。
+  **验证与 CI（精确）**：本机 37 条阻断规则 0 失败；`check_campaign_state`（默认旧 master 与显式新）0 失败；
+  `check_goal_brief` 0 失败；证据索引 70 条与 brief 逐字节一致；新测试模块 90 例全通过（另跑
+  `test_check_conventions` 120、`test_check_campaign_state` 60、`test_check_goal_brief` 19、
+  `test_verify_r7_evidence_index` 14、`test_agent_hooks` 196 全通过）。内容提交 `795bb5e` 的主 CI
+  **`38123579554` completed/failure**（唯一红点 = `test_size_report_counts_match_the_checker`：我的新文件把
+  R-019/R-019b/R-021/R-023 四个**报告型**计数推高而冻结 marker 未变；该失败**不回改、不追认**）；
+  修复提交 `f1a218d`（折长行、拆出 `tests/test_r7_round_reuse.py`、`run_stage` 参数降到 8 个，使本轮新增
+  文件对这些计数贡献为 0，且**不动** `docs/rules/size-thresholds.md`——那是另一窗口的工作树改动）的主 CI
+  **`38124858453` completed/success**，全部必要步骤成功；17 条标签门控实验 workflow 显示 skipped 是设计行为。
   **未验证项**：`freeze`/`stage` 的 GPU 轮编排**没有端到端跑过**（本轮不开 GPU），故决策 0044 第 4 条要求
   首次真实使用必须留痕验证。**下一动作（S3）**：不变——**推理深度 K 4→8** 单因素臂（对照已登记的 2400
   剂量臂 pinned 复用），预声明出口：72 h 三 seed 转正 → 提请独立验收；否则关闭「靠训练配方解决 72 h」
