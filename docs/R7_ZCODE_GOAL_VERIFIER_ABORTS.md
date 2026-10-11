@@ -208,6 +208,8 @@
 
 1. **goal 轮次不要用 `cline-pass/…` 路由作为会话模型**——校验跟随会话的模型选择，该路由上
    **0/10 失败**（§2.4；09-28 起 `new-provider` 与 `new-provider-4` 都指向 cline.bot 网关）。
+   **（2026-10-12 更新）**：打了 §4b 的本地补丁后，本路由的校验已改走流式回退、异常也不再 fail-open，
+   故本条的"不要用"降级为**未打补丁时**的规避；补丁被客户端更新覆盖后仍按本条执行。
    改用**无 `cline-pass/` 前缀**的路由：`deepseek-v4.1-flash`（14/14）、`gpt-6.1-sol`（28/35，
    失败为 600 s 悬挂）、`GLM-5.3-Flash`（6/6）。开工前先看一眼这张表，或按同一 `query_source`
    复核最近一条是否 `completed`。
@@ -277,6 +279,70 @@
    （`{...}` 处保持原样：`abortSignal:e.abortSignal,messages:e.messages,options:{maxOutputTokens:e.model.optionSpecs.maxOutputTokens.max},tools:[]`）；
 3. `node --check <产物>`；确认字节差只有一处；
 4. 重启服务进程后按计划 0005 的冒烟步骤验证。
+
+## 4b. 本地客户端补丁二（2026-10-12）：校验改流式回退 + 校验异常不再 fail-open
+
+**成因（本轮新证据，比 §2.4 更精确）**：`cline-pass/…` 路由的**非流式**请求会失败。直连实测
+`POST https://api.cline.bot/api/v1/chat/completions`（2026-10-12，R-050 留痕；上游
+`vmc/deepseek-v4p1-flash-contributor-fallbacks`）：`stream:false` → `HTTP 500 {"error":"empty response content","success":false}`
+（小 payload 0/8、大 payload ≈90K token 0/4，**偶发 200**，故为"偶发成功、近乎必失败"）；
+`stream:true` → HTTP 200 正常。`POST /responses` → **404**，故**无配置层修法**。
+
+客户端把 `goal_completion_verification`（`Jka`）与 `session_title_generation`（`nka`）**硬编码为
+`generateText`（非流式）**，而 `main_turn` 走 `streamText`；全库无配置键可改。故这两个调用在该路由上
+近乎必失败；校验失败后走 fail-open（`FPe` → `{passed:true}`）→ 目标被标 `complete` → 循环停止。
+
+**真实生效文件（本轮更正 §4 的前提）**：`/opt/ZCode/resources/glm/zcode.cjs`
+（官方 .deb 装的 Electron 应用 3.14.5-7961，安装根 `/opt/ZCode`，属 **root:root**）。
+实测证据：v2 运行时日志的 spawn 参数 `args:["/opt/ZCode/resources/glm/zcode.cjs","app-server","--stdio","--surface","desktop"]`。
+`~/.zcode/server/agents/glm/zcode.cjs` 与之**逐字节相同**，但本地 host **不加载**它（供 remote/WSL/SSH 后端用）
+——**2026-09-30 那次补丁打的就是这份没被加载的文件**，其"已被真实运行时加载"的结论只对当时的部署形态成立。
+
+| 项 | 值 |
+| --- | --- |
+| 改前 sha256 | `fad4c35c4c36ec210d8a06d3fa0e77de23c8545e2eb6ff90aea1eb38d1e6275f`（14,820,968 B） |
+| 改后 sha256 | `65ed228ea0639bbef4967d3a3aaa2f46a945d7eb3e72945d5afab7b42c21d29b`（14,821,365 B，+397 B） |
+| 备份 | `~/.zcode/backups/zcode.cjs.20261012-before-local-patch` |
+| 改动点 | 5 处（每处旧串在原产物中出现且仅出现 1 次） |
+
+改动明细：
+
+1. **B1 校验改流式回退**（`Jka`，原字节 ≈12,863,811）：把 `jy(o,()=>e.model.generateText({…}))` 改为
+   `jy(o,async()=>{try{return await e.model.generateText({…})}catch(p0){/*LOCAL PATCH 2026-10-12*/return await MPo({logger:this.logger,model:e.model,request:{…,messages:e.messages,tools:[],abortSignal:e.abortSignal,maxOutputTokens:…}})}})`。
+   `MPo` 是产物里**既有的顶层函数**（compact 路径用）：流式调用 `N1a` → 累积（`z1a`/`D1a`）→ 产出与
+   `generateText` 同形的 `{finishReason,providerMetadata,text,toolCalls,usage}`（`F1a`），且流式失败时
+   自带回落 `generateText`。**正常路径不回归**：`generateText` 成功时**不会**调 `MPo`。
+2. **B2 校验异常不再 fail-open**（3 处 `FPe(` → `LPe(`）：① 请求失败（`Hka` catch）；
+   ② 校验器返回非法 JSON（`NPe`）；③ 校验器去调工具。改后**只有明确 `passed:true`** 才会把目标标 `complete`。
+   **代价（如实）**：若校验持续无法给出有效判定，目标将**不会自动完成**，需人工停/结项——
+   这是刻意取舍，对齐决策 0043「不等 verifier」。
+3. **B3 标题同 B1**（`nka`，原字节 ≈12,793,164）。
+
+**已做的验证**：
+
+1. **唯一性**：5 处旧串各出现 1 次；改后旧串各 0 次、新串各 1 次；`FPe(` 只剩定义 1 处。
+2. **逆向还原**：把 5 处补丁串逆替换回去，结果**逐字节等于原文件** ⇒ 差异只落在预期区域。
+3. **语法**：`node --check`（`~/.zcode/server/node` v22.16.0）对原文件与补丁文件均通过。
+4. **同构语义实跑**（`~/.zcode/backups/verify-verifier-fallback.mjs`，B1 表达式从补丁产物**逐字提取**，
+   stub `jy`/`MPo`/`e`/`o`）：
+
+   | 情形 | 结果 |
+   | --- | --- |
+   | `generateText` 正常 | 原样返回 `NONSTREAM`；`MPo` **未被调用**（不回归） |
+   | `generateText` 抛错 | 调 `MPo` → 返回 `STREAMED`（流式回退生效） |
+   | 两者都失败 | 表达式**拒绝** ⇒ 交给 `Hka` catch ⇒ B2 的 `LPe`（不再标完成） |
+   | `LPe` 语义 | `{passed:false,reason:"x"}` |
+
+**未做**：真实 goal 轮末的端到端冒烟（需重启该工作区运行时后由 UI 跑一轮，步骤见 §5）。
+
+**回滚**：`sudo cp ~/.zcode/backups/zcode.cjs.20261012-before-local-patch /opt/ZCode/resources/glm/zcode.cjs`
+并同步 `~/.zcode/server/agents/glm/zcode.cjs` → 重启该工作区的 `zcode-cli`。
+
+**重启方式（最小打断）**：`zcode-cli` 由 `zcode-host-local-1` 按 `workspaceKey` 派生；杀对应 cli 后
+host 秒级重拉。**不要**杀 Electron 主进程（无守护、不会自动回来）。改 bundle 后**必须**让对应 cli 重新
+spawn 才生效（全库无热加载）。`setsid nohup` 脱离的实验（PPid=1）不受影响。
+
+**生命周期**：`/opt/ZCode` 由 .deb 管理，`apt upgrade zcode` 会覆盖补丁；重放按上面「改动明细」1–3 逐条做。
 
 ## 5. 端到端冒烟步骤（补丁生效后待做）
 

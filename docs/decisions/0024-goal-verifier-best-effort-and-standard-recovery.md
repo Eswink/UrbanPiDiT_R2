@@ -44,6 +44,11 @@ UI 停在「第 1 次迭代 · 目标校验中」，会话新输入被排队，�
    与 10 分钟定时器的 `Promise.race`，使「永不返回」变成一个普通错误、走既有 `failed_closed` 路径。
    它是**仓库外的本地改动**，不进版本控制、客户端更新即失效；位置、覆盖范围与重放步骤记在
    `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §4 与 `docs/plans/0005-zcode-goal-verifier-hang.md`。
+   **（2026-10-12 补丁二）**：该超时补丁已被 2026-10-08 的客户端更新覆盖；同日新打**补丁二**——
+   真实生效文件更正为 `/opt/ZCode/resources/glm/zcode.cjs`（.deb 装的 Electron 应用，root:root），
+   把校验调用改为「非流式失败则回退流式累积」（复用产物内既有的顶层 `MPo`），并把 3 处 fail-open
+   （`FPe`）改为 fail-closed（`LPe`）。它同样是**仓库外的本地改动**、`apt upgrade zcode` 会覆盖；
+   明细、验证与回滚见 `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §4b。
 
 ## Consequences
 

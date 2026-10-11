@@ -2,6 +2,23 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-12 — goal 完成校验：非流式路径根因定位与本地补丁二
+
+直连实测（R-050）确认 `cline-pass/…` 路由（`https://api.cline.bot/api/v1`）的**非流式**请求返回
+`HTTP 500 {"error":"empty response content","success":false}`（`stream:true` 正常；`/responses` **404**，
+故无配置层修法）。客户端把 `goal_completion_verification` 与 `session_title_generation` **硬编码为
+`generateText`（非流式）**，而 `main_turn` 走 `streamText` ⇒ 校验近乎必失败 ⇒ fail-open 把目标标
+`complete` ⇒ 循环停止。
+
+**更正生效路径**：真实被加载的是 `/opt/ZCode/resources/glm/zcode.cjs`（v2 运行时日志的 spawn 参数为证），
+而非 2026-09-30 补丁打的 `~/.zcode/server/agents/glm/zcode.cjs`（两者逐字节相同，但本地 host 不加载后者）。
+
+**本地补丁二**（5 处唯一串替换；改前 `fad4c35c…` 14,820,968 B → 改后 `65ed228e…` 14,821,365 B）：
+① 校验调用改「非流式失败则回退流式累积」（复用产物内既有的顶层 `MPo`）；② 3 处 fail-open（`FPe(`）
+改 fail-closed（`LPe(`），改后只有明确 `passed:true` 才标完成；③ 标题同 ①。
+验证：唯一性、**逆向还原逐字节等于原文件**、`node --check` 通过、同构语义实跑通过（`verify-verifier-fallback.mjs`）。
+明细、回滚与重放见 `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §4b；决策记录见 0024 §5。
+
 ## 2026-10-12 — 编排加固：打断后的孤儿 worker 护栏（计划 0021）
 
 2026-10-12 一次真实打断给出硬证据：**暂停 workflow 会 `SIGKILL` 在跑的 `world.run` 子进程**——
