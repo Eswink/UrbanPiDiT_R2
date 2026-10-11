@@ -15,6 +15,12 @@
 两条共同点：都发生在**回合结束之后**的那一次独立模型调用上（非流式、`tools: []`、携带整段对话），
 都不是主回合、不是工具、也不是本仓产物。**不要把它们当判据失败**——目标的完成判定与它们无关。
 
+**共同后果（2026-10-11 在 receipt 级确认）**：校验调用失败会被客户端 **fail-open** 处理 ——
+`session_entry` 记 `payload.status='failed_closed'` 却 `verification.passed=true`，于是
+`session_target.status` 被置为 **`complete`**，**目标循环就此停止**。这就是「用当前模型跑 goal 迭代
+会失败」的直接机理：不是判据没过，而是校验调用发不出去、目标被提前标完成。触发条件是**模型路由**：
+`cline-pass/…` 上 0/10 失败，无前缀路由 49/53 成功（§2.4）。
+
 ---
 
 ## 1. 形态一：校验调用被 provider 判为非 JSON 而中止（2026-09-28 定位）
@@ -47,11 +53,13 @@
 `deriveForkedGoalStatusFromCopiedVerifications` 等符号，说明「校验失败 → fail-open → 把 goal
 分叉/恢复到新会话」是**设计路径**；异常终止的是**被中断的那次会话本体**。
 
-**2026-09-30 更新（来自形态二的取证）**：把 `model_usage` 里全部 26 次校验调用按 provider 分组后
-（见 §2.4），同一模型名 `deepseek-v4.1-flash` 在另一条路由（`new-provider`）上 **14/14 成功**，
-其中包含 **468,442 / 510,730 / 532,730 输入 token** 的请求。因此「请求体积越限」只能作为
-**该路由**（`new-provider-4` = `https://api.cline.bot/api/v1`）的解释，不能当作普遍规律；
-形态一的四条 `error` 行（17.1 / 23.8 / 44.1 / 46.9 秒，`input_tokens=0`）就是这一族失败。
+**2026-09-30 更新（来自形态二的取证；2026-10-11 修正路由归因）**：把 `model_usage` 里全部校验调用
+按路由分组后（见 §2.4），同一模型名 `deepseek-v4.1-flash` 在**无 `cline-pass/` 前缀**的路由上
+**14/14 成功**，其中包含 **468,442 / 510,730 / 532,730 输入 token** 的请求。因此「请求体积越限」
+只能作为 **`cline-pass/…` 这条路由**（cline.bot 网关 `https://api.cline.bot/api/v1`）的解释，
+不能当作普遍规律；形态一的四条 `error` 行（17.1 / 23.8 / 44.1 / 46.9 秒，`input_tokens=0`）就是这一族失败。
+（旧版把成因记成 provider `new-provider-4`；10-11 的刷新显示 09-28 起 `new-provider` 也走同一网关，
+其上 `cline-pass/deepseek-v4.1-flash` 同样 0/3 ⇒ 判别量是**路由**而非 provider 行。）
 
 ### 1.3 结论（事实与推断分开写）
 
@@ -61,7 +69,7 @@
 **推断**（未取得 provider 的原始响应正文，故标为推断）：请求体量越过了该路由的实际上限
 （512K 配置窗口按 3–4 字节/token 估算约合 330–440K token，加上输出预留与网关侧请求体上限即可能被拒），
 上游返回错误页/截断体，SDK 无法解析为 JSON → `AI_APICallError`；SDK 的重试没有改变结果。
-**该推断只对 `new-provider-4` 这条路由成立**（同族请求在 `new-provider` 上按 §2.4 成功）。
+**该推断只对 `cline-pass/…` 这条路由成立**（同族请求在**无前缀**路由上按 §2.4 成功；10-11 刷新见 §2.4）。
 
 **推断的修复位置**（不在本仓库）：完成校验器应当像普通回合一样只发 **tail 窗口**或摘要，
 而不是整段对话；日志里同时存在 tail 表示说明客户端**已有**裁剪机制，只是这条路没用上。
@@ -120,22 +128,39 @@
 结论：provider 不返回 ⇒ 调用既不完成也不报错 ⇒ `goal.status` 停在 `"verifying"`，
 直到用户中止（或进程重启）。**这条路径没有自我恢复能力。**
 
-### 2.4 决定性对照：全部 26 次校验调用按 provider 分组
+### 2.4 决定性对照：全部 66 次校验调用按路由分组
 
-来源 `~/.zcode/cli/db/db.sqlite` 的 `model_usage` 表，`query_source='target_completion_verification'` 全量：
+来源 `~/.zcode/cli/db/db.sqlite` 的 `model_usage` 表，`query_source='target_completion_verification'` 全量
+（**2026-10-11 刷新**；此前版本记的是 09-30 时的 26 次快照）：
 
-| provider | 模型 | 行数 | 结果 | 时长 | 输入 token |
+| provider | 模型（路由） | 行数 | 结果 | 时长 | 输入 token |
 | --- | --- | --- | --- | --- | --- |
 | `new-provider` | `deepseek-v4.1-flash` | 14 | completed × 14 | 11.6 – 47.4 s | 最大 **532,730** |
 | `account:zai-start-plan` | `GLM-5.3-Flash` | 6 | completed × 6（1 次 `server_error` 后重试 1 次仍成功） | 25.7 – 123.8 s | 最大 303,477 |
-| `new-provider-4` | `cline-pass/deepseek-v4.1-flash` | 6 | **completed × 0**：`error` × 4（17.1 / 23.8 / 44.1 / 46.9 s，`input_tokens=0`）+ `cancelled` × 2（1436.6 s / 1773.0 s，均 `cancelled_by_user=1`） | — | 0 |
+| `new-provider-7` | `gpt-6.1-sol` | 35 | completed × 28；`error` × 5（**均 ≈600.0 s**，即形态二悬挂）；`cancelled` × 2 | 27.9 – 81.3 s | 最大 239,610 |
+| `405080c0-…` | `deepseek/deepseek-v4.1-flash` | 1 | completed × 1 | 45.9 s | 120,109 |
+| `new-provider-4` | **`cline-pass/deepseek-v4.1-flash`** | 7 | **completed × 0**：`error` × 5（17.1 / 23.8 / 44.1 / 46.9 / 21.8 s，`input_tokens=0`）+ `cancelled` × 2（1436.6 s / 1773.0 s，均 `cancelled_by_user=1`） | — | 0 |
+| `new-provider` | **`cline-pass/deepseek-v4.1-flash`** | 3 | **completed × 0**：`error` × 3（31.2 / 20.6 / 11.8 s，`input_tokens=0`） | — | 0 |
 
-时间范围（本地）：`new-provider` 09-24 20:38 → 09-28 01:18；`account:zai-start-plan` 09-25 16:23 → 09-26 07:53；
-`new-provider-4` **09-28 04:35 → 09-30 00:02**。
+时间范围（本地）：`new-provider`/`deepseek-v4.1-flash` 09-24 20:38 → **09-28 01:18**；
+`account:zai-start-plan` 09-25 16:23 → 09-26 07:53；`new-provider-4`/`cline-pass` 09-28 04:35 → 10-08 22:53；
+`new-provider`/`cline-pass` **10-09 07:15 → 10-11 17:38**；`gpt-6.1-sol` 09-30 18:10 → 10-03 15:17。
 
-**读法**：切到 `new-provider-4` 之后，校验调用 **6/6 未成功**（4 次快速失败 + 2 次悬挂到用户中止）；
-在此之前的两条路由 **20/20 成功**，且成功的请求里包含 46.8 万–53.3 万输入 token 的大请求。
-所以失败**不与请求体积相关**，而与**路由**相关（单机、单账户证据，不是普遍结论）。
+**读法（2026-10-11 修正）**：判别量是**模型路由 `cline-pass/…`**，**不是 provider 行**——
+同一个 `cline-pass/deepseek-v4.1-flash` 在 `new-provider-4` 上 0/7，在 `new-provider` 上 0/3；
+而同名的 `deepseek-v4.1-flash`（**无** `cline-pass/` 前缀）在 `new-provider` 上 14/14。
+旧版把成因记成「provider `new-provider-4`」是**按当时的行分布误判**：14 次成功全部发生在
+**09-28 之前**，此后 `new-provider` 的 `baseUrl` 已指向 `https://api.cline.bot/api/v1`（即 cline-pass 网关），
+该路由上的校验调用 **0/10 未成功**。成功的请求里包含 46.8 万–53.3 万输入 token 的大请求，
+而失败的 8 次 `input_tokens=0`（网关未回 usage 即失败）；且 10-11 一次**仅 150 万 token 的小目标会话**
+（`sess_e24eacc9`）同样失败 ⇒ 失败**不与请求体积相关**，而与**路由**相关（单机、单账户证据，不是普遍结论）。
+
+**fail-open 链条（2026-10-11 在 receipt 级确认）**：上述 cline-pass 失败的 `session_entry`
+（`type='target_completion_verification'`）**全部**为 `payload.status='failed_closed'` 而
+`verification.passed=true`，对应 `session_target.status='complete'`（例：`sess_e24eacc9` 1.50 M token、
+`sess_42793a72` 85.15 M、`sess_1d199296` 69.06 M、`sess_8fe80f41` 92.21 M）。
+即：**校验调用失败 ⇒ 目标被标 `complete` ⇒ 目标循环停止**，这正是「用当前模型跑 goal 迭代会失败」的机理。
+`gpt-6.1-sol` 的 5 次失败是**另一种形态**（均 ≈600 s 悬挂，非快速失败），但同样 fail-open。
 
 ### 2.5 已排除（都不是本次卡住的原因）
 
@@ -181,8 +206,11 @@
 
 ## 3. 规避（本仓库可执行）
 
-1. **goal 轮次不要用 `new-provider-4`（cline-pass 路由）作为会话模型**——校验跟随会话的模型选择，
-   该路由上 6/6 失败（§2.4）。开工前先看一眼这张表，或按同一 `query_source` 复核最近一条是否 `completed`。
+1. **goal 轮次不要用 `cline-pass/…` 路由作为会话模型**——校验跟随会话的模型选择，该路由上
+   **0/10 失败**（§2.4；09-28 起 `new-provider` 与 `new-provider-4` 都指向 cline.bot 网关）。
+   改用**无 `cline-pass/` 前缀**的路由：`deepseek-v4.1-flash`（14/14）、`gpt-6.1-sol`（28/35，
+   失败为 600 s 悬挂）、`GLM-5.3-Flash`（6/6）。开工前先看一眼这张表，或按同一 `query_source`
+   复核最近一条是否 `completed`。
 2. **一个 goal 会话只跑一轮**，轮次结束就把结论落进证据文档与目标源的 §8 进度块；
    goal-loop 技能的「四态状态机 + 进度块」正是为此。
 3. **让会话保持有界**：单条命令的输出尽量短（日志里 154 KB 是正常回合的量级，1.32 MB 是校验器的量级）；

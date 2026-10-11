@@ -16,6 +16,13 @@ UI 停在「第 1 次迭代 · 目标校验中」，会话新输入被排队，�
 而 `new-provider`、`account:zai-start-plan` 两条路由 **20/20 成功**（含 53 万输入 token 的大请求）
 ⇒ 失败与请求体积无关、与所选路由相关。
 
+> **2026-10-11 修正（路由归因，E-201 追加取证）**：刷新到全量 **66 次**后，判别量是
+> **模型路由 `cline-pass/…`**，**不是 provider 行**——同一个 `cline-pass/deepseek-v4.1-flash`
+> 在 `new-provider-4` 上 0/7、在 `new-provider` 上 0/3；而**无前缀**的 `deepseek-v4.1-flash`
+> 在 `new-provider` 上 14/14（14 次成功全部发生在 09-28 之前）。另在 receipt 级确认
+> **fail-open 后果**：失败 ⇒ `payload.status='failed_closed'` 却 `verification.passed=true` ⇒
+> `session_target.status='complete'`，**目标循环停止**。下表 §2.4 已刷新，操作规避按第 4 条读。
+
 用户（2026-09-30）在权衡「仓库侧记录 + 本地客户端超时补丁 + 操作性规避」与「长轮次改手工循环」
 之后，选择**保留 harness 驱动**，并要求把恢复动作标准化。本决策把这两件事写定。
 
@@ -30,8 +37,9 @@ UI 停在「第 1 次迭代 · 目标校验中」，会话新输入被排队，�
      在会话内**暂停/停止**，并按三处判据核验终态（`session_target.status`、最新
      `session_entry.payload.status`、`model_usage` 无 `running` 行）；
    - **不 resume 了事**：同一路由上会再次失败/挂起；要续跑先换路由（见第 4 条）。
-4. **操作性规避（开工检查）**：goal 轮次的会话模型不要选 `new-provider-4`（cline-pass 路由）；
-   开工前用只读查询复核该 provider 最近一次校验是否 `completed`。
+4. **操作性规避（开工检查）**：goal 轮次的会话模型不要选 **`cline-pass/…` 路由**（cline.bot 网关；
+   2026-10-11 修正：09-28 起 `new-provider` 与已废弃的 `new-provider-4` 都指向它）；
+   开工前用只读查询复核**当前会话模型所属路由**的最近一次校验是否 `completed`。
 5. **客户端超时补丁**：在 `~/.zcode/server/agents/glm/zcode.cjs` 上做**本地**补丁，把校验调用包成
    与 10 分钟定时器的 `Promise.race`，使「永不返回」变成一个普通错误、走既有 `failed_closed` 路径。
    它是**仓库外的本地改动**，不进版本控制、客户端更新即失效；位置、覆盖范围与重放步骤记在

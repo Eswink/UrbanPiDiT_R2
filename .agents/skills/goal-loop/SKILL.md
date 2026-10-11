@@ -41,8 +41,10 @@ description: 当要撰写/维护 goal 模式的目标长文与 objective，或 h
 6. **开工前看一眼校验路线**（只影响「自动校验能否收尾」，不影响本轮工作本身）：校验跟随会话的
    **模型选择**，是一条**非流式**调用、在客户端**没有超时**。用只读查询复核当前 provider 的最近一条
    校验是否成功（`~/.zcode/cli/db/db.sqlite`，`query_source='target_completion_verification'`）；
-   已知 `new-provider-4`（cline-pass 路由）在该表里 6/6 未成功，分布见
-   `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §2.4。收尾纪律见下节的两种形态处置。
+   已知 **`cline-pass/…` 路由**（cline.bot 网关；2026-10-11 刷新：09-28 起 `new-provider` 与
+   已废弃的 `new-provider-4` 都指向它）在该表里 **0/10 未成功**，而无前缀路由 49/53 成功，分布见
+   `docs/R7_ZCODE_GOAL_VERIFIER_ABORTS.md` §2.4。**判别量是模型路由，不是 provider 行**。
+   收尾纪律见下节的两种形态处置。
 7. **若本目标属于一个 campaign**：先核本方向唯一主计划的当前节点、对表、授权与科学合同。
    旧V2用 `docs/goals/main-model-v2-campaign.md` 与默认检查；主模型超气候态用
    `docs/goals/main-model-climatology-campaign.md`（0038），必须显式检查本master，不借旧绿灯：
