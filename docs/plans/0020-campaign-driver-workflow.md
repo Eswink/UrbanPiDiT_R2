@@ -115,7 +115,12 @@
   `test_size_report_counts_match_the_checker`（新文件推高四个**报告型**尺寸计数而冻结 marker 未变）；
   该失败不回改、不追认。修复提交 `f1a218d` 的主 CI `38124858453` **completed/success**，全部必要步骤成功；
   17 条标签门控实验 workflow 显示 skipped 是设计行为。
-- **未跑**：全量 suite、wheel；**GPU 轮编排未端到端验证**（本轮不开 GPU），故首次真实使用
+- **workflow 脚本编译校验（实测）**：用 `CreateWorkflow` + `path` + `args:{maxRounds:0}` 做零副作用
+  校验——循环体不执行，只走编译与 artifact 发布。**首次即报 `invalid_metadata: Unrecognized key(s):
+  'name', 'scope'`**（文件级块只接受 `description`/`whenToUse`/`args`，`name`/`scope` 是 `SaveWorkflow`
+  的调用字段）→ 删掉这两个键后**编译通过**，运行 `dwfrun-2e191fe7-35cf-4b0e-a24f-9490b0ada9b2`。
+  这条已写进 `parallel-research-workflow` 技能。
+- **未跑**：全量 suite、wheel；**GPU 轮编排未端到端验证**（本轮不开 GPU，只做了零轮编译校验），故首次真实使用
   必须留痕验证（决策 0044 第 4 条）。
 - **影响**：新增治理层工具与测试、2 份 ADR、1 份计划、1 份草稿脚本、技能/AGENTS/master 与 3 处索引；
   公开接口、默认参数、模型 digest、数据与结果、依赖均无改动。

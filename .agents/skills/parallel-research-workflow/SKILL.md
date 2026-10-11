@@ -134,6 +134,16 @@ description: 当要在一条长期 campaign 里同时推进多个互不依赖的
 **成本**：每个子代理是一次完整模型会话。一次 5 轮运行约 30 个模型会话加 5 个 GPU 轮（约 25 GPU-h）；
 首次真实使用只跑 1 轮并留痕（决策 0044 第 4 条）。
 
+**怎么在不花钱的情况下先校验脚本**（2026-10-11 实测）：用 `CreateWorkflow` 传 `path` 加
+`args: {maxRounds: 0}` —— 循环体一次都不执行，所以不调子代理、不开 GPU、不提交，只走编译与
+artifact 发布，是**零副作用**的编译校验。两个踩过的坑：
+
+1. **文件级 `/* zcode-workflow` 块的 schema 比 `SaveWorkflow` 的调用字段更严**：只接受
+   `description` / `whenToUse` / `args`；把 `name` 或 `scope` 写进去会被拒（`invalid_metadata:
+   Unrecognized key(s)`）。`name` 与 `scope` 是 `SaveWorkflow` 调用的字段，不是文件块的字段。
+2. `world.run` 的**命令名**必须是编译期字面量；运行时值只能进 args 数组。逐 stage 展开成多条
+   字面量调用，不要用 `label.split(" ")` 之类在运行时拼命令名（facade 直接编译失败）。
+
 ## 检查点
 
 - **步骤 1 后**：七条 gate 能逐条写出结论吗？写不出就别并行。
