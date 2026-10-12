@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 71; human-review candidates: 1
+Records: 72; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -25,6 +25,25 @@ Records: 71; human-review candidates: 1
   - this is the final declared budget dose on the v2 instance; further budget questions move to the batch-3 expanded instance
 - Excluded from runnable candidates: 混合筛选结果：第二剂（也是 v2 实例最后一剂）更新预算因子。主格 t2m/full 6h/12h 三 seed 同号 supported（6h −0.6427/−0.7454/−0.9084 K、12h −0.6195/−0.7667/−0.9339 K，24h 亦全负），近三 lead 的 skill 单调改善（seed 均值 6h +0.595、12h +0.333、24h +0.226）；但 u10/v10/mslp 守门在 48h/72h 有 17 个正 cell（比 800 更新的 13 个更差），按冻结合取规则不进 S4。预声明的预算响应读数据此判为「单年数据下预算饱和」：下一能力投资是数据（batch-3 扩年在并行获取）而非继续加预算。不构成任何科学声明。
 - Recorded metrics (not recomputed): budget_response=t2m improves monotonically at 6/12/24h through 1600 updates while the long-lead gate cost grows 13->17 cells; on one train year the budget is saturating and the next capability investment is data, candidate_updates=1600, control_updates=400, correction_evidence=docs/R7_S3_V3_NUMERICAL_ERRATA.md, delta_t2m_full_rmse_vs_incumbent={"41": {"12": -0.9339, "6": -0.9084}, "42": {"12": -0.7667, "6": -0.7454}, "43": {"12": -0.6195, "6": -0.6427}}, dose=2, elapsed_seconds_total=4937.6, first_spawn_to_last_reap_seconds=4884.4, gate_failures=17, gate_failures_by_lead={"48": 8, "72": 9}, gpu_hours=1.3716, hard_cap_seconds=10800.0, mode=l6, network_bytes=0, planned_seconds=5400.0, positive_seed_cells_of_51={"12": 51, "24": 51, "48": 7, "6": 51, "72": 2}, primary_verdict={"12": "supported", "6": "supported", "overall": "supported"}, seeds=[41, 42, 43], soft_overrun_seconds=0.0, t2m_seed_mean_skill_12h=0.333, t2m_seed_mean_skill_24h=0.226, t2m_seed_mean_skill_6h=0.595, test_read=false, updates_ratio=4.0
+
+## s3-capacity-depth
+
+- Outcome class: `unresolved`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_CAPACITY_DEPTH.md` (SHA256 `1cd4a6b32a096ea0387d70663fc549be25b9a4a755987f9e2509d5fee83a6275`)
+- Evidence commit: `4c709199cc2b27ce1a5234ece520844a287178ea`; experiment commit: `710612df4278f1404f3448cd106710c1209672f5`
+- Protocol SHA256: `not recorded`; data identity: `not recorded`
+- Reason: S3 trunk capacity (backbone depth 4 -> 8) was prepared but never run. The single-factor driver scripts/study_r7_s3_capacity_depth.py, its 28 CI-safe tests and the code archive outputs/r7_s3_capacity_depth_code.zip (comment 710612d, 1380 files) are ready, the commit 710612d is pushed and its CI run 38205959882 is green, tools/r7_round.py round-guard passes, and a CPU preflight on the real migrated parent (sha fba27e26) gives bit_identical=True, added=[4,5,6,7] and a strict load_state_dict; the identity-gated expansion mirrors blocks 0-3 into blocks 4-7 with zeroed output projections, so the depth-8 trunk starts at the registered depth-4 function exactly. The operator then decided not to spend 3 seeds x <=28800 s of GPU and to register the round directly. No attempt directory, no freeze, no seed, no readings file: 0 GPU-h, both GPUs idle throughout. The stated basis is the only completed seed of the previous K 4->8 arm (record s3-reasoning-depth, seed 41): against the pinned 2400-update arm the interior_32 t2m RMSE deltas are +0.00776/+0.00884/-0.00856/-0.00309/-0.00780 K at 6/12/24/48/72 h with |delta skill| <= 0.00509 and 72 h still negative (-0.16954), i.e. essentially no change. This is an operator cost/benefit decision, not a verdict on the arm: K (per-step internal reasoning) and the trunk depth are different factors, the arm was never executed, its hypothesis is untested, and the round brief's predeclared exit (72 h positive for all three seeds -> independent acceptance; otherwise close the 'more capacity fixes 72 h' branch) is therefore neither triggered nor met. Nothing is closed by it and no pass or failure is written. The driver, tests and code.zip are kept as prepared-but-unrun reusable assets.
+- Limitations:
+  - not run: no attempt directory, no freeze, no seed, no readings file, 0 GPU-h; the round's predeclared exit is neither triggered nor met because the round was never executed
+  - the stated basis is cross-factor and single-seed: it is the K 4->8 arm's only completed seed, and K (per-step internal reasoning) is not the trunk depth (WindowAttentionBlock layers), so it does not establish that depth 4->8 is inert
+  - not a scientific verdict: this page produces no primary/gate result, does not change r and does not read the test split
+  - no protocol was frozen, so protocol_sha256, data_identity and source_sha256 are null: the round produced no verifiable identity of its own
+  - the prepared assets (driver, 28 CI-safe tests, code.zip comment 710612d with SHA256 de9f6bc4, estimated_peak_bytes 15 GiB) are identity-verified but have never produced a training run; whether the depth-8 trunk trains stably at that memory estimate is untested
+  - validation split only; the 2023 test split stays sealed and r is not consumed
+- CI run: `38205959882`
+- Excluded from runnable candidates: **未运行**轮：没有 attempt 目录、没有 freeze、没有 seed 启动、没有读数文件，0 GPU-h；因此无任何读数、无 seed 均值、无同时区间、无 primary/gate 判定。跳过依据是**跨因子**的旁证（上一轮 K4→8 臂唯一完成的 seed 41），`K`（每步内部推理次数）与主干 `depth`（WindowAttentionBlock 层数）不是同一因子，故不足以判定 depth 4→8 无效；本轮预声明出口既未触发也未满足。标 not-candidate、不进 S4 冻结包，也不据此关闭「加大容量解决 72 h」这一支。
+- Recorded metrics (not recomputed): basis_delta_minus_dose2400_t2m_k={"12": 0.00884, "24": -0.00856, "48": -0.00309, "6": 0.00776, "72": -0.0078}, basis_delta_skill_abs_max=0.00509, basis_interior_t2m_skill_72h=-0.16954, basis_record=s3-reasoning-depth, basis_seed=41, budget_hard_cap_seconds=115200.0, budget_per_seed_seconds=28800.0, budget_planned_seconds=86400.0, ci_run_id_driver_commit=38205959882, code_zip_comment=710612df4278f1404f3448cd106710c1209672f5, code_zip_files=1380, code_zip_sha256=de9f6bc4e14d9eb774b99a4ef62d77bbe6b6335f814eeaf286788a05f112390e, control_record=s3-wide-interior-dose, cpu_preflight_added_blocks=[4, 5, 6, 7], cpu_preflight_bit_identical=true, cpu_preflight_parent_sha256=fba27e26e24a1f20bc227c6ba23c7f223e41cfe8b721b56c42fd6412d39ddf4c, depth_arm=8, depth_parent=4, driver_commit=710612df4278f1404f3448cd106710c1209672f5, estimated_peak_bytes=16106127360, gpu_hours=0.0, hard_overrun_seconds=0.0, min_estimated_peak_bytes=15032385536, network_bytes=0, ran=false, reproducibility=nothing to replay: no result file was produced; only the prepared identities (driver commit 710612d, code.zip SHA256 de9f6bc4) are checkable, seeds_planned=[41, 42, 43], seeds_run=[], soft_overrun_seconds=0.0, test_read=false, updates_planned=2400, wall_seconds_total=0.0
 
 ## s3-case-interleaving-pilot
 

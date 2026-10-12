@@ -75,8 +75,19 @@ identity-gated 规则扩成 depth-8 —— 新增块 `i∈{4..7}` 在**每个参
 - 驱动与测试已实现（2026-10-12），CPU preflight 已过：`worker prepare` 写出 depth=8 candidate spec；
   `_parent_model(seed=41)` 对**真实**迁移父实测 `bit_identical=True`、`added=[4,5,6,7]`、
   `non_block_keys_unchanged=True`、严格 `load_state_dict` 通过（父 sha `fba27e26…`）。
-- **第一条命令**（确定性快门，提交前）：`.venv/bin/python tools/r7_round.py round-guard`；
-  然后建 `outputs/r7_s3_capacity_depth_code.zip`（ZIP comment = HEAD）并 `tools/r7_round.py freeze`
-  → `stage prepare/archive/seed{41,42,43}/reading`。
-- 若 72h 仍非三 seed 全正，按 §3 的预声明出口**关闭"加大容量解决 72h"这一支**并在 §8 写
-  "为何停 + 恢复第一条命令"。
+- 确定性快门 `tools/r7_round.py round-guard` **通过**（28 例本轮测试 + 合并跑 148 例 + commit-guard 0）；
+  `outputs/r7_s3_capacity_depth_code.zip` 已建（comment `710612d`、SHA256 `de9f6bc4…`、1380 文件）；
+  commit `710612d` 已推送，CI run `38205959882` 绿。
+- **结论（2026-10-12）**：**本轮 GPU 部分未运行**。操作者判断不值得花 3 seed × ≤28800 s 的 GPU
+  （依据见 `docs/R7_S3_CAPACITY_DEPTH.md`），决定直接登记 ⇒ `freeze` / `stage` / `reading` 均未执行，
+  无 attempt 目录、**0 GPU-h**。这**不是**对 depth 4→8 假设的判定——该假设**未被检验**，
+  §3 的预声明出口**既未触发也未满足**。
+- **恢复第一条命令**（若将来要跑）：`.venv/bin/python tools/r7_round.py freeze`
+  （前置：HEAD 的 ZIP comment 必须等于 HEAD，否则先重建 `code.zip`）。
+
+## §7 下一动作（S3）
+
+本轮已关闭（**未运行**、0 GPU-h；证据 `docs/R7_S3_CAPACITY_DEPTH.md`、索引
+`record:s3-capacity-depth`）。**下一动作（S3）**：由操作者与主链路**重新制定方向**（架构 / 数据），
+据此开新的 round brief；本 brief 保留为"已准备、未运行"的记录，**不重开**。宽输入支与训练配方支
+已关闭不重开；test 未读、r=0、S4 未启动不变。

@@ -269,7 +269,8 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 宽输入 + 内部盒监督剂量 800→2400（48h 三 seed 全正、72h 仍负；mixed/needs-review） | 6.6941 | 41.2840 | `docs/R7_S3_WIDE_INTERIOR_DOSE.md`（索引 `record:s3-wide-interior-dose`）；唯一改动因子 = **updates 800→2400**（宽 129×129 输入、`interior_32` 掩码、配方其余参数、迁移 v3-BD 1600 父、seed、评分域、气候态分母、cohort pin 全不变）；对照同时报**已登记窄 800 臂**与**已登记 800 内部监督臂**（均 pinned 复用、未重训练，15/15 表哈希匹配）；**结果**：相对窄臂 12/24/48/72h **3/3 seed 更优**（delta 均值 −0.0284/−0.1159/**−0.3086**/**−0.3306** K），6h 持平（−0.0029）；相对 800 内部监督臂 24/48/72h 3/3 更优（−0.1090/−0.2558/−0.2861），6/12h 略差；**48h 绝对气候态门首次三 seed 全正**（skill +0.0613/+0.0277/+0.1127），6/12/24h 亦全正；**72h 三 seed 仍全负**（−0.1746/−0.2773/−0.1562，均值 −0.2027，相对窄臂 −0.4309 已收窄）→ 冻结验收条件（48/72h 三 seed 全正）**只满足一半**，故**不进 S4 冻结包**，并按预声明**关闭剂量支**转长 lead 权重假设；attempt01 因冻结 reading 阶段 pin 错表（`rmse.csv` 哈希对 `boundary_rmse.csv`）被操作者中止，`operator_abort.json` 全额计费 **0.7517 GPU-h**（prepare 271.45 + archive 289.77 + seed41 部分 2145.0 s），修复 `0b517b3`/`76a3d60`（pin 改存 boundary 哈希 + 两个测试改用合成输出树，因同一缺陷在无 `outputs/` 的 CI 上失败过）；attempt02 六阶段全 success、`returncode=0`、`signals=[]`、`reaped=true`、whole 21392.663503 s、**soft/hard overrun 均 0**；协议 `1d8d163d…`、code.zip `0a6e0b81…`、执行文件 184、model `d3fb58db…`（未变）、training `8ad77d93…`；cohort 472/468/460/444/428 逐 lead 与 pin 一致；网络 0、磁盘 14 GiB；test 未读/r0 |
 | S3 长 lead 物理权重再分配 0.5→1.0（几乎无效，72h 仍负；宽输入支关闭） | 7.0027 | 48.2867 | `docs/R7_S3_WIDE_LONG_LEAD_WEIGHT.md`（索引 `record:s3-wide-long-lead-weight`）；唯一改动因子 = **48h/72h 物理权重 0.5→1.0**（`(1,.5,0,.5,0,0,0,.5,0,0,0,.5)` → `(1,.5,0,.5,0,0,0,1.,0,0,0,1.)`），宽输入/`interior_32` 监督/2400 更新/父/seed/评分域/气候态分母全不变；对照是**已登记 2400 剂量臂**与**已登记窄 800 臂**（pinned 复用、未重训练，15/15 表哈希匹配）；**结果**：相对 2400 臂 seed 均值 6h **+0.0129**、12h **+0.0188**、24h **+0.0140**（略差）、48h **−0.0054**、72h **−0.0218**（略好）——翻倍长 lead 权重只换来 72h ~0.02 K；**72h 仍三 seed 全负**（skill −0.1672/−0.2614/−0.1363），48h 仍三 seed 全正（+0.0631/+0.0278/+0.1200）；预声明出口触发 → **宽输入支作为长 lead 的解关闭**（四轮合并：输入范围本身无收益；监督域收回目标盒后收益只到 48h；剂量把 48h 推过气候态；72h 用三种杠杆均未推过）；**不进 S4 冻结包**；六阶段全 success、`returncode=0`、`signals=[]`、`reaped=true`、whole 25209.895089 s、soft/hard overrun 均 0；协议 `c8c8e79e…`、code.zip `2696f7ef…`、执行文件 185、model `d3fb58db…`（未变）、training `8ad77d93…`；cohort 472/468/460/444/428 逐 lead 与 pin 一致；网络 0、磁盘 14 GiB；test 未读/r0 |
 | S3 推理深度 K 4→8（操作者中止，**未完成**；单 seed） | 5.0197 | 53.3064 | `docs/R7_S3_REASONING_DEPTH.md`（索引 `record:s3-reasoning-depth`）；唯一改动因子 = `reasoning_steps`/`steps` **K 4→8**（宽 129×129 输入、`interior_32` 监督、2400 更新、注册物理权重、迁移 v3-BD 1600 父、seed 41/42/43 全不变）；**seed 41 完整跑完**（exit 0、训练 11209.65 s、checkpoint `efc43304…`、五 lead 472/468/460/444/428 全评、峰值 13.55 GiB），**seed 42 训练中被 `SIGKILL`**（`exit_code=-9`、1656.784 s，来源是操作者停止 workflow 时连带终止在跑的 `world.run`，**非**科学失败），**seed 43 与 reading 从未运行** ⇒ 无 `readings.json`/`result.json`/`failure.json`/`attempt.json`；**唯一可读数字（单 seed 41）**：相对已登记 2400 剂量臂（K=4，pinned 复用）`interior_32` t2m Δrmse 6h **+0.00776**、12h **+0.00884**、24h −0.00856、48h −0.00309、72h −0.00780 K，Δskill ≤0.00509，**72h skill 仍负（−0.16954）**；**未达预声明出口**（需三 seed），**不是科学判定**，只作"关闭训练配方支"的旁证；whole 18070.843 s（planned 54000、soft/hard overrun 均 0）；协议 `35b84f2a…`（`protocol.json` 最终 digest；预备阶段初步 digest `d8ba87bb…` 不采用）、code.zip `1ca8e648…`、code_commit `964fc8ce…`；网络 0、磁盘 14 GiB；test 未读/r0 |
-| **合计已用** | **53.3064** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−33.3064是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。**2026-10-08 补记 index63，修正「索引已登记而账本缺行」的漂移**；该漂移现有校检器发现不了（C-02/C-03 只校验已存在行）。**2026-10-09 记 index64（rollout-dose，三行合计 4.2765）**；**2026-10-09 记 index65（宽区 pilot，0 GPU-h，网络 3.565 GB / 保留 70.2 MB 只记会计不加 GPU 账）**；**2026-10-09 记 index66（宽区全量 + v4 store + 宽区气候态，0 GPU-h，网络 ≈101 GB / 磁盘 6.6 GiB 只记会计）**；**2026-10-09 记 index67（宽区单因素 train/val，3.5339 GPU-h，null）**；**2026-10-09 记 index68（宽输入 + 内部盒监督，3.4655 GPU-h，稀释已分离）**；**2026-10-09 记 index69（内部监督剂量 800→2400，6.6941 GPU-h 含 attempt01 中止 0.7517，48h 三 seed 转正）**。**2026-10-10 记 index70（长 lead 权重 0.5→1.0，7.0027 GPU-h，几乎无效：72h 仍三 seed 全负，宽输入支关闭）**。**2026-10-12 记 index71（推理深度 K 4→8，5.0197 GPU-h，**操作者中止、未完成**：seed 41 完成、seed 42 被 SIGKILL、seed 43/reading 未跑、无读数；单 seed Δrmse ≤0.00884 K、Δskill ≤0.00509、72h skill 仍负 −0.16954；据此与 index69/70 的三 seed 证据合并**关闭"靠训练配方解决 72h"这一支**，转模型容量/架构方向）**。科学气候态/全年/同时区间仍未过；固定病例/ordering/anchor/rollout-dose/宽区单因素/内部监督/剂量 开发负或 mixed 读数分别登记，不作泛化/clip/欠拟合/遗忘/收敛/稀释来源/剂量饱和因果证明，不无限重复同剂量或精确replay |
+| S3 主干深度 depth 4→8（**未运行**，操作者决定跳过；0 GPU-h） | 0.0 | 53.3064 | `docs/R7_S3_CAPACITY_DEPTH.md`（索引 `record:s3-capacity-depth`）；驱动/测试/code.zip **已就绪**（commit `710612d`、code.zip SHA256 `de9f6bc4…`、1380 文件、comment `710612d`、CI run `38205959882` 绿、`tools/r7_round.py round-guard` 通过、CPU preflight 对真实迁移父 `bit_identical=True`/`added=[4,5,6,7]`/严格 `load_state_dict` OK）但 **GPU 部分未运行**：无 attempt 目录、无 freeze、无 seed 启动、无读数文件；**0 GPU-h**（两块 GPU 全程空闲）、网络 0、soft/hard overrun 均 0；操作者依据＝上一轮 K4→8 臂（index71）**唯一完整跑完**的 seed 41 读数：相对已登记 2400 剂量臂（K=4，pinned 复用）`interior_32` t2m Δrmse 6/12/24/48/72h = **+0.00776/+0.00884/−0.00856/−0.00309/−0.00780 K**、Δskill ≤0.00509、**72h skill 仍负 −0.16954**，据此判断"效果基本上没变化"、不值得花 3 seed × ≤28800 s 的 GPU；**口径（必须照此读）**：这是**操作者的成本/收益决定**，**不是**对本轮 depth 4→8 假设的判定——`K`（每步内部推理）与主干 `depth`（`WindowAttentionBlock` 层数）是两个不同因子，本轮**从未运行**、其假设**未被检验**，§3 预声明出口**既未触发也未满足**，故**不**据此关闭"加大容量解决 72 h"这一支；驱动/测试/code.zip 保留为"已准备、未运行"的**可复用资产**；test 未读/r0 |
+| **合计已用** | **53.3064** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−33.3064是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。**2026-10-08 补记 index63，修正「索引已登记而账本缺行」的漂移**；该漂移现有校检器发现不了（C-02/C-03 只校验已存在行）。**2026-10-09 记 index64（rollout-dose，三行合计 4.2765）**；**2026-10-09 记 index65（宽区 pilot，0 GPU-h，网络 3.565 GB / 保留 70.2 MB 只记会计不加 GPU 账）**；**2026-10-09 记 index66（宽区全量 + v4 store + 宽区气候态，0 GPU-h，网络 ≈101 GB / 磁盘 6.6 GiB 只记会计）**；**2026-10-09 记 index67（宽区单因素 train/val，3.5339 GPU-h，null）**；**2026-10-09 记 index68（宽输入 + 内部盒监督，3.4655 GPU-h，稀释已分离）**；**2026-10-09 记 index69（内部监督剂量 800→2400，6.6941 GPU-h 含 attempt01 中止 0.7517，48h 三 seed 转正）**。**2026-10-10 记 index70（长 lead 权重 0.5→1.0，7.0027 GPU-h，几乎无效：72h 仍三 seed 全负，宽输入支关闭）**。**2026-10-12 记 index71（推理深度 K 4→8，5.0197 GPU-h，**操作者中止、未完成**：seed 41 完成、seed 42 被 SIGKILL、seed 43/reading 未跑、无读数；单 seed Δrmse ≤0.00884 K、Δskill ≤0.00509、72h skill 仍负 −0.16954；据此与 index69/70 的三 seed 证据合并**关闭"靠训练配方解决 72h"这一支**，转模型容量/架构方向）**。**2026-10-12 记 index72（主干深度 depth 4→8，**未运行**、0 GPU-h：驱动/测试/code.zip 已就绪、commit `710612d` 已推送、CI run `38205959882` 绿、`round-guard` 通过，但操作者决定**不跑 GPU 部分**、直接登记；依据是 index71 唯一完成的 seed 41「效果基本上没变化」；**口径**＝操作者的成本/收益决定，**不是**对 depth 4→8 假设的判定（该假设未被检验、§3 预声明出口既未触发也未满足），**不**据此关闭"加大容量解决 72h"这一支；驱动/测试/code.zip 保留为可复用资产）**。科学气候态/全年/同时区间仍未过；固定病例/ordering/anchor/rollout-dose/宽区单因素/内部监督/剂量 开发负或 mixed 读数分别登记，不作泛化/clip/欠拟合/遗忘/收敛/稀释来源/剂量饱和因果证明，不无限重复同剂量或精确replay |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
@@ -313,7 +314,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-capacity-or-architecture.md", "previous_round_goal": "docs/goals/s3-reasoning-depth.md", "previous_round_evidence": "docs/R7_S3_REASONING_DEPTH.md", "cap_gpu_h": 20.0, "used_gpu_h": 53.3064, "remaining_gpu_h": -33.3064, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-capacity-or-architecture.md", "previous_round_goal": "docs/goals/s3-capacity-or-architecture.md", "previous_round_evidence": "docs/R7_S3_CAPACITY_DEPTH.md", "cap_gpu_h": 20.0, "used_gpu_h": 53.3064, "remaining_gpu_h": -33.3064, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -921,3 +922,38 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 - **下一动作（S3）**：**主干深度 `depth` 4→8** 单因素臂（在已登记最佳臂上；对照＝已登记的 2400 剂量臂
   pinned 复用），预声明出口：72 h 三 seed 转正 → 提请独立验收；否则关闭"加大容量解决 72 h"这一支，
   转架构或数据方向。test 未读、r=0、S4 未启动不变。
+
+### 2026-10-12 — capacity（主干深度 depth 4→8）轮：操作者决定**不运行**，直接登记（0 GPU-h）
+
+（本块取代上一块结尾的"下一动作＝capacity 轮"：该轮已关闭、**未运行**。）
+
+- **做了什么**：capacity 轮（目标 `docs/goals/s3-capacity-or-architecture.md`）的驱动/测试/code.zip
+  **已就绪并已推送**（commit `710612d`，CI run `38205959882` 绿，`tools/r7_round.py round-guard` 通过），
+  但**操作者决定不跑 GPU 部分**，直接登记。证据页 `docs/R7_S3_CAPACITY_DEPTH.md`、索引
+  `record:s3-capacity-depth`（`outcome_class: unresolved`、`candidate_state: not-candidate`、
+  `scientific_claim: false`、`gpu_hours: 0`）。
+- **依据（操作者给出）**：读 seed 41 的读数，**效果基本上没变化**。该 seed 属于**上一轮 K4→8 臂**
+  （index71），是本轮之前唯一完整跑完的 seed：相对已登记 2400 剂量臂（K=4，pinned 复用）
+  `interior_32` t2m Δrmse 6/12/24/48/72h = **+0.00776/+0.00884/−0.00856/−0.00309/−0.00780 K**、
+  Δskill ≤0.00509、**72h skill 仍负（−0.16954）**。
+- **口径（必须照此读，别读成结果）**：这是**操作者的成本/收益决定**，**不是**对本轮 depth 4→8 假设的
+  判定——`K`（每步内部推理次数）与主干 `depth`（`WindowAttentionBlock` 层数）是**两个不同因子**，
+  本轮**从未运行**、其假设**未被检验**，本轮 brief §3 的预声明出口**既未触发也未满足**；因此
+  **不**据此关闭"加大容量解决 72 h"这一支，也**不**写任何通过/失败。
+- **未运行的确证**：`outputs/r7_s3_capacity_depth_20261012_attempt01/` **不存在**；无 `freeze`、无 seed
+  启动、无读数文件、无 `attempt.json`；**0 GPU-h**（两块 GPU 全程空闲）、网络 0、soft/hard overrun 均 0。
+- **保留的资产**：驱动 `scripts/study_r7_s3_capacity_depth.py`、测试
+  `tests/test_r7_s3_capacity_depth.py`（28 例）、`outputs/r7_s3_capacity_depth_code.zip`
+  （SHA256 `de9f6bc4…`、1380 文件、comment `710612d`）保留为"已准备、未运行"的**可复用资产**；
+  CPU preflight 对真实迁移父（sha `fba27e26…`）得 `bit_identical=True`、`added=[4,5,6,7]`、
+  严格 `load_state_dict` OK。
+- **为何停 + 恢复第一条命令**：停因＝操作者判断不值得花 3 seed × ≤28800 s 的 GPU（**非**机器可判失败：
+  无 hard overrun、无身份/资源门失败）；恢复第一条命令＝ `.venv/bin/python tools/r7_round.py freeze`
+  （前置：HEAD 的 ZIP comment 必须等于 HEAD，否则先重建 `code.zip`）。
+- **下一动作（S3）**：由操作者与主链路**重新制定方向**（架构 / 数据）并据此开新的 round brief；
+  本轮 brief `docs/goals/s3-capacity-or-architecture.md` 保留为"已准备、未运行"的记录，**不重开**。
+  宽输入支与训练配方支已关闭不重开。test 未读、r=0、S4 未启动不变。
+- **campaign-state 指针**：`previous_round_goal` / `previous_round_evidence` 已前移到本轮
+  （`docs/goals/s3-capacity-or-architecture.md` + `docs/R7_S3_CAPACITY_DEPTH.md`，C-04/C-06 绿）；
+  `current_round_goal` **暂与本轮相同**——因为下一轮的 brief 要由后续**规划轮**产出，此处**不预造占位 brief**；
+  新 brief 落盘时再把 `current_round_goal` 前移、`previous_*` 留在本轮。`used_gpu_h` 不变（本轮 0 GPU-h）。
