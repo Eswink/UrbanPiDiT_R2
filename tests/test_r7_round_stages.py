@@ -251,6 +251,87 @@ def test_commit_round_counterproof_a_failing_add_is_not_passing(support):
     payload = support.commit_round(COMMIT_SPEC, runner=_git_runner(fail_on="add"))
     assert payload["passed"] is False
     assert payload["stage"] == "add"
+    assert payload["phase"] == "implementation"
+
+# --- the registration commit (a second, later commit of the round) ------------------
+
+REGISTER_SPEC = {
+    "commit_paths": ["scripts/study_stub.py", "tests/test_stub.py"],
+    "commit_message": "feat(r7): implement the arm",
+    "register_paths": ["docs/R7_STUB.md", "docs/R7_EVIDENCE_INDEX.jsonl",
+                       "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/master.md"],
+    "register_message": "feat(r7): register the stub arm",
+}
+
+def test_commit_register_commits_the_register_paths_and_message(support):
+    runner = _git_runner()
+    payload = support.commit_register(REGISTER_SPEC, runner=runner)
+    assert payload["passed"] is True
+    assert payload["phase"] == "registration"
+    add = next(call for call in runner.calls if call[1] == "add")
+    commit = next(call for call in runner.calls if call[1] == "commit")
+    assert add == ["git", "add", "--", *REGISTER_SPEC["register_paths"]]
+    assert commit[3] == REGISTER_SPEC["register_message"]
+    # the implementation paths must NOT be staged by the registration commit
+    assert not set(REGISTER_SPEC["commit_paths"]) & set(payload["paths"])
+
+def test_commit_register_falls_back_to_commit_paths_and_message(support):
+    runner = _git_runner()
+    payload = support.commit_register(COMMIT_SPEC, runner=runner)
+    assert payload["passed"] is True
+    assert payload["paths"] == COMMIT_SPEC["commit_paths"]
+    add = next(call for call in runner.calls if call[1] == "add")
+    assert add == ["git", "add", "--", *COMMIT_SPEC["commit_paths"]]
+    commit = next(call for call in runner.calls if call[1] == "commit")
+    assert commit[3] == COMMIT_SPEC["commit_message"]
+
+def test_commit_register_counterproof_a_protected_branch_is_refused(support):
+    with pytest.raises(support.RoundError):
+        support.commit_register(REGISTER_SPEC, runner=_git_runner(branch="main"))
+
+def test_commit_register_counterproof_a_failing_add_is_not_passing(support):
+    payload = support.commit_register(REGISTER_SPEC, runner=_git_runner(fail_on="add"))
+    assert payload["passed"] is False
+    assert payload["stage"] == "add"
+    assert payload["phase"] == "registration"
+
+def test_commit_register_refuses_without_paths_or_message(support):
+    with pytest.raises(support.RoundError):
+        support.commit_register({"register_message": "x"}, runner=_git_runner())
+    with pytest.raises(support.RoundError):
+        support.commit_register({"register_paths": ["a"]}, runner=_git_runner())
+
+# --- "nothing to commit" is a no-op, not a failure (a resumed round hits it) ---------
+
+def _git_runner_commit_output(text: str, exit_code: int = 1):
+    """A runner whose ``git commit`` fails with ``text`` on stdout, as git really prints it."""
+    def runner(argv, cwd=None, env=None, timeout=None):
+        if argv[0] == "git" and argv[1] == "rev-parse":
+            return _ok("r7/weather-reasoning\n") if "--abbrev-ref" in argv else _ok("e" * 40 + "\n")
+        if argv[0] == "git" and argv[1] == "commit":
+            return {"exit_code": exit_code, "stdout": text, "stderr": ""}
+        return _ok()
+
+    return runner
+
+def test_commit_round_treats_nothing_to_commit_as_a_noop(support):
+    payload = support.commit_round(
+        COMMIT_SPEC, runner=_git_runner_commit_output("nothing to commit, working tree clean\n"))
+    assert payload["passed"] is True
+    assert payload["noop"] is True
+    assert payload["sha"] == ""
+
+def test_commit_round_counterproof_a_hook_rejection_is_still_a_failure(support):
+    payload = support.commit_round(
+        COMMIT_SPEC, runner=_git_runner_commit_output("pre-commit hook rejected the commit\n"))
+    assert payload["passed"] is False
+    assert payload["stage"] == "commit"
+
+def test_commit_register_also_tolerates_nothing_to_commit(support):
+    payload = support.commit_register(
+        REGISTER_SPEC, runner=_git_runner_commit_output("no changes added to commit\n"))
+    assert payload["passed"] is True
+    assert payload["noop"] is True
 
 def test_push_round_counterproof_a_protected_branch_is_refused(support):
     with pytest.raises(support.RoundError):

@@ -315,8 +315,25 @@ def git_branch(root: Path | None = None, runner: Callable[..., dict[str, Any]] |
     return result["stdout"].strip()
 
 
-def commit_round(
+def _is_nothing_to_commit(result: dict[str, Any]) -> bool:
+    """True when ``git commit`` failed only because the declared paths had no changes.
+
+    A resumed round re-runs its implementer against files that are already committed, so
+    ``git commit -- <paths>`` exits nonzero with "nothing to commit". That is not a failure
+    of the work, and stopping the run on it would make an interrupted round unresumable.
+    Any other failure — a hook rejection, a lock, a bad identity — still fails.
+    """
+    text = ((result.get("stdout") or "") + "\n" + (result.get("stderr") or "")).lower()
+    return any(phrase in text for phrase in (
+        "nothing to commit", "no changes added to commit", "nothing added to commit"))
+
+
+def _commit_declared(
     spec: dict[str, Any],
+    *,
+    phase: str,
+    paths_key: str,
+    message_key: str,
     root: Path | None = None,
     runner: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -324,27 +341,64 @@ def commit_round(
 
     The workflow cannot pass paths on the command line, so the paths and the message come
     from the round-spec. A protected branch is refused outright: pushing to ``main`` and
-    merging are reserved (decision 0030).
+    merging are reserved (decision 0030). ``phase`` names which of the round's two commits
+    this is, so a caller's log says which one failed.
     """
     base = Path(root or ROOT)
     run = runner or default_runner
     branch = git_branch(base, run)
     if branch in PROTECTED_BRANCHES:
         raise RoundError(f"refusing to commit on protected branch {branch!r}")
-    paths = list(spec.get("commit_paths") or [])
-    message = spec.get("commit_message")
+    paths = list(spec.get(paths_key) or [])
+    message = spec.get(message_key)
     if not paths:
-        raise RoundError("round-spec needs commit_paths before committing")
+        raise RoundError(f"round-spec needs {paths_key} before committing")
     if not isinstance(message, str) or not message.strip():
-        raise RoundError("round-spec needs commit_message before committing")
+        raise RoundError(f"round-spec needs {message_key} before committing")
     staged = run(["git", "add", "--", *paths], base)
     if staged["exit_code"] != 0:
-        return {"passed": False, "stage": "add", "tail": staged["stderr"].strip().splitlines()[-3:]}
+        return {"passed": False, "phase": phase, "stage": "add",
+                "tail": staged["stderr"].strip().splitlines()[-3:]}
     committed = run(["git", "commit", "-m", message, "--", *paths], base)
     if committed["exit_code"] != 0:
-        return {"passed": False, "stage": "commit", "tail": committed["stderr"].strip().splitlines()[-3:]}
+        if _is_nothing_to_commit(committed):
+            return {"passed": True, "phase": phase, "branch": branch, "sha": "",
+                    "paths": paths, "message": message, "noop": True,
+                    "tail": (committed.get("stdout") or "").strip().splitlines()[-3:]}
+        return {"passed": False, "phase": phase, "stage": "commit",
+                "tail": committed["stderr"].strip().splitlines()[-3:]}
     sha = run(["git", "rev-parse", "HEAD"], base)["stdout"].strip()
-    return {"passed": True, "branch": branch, "sha": sha, "paths": paths, "message": message}
+    return {"passed": True, "phase": phase, "branch": branch, "sha": sha,
+            "paths": paths, "message": message}
+
+
+def commit_round(
+    spec: dict[str, Any],
+    root: Path | None = None,
+    runner: Callable[..., dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Commit the round's implementation paths (``commit_paths``) before the GPU round."""
+    return _commit_declared(spec, phase="implementation", paths_key="commit_paths",
+                            message_key="commit_message", root=root, runner=runner)
+
+
+def commit_register(
+    spec: dict[str, Any],
+    root: Path | None = None,
+    runner: Callable[..., dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Commit the round's registration paths after the reading stage.
+
+    Reads ``register_paths`` / ``register_message`` when the round-spec declares them and
+    falls back to ``commit_paths`` / ``commit_message`` otherwise, so a brief written before
+    this split keeps working. The two lists must be separate because the registration
+    documents — the evidence page above all — do not exist yet when the implementation
+    commit runs, and staging a path git cannot find fails the whole commit.
+    """
+    paths_key = "register_paths" if spec.get("register_paths") else "commit_paths"
+    message_key = "register_message" if spec.get("register_message") else "commit_message"
+    return _commit_declared(spec, phase="registration", paths_key=paths_key,
+                            message_key=message_key, root=root, runner=runner)
 
 
 def push_round(

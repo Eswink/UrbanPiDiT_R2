@@ -17,6 +17,7 @@ value comes from the round-spec block or the frozen ``protocol.json``.
     tools/r7_round.py ledger-plan <new_gpu_hours>
     tools/r7_round.py commit-guard <path> [<path> ...]
     tools/r7_round.py commit-round
+    tools/r7_round.py commit-register
     tools/r7_round.py push-round
 
 Exit codes: 0 on success, 1 when a gate reports not-passed, 2 on a usage or precondition
@@ -33,7 +34,7 @@ from typing import Any, Sequence
 
 TOOLS = Path(__file__).resolve().parent
 USAGE = ("usage: r7_round.py {state|verify|round-guard|attempt|stage-plan|orphans|freeze|stage|"
-         "reuse-plan|ledger-plan|commit-guard|commit-round|push-round}")
+         "reuse-plan|ledger-plan|commit-guard|commit-round|commit-register|push-round}")
 
 
 def load_support() -> Any:
@@ -197,6 +198,7 @@ def dispatch(command: str, rest: Sequence[str]) -> dict[str, Any]:
         "ledger-plan": lambda: ledger_plan(rest),
         "commit-guard": lambda: support.commit_guard(rest),
         "commit-round": lambda: stages.commit_round(current_spec()),
+        "commit-register": lambda: stages.commit_register(current_spec()),
         "push-round": lambda: stages.push_round(),
     }
     if command not in handlers:

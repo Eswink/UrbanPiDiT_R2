@@ -2,11 +2,19 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-capacity-depth", "driver": "scripts/study_r7_s3_capacity_depth.py", "output_stem": "r7_s3_capacity_depth_20261012", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_capacity_depth.py"], "commit_paths": ["docs/R7_S3_CAPACITY_DEPTH.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): register the S3 capacity-depth single-factor arm", "code_archive": "outputs/r7_s3_capacity_depth_code.zip"} -->
+<!-- round-spec: {"arm": "s3-capacity-depth", "driver": "scripts/study_r7_s3_capacity_depth.py", "output_stem": "r7_s3_capacity_depth_20261012", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_capacity_depth.py"], "commit_paths": ["scripts/study_r7_s3_capacity_depth.py", "tests/test_r7_s3_capacity_depth.py", "docs/goals/s3-capacity-or-architecture.md"], "commit_message": "feat(r7): implement the S3 capacity-depth (trunk depth 4->8) single-factor arm", "register_paths": ["docs/R7_S3_CAPACITY_DEPTH_RUN.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the S3 capacity-depth (depth 4->8) run as a new evidence record", "code_archive": "outputs/r7_s3_capacity_depth_code.zip"} -->
 
-状态 **驱动与 CI-safe 测试已实现、协议待冻结**（2026-10-12 交接）。唯一主计划
+状态 **驱动与 CI-safe 测试已实现、已决定恢复运行**（2026-10-12 操作者决定）。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接 `docs/goals/s3-reasoning-depth.md` 的预声明出口
 （该臂被操作者中止、未完成，见 `docs/R7_S3_REASONING_DEPTH.md`）与主计划 §8 最后一条"下一动作"。
+
+**登记口径（2026-10-12 决定改回后新增）**：本因子此前曾被登记为**未运行**
+（`docs/R7_S3_CAPACITY_DEPTH.md`、`record:s3-capacity-depth`、0 GPU-h），依据是上一轮 K4→8 臂唯一
+完成的 seed 41「效果基本上没变化」。**那条依据跨因子、不成立**——`K`（每步内部推理次数，参数量不变）
+与主干 `depth`（`WindowAttentionBlock` 层数，参数量 3,286,037 → 5,065,493，+54.2%）是两个不同的轴。
+故本轮恢复运行，读数登记为**新** record `s3-capacity-depth-run` 与新证据页
+`docs/R7_S3_CAPACITY_DEPTH_RUN.md`；原「未运行」record 与证据页**逐字节保留**，只在其上追加
+`correction_record_id` 指向新 record。
 
 本轮实现（2026-10-12）：驱动 `scripts/study_r7_s3_capacity_depth.py`、测试
 `tests/test_r7_s3_capacity_depth.py`（28 例全过）。**冻结的深度扩张规则**：depth-4 父状态按
@@ -78,16 +86,18 @@ identity-gated 规则扩成 depth-8 —— 新增块 `i∈{4..7}` 在**每个参
 - 确定性快门 `tools/r7_round.py round-guard` **通过**（28 例本轮测试 + 合并跑 148 例 + commit-guard 0）；
   `outputs/r7_s3_capacity_depth_code.zip` 已建（comment `710612d`、SHA256 `de9f6bc4…`、1380 文件）；
   commit `710612d` 已推送，CI run `38205959882` 绿。
-- **结论（2026-10-12）**：**本轮 GPU 部分未运行**。操作者判断不值得花 3 seed × ≤28800 s 的 GPU
-  （依据见 `docs/R7_S3_CAPACITY_DEPTH.md`），决定直接登记 ⇒ `freeze` / `stage` / `reading` 均未执行，
-  无 attempt 目录、**0 GPU-h**。这**不是**对 depth 4→8 假设的判定——该假设**未被检验**，
-  §3 的预声明出口**既未触发也未满足**。
-- **恢复第一条命令**（若将来要跑）：`.venv/bin/python tools/r7_round.py freeze`
-  （前置：HEAD 的 ZIP comment 必须等于 HEAD，否则先重建 `code.zip`）。
+- **进度（2026-10-12）**：本轮先被登记为**未运行**（`docs/R7_S3_CAPACITY_DEPTH.md`、0 GPU-h），
+  随后操作者**决定改回、恢复运行**（依据：K 与 depth 是不同因子，跨轴证据不成立，见本文件开头）。
+- **运行方式**：`code.zip` **不再预建**——`.zcode/workflow-drafts/r7-s3-capacity-depth-run.dwf.ts`
+  会在 `freeze` 之前按当时的 HEAD 重建它（`git archive` 把 commit SHA 写进 ZIP comment，
+  archive 阶段断言 `comment == freeze 时的 HEAD`），所以任何后续提交都不会让本轮失效。
+- **第一条命令**（若手工跑）：`.venv/bin/python tools/r7_round.py round-guard` → 重建 zip →
+  `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/seed{41,42,43}/reading`。
 
 ## §7 下一动作（S3）
 
-本轮已关闭（**未运行**、0 GPU-h；证据 `docs/R7_S3_CAPACITY_DEPTH.md`、索引
-`record:s3-capacity-depth`）。**下一动作（S3）**：由操作者与主链路**重新制定方向**（架构 / 数据），
-据此开新的 round brief；本 brief 保留为"已准备、未运行"的记录，**不重开**。宽输入支与训练配方支
-已关闭不重开；test 未读、r=0、S4 未启动不变。
+本轮**已恢复运行**（depth 4→8 单因素；读数登记为新 record `s3-capacity-depth-run` 与新证据页
+`docs/R7_S3_CAPACITY_DEPTH_RUN.md`，原「未运行」登记逐字节保留）。**下一动作（S3）**：按 §3 的
+预声明出口读——72 h 三 seed 全正 → 提请独立验收；否则**关闭"靠加大容量解决 72 h"这一支**，
+转架构方向（数据扩充按 §5 暂缓、放到最最后），并在 §8 写清"为何停 + 恢复第一条命令"。
+宽输入支与训练配方支已关闭不重开；test 未读、r=0、S4 未启动不变。
