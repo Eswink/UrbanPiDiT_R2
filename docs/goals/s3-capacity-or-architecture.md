@@ -93,6 +93,11 @@ identity-gated 规则扩成 depth-8 —— 新增块 `i∈{4..7}` 在**每个参
   archive 阶段断言 `comment == freeze 时的 HEAD`），所以任何后续提交都不会让本轮失效。
 - **第一条命令**（若手工跑）：`.venv/bin/python tools/r7_round.py round-guard` → 重建 zip →
   `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/seed{41,42,43}/reading`。
+- **本轮准备提交与 CI（2026-10-12）**：`5ca88d9`（拆 stage/register 提交口径 + 恢复本轮可运行）、
+  `d5859a0`（同步 R-021 规模 marker 91→93）已推工作分支；`R7 CPU CI` run `38233411450` 对
+  `d5859a0…` **九主步骤全 success**。首次 run `38228709491` 因 R-021 anti-drift marker 漂移而红
+  （本轮把 `tools/r7_round_stages.py` 362→416、`tests/test_r7_round_stages.py` 347→428 推过 400 行目标），
+  已按本页先例同步 marker，**未改阈值 / 规则级别 / 冻结例外**。
 
 ## §7 下一动作（S3）
 
