@@ -69,6 +69,12 @@ identity-gated 规则扩成 depth-8 —— 新增块 `i∈{4..7}` 在**每个参
 - 每阶段 spawn 前做**只读** `gpu_gate`（`GPU-408ad137-a60e-6a04-e2c8-22f5f64e5e3b`），
   按实测标定 `estimated_peak_bytes`（K=8 实测 13.55 GiB，深度翻倍须重新标定，**不得**沿用 2 GiB 旧值）；
   **禁止**对任何非本实验进程发送信号或做冻结/终止自动化。
+  - **2026-10-12 用户授权放宽（首次 attempt01 因此被阻塞）**：本机默认共驻，邻居作业在声明 GPU 上占用
+    ~5–6 GiB，原 `15 GiB + 4 GiB margin = 19 GiB` 门槛使本轮无限等待（实测 free ~18.4–18.8 GiB，差 ~0.2 GiB）。
+    用户明确「不用算那么准、GPU 不可能全空闲、差不多能跑就行」，故把估计值降到**已声明的下限 14 GiB**
+    （仍高于 ~13.55 GiB 实测占用）、margin 降到 **2 GiB** ⇒ 门槛 **16 GiB**，共驻卡可通过。这**不是**改科学判据，
+    也不放宽「禁止对邻居发信号」；只是 resource gate 的精度放宽，并据此**新开 attempt02**（attempt01 的
+    prepare/archive 保留、不删、不续跑；zip 与协议随新 HEAD 重建）。
 - 失败 attempt 原样保留、全额计费、不做 in-place resume。
 - **不要在跑的时候停 workflow**（停止会 `SIGKILL` 在跑的 `world.run` 子进程，见计划 0021 §1）。
 

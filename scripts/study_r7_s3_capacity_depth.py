@@ -54,8 +54,13 @@ SEEDS = wide.SEEDS
 PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 28800., 86400., 115200.
 # K=8 measured 13.55 GiB reserved at K=8/depth=4; the depth-8/K=4 graph carries the same
 # backbone-pass product, so the estimate is calibrated there rather than reusing 2 GiB.
-ESTIMATED_PEAK_BYTES = 15 * 2**30
-HEADROOM_MARGIN_BYTES = 4 * 2**30
+# 2026-10-12 (user-authorized): the host is co-resident — a neighbour job holds ~5-6 GiB on
+# the declared GPU, so a 15+4 GiB requirement blocked the round indefinitely. The user asked
+# for a rough gate rather than an exact peak, so the estimate sits at the declared floor
+# (14 GiB, still above the ~13.55 GiB measured footprint) with a 2 GiB margin: 16 GiB free
+# is required, which the shared card clears while still leaving headroom above the footprint.
+ESTIMATED_PEAK_BYTES = 14 * 2**30
+HEADROOM_MARGIN_BYTES = 2 * 2**30
 MIN_ESTIMATED_PEAK_BYTES = 14 * 2**30
 EQUIVALENCE_SHAPE = (1, 2, 17, 129, 129)
 EQUIVALENCE_SEED = 1234
