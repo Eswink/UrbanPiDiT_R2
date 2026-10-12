@@ -48,7 +48,21 @@
 
 ## 5. 进度块（状态机）
 
-- **状态**：未开始。
-- **已完成**：无。
-- **未做**：全部。
-- **下一动作**：加载 `dynamic-workflows` 技能，然后按 §0 第 ② 步发起探针运行。
+- **状态**：active（探针已跑完一轮；最终 goal 状态不由本文件宣布）。
+- **已完成**：
+  - D1 ✅ 一次由 goal 会话发起的 workflow 运行——run id `dwfrun-8b989f84-1043-408e-bd07-4690677135fc`，
+    终态 **`completed`**，用时 1m07s，args `{label:"goal-probe-1"}` 生效。
+  - D2 ✅ 观测记录 `docs/R7_WORKFLOW_IN_GOAL_PROBE.md`（run id / 终态 / 时序 / 卡片名 /
+    三个校验器退出码 0,0,0 / 未验证项）。
+  - D3 ✅ 可行性结论：**可行**（六环全通；边界见 D2 §1）。
+  - D4 ✅ 本进度块。
+- **关键读数**：① 技能加载成功、CreateWorkflow 未拒跑；② 一次运行即完成，**无需**
+  `ResumeWorkflowRun`/`args` 重起；③ 回合在 workflow 运行期间**正常结束**（09:35:22），
+  完成通知**自动送达并触发新回合**（09:35:46）；④ **轮末 goal 完成校验未触发**
+  （2026-10-11 全库 0 条 `target_completion_verification`；最可能因后台任务在跑而 `defer`，
+  **推断**）；⑤ 卡片 `probe-report`(primary) 与 `probe` 已发布并随通知送达（UI 渲染未核）。
+- **未做 / 未验证**：goal 校验读数（未触发故无读数）、卡片 UI 渲染、`created_at` 与发起前
+  读数约 5m53s 间隔的成因；GPU 轮编排 / freeze / commit / push 均未执行。
+- **下一动作**：无（探针目标已按 §0 六步走完）。若用户要推进 campaign，第一步是
+  `.venv/bin/python tools/check_campaign_state.py --campaign docs/goals/main-model-climatology-campaign.md`
+  并按主计划当前节点对表；**本轮未做、也不属本探针范围**。

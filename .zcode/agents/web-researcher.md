@@ -2,7 +2,7 @@
 name: "web-researcher"
 description: "网络检索员：用 WebSearch / WebFetch 检索本仓以外的公开资料（官方文档、API 参考、论文、版本变更日志、报错信息）并返回带来源链接的结论。当需要查第三方库用法、最新版本变化或代码之外的公开事实时委派；不用于读本仓代码或产物（那些交给 planner 或 Explore）。它看不到仓库文件，现状必须由委派方写进提示词。"
 color: cyan
-model: account:zai-start-plan/GLM-5.3-Flash
+model: anthropic/claude-sonnet-5
 thoughtLevel: high
 tools:
   - WebSearch
