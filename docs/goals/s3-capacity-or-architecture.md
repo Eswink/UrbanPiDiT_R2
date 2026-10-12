@@ -4,9 +4,17 @@
 
 <!-- round-spec: {"arm": "s3-capacity-depth", "driver": "scripts/study_r7_s3_capacity_depth.py", "output_stem": "r7_s3_capacity_depth_20261012", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_capacity_depth.py"], "commit_paths": ["docs/R7_S3_CAPACITY_DEPTH.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): register the S3 capacity-depth single-factor arm", "code_archive": "outputs/r7_s3_capacity_depth_code.zip"} -->
 
-状态 **未开始**（2026-10-12 交接）。唯一主计划
+状态 **驱动与 CI-safe 测试已实现、协议待冻结**（2026-10-12 交接）。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接 `docs/goals/s3-reasoning-depth.md` 的预声明出口
 （该臂被操作者中止、未完成，见 `docs/R7_S3_REASONING_DEPTH.md`）与主计划 §8 最后一条"下一动作"。
+
+本轮实现（2026-10-12）：驱动 `scripts/study_r7_s3_capacity_depth.py`、测试
+`tests/test_r7_s3_capacity_depth.py`（28 例全过）。**冻结的深度扩张规则**：depth-4 父状态按
+identity-gated 规则扩成 depth-8 —— 新增块 `i∈{4..7}` 在**每个参数**上镜像块 `i-4`，并把两个
+输出投影（`proj`、`ff.net.3`）清零，使每个新增块恰为恒等；因此 depth-8 主干**从注册的 depth-4
+函数出发**。逐 seed 在固定合成批（`(1,2,17,129,129)`、seed 1234）上断言编码器 FP32 输出**逐位
+一致**，并把 `parent_state_sha256`/`expanded_state_sha256`/`encoder_output_sha256` 写进 receipt。
+`estimated_peak_bytes` 按 K=8 实测 13.55 GiB 重新标定为 15 GiB（margin 4 GiB），**未沿用 2 GiB**。
 
 ## §0 Objective（单段，实测 869 字符）
 
@@ -64,9 +72,11 @@
 
 ## §6 进度与交接
 
-- 本轮尚未开始。**第一条命令**（CPU 准备）：
-  `.venv/bin/python -m pytest -q tests/test_r7_s3_wide_long_lead_weight.py`，
-  然后在已登记最佳臂的驱动上派生 `depth=8` 变体（新输出目录、新协议 digest、新 `code.zip`），
-  并**重新标定** `estimated_peak_bytes`。
+- 驱动与测试已实现（2026-10-12），CPU preflight 已过：`worker prepare` 写出 depth=8 candidate spec；
+  `_parent_model(seed=41)` 对**真实**迁移父实测 `bit_identical=True`、`added=[4,5,6,7]`、
+  `non_block_keys_unchanged=True`、严格 `load_state_dict` 通过（父 sha `fba27e26…`）。
+- **第一条命令**（确定性快门，提交前）：`.venv/bin/python tools/r7_round.py round-guard`；
+  然后建 `outputs/r7_s3_capacity_depth_code.zip`（ZIP comment = HEAD）并 `tools/r7_round.py freeze`
+  → `stage prepare/archive/seed{41,42,43}/reading`。
 - 若 72h 仍非三 seed 全正，按 §3 的预声明出口**关闭"加大容量解决 72h"这一支**并在 §8 写
   "为何停 + 恢复第一条命令"。
