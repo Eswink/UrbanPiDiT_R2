@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-capacity-depth", "driver": "scripts/study_r7_s3_capacity_depth.py", "output_stem": "r7_s3_capacity_depth_20261012", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_capacity_depth.py"], "commit_paths": ["scripts/study_r7_s3_capacity_depth.py", "tests/test_r7_s3_capacity_depth.py", "docs/goals/s3-capacity-or-architecture.md"], "commit_message": "feat(r7): implement the S3 capacity-depth (trunk depth 4->8) single-factor arm", "register_paths": ["docs/R7_S3_CAPACITY_DEPTH_RUN.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the S3 capacity-depth (depth 4->8) run as a new evidence record", "code_archive": "outputs/r7_s3_capacity_depth_code.zip"} -->
+<!-- round-spec: {"arm": "s3-capacity-depth", "driver": "scripts/study_r7_s3_capacity_depth.py", "output_stem": "r7_s3_capacity_depth_20261012", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_capacity_depth.py"], "commit_paths": ["scripts/study_r7_s3_capacity_depth.py", "tests/test_r7_s3_capacity_depth.py", "training/r7_device_selection.py", "tests/test_r7_device_selection.py", "docs/goals/s3-capacity-or-architecture.md"], "commit_message": "feat(r7): implement the S3 capacity-depth (trunk depth 4->8) single-factor arm", "register_paths": ["docs/R7_S3_CAPACITY_DEPTH_RUN.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the S3 capacity-depth (depth 4->8) run as a new evidence record", "code_archive": "outputs/r7_s3_capacity_depth_code.zip"} -->
 
 状态 **驱动与 CI-safe 测试已实现、已决定恢复运行**（2026-10-12 操作者决定）。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接 `docs/goals/s3-reasoning-depth.md` 的预声明出口
@@ -76,6 +76,15 @@ identity-gated 规则扩成 depth-8 —— 新增块 `i∈{4..7}` 在**每个参
     ② 用户明确「不用算那么准、GPU 不可能全空闲、差不多能跑就行」，故门槛定为 `8.5 GiB 估计 + 0.5 GiB margin
     = 9 GiB`（floor 8 GiB），共驻卡可通过。这**不是**改科学判据，也不放宽「禁止对邻居发信号」；仅 resource
     gate 的精度。据此**新开 attempt**（此前 attempt 的 prepare/archive 保留、不删、不续跑；zip/协议随新 HEAD 重建）。
+- **2026-10-12 双卡分配（决策 0047）**：本轮 `device_mode: "dual"`，冻结块另记 `gpu_uuids`
+  （声明卡 `GPU-408ad137…` 排第一）与 `neighbour_reserve_bytes = 6 GiB`，门槛变为
+  `required = max(估计, 实测峰值) + margin + reserve`。由 `tools/r7_round.py stage-seeds` 驱动：
+  **每张卡同一时刻至多一个本轮 worker**，一卡一 seed 并发，seed 的偏好卡是 `gpu_uuids` 上的
+  确定性轮转（三个 seed 分两张卡不会全挤在声明卡）。**不改训练配置、不引入 DDP**
+  （先例 `scripts/study_r7_b3_scale.py`）；`single` 模式保留旧行为（`gpu_uuids = [声明卡]`，
+  逐位不变）。reserve 是**判断不是保证**——6 GiB 取自 seed 41 那次的邻居增长实测（+6.2 GiB），
+  邻居若涨得更多 seed 仍会 OOM，如实登记为资源失败，不写成「已解决」。逐张卡仍只读探测、
+  全不过即 `headroom-blocked` 有界等待，**仍不对邻居发任何信号**。
 - 失败 attempt 原样保留、全额计费、不做 in-place resume。
 - **不要在跑的时候停 workflow**（停止会 `SIGKILL` 在跑的 `world.run` 子进程，见计划 0021 §1）。
 

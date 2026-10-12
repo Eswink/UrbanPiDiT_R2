@@ -13,6 +13,7 @@ orchestrator's job, and it is what lets an interrupted round be continued.
 
 from __future__ import annotations
 
+import concurrent.futures
 import importlib.util
 import json
 import os
@@ -30,6 +31,11 @@ _LIVENESS_PATH = Path(__file__).resolve().parent / "r7_round_liveness.py"
 _liveness_spec = importlib.util.spec_from_file_location("r7_round_liveness", _LIVENESS_PATH)
 liveness = importlib.util.module_from_spec(_liveness_spec)
 _liveness_spec.loader.exec_module(liveness)
+
+_DEVICES_PATH = Path(__file__).resolve().parents[1] / "training" / "r7_device_selection.py"
+_devices_spec = importlib.util.spec_from_file_location("r7_device_selection", _DEVICES_PATH)
+devices = importlib.util.module_from_spec(_devices_spec)
+_devices_spec.loader.exec_module(devices)
 
 ROOT = support.ROOT
 PYTHON = support.PYTHON
@@ -183,9 +189,17 @@ def freeze_round(
     }
 
 
-def worker_environment(source: dict[str, str] | None = None) -> dict[str, str]:
-    """A small, explicit environment: the worker pins its own GPU by declared UUID."""
-    return {key: value for key, value in (source or os.environ).items() if key in WORKER_ENV_KEYS}
+def worker_environment(source: dict[str, str] | None = None, device: str | None = None) -> dict[str, str]:
+    """A small, explicit environment: the worker pins its own GPU by declared UUID.
+
+    ``device`` (decision 0047) pins the worker to the card this stage was assigned. It is
+    set explicitly rather than allowed through from the ambient environment, and the
+    driver re-validates it against the frozen device list instead of trusting it.
+    """
+    environment = {key: value for key, value in (source or os.environ).items() if key in WORKER_ENV_KEYS}
+    if device is not None:
+        environment["CUDA_VISIBLE_DEVICES"] = device
+    return environment
 
 
 def promote_prepared_protocol(output: Path) -> bool:
@@ -228,8 +242,8 @@ def run_stage(
     seed: int | None = None,
     root: Path | None = None,
     runner: Callable[..., dict[str, Any]] | None = None,
-    protocol: dict[str, Any] | None = None,
     clock: Callable[[], float] | None = None,
+    device: str | None = None,
 ) -> dict[str, Any]:
     """Run exactly one driver stage, skipping it when its receipt already exists.
 
@@ -252,7 +266,7 @@ def run_stage(
         return {**plan, "status": "already-running", "passed": False,
                 "reason": "a worker for this stage is still running; wait for its receipt"}
     promote_prepared_protocol(output)
-    body = protocol if protocol is not None else stage_protocol(output, phase)
+    body = stage_protocol(output, phase)
     deadline = float(body["deadline_perf_counter"])
     per_seed = float(body["per_seed_seconds"])
     limit = min(deadline, now() + per_seed) if phase == "seed" else deadline
@@ -264,13 +278,26 @@ def run_stage(
         # seed's receipt carries what the run actually reserved. Gate on the larger of
         # the two, so an already-measured footprint cannot be under-declared.
         owned_peak = max(int(body.get("owned_reserved_peak_bytes", 0)), measured_peak_bytes(output))
-        gate = gpu_headroom(
-            body["gpu_uuid"],
-            estimated_peak_bytes=int(body["estimated_peak_bytes"]),
-            owned_reserved_peak_bytes=owned_peak,
-            margin_bytes=int(body["headroom_margin_bytes"]),
-            runner=runner,
-        )
+        if device is None:
+            gate = gpu_headroom(
+                body["gpu_uuid"],
+                estimated_peak_bytes=int(body["estimated_peak_bytes"]),
+                owned_reserved_peak_bytes=owned_peak,
+                margin_bytes=int(body["headroom_margin_bytes"]),
+                runner=runner,
+            )
+        else:
+            # A protocol that names its cards takes the multi-card path (decision 0047):
+            # the parent already picked this stage's card, so only that one is probed, and
+            # the declared neighbour reserve is added on top of footprint and margin.
+            gate = devices.gate_candidates(
+                [device],
+                estimated_peak_bytes=int(body["estimated_peak_bytes"]),
+                owned_reserved_peak_bytes=owned_peak,
+                margin_bytes=int(body["headroom_margin_bytes"]),
+                reserve_bytes=int(body.get("neighbour_reserve_bytes", 0)),
+                runner=runner,
+            )
         if not gate["passed"]:
             return {**plan, "status": "headroom-blocked", "passed": False, "gate": gate}
     argv = [PYTHON, str(base / driver_rel), "--worker", phase, "--out", str(output), "--deadline", str(limit)]
@@ -278,7 +305,7 @@ def run_stage(
         argv += ["--seed", str(seed)]
     run = runner or default_runner
     started = now()
-    result = run(argv, base, worker_environment(), max(1.0, limit - started) + 60.0)
+    result = run(argv, base, worker_environment(device=device), max(1.0, limit - started) + 60.0)
     elapsed = now() - started
     if phase == "prepare" and result["exit_code"] == 0:
         promote_prepared_protocol(output)
@@ -286,6 +313,7 @@ def run_stage(
     record = {
         "phase": phase,
         "seed": seed,
+        "device": device,
         "exit_code": result["exit_code"],
         "status": "success" if result["exit_code"] == 0 else "failed",
         "passed": result["exit_code"] == 0,
@@ -304,6 +332,82 @@ def run_stage(
     if not process_path.exists():
         process_path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     return record
+
+
+def run_seeds(
+    output: Path,
+    spec: dict[str, Any],
+    *,
+    root: Path | None = None,
+    runner: Callable[..., dict[str, Any]] | None = None,
+    clock: Callable[[], float] | None = None,
+    wait_seconds: float = 3600.0,
+    poll_seconds: float = 60.0,
+) -> dict[str, Any]:
+    """Run the round's remaining seeds with **at most one worker per frozen card**.
+
+    A protocol that names a single card degenerates to the sequential order the round
+    used before: one worker at a time, seeds in the spec's order. With two cards the
+    second seed starts immediately and a third starts as soon as a card frees, so no card
+    is ever shared by two workers of this round (decision 0047). The card a seed prefers
+    is a rotation over the frozen list, which keeps three seeds from piling onto card 0.
+
+    ``headroom-blocked`` is waited out read-only, exactly as the workflow's stage loop
+    does, and never by signalling a neighbour (R-054). A genuine stage failure stops the
+    round from starting further seeds; seeds already running are left to finish and are
+    recorded either way.
+    """
+    output = Path(output)
+    now = clock or time.perf_counter
+    body = stage_protocol(output, "seed")
+    uuids = devices.frozen_uuids(body)
+    if not uuids:
+        raise RoundError("the frozen protocol declares no device")
+    driver = spec["driver"]
+    order = {seed: index for index, seed in enumerate(spec["seeds"])}
+    pending = [seed for seed in spec["seeds"] if not stage_receipt(output, "seed", seed).is_file()]
+    deadlines = {seed: now() + wait_seconds for seed in pending}
+    free, records, stop = list(uuids), [], False
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(uuids)) as pool:
+        running: dict[Any, tuple[int, str]] = {}
+        while (pending and not stop) or running:
+            while pending and free and not stop:
+                seed = pending.pop(0)
+                device = next(card for card in devices.seed_order(uuids, order[seed]) if card in free)
+                free.remove(device)
+                future = pool.submit(run_stage, output, driver, "seed", seed=seed, root=root,
+                                     runner=runner, clock=clock, device=device)
+                running[future] = (seed, device)
+            if not running:
+                break
+            done, _ = concurrent.futures.wait(list(running),
+                                              return_when=concurrent.futures.FIRST_COMPLETED)
+            retry = False
+            for future in done:
+                seed, device = running.pop(future)
+                free.append(device)
+                record = future.result()
+                records.append(record)
+                if record["status"] == "headroom-blocked" and now() < deadlines[seed]:
+                    pending.insert(0, seed)
+                    retry = True
+                elif not record["passed"]:
+                    stop = True
+            if retry and not stop and pending:
+                time.sleep(max(0.0, min(poll_seconds, deadlines[pending[0]] - now())))
+    # A seed that was blocked and then waited out leaves two records: score each seed by its
+    # last one, so a retried seed is not reported as blocked forever. The earlier observation
+    # stays in ``seeds`` as the audit trail.
+    final = {record["seed"]: record for record in records}
+    blocked = [seed for seed, record in final.items() if record["status"] == "headroom-blocked"]
+    return {
+        "mode": "multi-card" if len(uuids) > 1 else "single-card",
+        "devices": uuids,
+        "seeds": records,
+        "headroom_blocked": blocked,
+        "stopped": stop,
+        "passed": bool(records) and not stop and not blocked,
+    }
 
 
 def git_branch(root: Path | None = None, runner: Callable[..., dict[str, Any]] | None = None) -> str:

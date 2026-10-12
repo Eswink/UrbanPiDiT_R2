@@ -28,6 +28,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from tools.r7_round_support import round_spec  # noqa: E402
+
 VARIABLES = ("t2m", "u10", "v10", "mslp", "tcc", "tcwv", "sp", "z500", "t500", "u500",
              "v500", "q500", "z850", "t850", "u850", "v850", "r850")
 COHORTS = ((6, 472), (12, 468), (24, 460), (48, 444), (72, 428))
@@ -404,3 +406,75 @@ def test_driver_exposes_the_round_driver_contract_names():
         assert hasattr(capacity, name), name
     assert tuple(capacity.SEEDS) == (41, 42, 43)
     assert tuple(capacity.SEEDS) == tuple(wide.SEEDS)
+
+
+def _load_devices():
+    from training import r7_device_selection as devices
+    return devices
+
+
+def _two_card_probe(uuids=("GPU-a", "GPU-b"), free_mib=30000):
+    def probe(argv):
+        assert argv[0] == "nvidia-smi"
+        body = "".join(f"{uuid}, {free_mib}, 24576\n" for uuid in uuids)
+        return {"exit_code": 0, "stdout": body, "stderr": ""}
+    return probe
+
+
+def test_device_mode_is_dual_and_the_round_spec_agrees():
+    """The driver and the round-spec must not disagree about how many cards the round uses."""
+    devices = _load_devices()
+    spec = round_spec(ROOT / "docs" / "goals" / "s3-capacity-or-architecture.md")
+    assert capacity.DEVICE_MODE == devices.MODE_DUAL
+    assert spec["device_mode"] == capacity.DEVICE_MODE
+
+
+def test_single_mode_freezes_one_card_and_keeps_the_legacy_rule():
+    """``single`` must stay byte-compatible with every already-registered arm."""
+    devices = _load_devices()
+    body = {"gpu_uuid": "GPU-a", **devices.protocol_fields("single", single_uuid="GPU-a")}
+    assert body["gpu_uuids"] == ["GPU-a"] and body["device_mode"] == "single"
+    assert devices.frozen_uuids(body) == ["GPU-a"]
+    assert devices.assignment_is_valid(body, "GPU-a") is True
+    assert devices.assignment_is_valid(body, "GPU-b") is False
+    legacy = {"gpu_uuid": "GPU-a"}
+    assert devices.assignment_is_valid(legacy, "GPU-a") is True
+    assert devices.assignment_is_valid(legacy, "GPU-b") is False
+
+
+def test_dual_mode_lists_the_declared_card_first_and_still_accepts_it():
+    devices = _load_devices()
+    body = {"gpu_uuid": "GPU-a",
+            **devices.protocol_fields("dual", single_uuid="GPU-a", runner=_two_card_probe())}
+    assert body["gpu_uuids"] == ["GPU-a", "GPU-b"]
+    assert body["neighbour_reserve_bytes"] == devices.NEIGHBOUR_RESERVE_BYTES
+    assert devices.assignment_is_valid(body, "GPU-a") is True
+    assert devices.assignment_is_valid(body, "GPU-b") is False
+
+
+def test_a_frozen_list_that_does_not_head_with_the_primary_is_rejected():
+    """Counterproof: a hand-edited freeze must not silently pass validation."""
+    devices = _load_devices()
+    body = {"gpu_uuid": "GPU-a", "gpu_uuids": ["GPU-b", "GPU-a"]}
+    assert devices.assignment_is_valid(body, "GPU-a") is False
+
+
+def test_a_worker_refuses_a_card_outside_the_frozen_list(monkeypatch):
+    """Counterproof: an unexpected CUDA_VISIBLE_DEVICES is a hard error, never a fallback."""
+    devices = _load_devices()
+    body = {"gpu_uuid": "GPU-a", "gpu_uuids": ["GPU-a", "GPU-b"]}
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "GPU-b")
+    assert devices.assigned_uuid(body) == "GPU-b"
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "GPU-z")
+    with pytest.raises(RuntimeError, match="not in the frozen device list"):
+        devices.assigned_uuid(body)
+    with pytest.raises(RuntimeError, match="declares no device"):
+        devices.assigned_uuid({})
+
+
+def test_seed_order_rotates_over_the_frozen_cards():
+    """Three seeds over two cards must not pile every seed onto the declared card."""
+    devices = _load_devices()
+    assert devices.seed_order(["GPU-a", "GPU-b"], 0) == ["GPU-a", "GPU-b"]
+    assert devices.seed_order(["GPU-a", "GPU-b"], 1) == ["GPU-b", "GPU-a"]
+    assert devices.seed_order(["GPU-a", "GPU-b"], 2) == ["GPU-a", "GPU-b"]

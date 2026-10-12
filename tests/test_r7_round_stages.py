@@ -12,6 +12,8 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import threading
+import time
 
 import pytest
 
@@ -426,3 +428,127 @@ def test_promotion_never_overwrites_an_existing_protocol(support, tmp_path):
         json.dumps({"protocol_sha256": "b" * 64}), encoding="utf-8")
     assert support.promote_prepared_protocol(tmp_path) is False
     assert json.loads((tmp_path / "protocol.json").read_text(encoding="utf-8"))["protocol_sha256"] == "f" * 64
+
+
+# --- multi-card device selection (decision 0047) -------------------------------------------
+
+TWO_CARDS = "GPU-a, 30000, 24576\nGPU-b, 30000, 24576\n"
+
+
+def test_run_stage_pins_the_assigned_card_and_gates_only_that_one(support, tmp_path):
+    _protocol_file(tmp_path, gpu_uuids=["GPU-a", "GPU-b"], neighbour_reserve_bytes=0)
+    seen = {}
+
+    def probe(argv, cwd=None, env=None, timeout=None):
+        if argv[0] == "nvidia-smi":
+            return _ok(TWO_CARDS)
+        seen["env"] = dict(env or {})
+        return _ok()
+
+    record = support.run_stage(tmp_path, "scripts/study_fake.py", "seed", seed=41, runner=probe,
+                               clock=lambda: 1000.0, device="GPU-b")
+    assert record["device"] == "GPU-b" and record["passed"] is True
+    assert seen["env"]["CUDA_VISIBLE_DEVICES"] == "GPU-b"
+    assert record["gate"]["candidates"] == ["GPU-b"]
+
+
+def test_run_stage_blocks_a_seed_whose_card_is_short_of_the_neighbour_reserve(support, tmp_path):
+    _protocol_file(tmp_path, gpu_uuids=["GPU-a", "GPU-b"], estimated_peak_bytes=0,
+                   headroom_margin_bytes=0, neighbour_reserve_bytes=6 * 2**30)
+    calls = []
+
+    def runner(argv, cwd=None, env=None, timeout=None):
+        if argv[0] == "nvidia-smi":
+            return _ok("GPU-a, 1000, 24576\nGPU-b, 1000, 24576\n")
+        calls.append(list(argv))
+        return _ok()
+
+    record = support.run_stage(tmp_path, "scripts/study_fake.py", "seed", seed=41, runner=runner,
+                               clock=lambda: 1000.0, device="GPU-b")
+    assert record["status"] == "headroom-blocked" and record["passed"] is False
+    assert calls == [], "a blocked card must not spawn a worker"
+
+
+def test_run_seeds_single_card_keeps_the_spec_order(support, tmp_path):
+    _protocol_file(tmp_path, gpu_uuids=["GPU-a"], neighbour_reserve_bytes=0)
+    order = []
+
+    def runner(argv, cwd=None, env=None, timeout=None):
+        if argv[0] == "nvidia-smi":
+            return _ok(TWO_CARDS)
+        order.append(argv[argv.index("--seed") + 1])
+        return _ok()
+
+    result = support.run_seeds(tmp_path, {"driver": "scripts/study_fake.py", "seeds": [41, 42, 43]},
+                               runner=runner, clock=lambda: 1000.0, wait_seconds=0.0, poll_seconds=0.0)
+    assert result["mode"] == "single-card" and result["passed"] is True
+    assert order == ["41", "42", "43"]
+
+
+def test_run_seeds_never_puts_two_workers_on_one_card(support, tmp_path):
+    """The load-bearing invariant of decision 0047: a card hosts at most one worker."""
+    _protocol_file(tmp_path, gpu_uuids=["GPU-a", "GPU-b"], neighbour_reserve_bytes=0)
+    lock = threading.Lock()
+    active, peak = {}, {}
+
+    def runner(argv, cwd=None, env=None, timeout=None):
+        if argv[0] == "nvidia-smi":
+            return _ok(TWO_CARDS)
+        card = (env or {}).get("CUDA_VISIBLE_DEVICES")
+        with lock:
+            active[card] = active.get(card, 0) + 1
+            peak[card] = max(peak.get(card, 0), active[card])
+        time.sleep(0.05)
+        with lock:
+            active[card] -= 1
+        return _ok()
+
+    result = support.run_seeds(tmp_path, {"driver": "scripts/study_fake.py", "seeds": [41, 42, 43]},
+                               runner=runner, clock=lambda: 1000.0, wait_seconds=0.0, poll_seconds=0.0)
+    assert result["mode"] == "multi-card" and result["passed"] is True
+    assert set(peak) == {"GPU-a", "GPU-b"} and max(peak.values()) == 1
+    assert sorted(record["seed"] for record in result["seeds"]) == [41, 42, 43]
+
+
+def test_run_seeds_stops_starting_seeds_after_a_failure(support, tmp_path):
+    _protocol_file(tmp_path, gpu_uuids=["GPU-a"], neighbour_reserve_bytes=0)
+    started = []
+
+    def runner(argv, cwd=None, env=None, timeout=None):
+        if argv[0] == "nvidia-smi":
+            return _ok(TWO_CARDS)
+        started.append(argv[argv.index("--seed") + 1])
+        return _fail(1)
+
+    result = support.run_seeds(tmp_path, {"driver": "scripts/study_fake.py", "seeds": [41, 42, 43]},
+                               runner=runner, clock=lambda: 1000.0, wait_seconds=0.0, poll_seconds=0.0)
+    assert result["stopped"] is True and result["passed"] is False
+    assert started == ["41"], "a failed seed must stop the round from starting more"
+
+
+def test_run_seeds_waits_out_a_blocked_card_instead_of_failing(support, tmp_path):
+    _protocol_file(tmp_path, gpu_uuids=["GPU-a"], estimated_peak_bytes=0,
+                   headroom_margin_bytes=0, neighbour_reserve_bytes=6 * 2**30)
+    probes = {"count": 0}
+
+    def runner(argv, cwd=None, env=None, timeout=None):
+        if argv[0] == "nvidia-smi":
+            probes["count"] += 1
+            free = 1000 if probes["count"] == 1 else 30000
+            return _ok(f"GPU-a, {free}, 24576\n")
+        return _ok()
+
+    ticks = iter(range(1000, 9000))
+    result = support.run_seeds(tmp_path, {"driver": "scripts/study_fake.py", "seeds": [41]},
+                               runner=runner, clock=lambda: next(ticks), wait_seconds=600.0,
+                               poll_seconds=0.0)
+    assert result["headroom_blocked"] == []
+    assert [record["status"] for record in result["seeds"]] == ["headroom-blocked", "success"]
+    assert result["passed"] is True
+
+
+def test_run_seeds_refuses_a_protocol_without_a_device(support, tmp_path):
+    _protocol_file(tmp_path, gpu_uuid=None)
+    with pytest.raises(support.RoundError, match="declares no device"):
+        support.run_seeds(tmp_path, {"driver": "scripts/study_fake.py", "seeds": [41]},
+                          runner=lambda *a, **k: _ok())

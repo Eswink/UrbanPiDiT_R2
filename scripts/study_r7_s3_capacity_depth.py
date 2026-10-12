@@ -40,6 +40,7 @@ from scripts import study_r7_s3_wide_interior_dose as dose
 from scripts import study_r7_s3_wide_single_factor as wide
 from scripts import study_r7_s3_v3_rollout_ft as recipe
 from scripts.study_r7_s3_v3_rollout_isolated import fresh_output
+from training import r7_device_selection as devices
 from training.r7_study_process import bounded_process, worker_environment
 
 interior = dose.interior
@@ -51,15 +52,17 @@ REASONING_STEPS = wide.REASONING_STEPS
 PARENT_DEPTH = 4
 DEPTH = 8
 SEEDS = wide.SEEDS
+# Decision 0047: one seed per card, both cards used by default. ``single`` keeps the old
+# one-card behaviour and is what every other (registered) arm still freezes.
+DEVICE_MODE = "dual"
 PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 28800., 86400., 115200.
 # Footprint proxy for THIS arm is the dose arm, not the K=8 arm. Both run K=4 and the same
 # 2400 updates, and K dominates the reserved peak: the dose arm (K=4) measured 8562 MiB while
 # the K=8 arm measured 13878 MiB. Depth 4->8 only doubles the encoder, whose one-pass
 # activations over 4225 tokens are ~0.1 GiB, so the footprint is ~8.5 GiB -- not 14 GiB.
-# 2026-10-12 (user-authorized): the host is co-resident and a neighbour job now holds ~14 GiB
-# on the declared GPU, so the earlier 15+4 GiB requirement blocked the round indefinitely. The
-# user asked for a rough gate rather than an exact peak: 8.5 GiB estimate (>= the 8562 MiB
-# measured proxy) + 0.5 GiB margin = 9 GiB required, which the shared card clears.
+# 2026-10-12: the gate then asked for 8.5 GiB + 0.5 GiB = 9 GiB, it passed on a co-resident
+# host, and the seed still died with CUDA OOM 32.5 min in because the neighbour grew ~6.2 GiB
+# after the probe. The reserve for that growth is declared in ``training.r7_device_selection``.
 ESTIMATED_PEAK_BYTES = 8704 * 2**20
 HEADROOM_MARGIN_BYTES = 512 * 2**20
 MIN_ESTIMATED_PEAK_BYTES = 8192 * 2**20
@@ -266,6 +269,7 @@ def freeze(output, *, started, deadline, code_archive, code_commit, code_sha256)
     from training.r7_experiment import canonical_digest
     body = {**protocol_constants(),
             "gpu_uuid": wide.GPU_UUID, "estimated_peak_bytes": ESTIMATED_PEAK_BYTES,
+            **devices.protocol_fields(DEVICE_MODE, single_uuid=wide.GPU_UUID),
             "headroom_margin_bytes": HEADROOM_MARGIN_BYTES,
             "execution_mode": "direct owned bounded workers, no descendants; failure stops this attempt",
             "planned_seconds": PLANNED_SECONDS, "hard_cap_seconds": HARD_CAP_SECONDS,
@@ -335,7 +339,8 @@ def validate_protocol(output):
         raise RuntimeError("the frozen capacity factor changed")
     if body["depth_expansion"] != depth_expansion_block():
         raise RuntimeError("the frozen depth-expansion rule changed")
-    if body["arms"]["candidate"] != _expected_candidate() or body["gpu_uuid"] != wide.GPU_UUID:
+    if body["arms"]["candidate"] != _expected_candidate() or not devices.assignment_is_valid(
+            body, wide.GPU_UUID):
         raise RuntimeError("declared GPU/candidate differs from frozen recipe")
     if int(body["arms"]["candidate"]["model"]["spec"]["depth"]) != DEPTH:
         raise RuntimeError("the candidate trunk is not depth 8")
@@ -490,7 +495,8 @@ def worker(output, phase, seed, deadline):
     if (deadline is None or not math.isfinite(deadline)
             or deadline > body["deadline_perf_counter"] or deadline <= time.perf_counter()):
         raise RuntimeError("worker deadline outside frozen round")
-    recipe._shared().pin_declared_gpu(wide.GPU_UUID)
+    assigned = devices.assigned_uuid(body)
+    recipe._shared().pin_declared_gpu(assigned)
     if phase == "reading":
         wide.write_exclusive(output / "readings.json", _readings(output, body))
         return
@@ -508,6 +514,8 @@ def run_attempt(output, *, code_archive, code_commit, code_sha256):
     if (not code_archive or not isinstance(code_commit, str) or len(code_commit) != 40
             or not isinstance(code_sha256, str) or len(code_sha256) != 64):
         raise ValueError("prepared exact code archive/commit/SHA required before execution")
+    if DEVICE_MODE != "single":  # dual-card rounds are driven by `r7_round.py stage-seeds`
+        raise RuntimeError("dual-card mode is driven by `r7_round.py stage-seeds`, not run_attempt")
     started = time.perf_counter()
     deadline = started + HARD_CAP_SECONDS
     output.mkdir(parents=True, exist_ok=False)

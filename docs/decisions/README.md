@@ -72,3 +72,4 @@
 | [0044](0044-workflow-as-round-executor.md) | workflow 运行充当本轮执行者：自跑确定性闸门不依赖 hook、只推工作分支、有界且不自宣完成；并裁决 `.zcode/workflows/` 跟踪冲突 | accepted | 2026-10-11 |
 | [0045](0045-pinned-seed-reuse-across-attempts.md) | 跨 attempt 的 pinned seed 复用：白名单全等准入、按 seed 原子复用、逐 seed 如实报告、被打断的 GPU 全额记账 | accepted | 2026-10-11 |
 | [0046](0046-arxiv-literature-research-route.md) | 文献检索通道：新增 `arxiv-researcher`（arXiv MCP 只读 9 工具）承担一手论文，网络通道维持 0018 的单一出口；文献通道无机械闸门、靠约定约束 | accepted | 2026-10-12 |
+| [0047](0047-dual-card-seed-distribution.md) | 一轮内双卡 seed 分配：一卡一 seed 并发（默认双卡、保留单卡、不引入 DDP）、逐卡只读余量门 + 邻居增长 reserve；界定与 0042 第 4 条的适用范围 | accepted | 2026-10-12 |

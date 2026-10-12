@@ -13,6 +13,7 @@ value comes from the round-spec block or the frozen ``protocol.json``.
     tools/r7_round.py orphans
     tools/r7_round.py freeze
     tools/r7_round.py stage <phase> [<seed>]
+    tools/r7_round.py stage-seeds
     tools/r7_round.py reuse-plan <previous_attempt_dir>
     tools/r7_round.py ledger-plan <new_gpu_hours>
     tools/r7_round.py commit-guard <path> [<path> ...]
@@ -154,6 +155,19 @@ def stage(rest: Sequence[str]) -> dict[str, Any]:
                             root=support.ROOT)
 
 
+def stage_seeds(rest: Sequence[str]) -> dict[str, Any]:
+    """``stage-seeds`` — every remaining seed, at most one worker per frozen card.
+
+    One call replaces the ``seed 41`` / ``seed 42`` / ``seed 43`` steps of the stage
+    loop, so the workflow's argv stays literal while the parent scheduler owns the card
+    assignment (decision 0047). A single-card protocol degenerates to the old order.
+    """
+    if rest:
+        raise support.RoundError("stage-seeds takes no arguments")
+    spec = current_spec()
+    return stages.run_seeds(current_attempt(spec), spec, root=support.ROOT)
+
+
 def reuse_plan(rest: Sequence[str]) -> dict[str, Any]:
     """``reuse-plan <previous_attempt_dir>`` — which seeds may be reused (decision 0045)."""
     if len(rest) != 1:
@@ -194,6 +208,7 @@ def dispatch(command: str, rest: Sequence[str]) -> dict[str, Any]:
         "orphans": lambda: orphans(rest),
         "freeze": lambda: freeze(rest),
         "stage": lambda: stage(rest),
+        "stage-seeds": lambda: stage_seeds(rest),
         "reuse-plan": lambda: reuse_plan(rest),
         "ledger-plan": lambda: ledger_plan(rest),
         "commit-guard": lambda: support.commit_guard(rest),
