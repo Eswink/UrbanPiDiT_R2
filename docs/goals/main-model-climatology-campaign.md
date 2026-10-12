@@ -957,3 +957,12 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   （`docs/goals/s3-capacity-or-architecture.md` + `docs/R7_S3_CAPACITY_DEPTH.md`，C-04/C-06 绿）；
   `current_round_goal` **暂与本轮相同**——因为下一轮的 brief 要由后续**规划轮**产出，此处**不预造占位 brief**；
   新 brief 落盘时再把 `current_round_goal` 前移、`previous_*` 留在本轮。`used_gpu_h` 不变（本轮 0 GPU-h）。
+- **交接（给并行窗口）**：本窗口 2026-10-12 收到"是否重跑 capacity 轮"的发配询问后，**用户直接决定不跑**
+  （依据见上）。因此发配选项 (a) **未执行**：没有起 workflow、没有 `freeze`、没有 seed、0 GPU-h。
+  若要恢复本轮，按上面的"恢复第一条命令"。**不要重复登记本轮**——index72 已在册，
+  重复登记会造出重复的 index record 与账本行。
+- **本窗口独立复验（只读，2026-10-12）**：用驱动自带函数复跑该轮 preflight——父 checkpoint
+  `outputs/r7_s3_rollout_dose_parent_migrated_20261009_attempt02/seed41/parent_update_0001600.pt`，
+  SHA256 `fba27e26…` **与 pin 一致**，`updates=1600` / `contract.seed=41` / `mode=l6`；
+  `expand_parent_state` 返回 `encoder_bit_identical=True`、`added_blocks=[4,5,6,7]`、
+  `non_block_keys_unchanged=True`，严格 `load_state_dict` 通过。全程未创建 attempt 目录、未启动 GPU 进程。
