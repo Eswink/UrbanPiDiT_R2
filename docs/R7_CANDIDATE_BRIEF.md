@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 72; human-review candidates: 1
+Records: 73; human-review candidates: 1
 
 ## s3-budget-curve
 
@@ -44,6 +44,24 @@ Records: 72; human-review candidates: 1
 - CI run: `38205959882`
 - Excluded from runnable candidates: **未运行**轮：没有 attempt 目录、没有 freeze、没有 seed 启动、没有读数文件，0 GPU-h；因此无任何读数、无 seed 均值、无同时区间、无 primary/gate 判定。跳过依据是**跨因子**的旁证（上一轮 K4→8 臂唯一完成的 seed 41），`K`（每步内部推理次数）与主干 `depth`（WindowAttentionBlock 层数）不是同一因子，故不足以判定 depth 4→8 无效；本轮预声明出口既未触发也未满足。标 not-candidate、不进 S4 冻结包，也不据此关闭「加大容量解决 72 h」这一支。
 - Recorded metrics (not recomputed): basis_delta_minus_dose2400_t2m_k={"12": 0.00884, "24": -0.00856, "48": -0.00309, "6": 0.00776, "72": -0.0078}, basis_delta_skill_abs_max=0.00509, basis_interior_t2m_skill_72h=-0.16954, basis_record=s3-reasoning-depth, basis_seed=41, budget_hard_cap_seconds=115200.0, budget_per_seed_seconds=28800.0, budget_planned_seconds=86400.0, ci_run_id_driver_commit=38205959882, code_zip_comment=710612df4278f1404f3448cd106710c1209672f5, code_zip_files=1380, code_zip_sha256=de9f6bc4e14d9eb774b99a4ef62d77bbe6b6335f814eeaf286788a05f112390e, control_record=s3-wide-interior-dose, cpu_preflight_added_blocks=[4, 5, 6, 7], cpu_preflight_bit_identical=true, cpu_preflight_parent_sha256=fba27e26e24a1f20bc227c6ba23c7f223e41cfe8b721b56c42fd6412d39ddf4c, depth_arm=8, depth_parent=4, driver_commit=710612df4278f1404f3448cd106710c1209672f5, estimated_peak_bytes=16106127360, gpu_hours=0.0, hard_overrun_seconds=0.0, min_estimated_peak_bytes=15032385536, network_bytes=0, ran=false, reproducibility=nothing to replay: no result file was produced; only the prepared identities (driver commit 710612d, code.zip SHA256 de9f6bc4) are checkable, seeds_planned=[41, 42, 43], seeds_run=[], soft_overrun_seconds=0.0, test_read=false, updates_planned=2400, wall_seconds_total=0.0
+
+## s3-capacity-depth-run
+
+- Outcome class: `unresolved`; candidate state: `blocked`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_CAPACITY_DEPTH_RUN.md` (SHA256 `bf553d937bad9cd47a507c39ace0f856cd905a46f38d6984f03bdf7f26ef2b9f`)
+- Evidence commit: `677c914195f8dfb2ef0897b3706f64700f9979c8`; experiment commit: `370dca0aa12aaabdbf96438e3a0e697140416135`
+- Protocol SHA256: `not recorded`; data identity: `not recorded`
+- Reason: S3 trunk capacity (backbone depth 4 -> 8) was actually launched this time and failed for resources. Workflow run dwfrun-c9039cf5-6fca-4fe5-83c2-c888fddfd184 passed an independent audit (clean; 9 differences, all pre-registered: control arm, interior_32 scoring domain, identity-gated parent expansion), rebuilt code.zip at HEAD 370dca0, and freeze/prepare/archive all succeeded on outputs/r7_s3_capacity_depth_20261012_attempt04/. Seed 41 then started and trained for 1948.854226 s before dying with torch.OutOfMemoryError: the process peaked at 9.18 GiB (8.56 GiB PyTorch-allocated) while a second neighbour job grew into the headroom, and the 24 GiB co-resident GPU 0 hit 4 MiB free (neighbours pid 2967988 5.15 GiB and pid 3516490 9.17 GiB). Seeds 42/43 and reading never ran: there is no readings.json, no seed receipt and no attempt.json, so there are no readings, no seed mean, no simultaneous interval and no primary/gate verdict. The spawn gate had passed (free 15.29 GiB >= required 9.0 GiB), so the collision came from neighbour growth after the point-in-time check rather than from a mis-specified requirement alone; no neighbour was signalled. The operator then judged that a ~9.2 GiB training footprint is incompatible with the project's premise (a small/medium model with small VRAM) and infeasible on this shared, co-resident card, and marked the 'more capacity fixes 72 h' direction as not doable this way -- a resource and premise judgement, not a scientific falsification. The arm is not re-run, not re-seeded and not retried; the partial outputs are kept untouched. The round's predeclared exit is neither triggered nor met.
+- Limitations:
+  - not completed: only seed 41 started and it failed; no readings.json, no seed receipt, no attempt.json; the round's predeclared exit (72 h positive for three seeds) is neither triggered nor met
+  - the failure is a co-residency GPU OOM, not a scientific result; no primary/gate verdict is written, r is not consumed and the test split is not read
+  - the footprint estimate was 0.7 GiB low (measured 9.18 GiB vs the 8704 MiB estimate) but the dominant cause was a neighbour growing after the point-in-time spawn gate; a higher threshold cannot prevent that without re-introducing indefinite waiting
+  - GPU training is not bitwise reproducible; no result artefact exists to reproduce, only the code identity (370dca0 + code.zip ad15b3d4) and the failure receipt
+  - the neighbour processes are read-only observations (nvidia-smi + ps); no signal was sent to any neighbour process
+- CI run: `38262038297`
+- Excluded from runnable candidates: **资源失败轮**：seed 41 训练 1948.854 s 后 `torch.OutOfMemoryError`（本进程峰值 9.18 GiB，第二邻居作业长大把 24 GiB 共驻卡占满），seed 42/43 与 reading 未运行，无 `readings.json`/`result.json`/`attempt.json`，0 科学读数、无 seed 均值、无同时区间、无 primary/gate 判定；本轮 §3 预声明出口既未触发也未满足。失败性质是**资源**（共驻显存），不是科学失败；操作者据「小模型/小显存」前提判定「靠加大容量解决 72 h」这一方向**不能这样做**、不再重跑。标 `blocked`/`not-candidate`，不进 S4 冻结包。
+- Recorded metrics (not recomputed): control_record=s3-wide-interior-dose, depth_arm=8, depth_parent=4, estimated_peak_bytes=9126805504, failure_class=cuda_oom_coresidency, gpu_hours=0.5414, hard_overrun_seconds=0.0, network_bytes=0, process_peak_gib=9.18, pytorch_allocated_gib=8.56, ran=false, seeds_planned=[41, 42, 43], seeds_run=[], seeds_started=[41], soft_overrun_seconds=0.0, test_read=false, updates_planned=2400, wall_seconds_total=1948.854226
 
 ## s3-case-interleaving-pilot
 
