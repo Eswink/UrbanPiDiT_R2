@@ -71,3 +71,4 @@
 | [0043](0043-self-iterating-continuous-goal.md) | 自迭代连续 goal：每轮交接四件套后立刻续跑、不等 verifier（含 fail-open 实测）、停止条件封闭三条、防空转与 CI 不阻塞；接入 `dynamic-workflows`（/workflow 落地技能） | accepted | 2026-10-09 |
 | [0044](0044-workflow-as-round-executor.md) | workflow 运行充当本轮执行者：自跑确定性闸门不依赖 hook、只推工作分支、有界且不自宣完成；并裁决 `.zcode/workflows/` 跟踪冲突 | accepted | 2026-10-11 |
 | [0045](0045-pinned-seed-reuse-across-attempts.md) | 跨 attempt 的 pinned seed 复用：白名单全等准入、按 seed 原子复用、逐 seed 如实报告、被打断的 GPU 全额记账 | accepted | 2026-10-11 |
+| [0046](0046-arxiv-literature-research-route.md) | 文献检索通道：新增 `arxiv-researcher`（arXiv MCP 只读 9 工具）承担一手论文，网络通道维持 0018 的单一出口；文献通道无机械闸门、靠约定约束 | accepted | 2026-10-12 |

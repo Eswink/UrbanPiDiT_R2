@@ -40,9 +40,11 @@
   代码目录 snake_case 且 skill 目录必须含 `SKILL.md`（R-053）。超限的既有文件以精确路径**冻结**在
   清单里、**只许缩小**（拆到上限以下时测试会强制移出该条）；放宽阈值或新增例外必须另立决策记录。
 - 报告**必须**区分「已确认」与「推测」；未做的事写未做，禁止用「应该没问题」代替。
-- 外部信息**必须**经 `web-researcher` 子智能体取得（主链路的 `WebSearch`/`WebFetch` 被
-  PreToolUse 闸门拒绝，R-049）；它不可用时降级为主链路 `curl` 并写明原因；引用必须带
-  URL 与访问日期，**禁止**把检索摘要当证据（R-050）。
+- 外部信息有**两条互不重叠的通道**（决策 0018 / 0046）：**一手科研文献**（论文摘要/正文/公式/
+  实验设置/引用关系）委派 `arxiv-researcher`（arXiv MCP，只读）；**通用网络事实**（库用法/版本/
+  官方文档/报错）委派 `web-researcher`（主链路的 `WebSearch`/`WebFetch` 被 PreToolUse 闸门拒绝，
+  R-049），它不可用时降级 `web-researcher-backup`，仍失败才主链路 `curl` 并写明原因。
+  两条通道的引用纪律同一条：URL + 访问日期，**禁止**把检索摘要当证据（R-050）。
 
 ## 入口点
 
@@ -103,6 +105,7 @@
 | 多步方案设计 / 迭代计划 / 大改动前风险评估 | `.agents/skills/planner-delegation/SKILL.md` |
 | 写/推进一个 goal 目标（或 goal 模式不可用、不想用它） | `.agents/skills/goal-loop/SKILL.md` |
 | 需要本仓以外的公开事实（库用法 / 版本 / 论文 / 报错） | `.agents/skills/web-research/SKILL.md` |
+| 需要一手科研文献（arXiv 论文的正文/公式/实验设置/引用图） | `.agents/skills/web-research/SKILL.md` + 委派 `arxiv-researcher`（决策 0046） |
 | 要并行推进多个互不依赖的研究线 / 编排 workflow | `.agents/skills/parallel-research-workflow/SKILL.md` |
 | 要无人值守地推进多轮 campaign（大型 workflow） | `.agents/skills/parallel-research-workflow/SKILL.md` 的「campaign 驱动 workflow」节 + `docs/plans/0020-campaign-driver-workflow.md` |
 | 成品该放哪（计划 / 决策 / 目标 / 工具态） | `docs/rules/artifact-storage.md` |
