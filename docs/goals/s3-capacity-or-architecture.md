@@ -105,11 +105,28 @@ identity-gated 规则扩成 depth-8 —— 新增块 `i∈{4..7}` 在**每个参
   `d5859a0…` **九主步骤全 success**。首次 run `38228709491` 因 R-021 anti-drift marker 漂移而红
   （本轮把 `tools/r7_round_stages.py` 362→416、`tests/test_r7_round_stages.py` 347→428 推过 400 行目标），
   已按本页先例同步 marker，**未改阈值 / 规则级别 / 冻结例外**。
+- **gate 校准与登记口径修复（2026-10-12 深夜，另一窗口提交 `9e8124f`/`8ff541b`）**：19 GiB → 16 GiB →
+  **9 GiB**（显存主因是 K 不是 depth；本臂 depth-8/**K=4** 的真实足迹约 8.5 GiB，原按 K=8 臂
+  13.55 GiB 高估约 2×）；并把 workflow 结尾的登记提交由 `commit-round` 改为 `commit-register`。
+  **有效驱动身份由此前进到 `8ff541b`**（index72 的 record 与 `docs/R7_S3_CAPACITY_DEPTH.md`
+  按"旧 SHA 不改、修正以追加表达"的惯例**不动字节**）。
+- **三次 attempt，全部 0 GPU-h、无 seed、无读数**（原样保留、不删不续）：
+  `attempt01` prepare 619.8 s + archive 614.6 s（`code_commit 5386f7c`、zip `615bb2d0…`）；
+  `attempt02` 仅 prepare 593.3 s；`attempt03` prepare 630.2 s + archive 490.1 s（`code_commit 8ff541b`、
+  zip `a4bf0746…`）。`attempt03` 的 `stage seed 41` 曾启动但在 preflight 被停，
+  **无 seed41 目录、无 readings.json**。
+- **中断与根因**：run `dwfrun-6c3847ad` 的 `.mjs` 进程从未死（一直在跑），但运行记录被判
+  `stopped/interrupted`、进度事件被丢 29 次，日志原文
+  `"Dynamic workflow run progress dropped: parent session is not this app"`——**会话跨了 ZCode app 实例**，
+  完成通知无法投递，故 goal 永远等不到结果。该 workflow 已被本窗口 SIGTERM 停掉。
+- **操作教训**：**goal 与 workflow 必须在同一个窗口/同一个 app 实例内跑**；跨实例会丢完成通知。
 
 ## §7 下一动作（S3）
 
-本轮**已恢复运行**（depth 4→8 单因素；读数登记为新 record `s3-capacity-depth-run` 与新证据页
-`docs/R7_S3_CAPACITY_DEPTH_RUN.md`，原「未运行」登记逐字节保留）。**下一动作（S3）**：按 §3 的
-预声明出口读——72 h 三 seed 全正 → 提请独立验收；否则**关闭"靠加大容量解决 72 h"这一支**，
-转架构方向（数据扩充按 §5 暂缓、放到最最后），并在 §8 写清"为何停 + 恢复第一条命令"。
+本轮仍**未跑 GPU**（三次 attempt 全部止步于 prepare/archive，0 GPU-h；详见 §6）。**下一动作（S3）**：
+在**单一窗口**重开干净一轮——`round-guard` → 重建 `code.zip`（comment 必须 == HEAD）→ `freeze`
+（自动创建 `attempt04`）→ `stage prepare/archive/seed{41,42,43}/reading` → 四件套登记
+（新 record `s3-capacity-depth-run` + 新证据页 `docs/R7_S3_CAPACITY_DEPTH_RUN.md`，
+原「未运行」登记逐字节保留）。随后按 §3 预声明出口读——72 h 三 seed 全正 → 提请独立验收；
+否则**关闭"靠加大容量解决 72 h"这一支**，转架构方向（数据扩充按 §5 暂缓、放到最最后）。
 宽输入支与训练配方支已关闭不重开；test 未读、r=0、S4 未启动不变。
