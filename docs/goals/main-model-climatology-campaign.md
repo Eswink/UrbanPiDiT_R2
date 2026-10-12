@@ -1094,6 +1094,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   `ran: false`）；旧「未运行」record `s3-capacity-depth` 与证据页 `docs/R7_S3_CAPACITY_DEPTH.md`
   **逐字节保留**，只在其上追加 `correction_record_id` 指向新 record。§7 账本新增一行，**累计 53.3064 → 53.8478**。
   code 身份 `370dca0` + code.zip `ad15b3d4…`，该 code 的 CI `38262038297` completed/success（R7 CPU CI）。
+- **登记提交与 CI**：`677c914`（证据页 `docs/R7_S3_CAPACITY_DEPTH_RUN.md`）与 `31228d5`（index/brief/§7/§8/campaign-state 四件套）已推工作分支 `r7/weather-reasoning`；精确主 CI run **`38278337165`**（R7 CPU CI，对 `31228d5`）**completed/success**，pytest job **12 步全 success**（17 条标签实验 workflow 显示 `skipped` 是设计行为、非实验 PASS）。本地确定性闸门：`r7_round.py verify`（check_conventions 37 阻断 0 失败、check_campaign_state C-01..C-06 **0 失败**、index+brief PASS）与 `commit-guard` 均通过。
 - **为何停 + 恢复命令**：停因＝**操作者暂停 goal** 并判定该方向不能这样做（**非**机器可判失败：无 hard overrun、
   无身份/资源门失败，失败点是共驻 OOM）。恢复命令＝在**新窗口**先核 HEAD/status、只读本 §8 与 §2/§3/§5、
   核两个校检器；若要重跑本臂，第一条命令是 `.venv/bin/python tools/r7_round.py round-guard`
