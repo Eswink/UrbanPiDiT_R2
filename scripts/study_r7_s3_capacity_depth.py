@@ -52,16 +52,17 @@ PARENT_DEPTH = 4
 DEPTH = 8
 SEEDS = wide.SEEDS
 PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 28800., 86400., 115200.
-# K=8 measured 13.55 GiB reserved at K=8/depth=4; the depth-8/K=4 graph carries the same
-# backbone-pass product, so the estimate is calibrated there rather than reusing 2 GiB.
-# 2026-10-12 (user-authorized): the host is co-resident — a neighbour job holds ~5-6 GiB on
-# the declared GPU, so a 15+4 GiB requirement blocked the round indefinitely. The user asked
-# for a rough gate rather than an exact peak, so the estimate sits at the declared floor
-# (14 GiB, still above the ~13.55 GiB measured footprint) with a 2 GiB margin: 16 GiB free
-# is required, which the shared card clears while still leaving headroom above the footprint.
-ESTIMATED_PEAK_BYTES = 14 * 2**30
-HEADROOM_MARGIN_BYTES = 2 * 2**30
-MIN_ESTIMATED_PEAK_BYTES = 14 * 2**30
+# Footprint proxy for THIS arm is the dose arm, not the K=8 arm. Both run K=4 and the same
+# 2400 updates, and K dominates the reserved peak: the dose arm (K=4) measured 8562 MiB while
+# the K=8 arm measured 13878 MiB. Depth 4->8 only doubles the encoder, whose one-pass
+# activations over 4225 tokens are ~0.1 GiB, so the footprint is ~8.5 GiB -- not 14 GiB.
+# 2026-10-12 (user-authorized): the host is co-resident and a neighbour job now holds ~14 GiB
+# on the declared GPU, so the earlier 15+4 GiB requirement blocked the round indefinitely. The
+# user asked for a rough gate rather than an exact peak: 8.5 GiB estimate (>= the 8562 MiB
+# measured proxy) + 0.5 GiB margin = 9 GiB required, which the shared card clears.
+ESTIMATED_PEAK_BYTES = 8704 * 2**20
+HEADROOM_MARGIN_BYTES = 512 * 2**20
+MIN_ESTIMATED_PEAK_BYTES = 8192 * 2**20
 EQUIVALENCE_SHAPE = (1, 2, 17, 129, 129)
 EQUIVALENCE_SEED = 1234
 GATE_KEYS = ("proj.weight", "proj.bias", "ff.net.3.weight", "ff.net.3.bias")
