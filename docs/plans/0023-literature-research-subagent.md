@@ -85,11 +85,17 @@ MCP 是**用户级**配置、不在仓库里。干净克隆上按名委派 agent
   1. **新 agent 是否免重启生效未验证**。hook 配置按 `AGENTS.md` 是「会话启动时读取」，
      agent 定义是否同理**我没有证据**。两条变通**都标为未验证**：(a) 重启该会话；
      (b) 主链路直接调用 `mcp__arxiv__*`（R-049 闸门只匹配 `WebSearch`/`WebFetch`，不会拦它）。
-  2. **没有做过一次真实的端到端委派**：本次只验证了「文件与契约就位、既有断言不漂移」，
-     **没有**实际委派 `arxiv-researcher` 去检索一篇论文。因此「它真能按契约回报」属**未验证**；
-     第一次真实使用时以运行时报错为准，并应把结果回填到本文件。
+  2. ~~**没有做过一次真实的端到端委派**~~ **已于 2026-10-13 完成首次真实端到端委派**：在
+     `r7/weather-reasoning` 会话里按名委派 `arxiv-researcher`（检索「保函数网络扩张」），
+     它实际调用 `mcp__arxiv__search_papers` → `mcp__arxiv__get_abstract` **两次、全部成功无报错**，
+     命中 arXiv:2410.11038（*Towards a More Complete Theory of Function Preserving Transforms*,
+     2024）并按契约回传摘要概括。故「按名委派可成功、能按契约回报」**已由实跑确认**。
+     这同时说明：**本会话内该 agent 定义生效**（但「新增 agent 是否免重启生效」仍无证据，
+     见第 1 条）。
   3. **工具名来自源码与日志两处独立核对**（`server.py` 的 `list_tools()` + 本机
-     `mcp.server.connected` 的 `toolCount:19`），但**没有逐个实调**；若某个名字在真实调用时
-     报错，以运行时为准并回填本文件。
+     `mcp.server.connected` 的 `toolCount:19`）。截至 2026-10-13 **已实调 2 个**
+     （`search_papers`、`get_abstract`，均成功）；其余 7 个
+     （`download_paper`/`read_paper`/`get_paper_outline`/`read_paper_section`/`search_paper_text`/
+     `citation_graph`/`list_papers`）**仍未逐个实调**；首次使用其中任一时以运行时报错为准并回填本文件。
 - **未做**：不改 R-049/R-050 正文；不改闸门 matcher；不把 MCP 写进仓库级配置；
   不动正在跑的轮次的任何 execution file；不启停任何进程；不占 GPU。
