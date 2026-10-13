@@ -123,6 +123,27 @@ class ProcessForecastCoReasoner(nn.Module):
     This is latent recurrent reasoning, not natural-language chain-of-thought.
     """
 
+    def _build_typed_evidence(self,dim,patch_size,typed_evidence_mode,typed_evidence):
+        """#79 typed local evidence, built under a rewound stream so 'off' is the previous implementation bit for bit.
+
+        Adds exactly one shared patch projection, one projection set and one inject site; the reasoning
+        recurrence downstream of the slot state is untouched.
+        """
+        from .typed_evidence_r7 import EVIDENCE_MODES, TypedEvidenceRouter
+        if typed_evidence_mode not in EVIDENCE_MODES:
+            raise ValueError(f"typed_evidence_mode must be one of {EVIDENCE_MODES}")
+        fields = dict(typed_evidence or {})
+        expected = {'channels', 'denorm_mean', 'denorm_std', 'field_scale',
+                    'field_mean', 'field_std', 'field_active'}
+        if set(fields) != expected:
+            raise ValueError(f"typed_evidence must carry exactly {sorted(expected)}")
+        if self.anchored_processes < 4:
+            raise ValueError("typed evidence writes the first four anchored slots; "
+                             "anchored_processes must be >= 4")
+        with isolated_stream():
+            self.typed_evidence=TypedEvidenceRouter(
+                dim,patch_size,mode=typed_evidence_mode,**fields)
+
     def __init__(
         self,
         in_channels:int,
@@ -161,6 +182,7 @@ class ProcessForecastCoReasoner(nn.Module):
         typed_evidence=None,
         climatology_anchor_spec=None,
         anomaly_feedback:bool=False,
+        process_init_conditioning:bool=False,
     ):
         super().__init__()
         _validate_switches(
@@ -179,6 +201,7 @@ class ProcessForecastCoReasoner(nn.Module):
             position_encoding_mode=position_encoding_mode,
             climatology_anchor_spec=climatology_anchor_spec, anomaly_feedback=anomaly_feedback)
         self.anomaly_feedback=anomaly_feedback
+        self.process_init_conditioning=process_init_conditioning
         self.spatial_solver_feedback=spatial_solver_feedback
         self.source_position_markers=source_position_markers
         self.known_context_inputs=known_context_inputs
@@ -294,24 +317,20 @@ class ProcessForecastCoReasoner(nn.Module):
                     change_scale_mode=change_scale_mode,
                     change_scale_ratio=change_scale_ratio)
         # #79 typed local evidence: built last under a rewound stream so "off"
-        # is the previous implementation bit for bit. The pathway adds exactly
-        # one shared patch projection, one projection set and one inject site;
-        # the reasoning recurrence downstream of the slot state is untouched.
+        # is the previous implementation bit for bit.
         if typed_evidence_mode is not None:
-            from .typed_evidence_r7 import EVIDENCE_MODES, TypedEvidenceRouter
-            if typed_evidence_mode not in EVIDENCE_MODES:
-                raise ValueError(f"typed_evidence_mode must be one of {EVIDENCE_MODES}")
-            fields = dict(typed_evidence or {})
-            expected = {'channels', 'denorm_mean', 'denorm_std', 'field_scale',
-                        'field_mean', 'field_std', 'field_active'}
-            if set(fields) != expected:
-                raise ValueError(f"typed_evidence must carry exactly {sorted(expected)}")
-            if self.anchored_processes < 4:
-                raise ValueError("typed evidence writes the first four anchored slots; "
-                                 "anchored_processes must be >= 4")
+            self._build_typed_evidence(dim,patch_size,typed_evidence_mode,typed_evidence)
+        # H-A (docs/plans/0022): input-conditioned process-state initialization. Built last
+        # under a rewound stream, exactly like the other gated pathways, so switching it on
+        # cannot move any pre-existing weight and "off" is the previous implementation bit
+        # for bit. The pathway adds exactly one LayerNorm+Linear on the pooled context and
+        # one additive site on P_0; the reasoning recurrence downstream is untouched.
+        if self.process_init_conditioning:
             with isolated_stream():
-                self.typed_evidence=TypedEvidenceRouter(
-                    dim,patch_size,mode=typed_evidence_mode,**fields)
+                self.process_init_proj=nn.Sequential(
+                    nn.LayerNorm(dim),
+                    nn.Linear(dim,dim),
+                )
         # Install the fixed prior last, after all pre-existing trainable weights.
         if climatology_anchor_spec is not None:
             from .climatology_anchor_r7 import TrainClimatologyAnchor
@@ -432,6 +451,11 @@ class ProcessForecastCoReasoner(nn.Module):
             raise ValueError('local_solver_state requires use_forecast_feedback=True')
 
         process=self.process_queries.expand(B,-1,-1)
+        if self.process_init_conditioning:
+            # H-A: condition the process-state initial value on the sample's own context,
+            # instead of the batch-shared ``process_queries``. Zeroing the projection
+            # reproduces the shared-init path bit for bit.
+            process=process+self.process_init_proj(context.mean(dim=1)).unsqueeze(1)
         process=self.initial_process_state(process,batch,anchor=base.base_state,draft=draft)
         solver_state=None
         drafts=[draft]
