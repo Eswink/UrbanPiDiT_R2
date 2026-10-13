@@ -33,6 +33,13 @@ record 上（`s3-capacity-depth` 上的 `correction_record_id` 已存在，不�
 `evidence_commit` 必须先存在的要求），理由：草稿 phase 2 无幂等守卫，任何重跑都会重建 code.zip 使
 ZIP comment ≠ 冻结的 `code_commit 4e9fc96`，且 `freeze` 会因 attempt05 已存在而失败。
 
+**精确 CI**：`38369888386`（`R7 CPU CI`，对 `4bde574`）**completed/success**，pytest job 12 个步骤全 success；
+同 commit 上另外 17 条标签实验 workflow 显示 `skipped` 是设计行为、非实验 PASS。本地确定性闸门：
+`check_conventions.py` 37 条阻断 0 失败、`check_campaign_state.py` 0 失败（7 条既有 note 非阻断）、
+`verify_r7_evidence_index.py --check-brief` PASS（73 records）、`r7_round.py round-guard` 通过。
+**撞车反证已实跑**：重复 `record_id` → `duplicate record_id`；篡改 `evidence_sha256` 一位 → `does not match`；
+非 kebab-case 的 `record_id` → `must be kebab-case`（三条都以 exit 1 报错，证明本次撞车会被抓住）。
+
 ## 2026-10-12 — goal 完成校验：非流式路径根因定位与本地补丁二
 
 直连实测（R-050）确认 `cline-pass/…` 路由（`https://api.cline.bot/api/v1`）的**非流式**请求返回
