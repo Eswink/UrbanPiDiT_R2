@@ -78,4 +78,27 @@
   `round-guard` 与 `commit-guard`、提交推工作分支并等 CI 绿（提交信息须带 `[model-digest-change]`）。
 - **第一条命令**（若手工跑）：`.venv/bin/python tools/r7_round.py round-guard` → 重建 zip →
   `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/stage-seeds/reading`。
-- **本轮尚未开跑**：0 GPU-h；无读数、无结论。
+
+### §6b 第一次运行尝试失败与合法修复（2026-10-14）
+
+- **尝试 attempt01 失败**（workflow `dwfrun-13d26a6b`）：独立复核 clean、`code.zip` 按 HEAD `7539bb3`
+  重建、`freeze`/`prepare`/`archive` 全 success，但 **`stage-seeds` exit 1**——seed 41/42 均在
+  `_parent_model → load_checkpoint` 抛 `ValueError: checkpoint model implementation differs`；
+  **0 GPU-h、无读数**。证据页 `docs/R7_S3_PROCESS_INIT_RUN.md`。
+- **根因（已确认）**：本轮改了 `model/*.py` ⇒ `model_code_digest()` 由 `d3fb58db…` 变为 `223b2e5b…`，
+  而迁移父 `…_migrated_20261009_attempt02` 记的是旧 digest，`training/r7_experiment.py:128-129`
+  的身份门**按设计**拒绝。这是身份门正确工作，不是 bug，也不得绕过。
+- **合法修复（已执行）**：用**已提交的** `scripts/migrate_r7_parent_state.py`（其 docstring 明言
+  "performs the documented model-only migration instead of weakening that guard"）在**当前**代码下重跑
+  迁移：`outputs/r7_s3_rollout_dose_parent_migrated_20261014_attempt01`（seed SHA
+  `3bb09c19…/91667a68…/b1a716bc…`，digest＝当前 `223b2e5b…`）。**未**改比对逻辑、**未**放宽任何门。
+- **待做**：把驱动的父解析从 `wide.dose.pinned_parent` 切到本轮自己的迁移父（新路径＋新 SHA pin），
+  重新 `freeze`（新 `protocol_sha256`）后再跑 GPU。
+
+## §7 下一动作（S3）
+
+- 在 **S3** 节点：修复 H-A 驱动对**当前 digest** 迁移父的解析（新路径＋新 SHA pin）→ `round-guard` →
+  重新 `freeze`（新 protocol digest）→ `stage prepare/archive/stage-seeds/reading` → 四件套登记。
+- 第一条命令：`.venv/bin/python tools/r7_round.py round-guard`。
+- 预声明出口不变（§3）：**72h 三 seed 全正 → 提请独立验收；否则关闭 H-A 这一支**。
+- 本轮尝试 attempt01 **未产生任何科学读数**；不据此关闭 H-A 支，也不写通过/失败。
