@@ -2,6 +2,22 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-13 — 修 `test_cli_ledger_plan_prints_arithmetic` 的浮点相等断言（登记提交 CI 红→绿）
+
+`09fbe66`（index74 登记提交）的 `R7 CPU CI` **失败**在第 9 步「Run unit, integration and installed-wheel
+tests」；前 4 步（Check repository conventions / Check campaign state / Check evidence index and candidate
+brief / Compile active modules and check whitespace）**全绿**，说明不是登记内容违规。
+**根因是既有测试的浮点相等缺陷**，不是本轮数据：该用例跑在**真实**账本上，断言
+`new_total_gpu_h == previous_total_gpu_h + 1.0`，而 `ledger_plan` 把总量 `round(..., 6)`——
+`53.8478 + 1.0` 恰好能往返，`63.0619 + 1.0` 不能（= `64.06190000000001`）。本轮累计 53.8478 → 63.0619
+只是把这个一直存在的脆弱断言暴露出来；同一个 6 dp 值在任何总量上都会以同样的概率踩中。
+
+修法：改为 `pytest.approx(..., abs=1e-6)`——断言的是**算术恒等**，不是浮点位相等。
+**未放宽任何判据**：同文件既有反证 `test_ledger_plan_counterproof_a_wrong_new_total_is_visible`
+（差 0.0867 必须可见）与本次实跑的偏差反证都证明容差仍能抓住真错（0.0867 ≫ 1e-6）。
+CI 日志下载在本仓是 403（`gh` API 写也是 401），本次定位靠**逐步比较各提交的 CI 结论**
+（`4bde574`/`1283987` 绿 → `09fbe66` 红）+ **本地复跑相关 5 个测试文件**。
+
 ## 2026-10-13 — 容量轴出口收窄为深度轴并封顶（决策 0048）；本轮登记名改 `-result`（避免撞车）
 
 **决策 0048（出口冲突）**：容量轮冻结出口写的是关闭"靠加大容量解决 72h"这一支，而工作态笔记

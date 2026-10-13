@@ -242,7 +242,12 @@ def test_cli_ledger_plan_prints_arithmetic(cli, capsys):
     assert cli.main(["ledger-plan", "1.0"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["new_row_gpu_h"] == 1.0
-    assert payload["new_total_gpu_h"] == payload["previous_total_gpu_h"] + 1.0
+    # This case runs against the real campaign ledger and ledger_plan rounds the total to
+    # 6 dp. Comparing that with an unrounded float sum is exact only by luck
+    # (53.8478 + 1.0 round-trips; 63.0619 + 1.0 does not), so compare with a tolerance:
+    # the assertion is about the arithmetic identity, not about float bit-equality.
+    assert payload["new_total_gpu_h"] == pytest.approx(
+        payload["previous_total_gpu_h"] + 1.0, abs=1e-6)
 
 def test_cli_reuse_plan_refuses_when_the_previous_protocol_is_absent(cli, tmp_path, monkeypatch, capsys):
     _round_root(cli, tmp_path, monkeypatch)
