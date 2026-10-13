@@ -87,4 +87,19 @@
   `round-guard` 与 `commit-guard`、提交推工作分支并等 CI 绿。
 - **第一条命令**（若手工跑）：`.venv/bin/python tools/r7_round.py round-guard` → 重建 zip →
   `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/stage-seeds/reading`。
-- **本轮尚未开跑**：0 GPU-h；无读数、无结论。
+- **本轮已跑完**（2026-10-14）：三 seed 全部到 2400 更新并评分五个 lead；读数与登记见 §7 与
+  `docs/R7_S3_CAPACITY_WIDTH_RESULT.md`。上一条「待做」与本节设计期措辞由 §7 取代。
+
+## §7 下一动作（S3）
+
+本轮**已跑完**（三 seed 全部到 2400 更新并评分五个 lead；attempt
+`outputs/r7_s3_capacity_width_20261013_attempt01/`）。读数见 `docs/R7_S3_CAPACITY_WIDTH_RESULT.md`：
+`interior_32` t2m **72 h skill −0.1658 / −0.2833 / −0.1418 三 seed 全负**（均值 −0.1970），
+预声明出口的正向条件（72 h 三 seed 全正）**未满足**；相对已登记 2400 剂量臂 6/12/24/48 h **三 seed 全差**
+（Δ +0.2880 / +0.2751 / +0.0705 / +0.0419 K）、仅 72 h 略好（−0.0090 K，2/3 seed）。
+**下一动作（S3）**：按**决策 0048**（`docs/decisions/0048-capacity-axis-scope-and-cap.md`）的封顶条款，
+宽度是**最后一个**容量臂，它也未过 ⇒ **整条容量轴（深度＋宽度）永久关闭**——不再开任何容量臂
+（不重试 `depth`、不再扫 `dim`、不做宽＋深组合）。此后只剩训练信号 / 目标组织 / 数据
+（数据按本轮 D3 暂缓、放最最后）。恢复第一条命令 `.venv/bin/python tools/r7_round.py state`，
+随后为下一轮写新 round brief（零规则风险的候选是 `docs/plans/0022` 的 **H-A**：P_0 输入条件化）。
+test 未读、r=0、S4 未启动不变。
