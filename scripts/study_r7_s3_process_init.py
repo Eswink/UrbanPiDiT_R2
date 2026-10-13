@@ -3,15 +3,13 @@
 Decision 0048 closed the capacity axis permanently. This driver takes the first architecture factor
 from ``docs/plans/0022`` §3, **H-A**: condition the process-state initial value ``P_0`` on each
 sample's own context instead of the batch-shared ``process_queries``. It flips exactly one model-spec
-field, ``process_init_conditioning`` False -> True, holding the wide 129x129 input, the
-``interior_32`` mask, 2400 updates, K=4, depth 4, ``dim`` 192, the physical weights, the migrated
-v3-BD 1600 parent, the seeds, the scoring region and the climatology denominator fixed.
+field, ``process_init_conditioning`` False -> True, holding the wide 129x129 input, the interior_32
+mask, 2400 updates, K=4, depth 4, dim 192, the physical weights, the parent, seeds and scoring fixed.
 
 The pathway is built last under ``isolated_stream()``, so the "off" path is bit-identical to the
-previous implementation and switching it on moves no pre-existing weight (asserted per seed). The
-parent loads unchanged except for the four new ``process_init_proj`` keys, and zeroing
-``process_init_proj.1`` makes the injection identically zero (the forward pass falls back to the
-registered arm bit for bit). Report-only against the pinned dose and narrow arms; test never read.
+previous implementation and switching it on moves no pre-existing weight (asserted per seed). Because
+this driver edits ``model/*.py`` the migrated parent is pinned by ``r7_s3_process_init_parent`` under
+the current digest; zeroing ``process_init_proj.1`` makes the injection identically zero. Report-only.
 """
 from __future__ import annotations
 
@@ -27,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts import r7_s3_process_init_parent as init_parent
 from scripts import study_r7_s3_reasoning_depth as depth_arm
 from scripts import study_r7_s3_wide_interior_dose as dose
 from scripts import study_r7_s3_wide_single_factor as wide
@@ -59,7 +58,7 @@ DEFAULT_OUT = ROOT / "outputs/r7_s3_process_init_20261014_attempt01"
 PREVIOUS_DOSE_ARM_RUN = ROOT / "outputs/r7_s3_wide_interior_dose_20261009_attempt02"
 EVIDENCE_INDEX = ROOT / "docs/R7_EVIDENCE_INDEX.jsonl"
 PREVIOUS_DOSE_ARM_RECORD = "s3-wide-interior-dose"
-ENTRY_FILES = (*depth_arm.ENTRY_FILES, "model/process_forecast_r7.py", "scripts/study_r7_s3_process_init.py")
+ENTRY_FILES = (*depth_arm.ENTRY_FILES, "model/process_forecast_r7.py", "scripts/study_r7_s3_process_init.py", "scripts/r7_s3_process_init_parent.py")
 
 DESIGN_DECISION_TEXT = (
     "Single factor: the process-state input conditioning. The registered wide interior-dose arm read 48 h "
@@ -257,6 +256,7 @@ def _identity():
     body["arms"]["candidate"]["model"] = {"kind": "process", "spec": spec,
                                           "spec_canonical_digest": canonical_digest(spec)}
     body["arms"]["previous_dose_arm"] = previous_arm_pins()
+    init_parent.install_parent_pins(body)
     body["process_init"] = process_init_block()
     return body
 
@@ -366,7 +366,7 @@ def _parent_model(body, seed):
     from training.r7_experiment import load_checkpoint
     from training.r7_arm_harness import sha256_file
     shared = recipe._shared()
-    path, expected = wide.dose.pinned_parent(seed)
+    path, expected = init_parent.pinned_parent(seed)
     if (sha256_file(path) != expected
             or body["arms"]["parent"]["pins"]["checkpoints"][str(seed)]["sha256"] != expected):
         raise RuntimeError("parent checkpoint pin changed")
@@ -394,7 +394,7 @@ def _seed(output, body, seed, deadline):
     contract = {"kind": "process", "model": spec, "data_identity": body["train_data_identity"],
                 "source_sha256": body["source_sha256"], "protocol_sha256": body["protocol_sha256"],
                 "training_code_sha256": body["training_code_sha256"],
-                "initialization": {"parent_run": str(wide.dose.MIGRATED_PARENT_RUN),
+                "initialization": {"parent_run": str(init_parent.MIGRATED_PARENT_RUN),
                                    "parent_checkpoint": str(parent), "parent_checkpoint_sha256": parent_sha,
                                    "parent_endpoint_updates": 1600,
                                    "description": ("registered v3-BD l6 endpoint, model-only migration, "

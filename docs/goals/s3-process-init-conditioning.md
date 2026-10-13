@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-process-init-conditioning", "driver": "scripts/study_r7_s3_process_init.py", "output_stem": "r7_s3_process_init_20261014", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_process_init.py"], "commit_paths": ["model/process_forecast_r7.py", "scripts/study_r7_s3_process_init.py", "tests/test_r7_s3_process_init.py", "docs/goals/s3-process-init-conditioning.md"], "commit_message": "feat(r7): implement the H-A process-state input-conditioning single-factor arm [model-digest-change]", "register_paths": ["docs/R7_S3_PROCESS_INIT_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the H-A process-state input-conditioning run as a new evidence record", "code_archive": "outputs/r7_s3_process_init_code.zip"} -->
+<!-- round-spec: {"arm": "s3-process-init-conditioning", "driver": "scripts/study_r7_s3_process_init.py", "output_stem": "r7_s3_process_init_20261014", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_process_init.py"], "commit_paths": ["model/process_forecast_r7.py", "scripts/study_r7_s3_process_init.py", "scripts/r7_s3_process_init_parent.py", "tests/test_r7_s3_process_init.py", "docs/goals/s3-process-init-conditioning.md"], "commit_message": "feat(r7): implement the H-A process-state input-conditioning single-factor arm [model-digest-change]", "register_paths": ["docs/R7_S3_PROCESS_INIT_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the H-A process-state input-conditioning run as a new evidence record", "code_archive": "outputs/r7_s3_process_init_code.zip"} -->
 
 状态 **设计已定、待实现模型改动与 CPU 前置**（2026-10-14）。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接决策 **0048**：容量轴（深度 depth 4→8 与宽度
@@ -92,8 +92,13 @@
   "performs the documented model-only migration instead of weakening that guard"）在**当前**代码下重跑
   迁移：`outputs/r7_s3_rollout_dose_parent_migrated_20261014_attempt01`（seed SHA
   `3bb09c19…/91667a68…/b1a716bc…`，digest＝当前 `223b2e5b…`）。**未**改比对逻辑、**未**放宽任何门。
-- **待做**：把驱动的父解析从 `wide.dose.pinned_parent` 切到本轮自己的迁移父（新路径＋新 SHA pin），
-  重新 `freeze`（新 `protocol_sha256`）后再跑 GPU。
+- **修复已完成（2026-10-14）**：新增 `scripts/r7_s3_process_init_parent.py`（钉住本轮迁移父：新路径＋
+  新 SHA，并在 `pinned_parent` 内复核 receipt 的 `current_model_code_sha256` 是否等于当前
+  `model_code_digest()`，不一致即报错而不是静默加载陈旧父），驱动改为经它解析父、并由
+  `init_parent.install_parent_pins(body)` 覆写冻结协议里的 checkpoint pins。**实测**：三 seed
+  `pinned_parent`＋`load_checkpoint` 全 OK（`updates=1600`）、`_parent_model` 三 seed
+  `bit_identical_off_path=True`、`new_params=37440`、`proj_zeroing_identity=True`；`tests/test_r7_s3_process_init.py` 39 passed。
+- **待做**：`round-guard` → 重新 `freeze`（新 `protocol_sha256`）→ `stage prepare/archive/stage-seeds/reading` → 四件套登记。
 
 ## §7 下一动作（S3）
 
