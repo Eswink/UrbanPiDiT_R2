@@ -371,6 +371,7 @@ def test_seed_counterproof_a_wrong_k_contract_is_refused(tmp_path, monkeypatch):
 def _patch_validate(monkeypatch, candidate):
     """Neutralise the store/GPU reads so validate_protocol is exercised on a bare checkout."""
     import data.r7_long_rollout_dataset as dataset
+    import training.r7_arm_harness as harness
     import training.r7_experiment as experiment
     import training.r7_long_rollout_runner as runner
     monkeypatch.setattr(experiment, "dataset_identity",
@@ -383,6 +384,12 @@ def _patch_validate(monkeypatch, candidate):
     monkeypatch.setattr(capacity.interior, "supervision_block", lambda: {"stub": 1})
     monkeypatch.setattr(capacity.devices, "assignment_is_valid", lambda *a, **k: True)
     monkeypatch.setattr(capacity, "_expected_candidate", lambda: candidate)
+    # ``execution_files()`` includes an outputs/ path that does not exist on a bare checkout,
+    # so restrict the inventory to files that are actually present and stub the hasher: the
+    # assertions under test are about the frozen fields, not about on-disk source hashing.
+    real_files = [name for name in capacity.execution_files() if (ROOT / name).is_file()]
+    monkeypatch.setattr(capacity, "execution_files", lambda: real_files)
+    monkeypatch.setattr(harness, "sha256_file", lambda path: "0" * 64)
 
 
 def _protocol_body(candidate):
