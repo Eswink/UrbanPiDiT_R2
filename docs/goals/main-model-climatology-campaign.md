@@ -1218,3 +1218,16 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 - **下一动作（S3）**：写下一轮 round brief（**训练信号 / 目标组织**方向，数据按 D3 暂缓；候选 `docs/plans/0022` 的
   **H-A**），先跑 `.venv/bin/python tools/r7_round.py round-guard` 确认前置，再冻结新协议。容量轴（深度＋宽度）
   已按决策 0048 **永久关闭不重开**；test 未读、r=0、S4 未启动不变。
+
+### 2026-10-14 — 绑定：宽度登记的 CI 红→绿（测试侧修复 + 精确 run）
+
+- **修复**：commit `1f54079`（`fix(r7): make the capacity-width validate_protocol tests CI-safe`）。根因＝
+  `tests/test_r7_s3_capacity_width.py` 的 3 个 `validate_protocol` 用例经 `_protocol_body` 对
+  `capacity.execution_files()` 逐个取哈希，而该清单含 `outputs/r7_v2_comparison_20261004_attempt01/protocol.json`，
+  在**无 `outputs/` 的干净 CI checkout** 上不存在 ⇒ `FileNotFoundError`（第 9 步全量测试红）。修法：把清单收窄到
+  **实际存在**的文件并 stub 掉 `sha256_file`（被断言的仍是冻结字段，不是磁盘源码哈希）；**未放宽任何断言**。
+  在**干净 git worktree（无 `outputs/`）**上复现并验证：修复前 4 failed / 修复后 **39 passed**。
+- **精确 CI**：`R7 CPU CI` run **`38454943530`** 对 `1f54079` **completed / success**（第 5–8 步全绿、第 9 步转绿）。
+- **下一动作（S3）**：按 `docs/plans/0022` 的 **H-A**（P_0 输入条件化）写下一轮 round brief + 派生单因素驱动，
+  先跑 `.venv/bin/python tools/r7_round.py round-guard` 确认前置，再冻结新协议。容量轴已按 0048 永久关闭；
+  test 未读、r=0、S4 未启动不变。
