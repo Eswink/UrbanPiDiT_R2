@@ -1167,6 +1167,16 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   state_dict 155 个张量里 **150 个形状变化**，已登记的 dim-192 父状态装不进去，不得照搬 depth 的 identity-gated 措辞），
   且 `estimated_peak_bytes` 必须按 ≥11.03 GiB 标定；② 直接走 `docs/plans/0022` 的 **H-A**（P_0 输入条件化，
   与出口原文完全一致、零规则风险）。
+- **登记提交的 CI 与一次修复（如实记录）**：登记提交 `09fbe66` 的 `R7 CPU CI`（run `38381529000`）
+  **第 9 步红**——前 4 步（Check repository conventions / Check campaign state / Check evidence index and
+  candidate brief / Compile active modules and check whitespace）**全绿**，说明**不是登记内容违规**；
+  红的是全量测试步，根因是**既有测试的浮点相等缺陷**：`test_cli_ledger_plan_prints_arithmetic` 跑在真实账本上，
+  断言 `new_total_gpu_h == previous_total_gpu_h + 1.0`，而 `ledger_plan` 把总量 `round(..., 6)`——
+  `53.8478 + 1.0` 恰好往返、`63.0619 + 1.0` 不能（`64.06190000000001`），本轮累计 53.8478 → 63.0619
+  只是把这个一直存在的脆弱断言暴露出来。修复提交 `3d2b546`（改 `pytest.approx(..., abs=1e-6)`；
+  **未放宽任何判据**，同文件既有反证与实跑偏差反证都证明容差仍能抓住真错）的 CI run
+  **`38386670446` completed/success**；本地全量套件 **4501 passed / 3 skipped / 0 failed**（22:46）。
+  index74 记录的 `ci_run_id` 指向实验代码 commit `4e9fc96` 的绿 CI `38301335129`，不受此影响。
 - **下一动作（S3）**：写下一轮 round brief（**宽度单因素** 或 plan 0022 的 **H-A**），先跑
   `.venv/bin/python tools/r7_round.py round-guard` 确认前置，再冻结新协议。宽输入支与训练配方支已关闭不重开；
   test 未读、r=0、S4 未启动不变。
