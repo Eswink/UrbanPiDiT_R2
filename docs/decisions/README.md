@@ -73,3 +73,4 @@
 | [0045](0045-pinned-seed-reuse-across-attempts.md) | 跨 attempt 的 pinned seed 复用：白名单全等准入、按 seed 原子复用、逐 seed 如实报告、被打断的 GPU 全额记账 | accepted | 2026-10-11 |
 | [0046](0046-arxiv-literature-research-route.md) | 文献检索通道：新增 `arxiv-researcher`（arXiv MCP 只读 9 工具）承担一手论文，网络通道维持 0018 的单一出口；文献通道无机械闸门、靠约定约束 | accepted | 2026-10-12 |
 | [0047](0047-dual-card-seed-distribution.md) | 一轮内双卡 seed 分配：一卡一 seed 并发（默认双卡、保留单卡、不引入 DDP）、逐卡只读余量门 + 邻居增长 reserve；界定与 0042 第 4 条的适用范围 | accepted | 2026-10-12 |
+| [0048](0048-capacity-axis-scope-and-cap.md) | 容量轴的适用范围与封顶：容量轮出口收窄为**深度轴**、宽度封顶为**最后一个**容量臂（失败即整条容量轴永久关闭）；含时序披露、宽度无逐位恒等扩张、成本口径更正 | accepted | 2026-10-13 |

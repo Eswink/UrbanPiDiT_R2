@@ -2,6 +2,37 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-13 — 容量轴出口收窄为深度轴并封顶（决策 0048）；本轮登记名改 `-result`（避免撞车）
+
+**决策 0048（出口冲突）**：容量轮冻结出口写的是关闭"靠加大容量解决 72h"这一支，而工作态笔记
+（`.zcode/plans/s3-architecture-lit-2026-10-13.md`，git-ignored）提出的 **H-D（宽度轴 `dim` 192→256/320）
+本身就是加大容量**——直接冲突，且在灰色地带推进等于事后放宽已冻结判据。处置：**收窄为深度轴 + 封顶**。
+出口所指的"加大容量"读作本轮唯一单因子 `depth` 4→8；宽度是**独立轴**，但被封顶为**最后一个**容量臂——
+若它也未能让 72h 三 seed 全正，则整条容量轴（深度＋宽度）**永久关闭**，此后不重试 depth、不再扫 `dim`、
+不做宽＋深组合。ADR 如实披露**时序**：作出时本轮 seed 41 的 72h 读数已可见（`interior_32` skill −0.1512），
+故正文写明"不改任何阈值/门/判据、不预设本轮结论"，并保留替代路径"若独立复核认为时序不可接受，
+改走 `docs/plans/0022` 的架构方向（H-A/H-B/H-C）"。同时更正两处口径：宽度**不是**更省成本
+（实测参数量 `dim` 192→256 为 3,286,037→5,790,389，**+76%**，比 depth 4→8 的 +54% 还大；`dim`→320 为 +174%）；
+宽度**没有**逐位恒等扩张（`dim` 192→256 时 state_dict 155 个张量里 **150 个形状变化**，已登记的
+v3-BD 1600 父状态装不进去），不能照搬 depth 的 identity-gated 说法。
+
+**登记名撞车（工程）**：本轮成功版原定登记为 `s3-capacity-depth-run` + `docs/R7_S3_CAPACITY_DEPTH_RUN.md`，
+但这两个名字**已被**那次 seed 41 CUDA OOM 的失败登记占用（索引 index73、`candidate_state: blocked`）。
+改为 `s3-capacity-depth-result` + `docs/R7_S3_CAPACITY_DEPTH_RESULT.md`；更正指针追加在 **blocked** 那条
+record 上（`s3-capacity-depth` 上的 `correction_record_id` 已存在，不重复追加）。两条既有登记与两页
+证据**逐字节保留**。`docs/goals/s3-capacity-or-architecture.md` 的 round-spec `register_paths` 同步改为
+新页名——不改它 `commit-register` 就不会把新证据页加进提交，索引会指向未跟踪文件。工作流草稿
+（git-ignored）的常量与登记员提示词同步更新，并新增硬指令"写入前先检查目标路径是否已存在、已存在则
+停止并升级、不得覆盖"。
+
+**未做**：不跑 GPU；不改 `protocol.json`/`code.zip`/任何已登记证据与判据；不改
+`scripts/study_r7_s3_capacity_depth.py:48` 的 `FORMAT = "r7-s3-capacity-depth-protocol-v1"` 与
+`tests/test_r7_s3_capacity_depth.py:99`（冻结的协议格式串）；不动 index72/73 的既有字节；不 amend/停
+正在跑的 workflow（seeds 未结束——实测停 workflow 会 SIGKILL 在飞的 `world.run` 子进程）。本轮登记由
+主链**手工两段式**接管（先提交证据页、再用其 SHA 写索引，满足 `check_campaign_state` C-06 对
+`evidence_commit` 必须先存在的要求），理由：草稿 phase 2 无幂等守卫，任何重跑都会重建 code.zip 使
+ZIP comment ≠ 冻结的 `code_commit 4e9fc96`，且 `freeze` 会因 attempt05 已存在而失败。
+
 ## 2026-10-12 — goal 完成校验：非流式路径根因定位与本地补丁二
 
 直连实测（R-050）确认 `cline-pass/…` 路由（`https://api.cline.bot/api/v1`）的**非流式**请求返回

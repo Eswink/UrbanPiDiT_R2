@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-capacity-depth", "driver": "scripts/study_r7_s3_capacity_depth.py", "output_stem": "r7_s3_capacity_depth_20261012", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_capacity_depth.py"], "commit_paths": ["scripts/study_r7_s3_capacity_depth.py", "tests/test_r7_s3_capacity_depth.py", "training/r7_device_selection.py", "tests/test_r7_device_selection.py", "docs/goals/s3-capacity-or-architecture.md"], "commit_message": "feat(r7): implement the S3 capacity-depth (trunk depth 4->8) single-factor arm", "register_paths": ["docs/R7_S3_CAPACITY_DEPTH_RUN.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the S3 capacity-depth (depth 4->8) run as a new evidence record", "code_archive": "outputs/r7_s3_capacity_depth_code.zip"} -->
+<!-- round-spec: {"arm": "s3-capacity-depth", "driver": "scripts/study_r7_s3_capacity_depth.py", "output_stem": "r7_s3_capacity_depth_20261012", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_capacity_depth.py"], "commit_paths": ["scripts/study_r7_s3_capacity_depth.py", "tests/test_r7_s3_capacity_depth.py", "training/r7_device_selection.py", "tests/test_r7_device_selection.py", "docs/goals/s3-capacity-or-architecture.md"], "commit_message": "feat(r7): implement the S3 capacity-depth (trunk depth 4->8) single-factor arm", "register_paths": ["docs/R7_S3_CAPACITY_DEPTH_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the S3 capacity-depth (depth 4->8) run as a new evidence record", "code_archive": "outputs/r7_s3_capacity_depth_code.zip"} -->
 
 状态 **驱动与 CI-safe 测试已实现、已决定恢复运行**（2026-10-12 操作者决定）。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接 `docs/goals/s3-reasoning-depth.md` 的预声明出口
@@ -61,6 +61,18 @@ identity-gated 规则扩成 depth-8 —— 新增块 `i∈{4..7}` 在**每个参
 - **预声明出口**：72h 三 seed 全正 → 提请独立验收；否则关闭"靠加大容量解决 72h"这一支，
   转架构或数据方向，不再加 seed、不重复同一 test、不无限调容量。
 - **test 策略**：`test.jsonl` 从不读取；`test_read=false`、`scientific_claim=false`。
+
+**（2026-10-13 追加，不改上文一字）出口的适用范围**：上一条出口所指的"靠加大容量解决 72h"读作
+**深度轴**——即本轮作为唯一单因子所测的 `depth` 4→8，而不是整条容量轴。宽度是**独立轴**，在当前
+主线上尚未单因素检验；但它被**封顶为最后一个容量臂**：若宽度臂也未能让 72h 三 seed 全正，则整条
+容量轴（深度＋宽度）**永久关闭**，此后不得再开任何容量臂（不重试 depth、不再扫 `dim`、不做宽＋深
+组合）。理由、**时序披露**（本追加作出时 seed 41 的 72h 读数已可见）与代价见决策 **0048**
+（`docs/decisions/0048-capacity-axis-scope-and-cap.md`）。**本追加不改任何阈值、门或判据**。
+
+**（2026-10-13 追加）本轮登记名**：成功版的证据页与 record 用 `docs/R7_S3_CAPACITY_DEPTH_RESULT.md`
+与 `s3-capacity-depth-result`；上面 §2/§7 里写的 `docs/R7_S3_CAPACITY_DEPTH_RUN.md` 与
+`s3-capacity-depth-run` **已被那次 seed 41 CUDA OOM 的失败登记占用**（索引 index73、`blocked`），
+两条既有登记（`s3-capacity-depth`、`s3-capacity-depth-run`）逐字节保留，更正指针追加在 blocked 那条上。
 
 ## §4 数字预算与停止
 
