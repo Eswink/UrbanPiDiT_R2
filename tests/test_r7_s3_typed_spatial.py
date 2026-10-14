@@ -186,7 +186,7 @@ def test_expand_refuses_a_state_that_is_not_the_registered_parent():
     wrong = make_model("process", _tiny_spec(mode=None)).state_dict()
     del wrong["process_queries"]
     with pytest.raises(RuntimeError):
-        typed_parent.expand_parent_state(wrong, spec, PAYLOAD, TYPED_SPATIAL)
+        typed_parent.expand_parent_state(wrong, spec, PAYLOAD, TYPED_SPATIAL, seed=41)
 
 
 def test_expand_installs_the_parent_and_keeps_the_pathway_random():
@@ -194,12 +194,40 @@ def test_expand_installs_the_parent_and_keeps_the_pathway_random():
     from model.typed_evidence_r7 import TYPED_SPATIAL
     spec = _tiny_spec(mode=TYPED_SPATIAL)
     parent = make_model("process", _tiny_spec()).state_dict()
-    model, state, receipt = typed_parent.expand_parent_state(parent, spec, PAYLOAD, TYPED_SPATIAL)
+    model, state, receipt = typed_parent.expand_parent_state(
+        parent, spec, PAYLOAD, TYPED_SPATIAL, seed=41)
     assert sorted(receipt["new_keys"]) == sorted(typed_parent.typed_evidence_keys(TYPED_SPATIAL))
     assert receipt["parent_keys"] == len(parent)
+    assert receipt["init_seed"] == 41
     for key, value in parent.items():
         assert torch.equal(state[key], value)
     model.load_state_dict(state, strict=True)
+
+
+def test_both_arms_share_one_pathway_initialization_within_a_seed():
+    """The confound #79 guarded against: B and C must not differ by a fresh random draw."""
+    from training.r7_experiment import make_model
+    from model.typed_evidence_r7 import TYPED_ROUTING, TYPED_SPATIAL
+    parent = make_model("process", _tiny_spec()).state_dict()
+    _, pooled_state, pooled = typed_parent.expand_parent_state(
+        parent, _tiny_spec(mode=TYPED_ROUTING), PAYLOAD, TYPED_ROUTING, seed=41)
+    _, spatial_state, spatial = typed_parent.expand_parent_state(
+        parent, _tiny_spec(mode=TYPED_SPATIAL), PAYLOAD, TYPED_SPATIAL, seed=41)
+    shared = [key for key in pooled["new_keys"] if key in spatial["new_keys"]]
+    assert shared
+    assert all(torch.equal(pooled_state[key], spatial_state[key]) for key in shared)
+    assert pooled["pathway_init_sha256"] == spatial["pathway_init_sha256"]
+
+
+def test_a_different_round_seed_draws_a_different_pathway():
+    from training.r7_experiment import make_model
+    from model.typed_evidence_r7 import TYPED_SPATIAL
+    parent = make_model("process", _tiny_spec()).state_dict()
+    spec = _tiny_spec(mode=TYPED_SPATIAL)
+    _, first, receipt_first = typed_parent.expand_parent_state(parent, spec, PAYLOAD, TYPED_SPATIAL, seed=41)
+    _, second, receipt_second = typed_parent.expand_parent_state(parent, spec, PAYLOAD, TYPED_SPATIAL, seed=42)
+    assert receipt_first["pathway_init_sha256"] != receipt_second["pathway_init_sha256"]
+    assert any(not torch.equal(first[key], second[key]) for key in receipt_first["new_keys"])
 
 
 # --- the driver's frozen fields -----------------------------------------------------------------

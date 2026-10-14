@@ -137,8 +137,12 @@ def typed_block(mode, payload):
             "new_keys": list(typed_parent.typed_evidence_keys(mode)),
             "built_last_under_isolated_stream": True,
             "position_query_zero_is_pooled": True,
+            "shared_pathway_initialization": ("both arms are expanded under torch.manual_seed(seed), so "
+                                              "their shared pathway tensors are bit-identical within a "
+                                              "round seed and their pathway_init_sha256 must match"),
             "positive_control": ("zeroing the per-type projections makes the evidence identically zero "
-                                 "in both modes, so the pathway can be switched off exactly"),
+                                 "in both modes, so the pathway can be switched off exactly; a failed "
+                                 "control raises instead of being recorded and ignored"),
             "declared_difference": ("the spatial mode adds typed_evidence.position_query (dim parameters); "
                                     "the pooled mode does not"),
             "field_active": [bool(value) for value in payload["field_active"]]}
@@ -166,7 +170,7 @@ def _index_record(record_id):
 
 
 def previous_arm_pins():
-    """Pin the registered 2400-update interior-dose arm this round conditions P_0 against."""
+    """Pin the registered 2400-update interior-dose arm this round compares against."""
     from training.r7_arm_harness import sha256_file
     record = _index_record(PREVIOUS_DOSE_ARM_RECORD)
     doc = ROOT / record["evidence_path"]
@@ -275,9 +279,6 @@ def validate_protocol(output):
         raise RuntimeError("the frozen supervision factor changed")
     if (body["recipe"]["updates"] != UPDATES or body["recipe"]["steps"] != STEPS
             or body["evaluation"]["reasoning_steps"] != REASONING_STEPS):
-        raise RuntimeError("the frozen capacity factor changed")
-    if (body["recipe"]["updates"] != UPDATES or body["recipe"]["steps"] != STEPS
-            or body["evaluation"]["reasoning_steps"] != REASONING_STEPS):
         raise RuntimeError("the frozen recipe changed")
     meta, payload = evidence_payload()
     if body["typed_evidence"] != {"sidecar_store": str(meta["store"]),
@@ -339,7 +340,8 @@ def _parent_model(body, seed, mode):
     if int(spec.get("dim", 0)) != DIM or int(spec.get("depth", 0)) != DEPTH:
         raise RuntimeError("the arm spec is not the frozen dim-192 depth-4 trunk")
     _, payload = evidence_payload()
-    model, state, expansion = typed_parent.expand_parent_state(saved["model"], spec, payload, mode)
+    model, state, expansion = typed_parent.expand_parent_state(saved["model"], spec, payload, mode,
+                                                               seed=seed)
     return model, state, path, expected, expansion
 
 
@@ -402,10 +404,17 @@ def _train_arm(output, body, seed, name, mode, deadline, mask):
 def _seed(output, body, seed, deadline):
     import torch
     mask = interior.supervision_mask().to("cuda:0")
+    receipts = {}
     for name, mode in ARMS:
         receipt = _train_arm(output, body, seed, name, mode, deadline, mask)
         receipt["owned_cuda_reserved_peak_bytes"] = int(torch.cuda.max_memory_reserved())
         wide.write_exclusive(output / f"seed{seed}_{name}_receipt.json", receipt)
+        receipts[name] = receipt
+    # The B->C contrast is attributable to the position aggregation only if the two arms started from
+    # one pathway initialization; a mismatch here means the delta carries a fresh random draw too.
+    digests = {name: receipts[name]["expansion"]["pathway_init_sha256"] for name in receipts}
+    if len(set(digests.values())) != 1:
+        raise RuntimeError(f"seed {seed}: the arms do not share one pathway initialization: {digests}")
 
 
 def _reference_delta(body, seed, lead, arm_rmse):

@@ -19,6 +19,8 @@ MIGRATED_PARENT_RUN = ROOT / "outputs/r7_s3_rollout_dose_parent_migrated_2026101
 MIGRATION_RECEIPT = MIGRATED_PARENT_RUN / "migration_receipt.json"
 ENDPOINT = 1600
 EQUIVALENCE_SEED = 1234
+#: The one key the spatial arm adds; excluded from the shared-initialization digest.
+SPATIAL_ONLY_KEY = "typed_evidence.position_query"
 MIGRATED_PARENT_SHA256 = {
     41: "a376fdac3dd3b473f26ef5164f85076e9fe4ab66399757f9ca90dabb19dd94d7",
     42: "5f395bdef5509534437a8deecd00781facffe1511947bbce3280b9c5d932e99e",
@@ -73,16 +75,24 @@ def typed_evidence_keys(mode):
     return tuple(keys)
 
 
-def expand_parent_state(parent_state, spec, payload, mode):
+def expand_parent_state(parent_state, spec, payload, mode, *, seed):
     """Load a parent without typed evidence into the H-B trunk, which adds the pathway.
 
     Returns ``(model, state, receipt)``. The registered parent carries no ``typed_evidence`` key at
-    all, so every pathway tensor is new and keeps the target's random init; the parent's own tensors
-    are installed bit for bit. The receipt records the raw positive-control output.
+    all, so every pathway tensor is new; the parent's own tensors are installed bit for bit. The
+    pathway is drawn under ``seed``, so the pooled and the spatial arm of one round seed start from
+    the *same* pathway initialization and the B->C delta is attributable to the position aggregation
+    rather than to a fresh random draw -- the confound the #79 round guarded against with
+    ``verify_arm_pairing``. The receipt records the raw positive-control output, and a failed control
+    aborts the run rather than being written down and ignored.
     """
+    import torch
+
     from training.r7_experiment import make_model
     from training.r7_autoregressive_runner import _state_digest
-    target = make_model("process", spec)
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(int(seed))
+        target = make_model("process", spec)
     target_state = target.state_dict()
     missing = [key for key in target_state if key not in parent_state]
     expected = typed_evidence_keys(mode)
@@ -97,9 +107,19 @@ def expand_parent_state(parent_state, spec, payload, mode):
         state[key] = target_state[key].detach().clone()
     target.load_state_dict(state, strict=True)
     control = positive_control(spec, payload)
+    if not (control["shared_bit_identical"] and control["zero_query_is_pooled"]
+            and control["zeroed_projection_is_identity"]):
+        raise RuntimeError("H-B positive control failed: the two typed arms are not identical outside "
+                           "the position aggregation, or the zero-query / zeroed-projection identities "
+                           "do not hold")
+    # Digest over the keys BOTH typed arms carry, so the two receipts' values must be equal:
+    # that equality is the checkable evidence that the arms share one pathway initialization.
+    pathway = {key: state[key] for key in sorted(set(expected) - {SPATIAL_ONLY_KEY})}
     receipt = {"parent_keys": len(parent_state), "new_keys": sorted(missing),
+               "init_seed": int(seed),
                "parent_state_sha256": _state_digest(parent_state),
                "expanded_state_sha256": _state_digest(state),
+               "pathway_init_sha256": _state_digest(pathway),
                "new_params": sum(int(target_state[key].numel()) for key in missing),
                "positive_control": control}
     return target, state, receipt

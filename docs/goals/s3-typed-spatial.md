@@ -41,19 +41,29 @@
 
 - **候选臂 C**：已登记 2400 剂量臂 + **类型化证据开启且空间保留**（唯一因子）。`depth`=4、`dim`=192、
   K=4、宽 129×129 输入、`interior_32` 监督、2400 更新、注册物理权重、seed 41/42/43 逐字不变。
-- **协议内对照臂 B**：同信息、同参数量/FLOPs，**只把路由换回 pooled**（即 #79 现状）。B 与 C 必须在
-  同一协议、同一 seed、同一预算下各跑一遍 —— 只此才可把 **B→C** 的差异归因到"空间保留"，
-  而**不是**归因到协议差异或容量差异。
+- **协议内对照臂 B**：同信息、同初始化，**只把位置聚合换回 pooled 均值**（即 #79 现状）。B 与 C 必须在
+  同一协议、同一 seed、同一预算、**同一通路初始化**下各跑一遍 —— 只此才可把 **B→C** 的差异归因到
+  "位置聚合"，而**不是**归因到协议差异、容量差异或随机初始化差异。
 - **参考臂 A**：`record:s3-wide-interior-dose`（pinned 复用、不重训练）为外部参考；`record:s3-rollout-dose` 为次级。
-- **参数量/FLOPs 对齐（关键）**：C 的位置对齐注入必须用**共享**的位置投影，使 B 与 C 的
-  参数量与 FLOPs 逐位相等（须实测并分报；不等则本轮的归因不成立，须如实记为混杂）。
-- **实现约束（模型改动，须 `[model-digest-change]`）**：在 `model/typed_evidence_r7.py` 的 `TYPED_ROUTING`
-  分支保留 `P` 维（不再 `mean(dim=1)`），在注入侧对 anchored slot 做位置对齐的加法/注意力；
-  **默认（off / pooled）路径必须逐位等于现实现**（须逐 seed 断言），并由一个显式开关选择路由。
-- **正/负控制**：正控制＝**类型标签置零**时输出恒为 0（沿用 #79 的置零反证模式）；
-  负控制＝B 臂本身（同信息、pooled）。
+- **共享初始化（关键；#79 先例的阻断式防护）**：两臂的 typed-evidence 通路张量（`conv`/`norm`/四个
+  `projections`）必须在**同一 round seed 下逐位相同** —— `expand_parent_state` 在 `torch.manual_seed(seed)`
+  下构造目标模型，并把两臂共有键的 `pathway_init_sha256` 写进各自 receipt（两者必须**相等**）。
+  #79 轮用 `verify_arm_pairing` + `shared_initial_state` 防的正是这个混杂；若两臂各自随机初始化，
+  则 B→C 的差值不可归因到路由。**本条为硬约束，不满足即不得开跑。**
+- **参数量（已声明的差异，不是混杂）**：C 的聚合用**一个共享的** `[dim]` query，故两臂除
+  `typed_evidence.position_query` 外**逐位相同**；C 恰多 `dim`=192 个参数（+0.13% of 148800）。
+  此差异**必须**分报（`declared_difference`）并写进 limitations，**不**声称参数量逐位相等。
+- **实现约束（模型改动，须 `[model-digest-change]`）**：在 `model/typed_evidence_r7.py` 新增
+  `typed_spatial` 模式：保留 `P` 维（不再 `mean(dim=1)`），用 softmax 注意力（一个共享可学习 query）聚合。
+  **pooled 模式必须逐位等于 #79 现实现**（既有 #79 测试即为此反证）；query 为 0 时 spatial 的聚合等于
+  pooled 的均值（须实测并写进 receipt）。**注意**：`pooled` 臂**不是**"注册 2400 剂量臂"——后者根本没有
+  typed evidence；A 只作外部 pinned 参考。
+- **正/负控制**：正控制＝（i）query 为 0 时 spatial 聚合 == pooled 均值；（ii）清零四个 per-type 投影后
+  两模式证据**恒为 0**；（iii）类型标签置零后该类型证据恒为 0。**任一不满足即 `raise` 中止本轮**
+  （不是只写进 receipt）。负控制＝B 臂本身（同信息、pooled）。
 - **预算**：两臂 × 三 seed = 六次训练；per-seed/planned/hard 按 H-A 轮实测（6.8590 GPU-h 六阶段）
-  **重新标定**（先冻后跑，不在运行中改）。
+  **重新标定**（先冻后跑，不在运行中改）。相对 H-A 驱动的 per-seed 28800→43200 s 与峰值估计
+  12198→9728 MiB 是**两臂的后果**，两臂共享同一 per_seed_seconds/peak 估计，不破坏 B→C 可比性。
 - **预声明出口**：**B→C 在 72h 三 seed 同号且 C 的 72h 三 seed 全正 → 提请独立验收**；
   否则**关闭 H-B 这一支**，不调注入宽度/不加 seed。若 B→C 无差异 ⇒ 结论是**类型路由本身无效**
   （而非"空间保留无用"），如实写清。
