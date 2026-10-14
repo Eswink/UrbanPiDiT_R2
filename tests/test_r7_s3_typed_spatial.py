@@ -64,6 +64,18 @@ def _router(mode, dim=8, seed=0):
         return TypedEvidenceRouter(dim, 2, mode=mode, **PAYLOAD)
 
 
+@pytest.fixture(autouse=True)
+def _stub_shared(monkeypatch):
+    """``arm_spec`` and ``execution_files`` read the registered archived spec from ``outputs/``."""
+    class _Shared:
+        ARCHIVED = ROOT / "outputs" / "r7_stub_archive"
+
+        def archived_process_spec(self):
+            return (_tiny_spec(dim=spatial.DIM), None, None)
+
+    monkeypatch.setattr(spatial.recipe, "_shared", lambda: _Shared())
+
+
 # --- the routing modes -------------------------------------------------------------------------
 
 def test_the_spatial_mode_is_declared_and_per_type():
