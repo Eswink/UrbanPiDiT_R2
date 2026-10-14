@@ -144,6 +144,26 @@ class ProcessForecastCoReasoner(nn.Module):
             self.typed_evidence=TypedEvidenceRouter(
                 dim,patch_size,mode=typed_evidence_mode,**fields)
 
+    def _build_context_mixing(self,dim,heads,window_size,dropout,
+                              global_mixing_mode,global_mixing):
+        """H-C: one post-backbone context-mixing layer, built last under a rewound stream.
+
+        ``global`` and ``local`` declare the same tensors with the same shapes, so the two arms
+        are parameter-matched by construction; only the attention range, and therefore the
+        compute, differ. Switching the layer off is the previous implementation bit for bit.
+        """
+        from .global_mixing_r7 import MIXING_MODES, ContextMixLayer
+        if global_mixing_mode not in MIXING_MODES:
+            raise ValueError(f"global_mixing_mode must be one of {MIXING_MODES}")
+        fields = dict(global_mixing or {})
+        if set(fields) - {'mlp_ratio', 'dropout'}:
+            raise ValueError("global_mixing accepts only mlp_ratio and dropout")
+        with isolated_stream():
+            self.global_mixing=ContextMixLayer(
+                dim,heads,window_size,mode=global_mixing_mode,
+                mlp_ratio=fields.get('mlp_ratio',4.0),
+                dropout=fields.get('dropout',dropout))
+
     def __init__(
         self,
         in_channels:int,
@@ -183,6 +203,7 @@ class ProcessForecastCoReasoner(nn.Module):
         climatology_anchor_spec=None,
         anomaly_feedback:bool=False,
         process_init_conditioning:bool=False,
+        global_mixing_mode:Optional[str]=None, global_mixing=None,
     ):
         super().__init__()
         _validate_switches(
@@ -224,6 +245,7 @@ class ProcessForecastCoReasoner(nn.Module):
         self.solver_gate_proposal=solver_gate_proposal
         self.change_scale_mode=change_scale_mode
         self.typed_evidence_mode=typed_evidence_mode
+        self.global_mixing_mode=global_mixing_mode
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
@@ -331,6 +353,9 @@ class ProcessForecastCoReasoner(nn.Module):
                     nn.LayerNorm(dim),
                     nn.Linear(dim,dim),
                 )
+        # H-C: one context-mixing layer, built last under a rewound stream so "off" is bit for bit.
+        if global_mixing_mode is not None:
+            self._build_context_mixing(dim,heads,window_size,dropout,global_mixing_mode,global_mixing)
         # Install the fixed prior last, after all pre-existing trainable weights.
         if climatology_anchor_spec is not None:
             from .climatology_anchor_r7 import TrainClimatologyAnchor
@@ -422,6 +447,10 @@ class ProcessForecastCoReasoner(nn.Module):
         draft=initial
         context=base.context_tokens
         token_hw=base.token_hw
+        if self.global_mixing_mode is not None:
+            # H-C: one context-mixing layer over the backbone tokens; ``local`` repeats the
+            # trunk's windowed attention, ``global`` attends over every token.
+            context=self.global_mixing(context,token_hw)
         output_hw=initial.shape[-2:]
         B=initial.shape[0]
 

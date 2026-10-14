@@ -7,7 +7,16 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=1030 R-020=64 R-021=99 R-022=65 R-023=45 -->
+<!-- measured: R-019=0 R-019b=1030 R-020=64 R-021=101 R-022=65 R-023=45 -->
+
+**2026-10-15 H-C 全局混合驱动复算（暂存集合实测）**：R-021 **99→101**；
+R-019=0、R-019b=1030、R-020=64、R-022=65、R-023=45 保持。净增长来自两个新文件
+`scripts/study_r7_s3_global_mixing.py`（580 行）与 `tests/test_r7_s3_global_mixing.py`（574 行），
+两者都 > 400 目标但 ≤600 硬限、最长函数体在 R-052 200 行硬限内、无 120–200 字符长行；
+驱动复用注册的 2400 剂量驱动、只把主干出口的一条 context-mixing 层切成 global/local 两臂。
+同轮新增的 `model/global_mixing_r7.py`（92 行）与 `scripts/r7_s3_global_mixing_parent.py`（250 行）
+在 400 目标带内；`model/process_forecast_r7.py` 537 行（只加 3 行注释＋一次调用，并把 H-C
+构造压到 1 行以守住 R-052 200 行硬限）。**未改规则级别、阈值或冻结例外清单。**
 
 **2026-10-12 轮次登记工具 commit-register 复算（暂存集合实测）**：R-021 **91→93**；
 R-019=0、R-019b=1028、R-020=64、R-022=65、R-023=45 保持。净增长来自本轮工程改动

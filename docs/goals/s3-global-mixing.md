@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-global-mixing", "driver": "scripts/study_r7_s3_global_mixing.py", "output_stem": "r7_s3_global_mixing_20261015", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_global_mixing.py"], "commit_paths": ["model/process_forecast_r7.py", "model/global_mixing_r7.py", "scripts/r7_s3_global_mixing_parent.py", "scripts/study_r7_s3_global_mixing.py", "tests/test_r7_s3_global_mixing.py", "docs/goals/s3-global-mixing.md"], "commit_message": "feat(r7): implement the H-C global-mixing arm with its matched extra-local-layer control [model-digest-change]", "register_paths": ["docs/R7_S3_GLOBAL_MIXING_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the H-C global-mixing run as a new evidence record", "code_archive": "outputs/r7_s3_global_mixing_code.zip"} -->
+<!-- round-spec: {"arm": "s3-global-mixing", "driver": "scripts/study_r7_s3_global_mixing.py", "output_stem": "r7_s3_global_mixing_20261015", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_global_mixing.py"], "commit_paths": ["model/process_forecast_r7.py", "model/global_mixing_r7.py", "scripts/r7_s3_global_mixing_parent.py", "scripts/study_r7_s3_global_mixing.py", "tests/test_r7_s3_global_mixing.py", "docs/goals/s3-global-mixing.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): implement the H-C global-mixing arm with its matched extra-local-layer control [model-digest-change]", "register_paths": ["docs/R7_S3_GLOBAL_MIXING_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the H-C global-mixing run as a new evidence record", "code_archive": "outputs/r7_s3_global_mixing_code.zip"} -->
 
 状态 **设计已定、待实现模型改动与 CPU 前置**（2026-10-15）。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接 **H-A 关闭**（`record:s3-process-init-result`，negative）、
@@ -12,7 +12,7 @@
 
 ## §0 Objective（单段）
 
-> 在 docs/goals/s3-global-mixing.md 接续 S3/index78/93.331638 GPU-h、2023 test 未评分 r0、S4 未启动；H-A 与 H-B 两支已按各自预声明出口关闭、容量轴已按决策 0048 永久关闭，本轮回主线的**第三根架构轴**——**只给解码器（或 solver）加一条全局混合路径**（低秩全局算子或单层全局注意力，补上"局部窗口 + 3×3 conv 感受野受限"这一结构缺口；局部窗口与 3×3 conv 本身不变），并**在同一协议内同跑一个参数量逐位对齐（444,864）的"额外局部层"对照臂**，以区分「全局性」与「单纯加容量」（**FLOPs 无法对齐、≈68× 差，须如实分报并写进 limitations**）；其余（宽 129×129 输入、`interior_32` 监督、2400 更新、K=4、depth=4、`dim`=192、注册物理权重、seed 41/42/43、评分域、气候态分母）逐字不变；新路径**最后、在 `isolated_stream()` 下构造**使"off"路径逐位等于现实现，并有"全局路径输出投影清零 ⇒ 逐位退回注册臂"的正控制；预声明出口：**72h 三 seed 全正且全局臂相对局部对照臂 72h 三 seed 同号为优 → 提请独立验收，否则关闭 H-C 这一支**、转训练信号/目标组织或重估主线；本轮只报读数、**不宣布科学通过**、不称泛化/SOTA、不自行宣布最终 goal 完成；不 paid/rental/exclusive/main/release/issueclose/force/mirror/破坏性/cron，不改科学合同/冻结证据/用户配置，**不读 test**。
+> 在 docs/goals/s3-global-mixing.md 接续 S3/index78/93.331638 GPU-h、2023 test 未评分 r0、S4 未启动；H-A 与 H-B 两支已按各自预声明出口关闭、容量轴已按决策 0048 永久关闭，本轮回主线的**第三根架构轴**——**只给解码器（或 solver）加一条全局混合路径**（低秩全局算子或单层全局注意力，补上"局部窗口 + 3×3 conv 感受野受限"这一结构缺口；局部窗口与 3×3 conv 本身不变），并**在同一协议内同跑一个参数量逐位对齐（444,864）的"额外局部层"对照臂**，以区分「全局性」与「单纯加容量」（**FLOPs 无法对齐：注意力长度 68.1× / SDPA 子成本 57.2× / 整层 1.91×，须写明口径并如实分报、写进 limitations**）；其余（宽 129×129 输入、`interior_32` 监督、2400 更新、K=4、depth=4、`dim`=192、注册物理权重、seed 41/42/43、评分域、气候态分母）逐字不变；新路径**最后、在 `isolated_stream()` 下构造**使"off"路径逐位等于现实现，并有"混合块输出投影与 FF 输出层同时清零 ⇒ 逐位退回 off 路径"的正控制；预声明出口：**72h 三 seed 全正且全局臂相对局部对照臂 72h 三 seed 同号为优 → 提请独立验收，否则关闭 H-C 这一支**、转训练信号/目标组织或重估主线；本轮只报读数、**不宣布科学通过**、不称泛化/SOTA、不自行宣布最终 goal 完成；不 paid/rental/exclusive/main/release/issueclose/force/mirror/破坏性/cron，不改科学合同/冻结证据/用户配置，**不读 test**。
 
 ## §1 起点与实质差异
 
@@ -47,9 +47,12 @@
 - **参考臂 A**：`record:s3-wide-interior-dose`（pinned 复用、不重训练）为外部参考。
 - **参数量对齐（实测已证可做到）**：同构 block 外壳下 `WindowAttentionBlock` 与全局注意力块参数量**逐位相等
   = 444,864** —— 局部 `qkv+proj = (3d²+d)+(d²+d) = 4(d²+d) = 148224`，全局 `q+k+v+out = 4(d²+d)` 恒等。
-- **FLOPs **无法**对齐（必须如实分报，不得声称对齐）**：解析值（B=1, N=1089, d=192, ws=4）单层全局注意力的
-  注意力部分 ≈ **9.11e8** FLOPs，窗口 ≈ **1.34e7**，比值 **≈68×**（`torch.utils.flop_counter` 在本环境不分解
-  fused SDPA，实测只报投影+FF，故用解析值）。**因此本轮以「参数量」为对齐轴，并分报 FLOPs 差**；若 G 胜出，
+- **FLOPs **无法**对齐（必须如实分报，不得声称对齐）**：解析值（B=1, N=1089, d=192, heads=4, ws=4；主干对
+  H=W=33 补零到 36×36 ⇒ 81 个窗口、每窗口 16 token）实测三种口径 —— **每个 query 的注意力长度** 1089 vs 16
+  = **68.1×**；**仅 SDPA 子成本** 9.1079e8 vs 1.5925e7 = **57.2×**；**整层（n1+qkv+sdpa+proj+n2+ff）**
+  1.8751e9 vs 9.8024e8 = **1.91×**（FF 占大头，故整层差远小于注意力差）。前两个数字**不是同一个量**，
+  报告时必须写明用的是哪个口径；**任何"FLOPs 已对齐"的说法都不成立**。（`torch.utils.flop_counter` 在本环境
+  不分解 fused SDPA，实测只报投影+FF，故用解析值。）**因此本轮以「参数量」为对齐轴，并分报 FLOPs 差**；若 G 胜出，
   差异**可能来自算力而非"全局性"**，这一混杂**必须**写进 limitations 与证据页。若要同时压 FLOPs，须改用
   **池化/低秩全局算子**（先在粗网格做注意力再上采样，注意力 FLOPs 从 O(N²) 降到 O((N/s²)²)），而不是全分辨率 N×N。
   （低秩路线**也无法**逐位对齐：整数 r 下 `Linear(dim,r)+Linear(r,dim)` 取不到 148,224。）
@@ -68,8 +71,10 @@
 - **实现约束（模型改动，须 `[model-digest-change]`）**：新路径**最后、在 `isolated_stream()` 下构造**，
   使"off"路径逐位等于现实现；由一个显式 spec 开关选择；插入点（解码器 vs solver、全局注意力 vs 低秩算子）
   在 CPU 阶段以**只读测绘**固定并写进协议，**不在运行中改**。
-- **正/负控制**：正控制＝把全局路径的输出投影**清零** ⇒ 逐位退回注册臂（恒等反证，须逐 seed 断言且
-  **失败即 `raise`**，不是只写进 receipt）；负控制＝L 臂本身（同参数量、只改混合范围）。
+- **正/负控制**：正控制＝把混合块的**输出投影与 FF 输出层同时清零** ⇒ 该层退化为恒等 ⇒ **逐位退回 off 路径**
+  （恒等反证，须逐 seed 断言且**失败即 `raise`**，不是只写进 receipt）。**注意：只清零输出投影不够**——
+  残差之后还有 FF，`out + ff(n2(out))` 仍会改变 token；实测已证"只清 proj"**不**等于 off。负控制＝L 臂本身
+  （同参数量、只改混合范围）。
 - **预算**：两臂 × 三 seed = 六次训练；per-seed/planned/hard 按 H-B 轮实测（15.443038 GPU-h 六阶段、
   per-seed 4.33–5.77 GPU-h）**重新标定**（先冻后跑，不在运行中改）。
 - **预声明出口**：**72h 三 seed 全正 且 G 相对 L 在 72h 三 seed 同号为优 → 提请独立验收**；
