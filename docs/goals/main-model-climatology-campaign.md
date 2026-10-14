@@ -1267,6 +1267,11 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   index record `s3-process-init-run`（`outcome_class: unresolved`、`candidate_state: blocked`、`gpu_hours: 0.0`、
   `ran: false`、`failure_class: checkpoint_model_digest_mismatch`）；§7 账本新增一行（**0.0000**，
   故累计仍 **71.0296**）；round brief 补 §6b（失败与修复）与 §7「下一动作（S3）」（补 C-04 所需）。
+- **登记提交与 CI（补记）**：`b2f654f`（证据页 `docs/R7_S3_PROCESS_INIT_RUN.md`）与 `1285dc4`（index/brief/§7/§8/campaign-state
+  四件套）在同一次 push 里，GitHub 只对 head `1285dc4` 跑 CI ⇒ `b2f654f` 无独立 run；`1285dc4` 的 `R7 CPU CI`
+  run **`38470790188` completed/success**。父迁移修复 `81233b3` 的 run 见下一块。本地确定性闸门：
+  `r7_round.py verify`（check_conventions 37 阻断 0 失败、check_campaign_state C-01..C-06 0 失败、index+brief PASS）
+  与 `commit-guard` 均通过。
 - **下一动作（S3）**：把驱动的父解析从 `wide.dose.pinned_parent` 切到本轮自己的迁移父
   （`…_migrated_20261014_attempt01` + 上表新 SHA pin），`round-guard` → 重新 `freeze`（新 `protocol_sha256`）→
   `stage prepare/archive/stage-seeds/reading` → 四件套登记。第一条命令：
@@ -1280,6 +1285,6 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 - **成本**：whole 24,692.481 s、**6.8590 GPU-h**（prepare 0.1316 + archive 0.1320 + seed41 2.5813 + seed42 1.9777 + seed43 1.9085 + reading 0.1281；口径 = attempt 下全部 6 个 `*_process.json` 的 `elapsed_seconds` 之和 ÷ 3600，无 attempt 级 wall clock）；**soft/hard overrun 均 0**；网络 0；磁盘 ≈14 GiB；累计 **71.0296 → 77.888623**。
 - **一条实测修正（方向与容量两轮相反）**：协议 `estimated_peak_bytes` 写 11.91 GiB，三 seed 实测峰值**均为 8.361 GiB**（**高估** 3.55 GiB）；本轮余量门因而是保守的。
 - **登记**：新 record `s3-process-init-result`（`negative` / `not-candidate`）+ 证据页 `docs/R7_S3_PROCESS_INIT_RESULT.md`。本因子第一次尝试（attempt01 身份门失败、0 GPU-h）已单独登记为 `record:s3-process-init-run`（`blocked`）；本页为其跑完的 attempt02，**不**向任何旧 record 追加 `correction_record_id`。**不进 S4 冻结包。**
-- **CI 如实**：实验 commit `81233b3` 的 `R7 CPU CI` run **`38474413900` completed/success**（另 17 条标签 workflow `skipped` 是设计行为、非实验 PASS）。
+- **CI 如实**：实验 commit `81233b3` 的 `R7 CPU CI` run **`38474413900` completed/success**（另 17 条标签 workflow `skipped` 是设计行为、非实验 PASS）。登记提交 `7295291`（证据页）与 `bf7964c`（index/brief/§7/§8/campaign-state 四件套）同一次 push ⇒ 只对 head `bf7964c` 跑 CI，其 `R7 CPU CI` run **`38505965671` completed/success**。
 - **为何停 + 恢复第一条命令**：本轮按预声明出口**正常结束**（不是被打断，无 hard overrun、无身份/资源门失败）；H-A 是决策 0048 永久关闭容量轴后的**第一根架构轴**，它也未让 72 h 三 seed 全正 ⇒ **关闭 H-A 这一支**（不调 proj 宽度、不加 seed）。此后架构方向还剩 `docs/plans/0022` 的 **H-B / H-C**，训练信号 / 目标组织方向亦开放（数据按 D3 暂缓、放最最后）。恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`，随后为新方向写新 round brief。
 - **下一动作（S3）**：写下一轮 round brief（架构 **H-B / H-C** 或**训练信号 / 目标组织**方向，数据按 D3 暂缓），先跑 `.venv/bin/python tools/r7_round.py round-guard` 确认前置，再冻结新协议。H-A 支已按预声明出口关闭、不重开；容量轴（深度＋宽度）已按决策 0048 永久关闭不重开；test 未读、r=0、S4 未启动不变。
