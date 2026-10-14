@@ -321,7 +321,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-typed-spatial.md", "previous_round_goal": "docs/goals/s3-typed-spatial.md", "previous_round_evidence": "docs/R7_S3_TYPED_SPATIAL_RESULT.md", "cap_gpu_h": 20.0, "used_gpu_h": 93.331638, "remaining_gpu_h": -73.331638, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-global-mixing.md", "previous_round_goal": "docs/goals/s3-typed-spatial.md", "previous_round_evidence": "docs/R7_S3_TYPED_SPATIAL_RESULT.md", "cap_gpu_h": 20.0, "used_gpu_h": 93.331638, "remaining_gpu_h": -73.331638, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -1313,3 +1313,11 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 - **CI 如实**：实验 commit `3c1d2b0` 的 `R7 CPU CI` run **`38516302068` completed/success**；登记提交 `2304b3d`（证据页）与 `de23556`（index/brief/§7/§8/campaign-state 四件套）同一次 push ⇒ 只对 head `de23556` 跑 CI，其 run **`38592346142` completed/success**；补记 `418e716`（§7b 关键诊断 + index/brief/§8）的 run **`38597613716` completed/success**（另 17 条标签 workflow `skipped` 是设计行为、非实验 PASS）。**注**：workflow 的结论串写「CI 未绿/超预算」，那是它自己的 `r7_ci_wait` 等待超预算（轮次预算内 run 尚未出现），**不是** CI 失败——两个 run 事后均为 completed/success。
 - **为何停 + 恢复第一条命令**：本轮按预声明出口**正常结束**（不是被打断，无 hard overrun、无身份/资源门失败）；H-B 是决策 0048 永久关闭容量轴后的**第二根架构轴**，它也未让 B→C 出现差异、72 h 三 seed 全正 ⇒ **关闭 H-B 这一支**（不调注入宽度、不加 seed）。此后架构方向还剩 `docs/plans/0022` 的 **H-C**，训练信号 / 目标组织方向亦开放（数据按 D3 暂缓、放最最后）。恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`，随后为新方向写新 round brief。
 - **下一动作（S3）**：写下一轮 round brief（架构 **H-C** 或**训练信号 / 目标组织**方向，数据按 D3 暂缓），先跑 `.venv/bin/python tools/r7_round.py round-guard` 确认前置，再冻结新协议。H-B 支已按预声明出口关闭、不重开；容量轴（深度＋宽度）已按决策 0048 永久关闭不重开；H-A 支已关闭不重开；test 未读、r=0、S4 未启动不变。
+
+### 2026-10-15 — H-C（长 lead 的全局混合路径）轮**开轮**：round brief 已写（承接 H-B 关闭，按 0022 排序取最后一位）
+
+- **方向依据**：H-A 与 H-B 均已按各自预声明出口关闭（`record:s3-process-init-result` negative；`record:s3-typed-spatial-result` B→C null，且其证据页 §7b 已把该 null 限定为**弱操纵下的 null**）；容量轴（深度＋宽度）已按**决策 0048 永久关闭**；`docs/plans/0022` §3 只剩 **H-C**（§4 排最后是**成本**理由，不是证据理由——它是唯一直接针对"局部窗口 + 3×3 conv 感受野受限"这一结构缺口的候选）。训练信号 / 目标组织方向亦开放，数据按 D3 暂缓放最最后。
+- **本轮 brief**：`docs/goals/s3-global-mixing.md`（`<!-- round-node: S3 -->`）。**唯一改动因子 = 空间混合范围**：给解码器（或 solver）加**一条全局混合路径**（低秩全局算子或单层全局注意力），局部窗口与 3×3 conv 本身不变。**G/L 两臂在同一协议内同跑**（G = 全局；L = **同参数量、同 FLOPs 的额外局部层**），只检验 **L→G** 的归因——这正是容量轴关闭后必须证明的事：差异来自「全局性」还是「单纯加容量」。`check_goal_brief` **failures=0**（1 条 A-02 advisory，与 H-A/H-B brief 同）。
+- **两条已学的硬约束已写进 brief §3**：① **共享初始化**——两臂新增参数必须在同一 round seed 下逐位相同、`pathway_init_sha256` 相等、不等即 `raise`（这是 H-B 轮独立复核抓到的 medium finding 的修复，必须照搬）；② **正控制失败即 `raise`**，不是只写进 receipt。③ 父迁移必须照搬 H-A/H-B 的合法修复模式（重跑已提交的迁移工具 + 专属父模块 + `install_parent_pins` + `expand_parent_state(..., seed=...)`）。
+- **口径（必须照此读）**：本轮**尚未开跑**——**0 GPU-h**、无 attempt 目录、无读数、无 seed 均值、无同时区间、无 primary/gate 判定；§3 预声明出口**既未触发也未满足**。**不宣布通过、不关闭任何支**、不称泛化/SOTA。
+- **下一动作（S3）**：先以**只读测绘**固定插入点（解码器 vs solver、全局注意力 vs 低秩算子），再实现模型改动与 `scripts/r7_s3_global_mixing_parent.py`，然后派生驱动（**R-051 600 行硬限**）与 CI-safe 测试（含清零输出投影 ⇒ 逐位退回反证、G/L 参数量与 FLOPs 对齐断言、两臂共享初始化断言）；先跑 `.venv/bin/python tools/r7_round.py round-guard` 确认前置，再冻结新协议。test 未读、r=0、S4 未启动不变。
