@@ -21,6 +21,19 @@ point of the round:
   position and the fused vector is added to every evidence slot. It is the
   control arm against which typed routing is attributed.
 
+A third mode keeps the routing of ``typed_routing`` and changes only how the
+patch positions are collapsed (H-B, docs/goals/s3-typed-spatial.md):
+
+- ``typed_spatial``: the same per-type projections, but the ``P`` patch
+  positions are aggregated by a softmax attention with one learned query
+  instead of a uniform mean, so a position's contribution depends on the token
+  itself rather than being fixed at ``1/P``. At ``position_query == 0`` the
+  attention is uniform and the aggregation is the pooled one up to float
+  summation order, which is what makes the two arms' contrast attributable to
+  the position weighting rather than to the information available. The query is
+  built after the projections so the shared tensors of the two typed arms come
+  from the same stream position.
+
 Sources are legal model inputs only: ``X_t`` is the anchor the backbone already
 decodes from and ``Y_0`` is the model's own initial decode. No target, no
 future field and no validation label is read here, and the module is built last
@@ -42,8 +55,11 @@ from .r7_process_tensor_diagnostics import (
 )
 
 TYPED_ROUTING = "typed_routing"
+TYPED_SPATIAL = "typed_spatial"
 GENERIC_FUSION = "generic_fusion"
-EVIDENCE_MODES = (TYPED_ROUTING, GENERIC_FUSION)
+EVIDENCE_MODES = (TYPED_ROUTING, TYPED_SPATIAL, GENERIC_FUSION)
+#: Modes whose evidence is one vector per type and reaches only that type's slot.
+PER_TYPE_MODES = (TYPED_ROUTING, TYPED_SPATIAL)
 
 #: One anchored slot per typed field, in field order. Free slots and the other
 #: anchored slots are never written by this module.
@@ -108,9 +124,14 @@ class TypedEvidenceRouter(nn.Module):
         # so the two arms' shared tensors come from one stream position.
         self.conv = nn.Conv2d(1, dim, patch_size, patch_size)
         self.norm = nn.LayerNorm(dim)
-        if mode == TYPED_ROUTING:
+        if mode in PER_TYPE_MODES:
             self.projections = nn.ModuleList(
                 [nn.Linear(dim, dim, bias=False) for _ in range(EVIDENCE_TYPES)])
+            if mode == TYPED_SPATIAL:
+                # Built after the projections, so the two typed arms' shared
+                # tensors keep one stream position and stay comparable; zero
+                # makes the attention uniform, i.e. the pooled aggregation.
+                self.position_query = nn.Parameter(torch.zeros(dim))
         else:
             self.fusion = nn.Linear(EVIDENCE_TYPES * dim, dim, bias=False)
         self.register_buffer("denorm_mean", _vector(denorm_mean, len(names), "denorm_mean"),
@@ -173,11 +194,14 @@ class TypedEvidenceRouter(nn.Module):
     def token_evidence(self, fields: torch.Tensor) -> torch.Tensor:
         """The per-sample evidence added to the slots.
 
-        Typed mode returns ``[B,4,dim]`` (one projection per type, pooled over
-        patch positions); generic mode returns ``[B,dim]`` (one fused vector
-        from all four types at every position). Both consume identical inputs
-        and identical parameter counts; that is what makes the contrast
-        attributable to the type structure rather than to capacity.
+        The typed modes return ``[B,4,dim]`` (one projection per type): the
+        pooled mode averages the patch positions uniformly, the spatial mode
+        weights them by attention. Generic mode returns ``[B,dim]`` (one fused
+        vector from all four types at every position). Pooled and generic
+        consume identical inputs and identical parameter counts, which is what
+        makes that contrast attributable to the type structure rather than to
+        capacity; the spatial arm adds one shared ``[dim]`` query, and its delta
+        against the pooled arm is reported with that difference stated.
 
         Masked types contribute exactly zero: their fields are zeroed before
         the shared encode (so a masked type can never carry a non-finite or
@@ -193,14 +217,30 @@ class TypedEvidenceRouter(nn.Module):
             tokens = self.encode(fields)
             tokens = torch.where(active.reshape(1, EVIDENCE_TYPES, 1, 1), tokens,
                                  torch.zeros((), device=tokens.device, dtype=tokens.dtype))
-            if self.mode == TYPED_ROUTING:
+            if self.mode in PER_TYPE_MODES:
                 projected = [projection(tokens[:, index])
                              for index, projection in enumerate(self.projections)]
+                if self.mode == TYPED_SPATIAL:
+                    return torch.stack([self._position_attention(value)
+                                        for value in projected], dim=1)
                 return torch.stack([value.mean(dim=1) for value in projected], dim=1)
             positions = tokens.shape[2]
             stacked = tokens.permute(0, 2, 1, 3).reshape(
                 tokens.shape[0], positions, EVIDENCE_TYPES * self.dim)
             return self.fusion(stacked).mean(dim=1)
+
+    def _position_attention(self, value: torch.Tensor) -> torch.Tensor:
+        """``[B,P,dim] -> [B,dim]`` by a softmax over patch positions.
+
+        One learned ``[dim]`` query is shared by the four types, so the spatial
+        arm costs ``dim`` parameters and one dot product per patch position. At
+        a zero query the weights are exactly uniform and this is the pooled
+        aggregation up to float summation order; that is the arm's identity
+        counter-proof, not a claim about trained behaviour.
+        """
+        scores = (value @ self.position_query) / (self.dim ** 0.5)
+        weights = torch.softmax(scores, dim=1)
+        return (weights.unsqueeze(-1) * value).sum(dim=1)
 
     def evidence(self, batch: Mapping, *, anchor: torch.Tensor,
                  draft: torch.Tensor) -> torch.Tensor:
@@ -222,7 +262,7 @@ class TypedEvidenceRouter(nn.Module):
         if (process.ndim != 3 or process.shape[-1] != self.dim
                 or process.shape[1] < EVIDENCE_TYPES):
             raise ValueError("process state must be [B,M>=4,dim]")
-        if self.mode == TYPED_ROUTING:
+        if self.mode in PER_TYPE_MODES:
             if evidence.shape != (process.shape[0], EVIDENCE_TYPES, self.dim):
                 raise ValueError("typed evidence must be [B,4,dim]")
             return torch.cat((process[:, :EVIDENCE_TYPES] + evidence,
