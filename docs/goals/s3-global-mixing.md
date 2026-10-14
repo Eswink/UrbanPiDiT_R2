@@ -102,27 +102,32 @@
 
 - **已定**：设计（§3）、登记名（成功版 `docs/R7_S3_GLOBAL_MIXING_RESULT.md` / record
   `s3-global-mixing-result`；本因子此前**无**任何已登记 record，故无 correction 指针）。
+- **已实现（2026-10-15）**：`model/global_mixing_r7.py`（`GlobalAttentionBlock` 与 `WindowAttentionBlock` 同壳、
+  `ContextMixLayer` 两模式）、`model/process_forecast_r7.py` 的 `global_mixing_mode` 开关（在**所有既有可训练权重之后**、
+  在 `isolated_stream()` 下构造；forward 在主干出口只应用一次）、`scripts/r7_s3_global_mixing_parent.py`（钉本轮迁移）、
+  `scripts/study_r7_s3_global_mixing.py`（两臂 G/L 同协议）、`tests/test_r7_s3_global_mixing.py`（40 例）。
+  **CPU 实测**：两臂各加**恰好 444,864** 参数（dim 192）；同 seed 下除 12 个新增键外逐位一致；
+  清零输出投影**与 FF 输出层**后该层为恒等、整个 forward 逐位退回 off；只清投影**不**等于 off；
+  两臂在 12×12 token 网格上 forward 不同。**真实迁移父 preflight**：三 seed 的 `pinned_parent`+`load_checkpoint`
+  均成功，两臂 `pathway_init_sha256` 相等且跨 seed 不同。
 - **父迁移前提（必须照搬，否则重蹈 H-A attempt01）**：本轮同样改 `model/*.py` ⇒ `model_code_digest()` 会变 ⇒
-  注册时的迁移父会被 `training/r7_experiment.py:129` 的身份门**按设计**拒绝。**必须**先用**已提交的**
-  `scripts/migrate_r7_parent_state.py` 在**当前**代码下重跑迁移，再按 `scripts/r7_s3_typed_spatial_parent.py`
-  的**同一模式**建 `scripts/r7_s3_global_mixing_parent.py`（钉新路径＋新 SHA、复核 receipt 的
-  `current_model_code_sha256`、`install_parent_pins(body)`、`expand_parent_state(..., seed=...)` 共享初始化）。
-  **不得**修改比对逻辑或放宽任何门。
-- **待做（开工前 CPU 工作）**：只读测绘并固定插入点；实现 `model/global_mixing_r7.py` 与 spec 开关；
-  派生 `scripts/study_r7_s3_global_mixing.py`（**R-051 600 行硬限**）；写 `tests/test_r7_s3_global_mixing.py`
-  （含"清零输出投影 ⇒ 逐位退回"反证、"off 逐位不变"断言、G/L 参数量与 FLOPs 对齐断言、两臂共享初始化断言）；
-  逐行 diff 单因素保真、独立复核（≤3）、`round-guard` 与 `commit-guard`、提交推工作分支并等 CI 绿。
-- **CI 安全**：测试**不得**依赖 `outputs/`（H-A 与 H-B 都曾在此处让 CI 红）——收窄 `execution_files()`
-  到实际存在的文件并 stub `sha256_file`、`evidence_payload`、`recipe._shared`；在干净 worktree（无 `outputs/`）
-  里实跑确认。
-- **第一条命令**：`.venv/bin/python tools/r7_round.py round-guard` → 重建 zip →
-  `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/stage-seeds/reading`。
+  注册时的迁移父会被 `training/r7_experiment.py:129` 的身份门**按设计**拒绝。**已用**已提交的
+  `scripts/migrate_r7_parent_state.py` 在**最终**代码下重跑迁移
+  （`outputs/r7_s3_rollout_dose_parent_migrated_20261015_attempt02`；`semantics_equal=false` 为既有事实），
+  并已建 `scripts/r7_s3_global_mixing_parent.py` 钉住它。**未**修改比对逻辑、**未**放宽任何门。
+  **注意**：迁移一旦跑定，`model/**/*.py` **不得**再改（改注释也会改 digest）；后续只动 `scripts/`、`tests/`、`docs/`。
+- **CI 安全**：测试**不得**依赖 `outputs/`（H-A 与 H-B 都曾在此处让 CI 红）——`_protocol_body` 已收窄
+  `execution_files()` 到实际存在的文件并 stub `sha256_file`；已在干净 worktree（无 `outputs/`）里实跑确认 40 例全过。
+- **已过闸门**：`.venv/bin/python tools/r7_round.py round-guard` **通过**（40 例本轮测试 + 120 例 conventions，
+  commit-guard 0）；实现提交 `8f99cd1` 已推工作分支。
+- **第一条命令（运行）**：`.zcode/workflow-drafts/r7-s3-global-mixing-run.dwf.ts`——它自跑独立复核，
+  按当时 HEAD 重建 `outputs/r7_s3_global_mixing_code.zip`，再 `freeze` → `stage prepare/archive/stage-seeds/reading`。
+  手工等价路径：`.venv/bin/python tools/r7_round.py round-guard` → 重建 zip → `freeze` → 逐 stage。
 - **本轮尚未开跑**：0 GPU-h；无读数、无结论。
 
 ## §7 下一动作（S3）
 
-- 在 **S3** 节点：先只读测绘固定插入点，再实现模型改动与 `scripts/r7_s3_global_mixing_parent.py`，
-  然后派生驱动与 CI-safe 测试，最后 `round-guard` → `freeze` → 逐 stage GPU → 四件套登记。
-- 第一条命令：`.venv/bin/python tools/r7_round.py round-guard`。
+- 在 **S3** 节点：跑 `.zcode/workflow-drafts/r7-s3-global-mixing-run.dwf.ts`（独立复核 → 冻结 → 逐 stage GPU →
+  读数 → 四件套登记 → 核验 → 提交等 CI）；失败即停、不做 in-place resume。
 - 预声明出口见 §3：**72h 三 seed 全正且 G 相对 L 在 72h 三 seed 同号为优 → 提请独立验收；否则关闭 H-C 这一支**。
 - 本轮**未产生任何读数**；不宣布通过、不关闭任何支。
