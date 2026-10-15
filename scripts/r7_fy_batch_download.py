@@ -360,7 +360,10 @@ def main() -> None:
         "parts": results,
         "scientific_claim": False,
         "limitations": ["the host network figure is a sampled host-wide counter window, not "
-                        "icechunk per-request accounting"],
+                        "icechunk per-request accounting",
+                        "each part's own network_body_bytes is host-wide too, so under this "
+                        "pool it also counts its siblings and is not additive; use "
+                        "host_rx_bytes_during_batch for the batch-level transfer"],
     }
     if failed or not_started or sampler.aborted:
         (out_dir / "batch_failure.json").write_text(

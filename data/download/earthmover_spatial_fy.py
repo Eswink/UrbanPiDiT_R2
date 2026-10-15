@@ -83,6 +83,10 @@ def _fy_part_receipt(result, plan, plan_read, payloads, channel_names, *, estima
         "network_body_bytes": int(network_bytes),
         "network_method": ("recv-byte delta over non-loopback /proc/net/dev interfaces "
                            "around the field reads; host-wide counter"),
+        "network_measurement_caveat": ("the counter is host-wide, so when parts run "
+                                       "concurrently each part's window also counts its "
+                                       "siblings' traffic and this figure overstates its own "
+                                       "transfer; under a pool it is not additive"),
         "elapsed_seconds": round(elapsed, 3),
         "limitations": [
             "a month window is a calendar-month sample; the train-only month-hour "
@@ -251,6 +255,11 @@ def merge_fy_parts(part_pairs, out_nc, receipt_json, *, expected_stamps,
         "network_body_bytes_total": int(sum(entry["network_body_bytes"] for entry in recorded)),
         "network_method": ("sum of each part's own recv-byte delta over non-loopback "
                            "/proc/net/dev interfaces; host-wide counters"),
+        "network_measurement_caveat": ("each part's figure is host-wide, so if the parts were "
+                                       "downloaded concurrently this sum counts siblings' traffic "
+                                       "once per running part and overstates the real transfer; "
+                                       "the batch driver's own host sample is the accurate "
+                                       "batch-level figure"),
         "channels": channel_names,
         "channel_count": len(channel_names),
         "payloads": payloads,
