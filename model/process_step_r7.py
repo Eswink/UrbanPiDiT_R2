@@ -144,7 +144,8 @@ def process_reasoning_step(
                     conditioned, token_hw, draft.shape[-2:], draft)
                 return ProcessStepOutput(process, draft, correction, prediction, None)
             proposal, _ = anchored_proposal(model.proposal_head, solver_state, token_hw,
-                draft.shape[-2:], climate if climate is not None else anchor)
+                draft.shape[-2:],
+                climate if (climate is not None and model.backbone.anchor_output_prior) else anchor)
             gate = expand_token_gate(model.solver_gate(solver_state), token_hw,
                 draft.shape[-2:], model.patch_size)
             updated = blend_forecast(draft, proposal, gate)

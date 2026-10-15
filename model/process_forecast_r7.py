@@ -204,6 +204,7 @@ class ProcessForecastCoReasoner(nn.Module):
         anomaly_feedback:bool=False,
         process_init_conditioning:bool=False,
         global_mixing_mode:Optional[str]=None, global_mixing=None,
+        anchor_output_prior:bool=True,
     ):
         super().__init__()
         _validate_switches(
@@ -246,14 +247,16 @@ class ProcessForecastCoReasoner(nn.Module):
         self.change_scale_mode=change_scale_mode
         self.typed_evidence_mode=typed_evidence_mode
         self.global_mixing_mode=global_mixing_mode
+        # Only the suppression is rejectable: with no anchor there is no output prior to
+        # suppress, so turning the switch off there would be a switch nothing reads.
+        if not anchor_output_prior and climatology_anchor_spec is None:
+            raise ValueError('anchor_output_prior=False requires climatology_anchor_spec')
         self.out_channels=int(out_channels or in_channels)
         self.dim=int(dim)
         self.patch_size=int(patch_size)
         self.anchored_processes=int(anchored_processes)
         self.free_processes=int(free_processes)
-        self.num_process_tokens=(
-            self.anchored_processes+self.free_processes
-        )
+        self.num_process_tokens=self.anchored_processes+self.free_processes
         if self.anchored_processes<1:
             raise ValueError("anchored_processes 必须 >= 1")
         if self.free_processes<0:
@@ -284,6 +287,7 @@ class ProcessForecastCoReasoner(nn.Module):
             known_context_inputs=self.known_context_inputs,
             change_scale_mode=change_scale_mode,
             change_scale_ratio=change_scale_ratio,
+            anchor_output_prior=anchor_output_prior,
         )
 
         self.process_queries=nn.Parameter(
@@ -358,12 +362,20 @@ class ProcessForecastCoReasoner(nn.Module):
             self._build_context_mixing(dim,heads,window_size,dropout,global_mixing_mode,global_mixing)
         # Install the fixed prior last, after all pre-existing trainable weights.
         if climatology_anchor_spec is not None:
-            from .climatology_anchor_r7 import TrainClimatologyAnchor
-            self.backbone.climatology_anchor=TrainClimatologyAnchor(climatology_anchor_spec)
-            if self.backbone.climatology_anchor.table.shape[1]!=self.out_channels:
-                raise ValueError('climatology_anchor channels must match out_channels')
-            if self.backbone.in_channels!=self.out_channels:
-                raise ValueError('climatology_anchor requires all input dynamic channels as outputs')
+            self._install_climatology_anchor(climatology_anchor_spec)
+
+    def _install_climatology_anchor(self,spec):
+        """Attach the train-only valid-time climatology as the backbone's fixed prior.
+
+        It carries no trainable tensor and is attached after every weight exists, so it cannot
+        move one; the two persistent buffers it adds are the only new state-dict keys.
+        """
+        from .climatology_anchor_r7 import TrainClimatologyAnchor
+        self.backbone.climatology_anchor=TrainClimatologyAnchor(spec)
+        if self.backbone.climatology_anchor.table.shape[1]!=self.out_channels:
+            raise ValueError('climatology_anchor channels must match out_channels')
+        if self.backbone.in_channels!=self.out_channels:
+            raise ValueError('climatology_anchor requires all input dynamic channels as outputs')
 
     def initial_process_state(self, process:torch.Tensor, batch:Mapping, *,
                               anchor:torch.Tensor, draft:torch.Tensor)->torch.Tensor:

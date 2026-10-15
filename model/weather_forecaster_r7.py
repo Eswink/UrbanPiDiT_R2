@@ -30,12 +30,20 @@ class NativeAtmosForecaster(nn.Module):
                  default_lead_hours:float=6.,spacetime_inputs:bool=False,
                  spacetime_field_mode:str='fields',known_context_inputs:bool=False,
                  change_scale_mode:str='identity',change_scale_ratio=None,
-                 climatology_anchor_spec=None):
+                 climatology_anchor_spec=None,anchor_output_prior:bool=True):
         super().__init__()
         if type(known_context_inputs) is not bool:
             raise ValueError('known_context_inputs must be boolean')
         if known_context_inputs and not spacetime_inputs:
             raise ValueError('known_context_inputs requires spacetime_inputs=True')
+        # The anchor can be present and still not be an output prior: the H-D round needs
+        # ``C_valid`` for the reasoning recurrence's feedback while the decoder keeps the
+        # registered persistence anchor, which is what makes "feedback representation" a
+        # single factor instead of a package.
+        if type(anchor_output_prior) is not bool:
+            raise ValueError('anchor_output_prior must be boolean')
+        self.anchor_output_prior=anchor_output_prior
+        self.anchor_output_prior=anchor_output_prior
         self.known_context_inputs=known_context_inputs
         if type(spacetime_inputs) is not bool:
             raise ValueError('spacetime_inputs 必须是布尔开关')
@@ -109,7 +117,11 @@ class NativeAtmosForecaster(nn.Module):
         if self.climatology_anchor is not None:
             climate=self.climatology_anchor(batch,history,
                 default_lead_hours=self.default_lead_hours)
-            forecast,tendency=self.head(context,token_hw,(H,W),climate)
+            # With ``anchor_output_prior`` off the decoder keeps the registered persistence
+            # anchor and only the step's feedback reads ``C_valid``; the off path is the
+            # pre-existing implementation operation for operation.
+            head_anchor=climate if self.anchor_output_prior else base
+            forecast,tendency=self.head(context,token_hw,(H,W),head_anchor)
             return R7ForecastOutput(forecast,tendency,context,token_hw,base,climate)
         forecast,tendency=self.head(context,token_hw,(H,W),base)
         return R7ForecastOutput(forecast,tendency,context,token_hw,base)
