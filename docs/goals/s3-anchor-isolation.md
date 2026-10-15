@@ -96,10 +96,15 @@
   唯一被拒的组合是 `anchor_output_prior=False` 且**无锚**（该开关将无人读取）。
 - **锚表派生（D2，本轮新增前置）**：注册实例是**宽 129×129**，而现有合格锚表是 **2026-10-07 的 65×65**
   实例（早于宽 store 的 2026-10-09 建立），**不能在宽网格上复用**。故须从**既有宽 store 的 train split**
-  派生 per-(month, hour) 均值表（17 通道 × 129×129），并写齐
-  `source_sha256` / `train_data_identity` / `climatology_mean_identity_sha256` / `table_sha256` /
-  `bucket_keys` / `bucket_counts` / `training_years` / `selection` 等 spec 必填字段
-  （`table_shape` 为 **4 值** `[buckets, C, H, W]`，已由 `TrainClimatologyAnchor._validate_spec` 实测确认）。
+  派生 per-(month, hour) 均值表，并写齐 `source_sha256` / `train_data_identity` /
+  `climatology_mean_identity_sha256` / `table_sha256` / `bucket_keys` / `bucket_counts` /
+  `training_years` / `selection` 等 spec 必填字段（`table_shape` 为 **4 值** `[buckets, C, H, W]`，
+  已由 `TrainClimatologyAnchor._validate_spec` 实测确认）。
+  **桶数已实测（主链路独立复核 manifest，不是转述）**：train（2017–2021，2360 样本）与 val（2022，472 样本）
+  **各只覆盖 Jan/Apr/Jul/Oct 四个月**、init hour ∈ {0,6,12,18} ⇒ **只有 16 个 (month,hour) 桶**，
+  每桶 train 帧数 **145–150**。故锚表是 **16 × 17 × 129 × 129**，`bucket_keys` 只列这 16 个；
+  val 也只查询这 16 个，故 `TrainClimatologyAnchor` 的「缺桶即报错」不会触发。
+  **这同时是一条重要的口径事实**：现有 val **无法**检验「全年扩充是否有效」（val 也只有那 4 个月）。
   **D3 合规**：不新增下载、不重建 store，只读既有 store 派生；写入**全新排他** `outputs/` 路径；
   先只读 preflight 留 digest，再显式 `--write`；失败留 `failed-no-fallback`。
 - **已实测的开关恒等性（合成锚，非真值；实现阶段已完成）**：
