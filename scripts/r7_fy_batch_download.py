@@ -196,8 +196,13 @@ def main() -> None:
         raise SystemExit("protocol part count does not match the recomputed plan")
 
     out_dir = Path(args.out_dir)
-    if out_dir.exists() and any(out_dir.iterdir()):
-        raise SystemExit(f"refusing non-empty batch directory: {out_dir}")
+    # The frozen protocol normally lives inside its own batch directory, so only
+    # anything other than that protocol counts as a prior run occupying the path.
+    if out_dir.exists():
+        occupied = [entry.name for entry in out_dir.iterdir()
+                    if entry.name != protocol_path.name]
+        if occupied:
+            raise SystemExit(f"refusing non-empty batch directory: {out_dir} holds {occupied}")
     out_dir.mkdir(parents=True, exist_ok=True)
     parts_dir = out_dir / "parts"
     parts_dir.mkdir(parents=True, exist_ok=True)
