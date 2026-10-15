@@ -28,6 +28,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -162,11 +163,113 @@ def _run_part(parts_dir, year, month, deadline_seconds, watchdog_seconds,
             "stdout": (stdout or "").strip()[-1500:], "stderr": (stderr or "").strip()[-1500:]}
 
 
+def combine_batches(batch_dirs, out_nc, receipt_json, *, require_contiguous=True):
+    """Concatenate completed batch sources into the single source the store build reads.
+
+    Each batch is re-verified through its own ``BUILD_COMPLETE.json`` (the recorded
+    ``source.nc`` sha256 must still match the file), so the combined artifact can
+    only ever be assembled from batches that finished and stayed intact.
+    """
+    import xarray as xr
+
+    from data.download.earthmover_spatial_d1 import _write_netcdf
+    from data.download.earthmover_spatial_s1 import _sha256_file
+
+    out_nc, receipt_json = Path(out_nc), Path(receipt_json)
+    for path in (out_nc, receipt_json):
+        if path.exists() or path.is_symlink():
+            raise FileExistsError(f"refusing existing output: {path}")
+    if not batch_dirs:
+        raise ValueError("at least one batch directory is required")
+
+    datasets, recorded = [], []
+    for directory in batch_dirs:
+        directory = Path(directory)
+        complete_path = directory / "BUILD_COMPLETE.json"
+        source_path = directory / "source.nc"
+        if not complete_path.is_file() or not source_path.is_file():
+            raise FileNotFoundError(f"batch is not complete: {directory}")
+        complete = json.loads(complete_path.read_text(encoding="utf-8"))
+        digest = _sha256_file(source_path)
+        if digest != complete.get("source_nc_sha256"):
+            raise ValueError(f"{source_path} does not match its BUILD_COMPLETE hash; "
+                             "refusing to combine an unverified batch")
+        dataset = xr.open_dataset(source_path)
+        datasets.append(dataset)
+        recorded.append({"batch": directory.name, "source_nc": str(source_path),
+                         "sha256": digest, "bytes": source_path.stat().st_size,
+                         "stamps": int(dataset.sizes["time"]),
+                         "protocol_sha256": complete.get("protocol_sha256"),
+                         "years": complete.get("plan", {}).get("years")})
+    combined = xr.concat(datasets, dim="time")
+    import pandas as pd
+
+    times = pd.DatetimeIndex(combined["time"].values)
+    if not times.is_unique or times.hasnans:
+        raise ValueError("combined time axis must be unique and valid")
+    times = times.sort_values()
+    combined = combined.sel(time=times)
+    if sorted({stamp.hour for stamp in times}) != [0, 6, 12, 18]:
+        raise ValueError("combined stamps must cover the four UTC initialization hours")
+    if require_contiguous:
+        contiguous = pd.date_range(times[0], times[-1], freq="6h")
+        if not times.equals(contiguous):
+            raise ValueError(f"combined axis is not one contiguous 6-hourly run "
+                             f"({len(times)} stamps vs {len(contiguous)} expected)")
+    expected = sum(entry["stamps"] for entry in recorded)
+    if len(times) != expected:
+        raise ValueError(f"combined source has {len(times)} stamps, batches record {expected}")
+    out_nc.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temp = tempfile.mkstemp(prefix=".era5-fy-combine-", suffix=".nc",
+                                        dir=out_nc.parent)
+    os.close(descriptor)
+    try:
+        _write_netcdf(combined, temp)
+        os.link(temp, out_nc)
+    finally:
+        os.unlink(temp)
+    for dataset in datasets:
+        dataset.close()
+    receipt = {
+        "format": "r7-fy-combined-source-v1",
+        "status": "combined-real-source",
+        "batches": recorded, "n_batches": len(recorded),
+        "stamps": int(len(times)),
+        "time_first": str(times[0]), "time_last": str(times[-1]),
+        "require_contiguous": bool(require_contiguous),
+        "local_artifact": {"path": out_nc.name, "bytes": out_nc.stat().st_size,
+                           "sha256": _sha256_file(out_nc)},
+        "synthetic_fallback": False, "scientific_claim": False,
+        "source_is_real_reanalysis": True,
+        "limitations": ["the combined artifact is a concatenation of independently verified "
+                        "batches; it carries no scientific claim of its own"],
+    }
+    receipt_json.parent.mkdir(parents=True, exist_ok=True)
+    receipt_json.write_text(json.dumps(receipt, indent=2, ensure_ascii=False), encoding="utf-8")
+    return receipt
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bounded FY batch download.")
-    parser.add_argument("--protocol", required=True, help="frozen protocol JSON for this batch")
-    parser.add_argument("--out-dir", required=True, help="fresh exclusive directory for this batch")
+    parser.add_argument("--protocol", help="frozen protocol JSON for this batch")
+    parser.add_argument("--out-dir", help="fresh exclusive directory for this batch")
+    parser.add_argument("--combine", action="store_true",
+                        help="concatenate completed batch sources instead of downloading")
+    parser.add_argument("--batches", nargs="+", help="--combine: batch directories, in order")
+    parser.add_argument("--combined-nc", help="--combine: new combined NetCDF path")
+    parser.add_argument("--combined-receipt", help="--combine: new receipt JSON path")
     args = parser.parse_args()
+
+    if args.combine:
+        if not args.batches or not args.combined_nc or not args.combined_receipt:
+            parser.error("--combine requires --batches, --combined-nc and --combined-receipt")
+        result = combine_batches(args.batches, args.combined_nc, args.combined_receipt)
+        print(f"[combine] {result['n_batches']} batches, {result['stamps']} stamps, "
+              f"{result['time_first']} -> {result['time_last']}, "
+              f"sha256={result['local_artifact']['sha256'][:16]}")
+        return
+    if not args.protocol or not args.out_dir:
+        parser.error("a download run requires --protocol and --out-dir")
 
     protocol_path = Path(args.protocol)
     if not protocol_path.is_file():

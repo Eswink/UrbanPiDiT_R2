@@ -299,3 +299,65 @@ def test_batch_driver_refuses_a_nonempty_output_directory(tmp_path):
     done = _run_driver(path, out_dir)
     assert done.returncode != 0 and "refusing non-empty" in done.stderr
     assert (out_dir / "keep-me").read_text(encoding="utf-8") == "occupied"
+
+
+def _batch_dir(tmp_path, name, stamps, *, tamper=False):
+    """A minimal completed batch: a source.nc plus its BUILD_COMPLETE.json."""
+    import xarray as xr
+
+    directory = tmp_path / name
+    directory.mkdir()
+    values = np.arange(len(stamps) * 2 * 2, dtype=np.float32).reshape(len(stamps), 2, 2)
+    dataset = xr.Dataset({"2m_temperature": (("time", "latitude", "longitude"), values)},
+                         coords={"time": list(stamps),
+                                 "latitude": np.array([43.0, 42.75], dtype=np.float32),
+                                 "longitude": np.array([107.0, 107.25], dtype=np.float32)})
+    dataset.attrs["source_snapshot_id"] = SNAPSHOT
+    source = directory / "source.nc"
+    dataset.to_netcdf(source, engine="h5netcdf")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    if tamper:
+        digest = f"{int(digest, 16) ^ 1:064x}"
+    (directory / "BUILD_COMPLETE.json").write_text(json.dumps({
+        "source_nc_sha256": digest, "source_nc_bytes": source.stat().st_size,
+        "plan": {"years": sorted({s.year for s in stamps})}}), encoding="utf-8")
+    return directory
+
+
+def test_combine_concatenates_verified_batches_into_one_contiguous_axis(tmp_path):
+    first = list(pd.date_range("2017-01-01", periods=4, freq="6h"))
+    second = list(pd.date_range("2017-01-02", periods=4, freq="6h"))
+    done = subprocess.run([sys.executable, _DRIVER, "--combine",
+                           "--batches", str(_batch_dir(tmp_path, "a", first)),
+                           str(_batch_dir(tmp_path, "b", second)),
+                           "--combined-nc", str(tmp_path / "all.nc"),
+                           "--combined-receipt", str(tmp_path / "all.json")],
+                          cwd=".", capture_output=True, text=True, timeout=180)
+    assert done.returncode == 0, done.stderr
+    receipt = json.loads((tmp_path / "all.json").read_text(encoding="utf-8"))
+    assert receipt["status"] == "combined-real-source"
+    assert receipt["n_batches"] == 2 and receipt["stamps"] == 8
+    assert receipt["require_contiguous"] is True
+    assert (tmp_path / "all.nc").is_file()
+
+
+def test_combine_refuses_a_batch_that_is_not_complete(tmp_path):
+    directory = tmp_path / "a"
+    directory.mkdir()
+    done = subprocess.run([sys.executable, _DRIVER, "--combine", "--batches", str(directory),
+                           "--combined-nc", str(tmp_path / "all.nc"),
+                           "--combined-receipt", str(tmp_path / "all.json")],
+                          cwd=".", capture_output=True, text=True, timeout=120)
+    assert done.returncode != 0 and "not complete" in done.stderr
+    assert not (tmp_path / "all.nc").exists()
+
+
+def test_combine_refuses_a_batch_whose_source_no_longer_matches_its_hash(tmp_path):
+    stamps = list(pd.date_range("2017-01-01", periods=4, freq="6h"))
+    done = subprocess.run([sys.executable, _DRIVER, "--combine",
+                           "--batches", str(_batch_dir(tmp_path, "a", stamps, tamper=True)),
+                           "--combined-nc", str(tmp_path / "all.nc"),
+                           "--combined-receipt", str(tmp_path / "all.json")],
+                          cwd=".", capture_output=True, text=True, timeout=120)
+    assert done.returncode != 0 and "unverified batch" in done.stderr
+    assert not (tmp_path / "all.nc").exists()
