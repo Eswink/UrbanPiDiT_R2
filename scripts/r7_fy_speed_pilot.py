@@ -228,6 +228,24 @@ def main() -> None:
     # two pool levels ever fetch the same month.
     available = [(args.first_year, month) for month in range(1, 13)]
     reports, cursor = [], 0
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def publish():
+        """Rewrite the report after every level, so an interrupted pilot still yields data."""
+        report_path.write_text(json.dumps({
+            "format": "r7-fy-concurrency-pilot-v1",
+            "out_dir": str(out_dir), "pools": args.pools,
+            "max_host_mb_s": args.max_host_mb_s, "link_mb_s": args.link_mb_s,
+            "guard_rule": (f"abort the pool after {CONSECUTIVE_BREACHES_TO_ABORT} consecutive "
+                           f"{SAMPLE_SECONDS:g}s samples above --max-host-mb-s; only this pilot's "
+                           "own child processes are signalled"),
+            "reports": reports, "complete": len(reports) == len(args.pools),
+            "scientific_claim": False,
+            "limitations": ["a single host, a single day and a single source snapshot; the share "
+                            "is measured against the nominal link rate, not a reserved allocation"],
+        }, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    publish()
     for pool in args.pools:
         parts = available[cursor:cursor + pool]
         cursor += pool
@@ -243,25 +261,10 @@ def main() -> None:
               f"host_mean={result['sampling'].get('host_rx_mean_bytes_per_second')} B/s "
               f"aborted={result['guard']['aborted']}", flush=True)
         reports.append(result)
+        publish()
         if result["guard"]["aborted"]:
             print("[pilot] host guard tripped; stopping further pool levels", flush=True)
             break
-    payload = {
-        "format": "r7-fy-concurrency-pilot-v1",
-        "out_dir": str(out_dir),
-        "pools": args.pools,
-        "max_host_mb_s": args.max_host_mb_s,
-        "link_mb_s": args.link_mb_s,
-        "guard_rule": (f"abort the pool after {CONSECUTIVE_BREACHES_TO_ABORT} consecutive "
-                       f"{SAMPLE_SECONDS:g}s samples above --max-host-mb-s; only this pilot's own "
-                       "child processes are signalled"),
-        "reports": reports,
-        "scientific_claim": False,
-        "limitations": ["a single host, a single day and a single source snapshot; the share is "
-                        "measured against the nominal link rate, not a reserved allocation"],
-    }
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"[pilot] wrote {report_path}")
 
 

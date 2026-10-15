@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
+import sys
 
 import numpy as np
 import pandas as pd
@@ -231,3 +233,69 @@ def test_a_failed_read_leaves_failed_no_fallback_and_no_artifact(tmp_path, monke
     assert receipt["status"] == "failed-no-fallback"
     assert receipt["synthetic_fallback"] is False and receipt["scientific_claim"] is False
     assert receipt["segment"] == "fy-full-year-multi-year"
+
+
+# --- batch driver guards (all fire before any byte is fetched) -----------------
+
+_DRIVER = "scripts/r7_fy_batch_download.py"
+
+
+def _protocol(**overrides):
+    """A valid 1-month protocol, mutated per test."""
+    payload = {
+        "format": "r7-s3-fy-batch-protocol-v1",
+        "plan": {"years": [2017], "months": [1], "total_stamps": 124, "parts": 1},
+        "concurrency": {"pool": 1, "max_host_mb_s": 60.0},
+        "budgets": {"per_part_deadline_seconds": 3600.0, "per_part_watchdog_seconds": 3660.0,
+                    "per_part_decoded_gib_cap": 16.0, "free_space_gate_gib": 0.001},
+        "scientific_claim": False,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _write_protocol(tmp_path, payload):
+    body = {k: v for k, v in payload.items() if k != "protocol_sha256"}
+    payload = dict(payload)
+    payload["protocol_sha256"] = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    path = tmp_path / "protocol.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def _run_driver(protocol, out_dir):
+    return subprocess.run([sys.executable, _DRIVER, "--protocol", str(protocol),
+                           "--out-dir", str(out_dir)],
+                          cwd=".", capture_output=True, text=True, timeout=120)
+
+
+def test_batch_driver_refuses_a_missing_protocol(tmp_path):
+    done = _run_driver(tmp_path / "absent.json", tmp_path / "batch")
+    assert done.returncode != 0 and "missing protocol" in done.stderr
+
+
+def test_batch_driver_refuses_a_tampered_protocol_digest(tmp_path):
+    path = _write_protocol(tmp_path, _protocol())
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["plan"]["total_stamps"] = 999
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    done = _run_driver(path, tmp_path / "batch")
+    assert done.returncode != 0 and "digest mismatch" in done.stderr
+
+
+def test_batch_driver_refuses_a_plan_that_disagrees_with_the_code(tmp_path):
+    path = _write_protocol(tmp_path, _protocol(
+        plan={"years": [2017], "months": [1], "total_stamps": 999, "parts": 1}))
+    done = _run_driver(path, tmp_path / "batch")
+    assert done.returncode != 0 and "stamps" in done.stderr
+
+
+def test_batch_driver_refuses_a_nonempty_output_directory(tmp_path):
+    path = _write_protocol(tmp_path, _protocol())
+    out_dir = tmp_path / "batch"
+    out_dir.mkdir()
+    (out_dir / "keep-me").write_text("occupied", encoding="utf-8")
+    done = _run_driver(path, out_dir)
+    assert done.returncode != 0 and "refusing non-empty" in done.stderr
+    assert (out_dir / "keep-me").read_text(encoding="utf-8") == "occupied"
