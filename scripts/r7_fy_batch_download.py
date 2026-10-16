@@ -203,7 +203,11 @@ def combine_batches(batch_dirs, out_nc, receipt_json, *, require_contiguous=True
         recorded.append({"batch": directory.name, "source_nc": str(source_path),
                          "sha256": digest, "bytes": source_path.stat().st_size,
                          "stamps": int(dataset.sizes["time"]),
+                         "batch_build_complete_sha256": _sha256_file(complete_path),
+                         # A batch that finished in one run records a single protocol; one
+                         # that needed retries records the whole set.
                          "protocol_sha256": complete.get("protocol_sha256"),
+                         "protocols": complete.get("protocols"),
                          "years": complete.get("plan", {}).get("years")})
     combined = xr.concat(datasets, dim="time")
     import pandas as pd
@@ -488,7 +492,7 @@ def run_download(args) -> None:
                         "host_rx_bytes_during_batch for the batch-level transfer"],
     }
     # A retry must not overwrite the previous attempt's failure record.
-    suffix = args.stem_suffix
+    suffix = f"_{args.stem_suffix}" if args.stem_suffix else ""
     if failed or not_started or sampler.aborted:
         (out_dir / f"batch_failure{suffix}.json").write_text(
             json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
