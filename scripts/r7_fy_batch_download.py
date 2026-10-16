@@ -132,9 +132,13 @@ class _HostSampler:
                 "max_host_mb_s": self.max_host_mb_s, "aborted": self.aborted}
 
 
+def _part_stem(year, month, suffix=""):
+    return f"fy{year}{month:02d}{suffix}"
+
+
 def _run_part(parts_dir, year, month, deadline_seconds, watchdog_seconds,
-              max_decoded_gib, children):
-    stem = f"fy{year}{month:02d}"
+              max_decoded_gib, children, suffix=""):
+    stem = _part_stem(year, month, suffix)
     out_nc = parts_dir / f"{stem}.nc"
     receipt = parts_dir / f"{stem}.receipt.json"
     inner = [sys.executable, "-m", "data.download.earthmover_spatial_fy",
@@ -249,6 +253,75 @@ def combine_batches(batch_dirs, out_nc, receipt_json, *, require_contiguous=True
     return receipt
 
 
+def _parse_part_stem(stem):
+    """(year, month, suffix) from a part stem such as ``fy201907`` or ``fy202201r1``."""
+    import re
+
+    match = re.fullmatch(r"fy(\d{4})(\d{2})(.*)", stem)
+    if not match:
+        raise ValueError(f"unrecognised part stem: {stem}")
+    return int(match.group(1)), int(match.group(2)), match.group(3)
+
+
+def merge_all_parts(parts_dir, out_nc, receipt_json, *, expected_stamps, require_contiguous=True):
+    """Merge every verified part in a directory, preferring the earliest attempt.
+
+    A retry writes beside the attempt it replaces, so one (year, month) can have
+    several stems. The canonical stem wins when it is valid, otherwise the
+    earliest retry that is. A failed attempt has no artifact and contributes
+    nothing, but its ``failed-no-fallback`` receipt stays on disk as an audit
+    record - this function never deletes one.
+    """
+    from data.download.earthmover_spatial_fy import merge_fy_parts
+    from data.download.earthmover_spatial_s1 import _sha256_file
+
+    parts_dir = Path(parts_dir)
+    if not parts_dir.is_dir():
+        raise ValueError(f"not a parts directory: {parts_dir}")
+    candidates, skipped = {}, []
+    for nc_path in sorted(parts_dir.glob("*.nc")):
+        stem = nc_path.stem
+        rc_path = parts_dir / f"{stem}.receipt.json"
+        if not rc_path.is_file():
+            skipped.append({"part": stem, "reason": "no receipt beside the artifact"})
+            continue
+        receipt = json.loads(rc_path.read_text(encoding="utf-8"))
+        if receipt.get("status") != "downloaded-real-source":
+            skipped.append({"part": stem, "reason": f"status {receipt.get('status')!r}"})
+            continue
+        if receipt["local_artifact"]["sha256"] != _sha256_file(nc_path):
+            skipped.append({"part": stem, "reason": "artifact does not match its receipt hash"})
+            continue
+        year, month, suffix = _parse_part_stem(stem)
+        key = (year, month)
+        rank = (len(suffix), stem)
+        if key not in candidates:
+            candidates[key] = (rank, nc_path, rc_path, stem)
+        elif rank < candidates[key][0]:
+            skipped.append({"part": candidates[key][3], "reason": "superseded by this attempt"})
+            candidates[key] = (rank, nc_path, rc_path, stem)
+        else:
+            skipped.append({"part": stem,
+                            "reason": f"a better attempt for {year}-{month:02d} was selected"})
+    if not candidates:
+        raise ValueError(f"no verified parts under {parts_dir}")
+    selected = [candidates[key] for key in sorted(candidates)]
+    result = merge_fy_parts([(entry[1], entry[2]) for entry in selected], out_nc, receipt_json,
+                            expected_stamps=expected_stamps,
+                            require_contiguous=require_contiguous)
+    receipt_path = Path(receipt_json)
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["merge_rule"] = ("every verified part in the directory is considered; per (year, "
+                            "month) the canonical stem wins when valid, otherwise the earliest "
+                            "retry; failed attempts contribute nothing and their receipts are kept")
+    receipt["selected_parts"] = [entry[3] for entry in selected]
+    receipt["selected_stems_with_suffix"] = [entry[3] for entry in selected
+                                             if _parse_part_stem(entry[3])[2]]
+    receipt["skipped_entries"] = skipped
+    receipt_path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False), encoding="utf-8")
+    return receipt
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bounded FY batch download.")
     parser.add_argument("--protocol", help="frozen protocol JSON for this batch")
@@ -258,6 +331,21 @@ def main() -> None:
     parser.add_argument("--batches", nargs="+", help="--combine: batch directories, in order")
     parser.add_argument("--combined-nc", help="--combine: new combined NetCDF path")
     parser.add_argument("--combined-receipt", help="--combine: new receipt JSON path")
+    parser.add_argument("--merge-all", action="store_true",
+                        help="merge every valid part found in --parts-dir, retries included")
+    parser.add_argument("--parts-dir", help="--merge-all: directory holding the part artifacts")
+    parser.add_argument("--merged-nc", help="--merge-all: new merged NetCDF path")
+    parser.add_argument("--merged-receipt", help="--merge-all: new receipt JSON path")
+    parser.add_argument("--expected-stamps", type=int,
+                        help="--merge-all: required total, from the batch protocol")
+    parser.add_argument("--allow-gaps", action="store_true",
+                        help="--merge-all: skip the contiguous-axis assertion")
+    parser.add_argument("--stem-suffix", default="",
+                        help="suffix for part stems, so a retry never overwrites a failed receipt")
+    parser.add_argument("--allow-existing-parts-dir", action="store_true",
+                        help="a retry writes into a parts dir that already holds earlier attempts")
+    parser.add_argument("--no-merge", action="store_true",
+                        help="run the parts only; leave merging to --merge-all")
     args = parser.parse_args()
 
     if args.combine:
@@ -268,9 +356,24 @@ def main() -> None:
               f"{result['time_first']} -> {result['time_last']}, "
               f"sha256={result['local_artifact']['sha256'][:16]}")
         return
+    if args.merge_all:
+        if not args.parts_dir or not args.merged_nc or not args.merged_receipt \
+                or args.expected_stamps is None:
+            parser.error("--merge-all requires --parts-dir, --merged-nc, --merged-receipt "
+                         "and --expected-stamps")
+        result = merge_all_parts(args.parts_dir, args.merged_nc, args.merged_receipt,
+                                 expected_stamps=args.expected_stamps,
+                                 require_contiguous=not args.allow_gaps)
+        print(f"[merge-all] {result['n_parts']} parts, {result['stamps']} stamps, "
+              f"{result['time_first']} -> {result['time_last']}, "
+              f"sha256={result['local_artifact']['sha256'][:16]}")
+        return
     if not args.protocol or not args.out_dir:
         parser.error("a download run requires --protocol and --out-dir")
+    run_download(args)
 
+
+def run_download(args) -> None:
     protocol_path = Path(args.protocol)
     if not protocol_path.is_file():
         raise SystemExit(f"missing protocol: {protocol_path}")
@@ -289,19 +392,38 @@ def main() -> None:
     gate = float(protocol["budgets"]["free_space_gate_gib"])
     max_host_mb_s = float(protocol["concurrency"]["max_host_mb_s"])
 
-    from data.download.season_plan_fy import full_year_plan
+    from data.download.season_plan_fy import _month_stamps, full_year_plan
 
-    plan = full_year_plan(years, months=months)
-    if plan["total_stamps"] != int(protocol["plan"]["total_stamps"]):
-        raise SystemExit(f"protocol plans {protocol['plan']['total_stamps']} stamps but the code "
-                         f"plan yields {plan['total_stamps']}")
-    if plan["parts"] != int(protocol["plan"]["parts"]):
-        raise SystemExit("protocol part count does not match the recomputed plan")
+    # A retry protocol names its parts explicitly, because a failed set such as
+    # {2019-07, 2021-06, 2022-01..03} is not the cartesian product of its years and
+    # months. The stamp count is still recomputed from the calendar, not trusted.
+    explicit = protocol["plan"].get("parts_explicit")
+    if explicit:
+        jobs = [(int(entry["year"]), int(entry["month"])) for entry in explicit]
+        if len(set(jobs)) != len(jobs):
+            raise SystemExit("protocol lists a duplicate (year, month) part")
+        total_stamps = sum(len(_month_stamps(year, month)) for year, month in jobs)
+        if total_stamps != int(protocol["plan"]["stamps"]):
+            raise SystemExit(f"protocol plans {protocol['plan']['stamps']} stamps but the "
+                             f"calendar yields {total_stamps}")
+        if len(jobs) != int(protocol["plan"]["parts"]):
+            raise SystemExit("protocol part count does not match its explicit part list")
+    else:
+        plan = full_year_plan(years, months=months)
+        if plan["total_stamps"] != int(protocol["plan"]["total_stamps"]):
+            raise SystemExit(f"protocol plans {protocol['plan']['total_stamps']} stamps but the "
+                             f"code plan yields {plan['total_stamps']}")
+        if plan["parts"] != int(protocol["plan"]["parts"]):
+            raise SystemExit("protocol part count does not match the recomputed plan")
+        jobs = [(block["year"], block["month"]) for block in plan["blocks"]]
+        total_stamps = plan["total_stamps"]
 
     out_dir = Path(args.out_dir)
     # The frozen protocol normally lives inside its own batch directory, so only
     # anything other than that protocol counts as a prior run occupying the path.
-    if out_dir.exists():
+    # A retry deliberately lands beside earlier attempts, whose failed receipts are
+    # audit records that must survive.
+    if out_dir.exists() and not args.allow_existing_parts_dir:
         occupied = [entry.name for entry in out_dir.iterdir()
                     if entry.name != protocol_path.name]
         if occupied:
@@ -313,7 +435,6 @@ def main() -> None:
     if _free_gib(out_dir) < gate:
         raise SystemExit(f"free-space gate failed: {_free_gib(out_dir):.1f} GiB < {gate} GiB")
 
-    jobs = [(block["year"], block["month"]) for block in plan["blocks"]]
     started = time.monotonic()
     sampler = _HostSampler(max_host_mb_s)
     sampler.start()
@@ -322,7 +443,7 @@ def main() -> None:
 
     def worker(year, month):
         outcomes.append(_run_part(parts_dir, year, month, deadline_seconds, watchdog_seconds,
-                                  max_decoded_gib, children))
+                                  max_decoded_gib, children, args.stem_suffix))
 
     # The live-thread count is the concurrency cap: at most `pool` part processes
     # exist at once, so the pool width the protocol froze is what actually runs.
@@ -350,6 +471,7 @@ def main() -> None:
         "format": "r7-fy-batch-summary-v1",
         "protocol": str(protocol_path), "protocol_sha256": protocol.get("protocol_sha256"),
         "out_dir": str(out_dir), "years": years, "months": months, "pool": pool,
+        "stem_suffix": args.stem_suffix,
         "planned_parts": len(jobs), "done_parts": len(results) - len(failed),
         "failed_parts": [entry["part"] for entry in failed],
         "not_started_parts": not_started,
@@ -372,13 +494,18 @@ def main() -> None:
               f"{len(not_started)} not started, aborted={sampler.aborted}")
         sys.exit(1)
 
+    if args.no_merge:
+        (out_dir / "batch_summary.json").write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"[batch] parts complete ({len(results)}); merging left to --merge-all")
+        return
+
     from data.download.earthmover_spatial_fy import merge_fy_parts
 
     pairs = [(parts_dir / f"{entry['part']}.nc", parts_dir / f"{entry['part']}.receipt.json")
              for entry in results]
     merge = merge_fy_parts(pairs, out_dir / "source.nc", out_dir / "merge_receipt.json",
-                           expected_stamps=int(protocol["plan"]["total_stamps"]),
-                           require_contiguous=True)
+                           expected_stamps=total_stamps, require_contiguous=True)
     summary["merge"] = {"stamps": merge["stamps"], "time_first": merge["time_first"],
                         "time_last": merge["time_last"],
                         "sha256": merge["local_artifact"]["sha256"],
@@ -390,8 +517,8 @@ def main() -> None:
         "out_dir": str(out_dir),
         "protocol": str(protocol_path),
         "protocol_sha256": protocol.get("protocol_sha256"),
-        "plan": {"years": years, "months": months, "stamps": plan["total_stamps"],
-                 "parts": plan["parts"]},
+        "plan": {"years": years, "months": months, "stamps": total_stamps,
+                 "parts": len(jobs)},
         "merge_receipt": "merge_receipt.json",
         "source_nc": "source.nc",
         "source_nc_sha256": merge["local_artifact"]["sha256"],

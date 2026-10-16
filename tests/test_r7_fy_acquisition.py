@@ -361,3 +361,101 @@ def test_combine_refuses_a_batch_whose_source_no_longer_matches_its_hash(tmp_pat
                           cwd=".", capture_output=True, text=True, timeout=120)
     assert done.returncode != 0 and "unverified batch" in done.stderr
     assert not (tmp_path / "all.nc").exists()
+
+
+# --- retry machinery ------------------------------------------------------------
+
+def _fy_part(parts_dir, stem, stamps, offset=0.0):
+    """A part artifact named the way the driver names them, with a valid receipt."""
+    import xarray as xr
+
+    parts_dir.mkdir(parents=True, exist_ok=True)
+    times = list(stamps)
+    latitude = np.linspace(43.0, 42.25, 4, dtype=np.float32)
+    longitude = np.linspace(107.0, 107.75, 4, dtype=np.float32)
+    data_vars = {}
+    for index, name in enumerate(sorted(_SURFACE)):
+        data_vars[name] = (("time", "latitude", "longitude"),
+                           np.full((len(times), 4, 4), 250.0 + index + offset, dtype=np.float32))
+    for index, name in enumerate(_PRESSURE):
+        data_vars[name] = (("time", "level", "latitude", "longitude"),
+                           np.full((len(times), len(_LEVELS), 4, 4),
+                                   250.0 + index + offset, dtype=np.float32))
+    dataset = xr.Dataset(data_vars, coords={
+        "time": times, "level": np.asarray(_LEVELS, dtype=np.int32),
+        "latitude": latitude, "longitude": longitude})
+    dataset["level"].attrs = {"units": "hPa"}
+    dataset.attrs["source_snapshot_id"] = SNAPSHOT
+    nc = parts_dir / f"{stem}.nc"
+    dataset.to_netcdf(nc, engine="h5netcdf")
+    digest = hashlib.sha256(nc.read_bytes()).hexdigest()
+    (parts_dir / f"{stem}.receipt.json").write_text(json.dumps({
+        "status": "downloaded-real-source", "segment": "fy-full-year-multi-year",
+        "timestamps": [str(stamp) for stamp in times],
+        "part": {"years": [2017], "months": [1], "blocks": [], "stamps": len(times)},
+        "local_artifact": {"path": nc.name, "bytes": nc.stat().st_size, "sha256": digest},
+        "network_body_bytes": 1, "elapsed_seconds": 1.0}), encoding="utf-8")
+    return nc
+
+
+def test_a_retry_protocol_is_refused_when_its_declared_stamp_count_is_wrong(tmp_path):
+    payload = _protocol()
+    payload["plan"] = {"years": [2017], "months": [1],
+                       "parts_explicit": [{"year": 2017, "month": 1}],
+                       "stamps": 999, "parts": 1}
+    done = _run_driver(_write_protocol(tmp_path, payload), tmp_path / "batch")
+    assert done.returncode != 0 and "calendar yields" in done.stderr
+
+
+def test_merge_all_prefers_the_canonical_stem_over_a_retry(tmp_path):
+    parts = tmp_path / "parts"
+    stamps = list(pd.date_range("2017-01-01", periods=4, freq="6h"))
+    _fy_part(parts, "fy201701", stamps, offset=0.0)
+    _fy_part(parts, "fy201701r1", stamps, offset=100.0)
+    done = subprocess.run([sys.executable, _DRIVER, "--merge-all",
+                           "--parts-dir", str(parts),
+                           "--merged-nc", str(tmp_path / "source.nc"),
+                           "--merged-receipt", str(tmp_path / "merge.json"),
+                           "--expected-stamps", "4"],
+                          cwd=".", capture_output=True, text=True, timeout=180)
+    assert done.returncode == 0, done.stderr
+    receipt = json.loads((tmp_path / "merge.json").read_text(encoding="utf-8"))
+    assert receipt["n_parts"] == 1
+    assert receipt["selected_parts"] == ["fy201701"]
+    assert receipt["selected_stems_with_suffix"] == []
+    assert any(entry["part"] == "fy201701r1" for entry in receipt["skipped_entries"])
+    import xarray as xr
+
+    # t2m is the third sorted surface field, so the canonical part holds offset 2
+    # and the retry would have held offset 102; the merged value proves which won.
+    with xr.open_dataset(tmp_path / "source.nc") as merged:
+        value = float(merged["2m_temperature"].isel(time=0, latitude=0, longitude=0).values)
+    assert value == 252.0
+
+
+def test_merge_all_falls_back_to_a_retry_when_the_canonical_part_has_none(tmp_path):
+    parts = tmp_path / "parts"
+    stamps = list(pd.date_range("2017-01-01", periods=4, freq="6h"))
+    _fy_part(parts, "fy201701r1", stamps, offset=100.0)
+    done = subprocess.run([sys.executable, _DRIVER, "--merge-all",
+                           "--parts-dir", str(parts),
+                           "--merged-nc", str(tmp_path / "source.nc"),
+                           "--merged-receipt", str(tmp_path / "merge.json"),
+                           "--expected-stamps", "4"],
+                          cwd=".", capture_output=True, text=True, timeout=180)
+    assert done.returncode == 0, done.stderr
+    receipt = json.loads((tmp_path / "merge.json").read_text(encoding="utf-8"))
+    assert receipt["selected_parts"] == ["fy201701r1"]
+    assert receipt["selected_stems_with_suffix"] == ["fy201701r1"]
+
+
+def test_merge_all_refuses_a_directory_with_no_verified_parts(tmp_path):
+    parts = tmp_path / "parts"
+    parts.mkdir()
+    done = subprocess.run([sys.executable, _DRIVER, "--merge-all",
+                           "--parts-dir", str(parts),
+                           "--merged-nc", str(tmp_path / "source.nc"),
+                           "--merged-receipt", str(tmp_path / "merge.json"),
+                           "--expected-stamps", "4"],
+                          cwd=".", capture_output=True, text=True, timeout=180)
+    assert done.returncode != 0 and "no verified parts" in done.stderr
