@@ -487,15 +487,17 @@ def run_download(args) -> None:
                         "pool it also counts its siblings and is not additive; use "
                         "host_rx_bytes_during_batch for the batch-level transfer"],
     }
+    # A retry must not overwrite the previous attempt's failure record.
+    suffix = args.stem_suffix
     if failed or not_started or sampler.aborted:
-        (out_dir / "batch_failure.json").write_text(
+        (out_dir / f"batch_failure{suffix}.json").write_text(
             json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"[batch] FAILED: {len(failed)} part(s) failed, "
               f"{len(not_started)} not started, aborted={sampler.aborted}")
         sys.exit(1)
 
     if args.no_merge:
-        (out_dir / "batch_summary.json").write_text(
+        (out_dir / f"batch_summary{suffix}.json").write_text(
             json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"[batch] parts complete ({len(results)}); merging left to --merge-all")
         return
@@ -510,7 +512,7 @@ def run_download(args) -> None:
                         "time_last": merge["time_last"],
                         "sha256": merge["local_artifact"]["sha256"],
                         "bytes": merge["local_artifact"]["bytes"]}
-    (out_dir / "batch_summary.json").write_text(
+    (out_dir / f"batch_summary{suffix}.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     complete = {
         "format": "r7-fy-build-complete-v1",
