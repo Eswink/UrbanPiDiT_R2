@@ -215,6 +215,9 @@ def main(argv=None) -> int:
     (out / "anchor_spec.json").write_text(
         json.dumps(spec, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
     torch.save(table, out / "anchor_table.pt")
+    # The logical tensor digest, repeated literally so spec/receipt/marker can be compared
+    # field by field instead of requiring the reader to reconstruct the canonical spec (audit 2026-10-17).
+    receipt["table_sha256"] = spec["table_sha256"]
     receipt["table_file_sha256"] = hashlib.sha256((out / "anchor_table.pt").read_bytes()).hexdigest()
     (out / "build_receipt.json").write_text(
         json.dumps(receipt, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")

@@ -18,15 +18,15 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATED_PARENT_RUN = ROOT / "outputs/r7_s3_rollout_dose_parent_migrated_20261015_attempt03"
+MIGRATED_PARENT_RUN = ROOT / "outputs/r7_s3_rollout_dose_parent_migrated_20261015_attempt04"
 MIGRATION_RECEIPT = MIGRATED_PARENT_RUN / "migration_receipt.json"
-ANCHOR_TABLE_RUN = ROOT / "outputs/r7_s3_anchor_table_20261015_attempt01"
+ANCHOR_TABLE_RUN = ROOT / "outputs/r7_s3_anchor_table_20261015_attempt02"
 ENDPOINT = 1600
 EQUIVALENCE_SEED = 1234
 MIGRATED_PARENT_SHA256 = {
-    41: "58a9cafa1a342a200712654cf03fb311902023c862fd245931d958d705593b3d",
-    42: "ac95dfd7bd92595970808fb014b8ecf9592e7bb5cf0bcc0336ce938cc7eae242",
-    43: "d485a130ad64aa81c2b5a9dc060606b0925a93c39a1e1866de57b83a72d449e8",
+    41: "f9f12e063c30cb0b471def01b67d7333d5aae95ecfba1ff0feb824a2a6f9ac45",
+    42: "8d4e05ed5baa285113db353eede34e883812092085b8f86716fbee93fb13770f",
+    43: "5af64655402cb16f0148b692ef7a84eb8934230cf43ed6ac9306501a7756cafa",
 }
 ANCHOR_KEYS = ("backbone.climatology_anchor.table", "backbone.climatology_anchor.ready")
 #: The registered registered arm's two switches; the arms differ only in ``anomaly_feedback``.
@@ -52,12 +52,47 @@ def pinned_parent(seed):
     return path, observed
 
 
+def migration_provenance():
+    """The provenance block for the receipt that produced this revision's migrated parents.
+
+    ``interior._identity()`` inherits the dose arm's ``model_only_migration`` block, which names a
+    different receipt and digest. Keeping it while the checkpoints come from this revision would be
+    a provenance contradiction, so the block is rebuilt from the receipt that produced these files.
+    """
+    from training.r7_arm_harness import sha256_file
+    from training.r7_experiment import model_code_digest
+    receipt = json.loads(MIGRATION_RECEIPT.read_text(encoding="utf-8"))
+    current = model_code_digest()
+    if receipt.get("current_model_code_sha256") != current:
+        raise RuntimeError("the pinned migration was produced under a different model revision; "
+                           "re-run scripts/migrate_r7_parent_state.py")
+    for seed in MIGRATED_PARENT_SHA256:
+        path = MIGRATED_PARENT_RUN / f"seed{seed}" / f"parent_update_{ENDPOINT:07d}.pt"
+        record = receipt["seeds"][str(seed)]
+        if (record["migrated_path"] != str(path)
+                or record["migrated_sha256"] != MIGRATED_PARENT_SHA256[seed]):
+            raise RuntimeError(f"migration receipt disagrees with the pinned parent for seed {seed}")
+    return {
+        "receipt_path": str(MIGRATION_RECEIPT), "receipt_sha256": sha256_file(MIGRATION_RECEIPT),
+        "export_sha256": receipt["export_sha256"],
+        "archived_code_commit": receipt["archived_code_commit"],
+        "archived_model_code_sha256": receipt["archived_model_code_sha256"],
+        "current_model_code_sha256": current,
+        "operation": "archived-revision export, then strict current-code install; no optimizer/cursor/RNG",
+        "forward_equivalence": ("the control arm's forward equals the unanchored current model bit "
+                                "for bit on a fixed synthetic batch; the migration installs the "
+                                "registered parent state unchanged"),
+        "region_note": ("the parent was trained on the narrow 65x65 instance; the model spec is "
+                        "region-agnostic, so the same state is valid on the wide 129x129 store")}
+
+
 def install_parent_pins(body):
-    """Replace the inherited migrated-parent checkpoint pins with this revision's migration."""
+    """Replace the inherited parent pins and provenance with this revision's migration."""
     body["arms"]["parent"]["pins"]["checkpoints"] = {
         str(seed): {"path": str(MIGRATED_PARENT_RUN / f"seed{seed}" / f"parent_update_{ENDPOINT:07d}.pt"),
                     "sha256": MIGRATED_PARENT_SHA256[seed]}
         for seed in MIGRATED_PARENT_SHA256}
+    body["arms"]["parent"]["pins"]["model_only_migration"] = migration_provenance()
 
 
 def table_digest(table):
@@ -87,6 +122,8 @@ def anchor_payload():
     canonical = hashlib.sha256(json.dumps(spec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if receipt["spec_sha256"] != canonical or marker["spec_sha256"] != canonical:
         raise RuntimeError("climatology build receipt/marker disagrees with the published spec")
+    if receipt.get("table_sha256") != observed:
+        raise RuntimeError("climatology build receipt's table digest differs from the published bytes")
     payload = {"spec": spec, "table": table,
                "pins": {"run": str(ANCHOR_TABLE_RUN), "table_sha256": observed,
                         "spec_sha256": marker["spec_sha256"],
@@ -151,11 +188,18 @@ def expand_parent_state(parent_state, spec, payload, *, seed):
 
 
 def _tiny_spec():
-    """The small synthetic spec the control probes use; never a weather instance."""
+    """The small synthetic spec the control probes use; never a weather instance.
+
+    The solver-path switches mirror the archived arm's values, not the constructor defaults: without
+    ``local_solver_state`` the probe never reaches ``process_step_r7``'s recurrence branch, which is
+    exactly where the real arm decodes its proposal (audit finding, 2026-10-17).
+    """
     return dict(architecture="window", in_channels=17, out_channels=17, history_steps=2, dim=32,
                 depth=2, heads=2, window_size=2, patch_size=2, dropout=0., spacetime_inputs=True,
                 default_reasoning_steps=4, detach_between_steps=False,
-                anchored_processes=4, free_processes=1)
+                anchored_processes=4, free_processes=1, use_forecast_feedback=True,
+                positional_process_readout=True, local_solver_state=True,
+                solver_state_recurrence=True, solver_gate_proposal=True, draft_query_feedback=True)
 
 
 def _tiny_anchor():

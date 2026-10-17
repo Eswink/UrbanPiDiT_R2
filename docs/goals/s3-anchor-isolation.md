@@ -4,7 +4,7 @@
 
 <!-- round-spec: {"arm": "s3-anchor-isolation", "driver": "scripts/study_r7_s3_anchor_isolation.py", "output_stem": "r7_s3_anchor_isolation_20261015", "control_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_anchor_isolation.py"], "commit_paths": ["model/weather_forecaster_r7.py", "model/process_step_r7.py", "model/process_forecast_r7.py", "scripts/r7_s3_anchor_table_build.py", "scripts/r7_s3_anchor_isolation_parent.py", "scripts/study_r7_s3_anchor_isolation.py", "tests/test_r7_s3_anchor_isolation.py", "docs/goals/s3-anchor-isolation.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): isolate the climatology-anchor anomaly-feedback mechanism as a single factor [model-digest-change]", "register_paths": ["docs/R7_S3_ANCHOR_ISOLATION_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the H-D anchor-isolation run as a new evidence record", "code_archive": "outputs/r7_s3_anchor_isolation_code.zip"} -->
 
-状态 **设计已定、待实现模型开关、锚表派生与 CPU 前置**（2026-10-15）。唯一主计划
+状态 **CPU 前置与实现已完成、独立复核 5 条 finding 已处置、待重跑复核＋GPU**（2026-10-17）。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接 **H-C 关闭**（`record:s3-global-mixing-result`，negative）、
 **H-A/H-B 关闭**与**决策 0048**（容量轴永久关闭）。本轮回主线 §8 指向的**训练信号/目标组织**方向。
 
@@ -26,7 +26,7 @@
      **缺口的本体是「无法归因」，不是「机制本身没用」。**
   3. **输出先验与 proposal 先验在仓库里无法分开**：`model/process_forecast_r7.py:65-66`
      `if anomaly_feedback and climatology_anchor_spec is None: raise`，而**锚一旦存在**，
-     `model/weather_forecaster_r7.py:109-113` 的输出头锚与 `model/process_step_r7.py:147` 的 proposal 锚
+     `model/weather_forecaster_r7.py` 的输出头锚与 `model/process_step_r7.py` 的 proposal 锚（两个 solver 分支）
      **同时**改成 `C_valid`。故「孤立输出先验」在本仓**不是一个因子而是两个**（输出先验＋proposal 先验），
      除非再加一个开关——**本轮不再加第二个开关**去假装分开它们。
   4. **输出先验还有独立的、与本题无关的失败风险**：package 的 t2m 6h MSE 是 **8.201**，
@@ -92,17 +92,19 @@
   **这同时是一条重要的口径事实**：现有 val **无法**检验「全年扩充是否有效」（val 也只有那 4 个月）。
   **D3 合规**：不新增下载、不重建 store，只读既有 store 派生；写入**全新排他** `outputs/` 路径；
   先只读 preflight 留 digest，再显式 `--write`；失败留 `failed-no-fallback`。
-- **已实测的开关恒等性（合成锚，非真值；实现阶段已完成）**：
+- **已实测的开关恒等性（合成锚＋真实 solver 开关；非真值）**：
   | 断言 | 实测 |
   | --- | --- |
-  | 无锚 + 默认 ⇒ 与改动前逐位相同 | 95 个共有键全 `torch.equal` |
+  | 无锚 + 默认 ⇒ 与改动前逐位相同 | 127 个共有键全 `torch.equal` |
   | N（锚装、两消费者关）初始化 ≡ 无锚模型 | 仅多 `backbone.climatology_anchor.{table,ready}` 两键，其余逐位相同 |
-  | N 前向 ≡ 无锚前向（锚未被读取） | `max|d| = 0.0` |
-  | F 前向 ≠ N 前向（反馈确被读取） | `max|d| = 4.96e-04` |
+  | N 前向 ≡ 无锚前向（锚未被读取） | `max|d| = 0.0`（tiny 探针与真实 archived spec 三 seed 均 0.0） |
+  | F 前向 ≠ N 前向（反馈确被读取） | `max|d| = 3.95e-04`（tiny 探针） |
   | **表清零 ⇒ F 前向 ≡ N 前向**（正控制） | `max|d| = 0.0` |
-  | `anchor_output_prior=True` 前向 ≠ 无锚前向 | `max|d| = 2.72` |
+  | `anchor_output_prior=True` 前向 ≠ 无锚前向 | `max|d| = 2.74` |
   | 默认 ≡ 显式 True | `torch.equal` 为真 |
   | 无锚 + False 被拒 | `ValueError` |
+  | **proposal 锚在循环分支遵守开关** | 单测 spy：off 时传入 `base_state`，on 时传入 `C_valid` |
+  | **独立复核（2026-10-17）发现并修复** | ①真实 archived spec 走 `solver_state_recurrence=True` 分支，原实现只在 flat 分支 gate，N 前向与无锚差 1.78/1.62/2.46；已改为两分支共用 `proposal_anchor`，复测三 seed `max|d| = 0.0`。②tiny 探针未开 `local_solver_state` 等真实开关，测不到该泄漏；已补齐并在测试中加 spy 反证 |
 - **预算**：两臂 × 三 seed = 六次训练；per-seed/planned/hard 按 H-C 轮实测（12.287980 GPU-h 七阶段、
   per-seed 约 4.0–4.4 GPU-h）重新标定（先冻后跑，不在运行中改）。
 - **预声明出口**：**72h 三 seed 全正 且 F 在 6/12/24h 不差于 N（seed 均值）→ 提请独立验收**；
@@ -134,14 +136,26 @@
 
 - **已定**：设计（§3）、登记名（成功版 `docs/R7_S3_ANCHOR_ISOLATION_RESULT.md` / record
   `s3-anchor-isolation-result`；本因子此前**无**任何已登记 record，故无 correction 指针）。
-- **待做（开工前 CPU 工作）**：① 派生并合格化宽 129×129 train-only 锚表（D2）；
-  ② 实现 `anchor_output_prior` 开关（默认 False，off 路径逐位不变）；
-  ③ 建 `scripts/r7_s3_anchor_isolation_parent.py`（钉本轮迁移＋装载锚表＋`expand_parent_state(..., seed=...)`）；
-  ④ 派生 `scripts/study_r7_s3_anchor_isolation.py`（**R-051 600 行硬限**，两臂 N/F 同协议）；
+- **待做（开工前 CPU 工作）**：① 派生并合格化宽 129×129 train-only 锚表（D2，**已完成**：attempt02，
+  `table_sha256 da2f28c9...`，与 attempt01 逐字节相同且 receipt 增加字面 `table_sha256`）；
+  ② 实现 `anchor_output_prior` 开关（**默认 True 保持既有语义**，两臂显式设 False；off 路径逐位不变）；
+  ③ 建 `scripts/r7_s3_anchor_isolation_parent.py`（钉本轮迁移＋装载锚表＋`expand_parent_state(..., seed=...)`，
+  **已完成**：迁移 attempt04，三 seed pin `f9f12e.../8d4e05.../5af646...`）；
+  ④ 派生 `scripts/study_r7_s3_anchor_isolation.py`（**R-051 600 行硬限**，两臂 N/F 同协议，**已完成**）；
   ⑤ 写 `tests/test_r7_s3_anchor_isolation.py`（含「表清零 ⇒ F≡N 逐位」「off 开关逐位不变」
-  「N 初始化 ≡ 注册臂」「两臂只差一个布尔」反证）；⑥ 逐行 diff 单因素保真、独立复核（≤3）、
-  `round-guard` 与 `commit-guard`、提交推工作分支并等 CI 绿。
-- **父迁移前提**：本轮改 `model/*.py` ⇒ `model_code_digest()` 会变 ⇒ 注册时的迁移父会被
+  「N 初始化 ≡ 注册臂」「两臂只差一个布尔」「proposal 锚遵守开关」反证，**33 passed**）；
+  ⑥ 逐行 diff 单因素保真、独立复核（≤3）、`round-guard` 与 `commit-guard`、提交推工作分支并等 CI 绿。
+- **独立复核（2026-10-17，停在本轮 GPU 之前）**：`clean=false`，5 条 finding 已逐条处置：
+  1. **high 已修**：真实 archived spec 走 `solver_state_recurrence=True` 分支，原实现只在
+     `solver_state_recurrence=False` 分支 gate `anchor_output_prior`，导致 N 前向与无锚模型差
+     1.78/1.62/2.46（三 seed）；改为两分支共用一个 `proposal_anchor` 后复测三 seed `max|d| = 0.0`。
+  2. **medium 已修**：tiny 探针未开 `local_solver_state`/`positional_process_readout`/`draft_query_feedback`，
+     测不到上述泄漏；已补齐真实 solver 开关，并在测试中加入观察 `anchored_proposal` 实参的 spy 反证。
+  3. **low 已修**：锚表 `build_receipt.json` 增加字面 `table_sha256`（重派生 attempt02，表内容逐字节不变）。
+  4. **low 已修**：`install_parent_pins` 现在用本轮迁移 receipt 重建 `model_only_migration`，
+     不再继承剂量臂 attempt02 的陈旧 provenance。
+  5. **low 已修**：`model/weather_forecaster_r7.py` 删除重复赋值。
+- **父迁移前提**：本轮改 `model/*.py` ⇒ `model_code_digest()` 会变（当前 `3fe747b2...`）⇒ 注册时的迁移父会被
   `training/r7_experiment.py` 的身份门**按设计**拒绝。**必须**先用**已提交的**
   `scripts/migrate_r7_parent_state.py` 在**当前**代码下重跑迁移，再按
   `scripts/r7_s3_global_mixing_parent.py` 的**同一模式**建本轮 parent 模块。
@@ -154,8 +168,8 @@
 
 ## §7 下一动作（S3）
 
-- 在 **S3** 节点：先派生宽锚表（D2）并合格化，再实现 `anchor_output_prior` 开关与父模块，
-  然后派生驱动与 CI-safe 测试，最后 `round-guard` → `freeze` → 逐 stage GPU → 四件套登记。
+- CPU 前置已全部完成（锚表 attempt02、开关、父模块 attempt04、驱动、33 项测试、复核修复）。
+  下一步：`round-guard` → 重建 code zip → `freeze` → 逐 stage GPU → 四件套登记。
 - 第一条命令：`.venv/bin/python tools/r7_round.py round-guard`。
 - 预声明出口见 §3：**72h 三 seed 全正且 F 在 6/12/24h 不差于 N → 提请独立验收；否则永久关闭气候态锚这一族**。
 - 本轮**未产生任何读数**；不宣布通过、不关闭任何支。

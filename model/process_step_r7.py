@@ -99,6 +99,10 @@ def process_reasoning_step(
         raise ValueError('anomaly_feedback requires use_forecast_feedback=True')
     if model.local_solver_state and not feedback:
         raise ValueError('local_solver_state requires use_forecast_feedback=True')
+    # Both proposal branches below must read the same anchor; computing it once is what
+    # keeps ``anchor_output_prior=False`` off the recurrence branch as well as the flat one.
+    proposal_anchor = (climate if climate is not None and model.backbone.anchor_output_prior
+                       else anchor)
     draft_tokens = None
     if feedback:
         feedback_draft = draft - climate if model.anomaly_feedback else draft
@@ -144,8 +148,7 @@ def process_reasoning_step(
                     conditioned, token_hw, draft.shape[-2:], draft)
                 return ProcessStepOutput(process, draft, correction, prediction, None)
             proposal, _ = anchored_proposal(model.proposal_head, solver_state, token_hw,
-                draft.shape[-2:],
-                climate if (climate is not None and model.backbone.anchor_output_prior) else anchor)
+                draft.shape[-2:], proposal_anchor)
             gate = expand_token_gate(model.solver_gate(solver_state), token_hw,
                 draft.shape[-2:], model.patch_size)
             updated = blend_forecast(draft, proposal, gate)
@@ -157,7 +160,7 @@ def process_reasoning_step(
             conditioned, token_hw, draft.shape[-2:], draft)
         return ProcessStepOutput(process, draft, correction, prediction, solver_state)
     proposal, _ = anchored_proposal(model.proposal_head, solver_state, token_hw,
-        draft.shape[-2:], climate if climate is not None else anchor)
+        draft.shape[-2:], proposal_anchor)
     gate = expand_token_gate(model.solver_gate(solver_state), token_hw,
         draft.shape[-2:], model.patch_size)
     updated = blend_forecast(draft, proposal, gate)

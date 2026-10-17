@@ -30,11 +30,8 @@ if str(ROOT) not in sys.path:
 
 
 def _load(name):
-    path = ROOT / "scripts" / f"{name}.py"
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module); return module
 
 
 driver = _load("study_r7_s3_anchor_isolation")
@@ -81,10 +78,15 @@ def _payload(spec=None, table=None):
 
 
 def _tiny_spec(dim=8, *, anchor_spec=None, feedback=None, prior=False):
+    # Same solver-path switches as the archived arm: the proposal-gate bug the audit found lived
+    # behind local_solver_state, so a probe that leaves it off cannot detect a leak (2026-10-17).
     spec = dict(architecture="window", in_channels=CHANNELS, out_channels=CHANNELS,
                 history_steps=2, dim=dim, depth=4, heads=2, window_size=2, patch_size=2,
                 dropout=0., spacetime_inputs=True, default_reasoning_steps=4,
-                detach_between_steps=False, anchored_processes=4, free_processes=1)
+                detach_between_steps=False, anchored_processes=4, free_processes=1,
+                use_forecast_feedback=True, positional_process_readout=True,
+                local_solver_state=True, solver_state_recurrence=True,
+                solver_gate_proposal=True, draft_query_feedback=True)
     if anchor_spec is not None:
         spec["climatology_anchor_spec"] = anchor_spec
         spec["anchor_output_prior"] = prior
@@ -230,26 +232,58 @@ def test_the_output_prior_is_a_real_change():
                                prior(sample, reasoning_steps=4).forecast)
 
 
+def test_the_proposal_anchor_honors_the_output_prior_switch(monkeypatch):
+    """Both proposal branches decode from X_t, never C_valid, while the prior is off.
+
+    The audit found that only the flat ``solver_state_recurrence=False`` branch honoured the
+    switch while the real arm takes the recurrence branch, so this check observes the anchor
+    the recurrence actually passes to ``anchored_proposal`` (2026-10-17).
+    """
+    from model import process_step_r7
+    spec, table = _synthetic_spec()
+    sample = _batch(spec)
+    control = _model(_tiny_spec(anchor_spec=spec, feedback=False), anchor=table)
+    expected = control.backbone(sample).base_state
+    captured = []
+    original = process_step_r7.anchored_proposal
+
+    def spy(head, state, token_hw, out_hw, anchor):
+        captured.append(anchor)
+        return original(head, state, token_hw, out_hw, anchor)
+
+    monkeypatch.setattr(process_step_r7, "anchored_proposal", spy)
+    with torch.no_grad():
+        control(sample, reasoning_steps=2)
+    assert captured and all(torch.equal(anchor, expected) for anchor in captured)
+
+    captured.clear()
+    prior = _model(_tiny_spec(anchor_spec=spec, feedback=False, prior=True), anchor=table)
+    with torch.no_grad():
+        prior(sample, reasoning_steps=2)
+    assert captured and all(not torch.equal(anchor, expected) for anchor in captured)
+
+
 # --- the parent module ------------------------------------------------------------------------
 
 def test_anchor_payload_verifies_a_published_artifact(tmp_path, monkeypatch):
     spec, table = _synthetic_spec()
+    digest = __import__("hashlib").sha256(
+        json.dumps(spec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     (tmp_path / "anchor_spec.json").write_text(json.dumps(spec), encoding="utf-8")
     torch.save(table, tmp_path / "anchor_table.pt")
-    (tmp_path / "build_receipt.json").write_text(json.dumps(
-        {"spec_sha256": __import__("hashlib").sha256(
-            json.dumps(spec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()},
-        ), encoding="utf-8")
+    receipt = {"spec_sha256": digest, "table_sha256": spec["table_sha256"]}
+    (tmp_path / "build_receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
     (tmp_path / "BUILD_COMPLETE.json").write_text(json.dumps(
-        {"schema_version": 1, "build_complete": True,
-         "table_sha256": spec["table_sha256"],
-         "spec_sha256": __import__("hashlib").sha256(
-             json.dumps(spec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}),
-        encoding="utf-8")
+        {"schema_version": 1, "build_complete": True, "table_sha256": spec["table_sha256"],
+         "spec_sha256": digest}), encoding="utf-8")
     monkeypatch.setattr(anchor_parent, "ANCHOR_TABLE_RUN", tmp_path)
     payload = anchor_parent.anchor_payload()
     assert payload["spec"]["table_shape"] == list(table.shape)
     assert payload["pins"]["n_buckets"] == len(spec["bucket_keys"])
+    receipt["table_sha256"] = "0" * 64
+    (tmp_path / "build_receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
+    with pytest.raises(RuntimeError):
+        anchor_parent.anchor_payload()
 
 
 def test_anchor_payload_refuses_an_incomplete_marker(tmp_path, monkeypatch):
@@ -537,11 +571,13 @@ def test_pinned_parent_refuses_a_stale_revision(monkeypatch):
                         _FakeReceipt(json.dumps({"current_model_code_sha256": "0" * 64})))
     with pytest.raises(RuntimeError):
         anchor_parent.pinned_parent(41)
+    with pytest.raises(RuntimeError):
+        anchor_parent.migration_provenance()
 
 
 def test_pinned_parent_pins_this_revisions_migration():
     assert anchor_parent.MIGRATED_PARENT_RUN.name == (
-        "r7_s3_rollout_dose_parent_migrated_20261015_attempt03")
+        "r7_s3_rollout_dose_parent_migrated_20261015_attempt04")
     for seed in (41, 42, 43):
         assert len(anchor_parent.MIGRATED_PARENT_SHA256[seed]) == 64
 
@@ -551,7 +587,8 @@ def test_pinned_parent_refuses_a_foreign_seed():
         anchor_parent.pinned_parent(999)
 
 
-def test_install_parent_pins_writes_all_seeds():
+def test_install_parent_pins_writes_all_seeds(monkeypatch):
+    monkeypatch.setattr(anchor_parent, "migration_provenance", lambda: {"receipt": "current"})
     body = {"arms": {"parent": {"pins": {"checkpoints": {"41": {"path": "stale", "sha256": "stale"}}}}}}
     anchor_parent.install_parent_pins(body)
     checkpoints = body["arms"]["parent"]["pins"]["checkpoints"]
@@ -559,3 +596,4 @@ def test_install_parent_pins_writes_all_seeds():
     for seed, entry in checkpoints.items():
         assert entry["sha256"] == anchor_parent.MIGRATED_PARENT_SHA256[int(seed)]
         assert entry["path"].endswith(f"parent_update_{anchor_parent.ENDPOINT:07d}.pt")
+    assert body["arms"]["parent"]["pins"]["model_only_migration"] == {"receipt": "current"}

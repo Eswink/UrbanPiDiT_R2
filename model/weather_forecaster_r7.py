@@ -43,7 +43,6 @@ class NativeAtmosForecaster(nn.Module):
         if type(anchor_output_prior) is not bool:
             raise ValueError('anchor_output_prior must be boolean')
         self.anchor_output_prior=anchor_output_prior
-        self.anchor_output_prior=anchor_output_prior
         self.known_context_inputs=known_context_inputs
         if type(spacetime_inputs) is not bool:
             raise ValueError('spacetime_inputs 必须是布尔开关')
