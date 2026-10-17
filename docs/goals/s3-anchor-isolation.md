@@ -10,22 +10,7 @@
 
 ## §0 Objective（单段）
 
-> 在 docs/goals/s3-anchor-isolation.md 接续 S3/index79/105.619618 GPU-h、2023 test 未评分 r0、S4 未启动；
-> 架构方向（H-A/H-B/H-C）与容量轴均已关闭，本轮回主线的**训练信号/目标组织**方向，取
-> `record:s3-climatology-anomaly-anchor` 那一族里**唯一可辩护的缺口**——该 package 自己写明
-> *"同时改变输出先验、proposal 先验及 feedback 表示，故…不是对单一机制的因果归因"*——**孤立出其中的
-> 「推理循环的反馈表征」这一个机制**：`anomaly_feedback`（把 K 步循环的草稿反馈从绝对场改成
-> `draft − C_valid` 的异常场），并**明确不动输出先验与 proposal 先验**（二者由仓库自己的校验规则
-> 与「锚存在」耦合，无法再分，故本轮不假装分开）；为做到这一点新增**一个**开关 `anchor_output_prior`
-> （默认 False：锚可以「装着但不作为输出先验」），使新增臂与注册臂在**初始化时逐位相同**、只差
-> `anomaly_feedback` 一个因子；其余（宽 129×129 输入、`interior_32` 监督、2400 更新、K=4、depth=4、
-> `dim`=192、注册物理权重、seed 41/42/43、评分域、气候态分母）逐字不变；协议内同跑**两臂**（N=控制、
-> F=候选）＋已登记 2400 剂量臂 A 作 pinned 外部参考；正控制＝**把锚表清零 ⇒ `draft − 0 = draft` ⇒ F 与 N
-> 逐位相同**（须逐 seed 断言，失败即 `raise`）；负控制＝N 本身（锚已装、两个消费者都关 ⇒ 初始化须与
-> 注册臂逐位相同）；预声明出口：**72h 三 seed 全正 且 F 在 6/12/24h 不差于 N → 提请独立验收；否则
-> 永久关闭「气候态锚」这一族**（不调表粒度/不减锚/不加 seed）；本轮只报读数、**不宣布科学通过**、
-> 不称泛化/SOTA、不自行宣布最终 goal 完成；不 paid/rental/exclusive/main/release/issueclose/force/mirror/
-> 破坏性/cron，不改科学合同/冻结证据/用户配置，**不读 test**。
+> 在 docs/goals/s3-anchor-isolation.md 接续 S3/index79/105.619618 GPU-h、2023 test 未评分 r0、S4 未启动；架构方向（H-A/H-B/H-C）与容量轴均已关闭，本轮回主线的**训练信号/目标组织**方向，取 `record:s3-climatology-anomaly-anchor` 那一族里**唯一可辩护的缺口**——该 package 自己写明 *"同时改变输出先验、proposal 先验及 feedback 表示，故…不是对单一机制的因果归因"*——**孤立出其中的「推理循环的反馈表征」这一个机制**：`anomaly_feedback`（把 K 步循环的草稿反馈从绝对场改成 `draft − C_valid` 的异常场），并**明确不动输出先验与 proposal 先验**（二者由仓库自己的校验规则与「锚存在」耦合，无法再分，故本轮不假装分开）；为做到这一点新增**一个**开关 `anchor_output_prior`（默认 True 保持既有语义；本轮两臂显式设 False：锚可以「装着但不作为输出先验」），使新增臂与注册臂在**初始化时逐位相同**、只差 `anomaly_feedback` 一个因子；其余（宽 129×129 输入、`interior_32` 监督、2400 更新、K=4、depth=4、`dim`=192、注册物理权重、seed 41/42/43、评分域、气候态分母）逐字不变；协议内同跑**两臂**（N=控制、F=候选）＋已登记 2400 剂量臂 A 作 pinned 外部参考；正控制＝**把锚表清零 ⇒ `draft − 0 = draft` ⇒ F 与 N 逐位相同**（须逐 seed 断言，失败即 `raise`）；负控制＝N 本身（锚已装、两个消费者都关 ⇒ 初始化与 forward 都须与注册臂逐位相同）；预声明出口：**72h 三 seed 全正 且 F 在 6/12/24h 不差于 N → 提请独立验收；否则永久关闭「气候态锚」这一族**（不调表粒度/不减锚/不加 seed）；本轮只报读数、**不宣布科学通过**、不称泛化/SOTA、不自行宣布最终 goal 完成；不 paid/rental/exclusive/main/release/issueclose/force/mirror/破坏性/cron，不改科学合同/冻结证据/用户配置，**不读 test**。
 
 ## §1 起点与实质差异
 
