@@ -7,7 +7,16 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=1053 R-020=65 R-021=107 R-022=65 R-023=46 -->
+<!-- measured: R-019=0 R-019b=1078 R-020=65 R-021=109 R-022=65 R-023=46 -->
+
+**2026-10-18 K 草稿监督组织驱动复算（暂存集合实测）**：R-019b **1053→1078**、R-021 **107→109**；
+R-019=0、R-020=65、R-022=65、R-023=46 保持。净增长只来自本轮两个新文件：
+`scripts/study_r7_s3_supervision_organization.py`（582 行）与
+`tests/test_r7_s3_supervision_organization.py`（534 行），两者均 >400 目标、≤600 硬限，
+最长函数体在 R-052 200 行硬限内；驱动的 25 行设计/判据文本常量落在 R-019b 的 120–200 目标带内，
+测试文件无此类长行。`training/r7_long_rollout_runner.py` 新增的 `draft_supervision` 参数
+通过既有 `_contract`/`fine_tune_long_rollout` 传递，未新增 R-023 命中。**未改规则级别、阈值或
+冻结例外清单。**
 
 **2026-10-18 dense-step 监督驱动复算（暂存集合实测）**：R-019b **1030→1053**、R-021 **105→107**；
 R-019=0、R-020=65、R-022=65、R-023=46 保持。净增长只来自本轮新实验入口

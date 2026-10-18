@@ -12,6 +12,9 @@ from torch.utils.data import default_collate
 
 from data.r7_long_rollout_dataset import ZarrLongRolloutDataset
 from .r7_long_rollout import training_long_rollout, validate_physical_weights
+from .r7_recursive_losses import (
+    DRAFT_SUPERVISION_DEEP, DRAFT_SUPERVISION_FINAL_ONLY, DRAFT_SUPERVISION_MODES,
+)
 from .r7_autoregressive_runner import (
     SOURCE_FILES as AUTOREGRESSIVE_SOURCES, _bind, _finite_state, _output_path,
     _paths, _validate_imported_model, _validate_options, _write_json,
@@ -60,9 +63,29 @@ def _supervision_block(supervision_mask):
             "normalization": "mask-and-latitude weighted mean over the selected cells"}
 
 
+def _draft_semantics(draft_supervision):
+    """The frozen contract/report description of the K-axis organization.
+
+    ``deep`` repeats the registered fields verbatim. ``final_only`` records the
+    actual objective instead of pretending the deep form is still in force.
+    """
+    if draft_supervision == DRAFT_SUPERVISION_DEEP:
+        return {"draft_supervision": DRAFT_SUPERVISION_DEEP,
+                "internal_deep_supervision": True,
+                "objective": "deep_supervised_latitude_area_mse", "final_weight": 2.,
+                "k_weights": "linspace(1,2,K+1) normalized; initial plus every K draft"}
+    if draft_supervision == DRAFT_SUPERVISION_FINAL_ONLY:
+        return {"draft_supervision": DRAFT_SUPERVISION_FINAL_ONLY,
+                "internal_deep_supervision": False,
+                "objective": "final_draft_latitude_area_mse", "final_weight": 1.,
+                "k_weights": ("final draft only (weight 1.0); initial and intermediate "
+                              "drafts carry no direct target term")}
+    raise ValueError(f"draft_supervision must be one of {DRAFT_SUPERVISION_MODES}")
+
+
 def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
               weight_decay, device, batch_size, clip, checkpoint_every, physical_weights,
-              supervision_mask=None):
+              supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP):
     contract = deepcopy(supplied)
     identity, _ = dataset_identity(dataset.manifest)
     if identity != contract["data_identity"]:
@@ -82,13 +105,12 @@ def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
     _bind(autoregression, {"mode": "long_rollout", "physical_steps": len(weights),
                           "physical_weights": weights, "step_hours": 6, "fixed_transition_lead_hours": 6,
                           "detach_physical_steps": False, "detach_reasoning_steps": False,
-                          "internal_deep_supervision": True, "objective": "deep_supervised_latitude_area_mse",
-                          "loss_space": "normalized", "final_weight": 2.,
-                          "k_weights": "linspace(1,2,K+1) normalized; initial plus every K draft",
+                          "loss_space": "normalized",
                           "physical_loss": "sum(weight_i * L_6i), no physical-axis normalization",
                           "window_sha256": dataset.summary["window_sha256"], "windows": dataset.summary,
                           "excluded_sample_ids": dataset.summary["excluded_sample_ids"],
-                          "supervision": _supervision_block(supervision_mask)})
+                          "supervision": _supervision_block(supervision_mask),
+                          **_draft_semantics(draft_supervision)})
     return contract
 
 
@@ -97,7 +119,9 @@ def _update(model, optimizer, batch, contract, device, deadline, supervision_mas
     moved = {name: value.to(device) if torch.is_tensor(value) else value for name, value in batch.items()}
     result = training_long_rollout(model, moved, contract["steps"],
                                   physical_weights=contract["autoregression"]["physical_weights"],
-                                  supervision_mask=supervision_mask)
+                                  supervision_mask=supervision_mask,
+                                  draft_supervision=contract["autoregression"].get(
+                                      "draft_supervision", DRAFT_SUPERVISION_DEEP))
     result.loss.backward()
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), contract["clip"], error_if_nonfinite=True)
     if deadline is not None:
@@ -142,8 +166,10 @@ def _run_updates(dataset, folder, model, optimizer, contract, signature, deadlin
 def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weights, parent_weights=None,
                           steps=4, updates=200, seed=0, lr=2e-5, warmup=10, weight_decay=1e-4,
                           deadline=None, checkpoint_every=20, device_name="cpu", batch_size=1, clip=1.,
-                          supervision_mask=None):
+                          supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP):
     weights = validate_physical_weights(physical_weights)
+    if draft_supervision not in DRAFT_SUPERVISION_MODES:
+        raise ValueError(f"draft_supervision must be one of {DRAFT_SUPERVISION_MODES}")
     _validate_options(steps=steps, updates=updates, seed=seed, mode="two_step", lr=lr, warmup=warmup,
                       weight_decay=weight_decay, bf16=False, batch_size=batch_size, clip=clip,
                       lambda12=0., checkpoint_every=checkpoint_every, deadline=deadline)
@@ -157,6 +183,8 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
             or declared.get("physical_weights") != list(weights)
             or not isinstance(declared.get("window_sha256"), str)):
         raise ValueError("physical steps/weights/window digest must be predeclared exactly")
+    if declared.get("draft_supervision", DRAFT_SUPERVISION_DEEP) != draft_supervision:
+        raise ValueError("the declared draft supervision organization differs from the actual run")
     dataset = ZarrLongRolloutDataset(manifest, physical_steps=len(weights),
         expected_exclusions=declared.get("excluded_sample_ids", ()),
         expected_window_sha256=declared["window_sha256"])
@@ -164,7 +192,8 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
     bound = _contract(dataset, supplied, output=output, steps=steps, updates=updates, seed=seed,
                       lr=lr, warmup=warmup, weight_decay=weight_decay, device=device,
                       batch_size=batch_size, clip=clip, checkpoint_every=checkpoint_every,
-                      physical_weights=weights, supervision_mask=supervision_mask)
+                      physical_weights=weights, supervision_mask=supervision_mask,
+                      draft_supervision=draft_supervision)
     signature = canonical_digest(bound)
     if deadline is not None:
         _check_deadline(deadline)
@@ -178,12 +207,15 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                                           supervision_mask)
         if deadline is not None:
             _check_deadline(deadline)
+        semantics = _draft_semantics(draft_supervision)
         report = {"scientific_claim": False, "limitations": LIMITATIONS, "test_read": False,
                   "contract": bound, "signature": signature, "protocol_sha256": bound["protocol_sha256"],
                   "model_code_sha256": bound["model_code_sha256"], "source_sha256": bound["source_sha256"],
                   "data_identity": bound["data_identity"], "optimization": "full-bptt",
                   "internal_k_detach": False, "physical_step_detach": False,
-                  "objective": "deep_supervised_latitude_area_mse", "internal_deep_supervision": True,
+                  "objective": semantics["objective"],
+                  "internal_deep_supervision": semantics["internal_deep_supervision"],
+                  "draft_supervision": semantics["draft_supervision"],
                   "supervision": bound["autoregression"]["supervision"],
                   "selected_checkpoint": str(checkpoint), "selected_update": updates, "total_updates": updates,
                   "selection_split": None, "selection_metric": "frozen endpoint; no validation selection",

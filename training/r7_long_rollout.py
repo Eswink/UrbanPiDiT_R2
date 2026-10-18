@@ -15,6 +15,7 @@ import torch
 from torch import nn
 
 from .r7_autoregressive_rollout import _advance_inputs, _draft_loss, _forward_final, _training_inputs
+from .r7_recursive_losses import DRAFT_SUPERVISION_DEEP
 
 
 @dataclass
@@ -62,7 +63,8 @@ def _physical_targets(batch, history, physical_steps):
 
 
 def training_long_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], reasoning_steps: int = 4,
-                          *, physical_weights, supervision_mask=None) -> LongTrainingRolloutOutput:
+                          *, physical_weights, supervision_mask=None,
+                          draft_supervision=DRAFT_SUPERVISION_DEEP) -> LongTrainingRolloutOutput:
     """Weighted sum of unchanged K-axis draft losses over N physical 6 h steps.
 
     N is the number of physical weights, with no maximum horizon here. Known
@@ -72,7 +74,9 @@ def training_long_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], r
     ``physical_targets``, compatibility targets and old ``init_year`` cannot
     pass the existing model-input whitelist. ``supervision_mask`` optionally
     restricts every step's supervision to a spatial region; ``None`` keeps the
-    registered objective unchanged.
+    registered objective unchanged. ``draft_supervision`` selects the K-axis
+    organization (default ``deep``, bit-identical to the registered objective;
+    ``final_only`` scores only the last draft of each physical step).
     """
     weights = validate_physical_weights(physical_weights)
     inputs = _training_inputs(model, batch, reasoning_steps)
@@ -82,7 +86,7 @@ def training_long_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], r
         forecast, drafts = _forward_final(model, inputs, reasoning_steps)
         forecasts.append(forecast)
         losses.append(_draft_loss(forecast, drafts, targets[:, step], batch.get("latitude"),
-                                  supervision_mask))
+                                  supervision_mask, draft_supervision))
         if step + 1 < len(weights):
             next_inputs = _advance_inputs(inputs)
             history = inputs["coarse_history"]

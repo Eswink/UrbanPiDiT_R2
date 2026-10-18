@@ -20,7 +20,7 @@ from model.r7_halting import forecast_inputs, positive_int
 from model.spacetime_conditioning_r7 import advance_calendar_time, require_spacetime_fields
 from model.known_context_r7 import require_history_offsets, uses_known_context
 from .r7_halting import per_sample_latitude_mse
-from .r7_recursive_losses import deep_supervised_forecast_mse
+from .r7_recursive_losses import DRAFT_SUPERVISION_DEEP, deep_supervised_forecast_mse
 
 STEP_HOURS = 6
 
@@ -137,7 +137,8 @@ def _forward_final(model, inputs, reasoning_steps):
     return forecast, drafts
 
 
-def _draft_loss(forecast, drafts, target, latitude, mask=None):
+def _draft_loss(forecast, drafts, target, latitude, mask=None,
+                draft_supervision=DRAFT_SUPERVISION_DEEP):
     if not torch.is_tensor(target) or not target.is_floating_point() or target.device != forecast.device:
         raise ValueError("training target must be floating on the forecast device")
     # Strict shape/finite/latitude validation before the existing objective; this
@@ -145,7 +146,7 @@ def _draft_loss(forecast, drafts, target, latitude, mask=None):
     per_sample_latitude_mse(forecast, target, latitude)
     with torch.autocast(forecast.device.type, enabled=False):
         loss = deep_supervised_forecast_mse(drafts.float(), target.float(), latitude, final_weight=2.,
-                                            mask=mask)
+                                            mask=mask, draft_supervision=draft_supervision)
     if loss.dtype != torch.float32 or not torch.isfinite(loss):
         raise ValueError("deep-supervised training loss must be finite FP32")
     return loss
