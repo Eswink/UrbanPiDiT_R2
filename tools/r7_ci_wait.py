@@ -27,6 +27,11 @@ DEFAULT_INTERVAL_SECONDS = 60.0
 CURL_TIMEOUT_SECONDS = 30
 RUNS_PER_PAGE = 20
 GREEN = "success"
+# A push creates one run per workflow. The 17 label-gated experiment workflows are
+# skipped by design and their run ids can be newer than the main CPU run, so "newest
+# run for this SHA" is not the round's CI. Pick the CPU workflow by name when it is
+# present; fall back to the newest matching run when it is not (e.g. in unit tests).
+DEFAULT_WORKFLOW_NAME = "R7 CPU CI"
 
 
 class CiWaitError(RuntimeError):
@@ -73,12 +78,20 @@ def fetch_runs(repo: str, branch: str, runner: Callable[..., dict[str, Any]] | N
     return runs
 
 
-def pick_run(runs: Sequence[dict[str, Any]], sha: str) -> dict[str, Any] | None:
-    """The most recent run for this exact commit, or ``None`` if it has not appeared."""
+def pick_run(runs: Sequence[dict[str, Any]], sha: str,
+             workflow_name: str = DEFAULT_WORKFLOW_NAME) -> dict[str, Any] | None:
+    """The round's run for this exact commit, or ``None`` if it has not appeared.
+
+    Prefer the named CPU workflow: a push also creates the 17 label-gated experiment
+    workflows, which are ``skipped`` by design and can carry the higher run id. Without
+    the preference, a skipped experiment run would be classified as the commit's CI and
+    every round would stop "not-green" after the real CPU run had passed.
+    """
     matching = [item for item in runs if item.get("head_sha") == sha]
     if not matching:
         return None
-    return max(matching, key=lambda item: int(item.get("id", 0)))
+    preferred = [item for item in matching if item.get("name") == workflow_name]
+    return max(preferred or matching, key=lambda item: int(item.get("id", 0)))
 
 
 def verdict(run: dict[str, Any] | None, sha: str) -> dict[str, Any]:

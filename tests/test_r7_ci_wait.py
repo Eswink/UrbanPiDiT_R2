@@ -78,6 +78,22 @@ def test_pick_run_takes_the_newest_matching_run(ciw):
     assert ciw.pick_run([newer, older], SHA)["id"] == 9
 
 
+def test_pick_run_prefers_the_cpu_workflow_over_a_newer_skipped_experiment(ciw):
+    """A skipped label-gated workflow must not shadow the round's real CPU run."""
+    cpu = _run(run_id=1, conclusion="success")
+    cpu["name"] = "R7 CPU CI"
+    skipped = _run(run_id=9, conclusion="skipped")
+    skipped["name"] = "R7 real validation correction audit"
+    assert ciw.pick_run([skipped, cpu], SHA)["id"] == 1
+
+
+def test_pick_run_falls_back_to_the_newest_when_no_cpu_run_is_listed(ciw):
+    """Tests and early polls may see no named CPU run yet; keep the old behaviour."""
+    named = _run(run_id=3, conclusion="success")
+    named["name"] = "R7 something else"
+    assert ciw.pick_run([named], SHA)["id"] == 3
+
+
 # --- transport ---------------------------------------------------------------------
 
 
