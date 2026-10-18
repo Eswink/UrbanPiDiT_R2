@@ -4,7 +4,7 @@
 
 <!-- round-spec: {"arm": "s3-draft-supervision-organization", "driver": "scripts/study_r7_s3_supervision_organization.py", "output_stem": "r7_s3_draft_supervision_organization_20261018", "control_record": "s3-anchor-isolation-result", "paired_control_record": "s3-anchor-isolation-result", "reference_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_supervision_organization.py"], "commit_paths": ["scripts/study_r7_s3_supervision_organization.py", "tests/test_r7_s3_supervision_organization.py", "training/r7_recursive_losses.py", "training/r7_autoregressive_rollout.py", "training/r7_long_rollout.py", "training/r7_long_rollout_runner.py", "docs/rules/size-thresholds.md", "docs/goals/s3-supervision-organization.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): add the final-draft-only supervision organization single-factor driver", "register_paths": ["docs/R7_S3_DRAFT_SUPERVISION_ORGANIZATION_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-supervision-organization.md"], "register_message": "feat(r7): register the draft-supervision organization run as a new evidence record", "code_archive": "outputs/r7_s3_draft_supervision_organization_code.zip"} -->
 
-状态 **实现完成、GPU 轮尚未开始（2026-10-18）**。唯一主计划
+状态 **已完成（2026-10-19；候选臂 × 三 seed 全部跑完并评分；预声明出口未满足，支关闭）**。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接 H-D 与 dense-step 两轮
 （`record:s3-anchor-isolation-result`、`record:s3-dense-step-supervision-result`），本轮继续
 **训练信号 / 目标组织**方向，取「K 步草稿的监督组织（organization）」这一此前从未单因素测过的缺口。
@@ -113,11 +113,22 @@
 ## §6 进度与交接
 
 - **已定**：设计（§3）；登记名 `docs/R7_S3_DRAFT_SUPERVISION_ORGANIZATION_RESULT.md` / record
-  `s3-draft-supervision-organization-result`。
+  `s3-draft-supervision-organization-result`（`mixed` / `not-candidate`）。
 - **已完成（2026-10-18，实现轮）**：① 训练损失新增 `draft_supervision="final_only"` 模式，
   默认 `"deep"` 算术未动；② 新驱动、新 CI-safe 测试（合成张量/合成树/monkeypatch、含反证）；
-  ③ 本长文与 campaign-state 指针已写。**未做**：GPU freeze/prepare/archive/seed/reading 尚未启动。
-- **未做**：三 seed 训练与评分、读数、登记四件套、精确 CI。
-- **下一动作**：实现 commit → CI 绿 → `tools/r7_round.py freeze` → `stage prepare/archive/seed-seeds/reading`。
+  ③ 本长文与 campaign-state 指针已写。
+- **已完成（2026-10-19，GPU 轮 attempt01）**：freeze → prepare → archive → seed 41/42/43 → reading
+  六阶段全 success、`returncode=0`；三 seed 均 `resumed_from_updates=0`、2400 updates、五 lead 全评
+  （cohort 472/468/460/444/428）；无跨 attempt seed 复用。**结果**：预声明出口 (a)(b)(d) 未满足、
+  (c)(e) 满足 ⇒ `predeclared_exit_met=false`、`scientific_exit_met=false`、
+  `identity_unresolved=false`，按预声明**永久关闭**本支。成本 7.052733205904207 GPU-h，
+  soft/hard overrun 0，test 未读、r=0。证据页
+  `docs/R7_S3_DRAFT_SUPERVISION_ORGANIZATION_RESULT.md`，index record
+  `s3-draft-supervision-organization-result`。
+- **下一动作（S3）**：K 草稿监督组织支已按预声明永久关闭（不扫中间草稿权重、不加 seed、不调
+  2400 updates、不改 partial/加权 final-only、不与 anchor/feedback/architecture/容量组合、
+  不换名重开）；下一根独立的**训练信号 / 目标组织**轴是 **K 步草稿的单调改进约束**
+  （要求后一草稿的 loss 不差于前一草稿的 hinge；不增容量、不加数据、不改模型前向）——
+  先写新的 round brief、先检索一手资料，再冻结新协议；数据扩充按 D3 继续暂缓。
 - **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
 - test 未读、r=0、S4 未启动；不宣布科学通过、不称泛化/SOTA。
