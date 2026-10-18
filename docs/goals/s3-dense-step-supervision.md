@@ -2,9 +2,9 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-dense-step-supervision", "driver": "scripts/study_r7_s3_dense_step_supervision.py", "output_stem": "r7_s3_dense_step_supervision_20261018", "control_record": "s3-wide-interior-dose", "paired_control_record": "s3-anchor-isolation-result", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_dense_step_supervision.py"], "commit_paths": ["scripts/study_r7_s3_dense_step_supervision.py", "tests/test_r7_s3_dense_step_supervision.py", "docs/goals/s3-dense-step-supervision.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): add the dense 12-step physical supervision single-factor driver", "register_paths": ["docs/R7_S3_DENSE_STEP_SUPERVISION_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the dense physical-step supervision run as a new evidence record", "code_archive": "outputs/r7_s3_dense_step_supervision_code.zip"} -->
+<!-- round-spec: {"arm": "s3-dense-step-supervision", "driver": "scripts/study_r7_s3_dense_step_supervision.py", "output_stem": "r7_s3_dense_step_supervision_20261018", "control_record": "s3-wide-interior-dose", "paired_control_record": "s3-anchor-isolation-result", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_dense_step_supervision.py"], "commit_paths": ["scripts/study_r7_s3_dense_step_supervision.py", "tests/test_r7_s3_dense_step_supervision.py", "docs/goals/s3-dense-step-supervision.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): add the dense 12-step physical supervision single-factor driver", "register_paths": ["docs/R7_S3_DENSE_STEP_SUPERVISION_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-dense-step-supervision.md"], "register_message": "feat(r7): register the dense physical-step supervision run as a new evidence record", "code_archive": "outputs/r7_s3_dense_step_supervision_code.zip"} -->
 
-状态 **CPU 实现与 CI-safe 测试已完成（2026-10-18）；待 commit-round / freeze / GPU**。唯一主计划
+状态 **已完成并登记（2026-10-18，三 seed 跑完、reading 完成）**。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接 H-D
 （`record:s3-anchor-isolation-result`，预声明出口未满足、气候态锚族已关闭），本轮回主线的
 **训练信号 / 目标组织**方向，取「直接监督覆盖（coverage）」这一此前从未单因素测过的缺口。
@@ -95,27 +95,26 @@ K/dim/depth/监督域、不与 anchor/feedback/architecture/容量组合、不�
 ## §6 进度与交接
 
 - **已定**：设计（§3）；登记名 `docs/R7_S3_DENSE_STEP_SUPERVISION_RESULT.md` / record
-  `s3-dense-step-supervision-result`（成功或失败同一命名）。
-- **已完成（2026-10-18）**：① 新驱动 `scripts/study_r7_s3_dense_step_supervision.py`（单臂 F，
-  复用 attempt04 父 pin 与 anchor-parent 模块，600 行，R-051 通过）；② 新测试
-  `tests/test_r7_s3_dense_step_supervision.py`（30 passed；在**无 `outputs/`** 的 clean checkout 中
-  同样 30 passed，含权重向量/支持集/总和反证、协议篡改 6 例反证、`decision_flags` 逐项失败反证、
-  全 17 变量解析反证、CPU smoke 接受 12 步密集权重）；③ `round-guard` 通过
-  （150 passed，commit-guard 37 条阻断规则 0 失败）；④ 真实 `_identity()` 只读 dry-run 通过
-  （model/training digest 未变、paired-control protocol 与 index 一致、parent pins 三 seed 齐全）；
-  ⑤ 父 checkpoint 在无锚当前模型上 `strict=True` 加载通过（3,286,037 参数）。
-- **待做**：`commit-round` → 重建 code zip → `freeze` → `stage prepare/archive/stage-seeds/reading`
-  → 四件套登记与精确 CI。
-- **父迁移前提**：本轮不改 `model/*.py`，当前 `model_code_sha256=3fe747b2…` 与 attempt04 迁移
-  回执一致，**不需要**新迁移；驱动仍逐 seed 复核迁移回执与 checkpoint SHA，不符即 `raise`。
-- **CI 安全**：上一轮因测试依赖 `outputs/` 让 CI 变红；本轮测试已在 `git archive HEAD` 的
-  无 `outputs/` clean checkout 中实跑 30 passed，且不读 test.jsonl。
-- **第一条命令**：`.venv/bin/python tools/r7_round.py round-guard` → 重建 zip →
-  `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/stage-seeds/reading`。
-- **本轮尚未开跑**：0 GPU-h；无读数、无结论。
+  `s3-dense-step-supervision-result`。
+- **已完成（2026-10-18）**：① 驱动/测试/round-guard（150 passed）/独立复核（clean、0 high）；② 实现 commit
+  `78d39c3` 的 CI 因 size-report 漂移（R-019b 1030→1053、R-021 105→107）变红，已在 `368e367` 修复并记录于
+  `docs/rules/size-thresholds.md`；③ `368e367` 的 `R7 CPU CI` run **39115016005 completed/success**；
+  ④ freeze/prepare/archive/seed41/seed42/seed43/reading 六阶段全 success；⑤ 三 seed 2400 updates + 五 lead
+  评分完成（cohort 472/468/460/444/428）；⑥ 证据页、index record、账本行、§8 与 campaign-state 已写。
+- **结果**：预声明出口 (a)(b)(d) 未满足、(c)(e) 满足 ⇒ `predeclared_exit_met=false`、
+  `identity_unresolved=false`；**dense physical-step supervision coverage 支已永久关闭**。
+  72h skill −0.176182/−0.263512/−0.159269；72h 候选−控制 Δ 均值 −0.004356 K（符号不一致）；
+  6/12/24h 候选一致更差（均值 +0.018372/+0.018395/+0.010863 K）；48h skill 三 seed 全正。
+- **成本**：**6.454096 GPU-h**（process 合计 23,234.744 s；两 seed 并发，和保守偏大）；soft/hard overrun 0；
+  网络 0；磁盘 ≈14 GiB；峰值 8,977,907,712 B（协议估计 9.5 GiB，高估 1.139 GiB）。
+- **不进 S4 冻结包**；test 未读、r=0、S4 未启动。
 
 ## §7 下一动作（S3）
 
-- CPU 实现与测试已完成。下一步：`round-guard`（已通过）→ `commit-round` → 重建 code zip →
-  `freeze` → 逐 stage GPU → 四件套登记。
-- 预声明出口见 §3；本轮**未产生任何读数**，不宣布通过、不关闭任何支。
+- dense coverage 支已按预声明**永久关闭**（不扫权重分配、不加 seed、不调 updates、不与 anchor/feedback/
+  architecture/容量组合）。
+- 下一根**训练信号 / 目标组织**方向的独立轴：**K 步草稿的单调改进约束**（后一草稿 loss 不差于前一草稿的
+  hinge；不增容量、不加数据、不改模型前向）。先写新的 round brief、先检索一手资料，再冻结协议。
+- 数据扩充按 D3 继续暂缓（仅当架构/训练信号/优化全无收益时才作为最后手段）。
+- 恢复第一条命令：`.venv/bin/python tools/r7_round.py state`。
+- test 未读、r=0、S4 未启动；不宣布科学通过、不称泛化/SOTA。
