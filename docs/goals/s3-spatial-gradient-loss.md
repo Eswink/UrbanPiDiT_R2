@@ -4,7 +4,8 @@
 
 <!-- round-spec: {"arm": "s3-spatial-gradient-loss", "driver": "scripts/study_r7_s3_spatial_gradient_loss.py", "output_stem": "r7_s3_spatial_gradient_loss_20261019", "control_record": "s3-anchor-isolation-result", "paired_control_record": "s3-anchor-isolation-result", "reference_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_spatial_gradient_loss.py"], "commit_paths": ["scripts/study_r7_s3_spatial_gradient_loss.py", "scripts/r7_s3_spatial_gradient_loss_text.py", "tests/test_r7_s3_spatial_gradient_loss.py", "training/r7_recursive_losses.py", "training/r7_autoregressive_rollout.py", "training/r7_long_rollout.py", "training/r7_long_rollout_runner.py", "docs/goals/s3-spatial-gradient-loss.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): add the spatial-gradient-loss single-factor driver", "register_paths": ["docs/R7_S3_SPATIAL_GRADIENT_LOSS_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-spatial-gradient-loss.md"], "register_message": "feat(r7): register the spatial-gradient-loss run as a new evidence record", "code_archive": "outputs/r7_s3_spatial_gradient_loss_code.zip"} -->
 
-状态 **实现完成、GPU 轮未开始（2026-10-19）**。唯一主计划
+状态 **已跑完并登记（2026-10-19）；预声明出口 (a) 未满足，该支永久关闭（mixed / not-candidate）**。
+证据页 `docs/R7_S3_SPATIAL_GRADIENT_LOSS_RESULT.md`、record `s3-spatial-gradient-loss-result`。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；承接训练信号/目标组织方向，接在已关闭的
 dense-step 与 draft-organization 两支之后。本轮只检验「注册 MSE 的平滑偏差在 2400 updates 下
 是否是约束」这一可证伪假设。
@@ -115,9 +116,17 @@ K/dim/depth/监督域/物理权重、不改 K 轴深监督与 final_weight、不
 - **已完成（2026-10-19，实现轮）**：① 训练损失新增 `gradient_lambda` 与
   `spatial_gradient_mse`，λ=0 走独立分支、逐位保持注册算术；② 新驱动、新 CI-safe 测试
   （合成张量/合成树/monkeypatch、含反证，不读 outputs/）；③ 本长文与 campaign-state 指针已写。
-- **未做**：freeze/prepare/archive/GPU 训练/评分/登记均未开始；`round-guard` 之后由 workflow
-  继续冻结与执行。
-- **下一动作（S3）**：通过 `round-guard` 后 `freeze` → `archive` → `stage-seeds` → `reading`；
-  若预声明出口失败则永久关闭本支，下一独立轴按主计划 §8 决定。
+- **已完成（2026-10-19，运行/登记轮）**：freeze → prepare → archive → seed41/42/43 → reading 全 success；
+  三 seed 2400 updates + 五 lead 全跑完（cohort 472/468/460/444/428），attempt01 无 `failure.json`。
+  结果：72h skill **−0.171537/−0.273893/−0.152612**（三 seed 全负）→ (a) false；72h 配对 Δ
+  **−0.004746/−0.004927/−0.005493 K**（三 seed 全负）→ (b) true；48h skill 三 seed 全正 → (c) true；
+  6/12/24h seed 均值 −0.000133/−0.000390/−0.001555 K → (d) true；桥 15/15 通过 → (e) true。
+  ⇒ 预声明出口未满足，**永久关闭空间梯度损失支**；证据页、index83、账本行与 campaign-state 已登记。
+  成本 8.125398 GPU-h（累计 142.407852），soft/hard overrun 0；实验 CI `39190391156` 绿；
+  编排回退修复 `c8ec54f` 的 CI `39222467616` 绿（只改调度器/测试，不改实验协议）。
+- **未做 / 不再做**：不扫 λ、不加 seed、不调 2400 updates、不与其他已关轴组合、不换名重开；
+  test 未读、S4 未启动。
+- **下一动作（S3）**：本支关闭；训练信号/目标组织方向的三支均已按预声明关闭。下一轮重新检索一手资料，
+  在仍允许的优化/表示方向另写 brief 并预声明出口；数据扩充按 D3 继续暂缓。
 - **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
 - test 未读、r=0、S4 未启动；不宣布科学通过、不称泛化/SOTA。
