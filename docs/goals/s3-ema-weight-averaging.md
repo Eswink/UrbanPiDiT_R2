@@ -4,7 +4,8 @@
 
 <!-- round-spec: {"arm": "s3-ema-weight-averaging", "driver": "scripts/study_r7_s3_ema_weight_averaging.py", "output_stem": "r7_s3_ema_weight_averaging_20261019", "control_record": "s3-anchor-isolation-result", "reference_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_ema_weight_averaging.py"], "commit_paths": ["scripts/study_r7_s3_ema_weight_averaging.py", "scripts/r7_s3_ema_weight_averaging_text.py", "tests/test_r7_s3_ema_weight_averaging.py", "training/r7_ema.py", "training/r7_long_rollout_runner.py", "docs/goals/s3-ema-weight-averaging.md", "docs/goals/main-model-climatology-campaign.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): add the EMA weight-averaging single-factor driver", "register_paths": ["docs/R7_S3_EMA_WEIGHT_AVERAGING_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-ema-weight-averaging.md"], "register_message": "feat(r7): register the EMA weight-averaging run as a new evidence record", "code_archive": "outputs/r7_s3_ema_weight_averaging_code.zip"} -->
 
-状态 **实现轮**（2026-10-19）：目标长文、新驱动、CI-safe 测试与训练侧 EMA 分支已写，尚未 freeze/训练。
+状态 **已跑完并登记（2026-10-20）；预声明出口 (a)–(d) 全未满足，该支永久关闭（negative / not-candidate）**。
+证据页 `docs/R7_S3_EMA_WEIGHT_AVERAGING_RESULT.md`、record `s3-ema-weight-averaging-result`。
 唯一主计划 `docs/goals/main-model-climatology-campaign.md`；承接训练信号/目标组织方向，接在已关闭的
 spatial-gradient/dense-step/draft-organization 三支之后（三支都按预声明关闭）。本轮只检验
 「2400 update 端点的残差里是否有一部分是优化噪声、可用同一轨迹的 EMA 权重过滤」这一可证伪假设。
@@ -108,8 +109,18 @@ architecture/容量/K 轴组织组合、不用 BEMA/SWA/checkpoint averaging 补
   在最终端点额外发布 `ema_update_0002400.pt`；`ema_decay=None` 时合同/报告逐字保持注册路径；
   ② 新驱动（派生自已登记 spatial-gradient 驱动）与新 CI-safe 测试（合成树/monkeypatch/反证，
   不读 `outputs/`）；③ 本长文与 campaign-state 指针已写。
-- **未做**：freeze / prepare / archive / GPU 训练 / reading / 登记；S4 未启动；test 未读。
-- **下一动作（S3）**：先跑 `round-guard`，再 `freeze` → `prepare` → `archive` → `stage-seeds` →
-  `reading`，按 §3 的 (a)–(e) 读数。
+- **已完成（2026-10-20，运行/登记轮）**：freeze → prepare → archive → seed41/42/43 → reading 全 success；
+  三 seed 2400 updates + 五 lead 全跑完（cohort 472/468/460/444/428），attempt01 无 `failure.json`。
+  结果：72h skill **−0.266241/−0.321691/−0.171025**（三 seed 全负）→ (a) false；72h 配对 Δ
+  **+0.137607/+0.064690/+0.022851 K**（三 seed 全正）→ (b) false；48h skill 非全正 → (c) false；
+  6/12/24h seed 均值 −0.029423/−0.026619/+0.018023 K → (d) false；桥 15/15 → (e) true。
+  ⇒ 预声明出口未满足，**永久关闭 plain EMA decay=0.999 支**；证据页、index84、账本行与 campaign-state
+  已登记。6/12h 三 seed 全改善、24/48/72h 三 seed 全退化；比较口径为 pinned 独立控制，
+  候选自己的最终优化器 checkpoint 已写出但未评分（limitation）。
+  成本 7.215982213 GPU-h（累计 149.623834），soft/hard overrun 0；实验 CI `39263655966` 绿。
+- **未做 / 不再做**：不扫 decay、不加 seed、不调 2400 updates、不与其他已关轴组合、不换名重开；
+  BEMA/SWA/checkpoint averaging 不作为补救；test 未读、S4 未启动。
+- **下一动作（S3）**：本支关闭；下一轮重新检索一手资料，在仍允许的表示或另一个优化机制方向另写 brief
+  并预声明出口；数据扩充按 D3 继续暂缓。
 - **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
 - test 未读、r=0、S4 未启动；不宣布科学通过、不称泛化/SOTA。
