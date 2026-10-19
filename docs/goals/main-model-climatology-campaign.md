@@ -1544,7 +1544,33 @@ test 未读、r=0、S4 未启动不变。
 - **为何停 + 恢复第一条命令**：本轮按预声明出口**正常结束**（不是被打断，无 hard overrun、无身份/资源门
   失败）；72h skill 三 seed 全负、72h 配对 Δ 三 seed 全正 ⇒ **永久关闭 plain EMA 支**。
   恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`，随后为新方向写新的 round brief。
-下一动作（S3）：plain EMA 支已关闭；优化/checkpoint 选择方向的本轮负结果说明，在同一 2400-update
-轨迹上做权重平均没有改善长 lead，反而损害 24–72 h。下一轮须重新检索一手资料，在仍允许的**表示**或
-另一个**优化机制**方向另写 brief 并预声明出口；不把「EMA 无效」外推成「所有权重平均无效」；数据扩充按
-D3 继续暂缓（仅当架构/训练信号/优化全无收益时才作为最后手段）；test 未读、r=0、S4 未启动不变。
+### 2026-10-20 — 残差目标参数化侦察**被阻断**：在本实例它不是可独立检验的单因子；未冻结、未跑 GPU、未登记 record
+
+- **做了什么**：按下一轮候选轴“训练目标从绝对状态改为 `Δ = state_{t+1} − state_t`”做只读侦察与代数核验；
+  没有写 goal brief、没有 freeze、没有 GPU、没有 index/账本行。
+- **为何阻断**：当前注册模型**已经是 persistence-anchored 残差解码器**：
+  `model/weather_forecaster_r7.py:113-126` 取 `base=history[:,-1]` 并调用 `head(..., base)`；
+  `model/coarse_forecast.py:98-108` 返回 `(base_state+tendency, tendency)`；local solver 也以
+  `Y_proposal = X_t + Decoder(Z)`、`Y_{k+1}=Y_k+g*(Y_proposal−Y_k)` 生成绝对草稿
+  （`model/local_solver_state_r7.py:187-209`）。训练损失对 `forecast` 与所有 `drafts` 同绝对
+  `physical_targets` 做 MSE（`training/r7_long_rollout.py:92-93`、`training/r7_recursive_losses.py:156-163`、
+  `data/r7_long_rollout_dataset.py:137-144`）。因此 `tendency` 对 `Δ=target−base` 的损失与注册
+  `forecast` 对 `target` 的损失在第一个物理步**代数恒等**；第 2 步起唯一差别是损失是否直接对上一预测
+  anchor 反传（detach/梯度路径变化），不是目标表示变化。实际用 `CoarseForecastHead(dim=8,out_channels=2,
+  patch_size=2)` 核验：`forecast == base + tendency` 逐位为真，absolute-target MSE 与 residual-target MSE
+  均为 `1.5828931331634521`，difference `0.0`。把这种代数重写叫“残差目标”会把梯度路径效应误归因为
+  表示效应。
+- **真正的残差参数化需要改模型前向**：把 decoder anchor 设为 0 或初始状态 `X_0`，或改 local solver
+  proposal；这会改 `model_code_sha256` 并很可能需要 parent migration/reset，违反本轮“模型前向与最后一层
+  不变、父权重全部不变”的单因子约束，只能另立**预声明模型改动轮**，不能换名重开。
+- **一手检索核对**：Stormer 2312.03876v2 §Methodology 用 `Δ_δt=X_δt−X_0`；GraphCast 2212.12794v2 §2
+  解码器对最近输入状态做 residual update；NeuralGCM 2311.07222v3 Fig.1 的 learned physics 输出 tendency
+  给 ODE solver；三者都是耦合系统，不是干净 target-only 消融。FNO RBC 2607.02088v1 §3.2 有
+  increment vs solution 的受控消融，但它是 4 变量（u/w/θ/p）、最多 1000 步自回归、且用 `Δt^{-1}` 缩放
+  与 relative L2，与已注册损失形式不同；不能直接当本实例先验。
+- **成本/登记**：0 GPU-h、0 网络、0 index record、0 账本行；不产生科学结论。
+- **下一动作（S3）**：若主线要测真残差参数化，另立“改 decoder anchor（base=0 或 `X_0`）”的模型单因子轮，
+  预声明新 `model_code_sha256`、parent migration/reset、正负控制与出口；或者换一个有第一手先验的表示/
+  优化机制。**不得**把上述代数重写换名成残差目标重开一轮。数据扩充按 D3 继续暂缓；test 未读、r=0、
+  S4 未启动不变。
+- **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
