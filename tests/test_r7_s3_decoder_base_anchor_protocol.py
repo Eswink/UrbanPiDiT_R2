@@ -303,5 +303,3 @@ def test_cpu_smoke_accepts_the_zero_base_training_path(tmp_path):
     saved = load_checkpoint(checkpoint)
     assert saved["contract"]["model"]["decoder_base_mode"] == "zero"
     assert all(torch.isfinite(torch.tensor(row["loss"])) for row in report["losses"])
-
-
