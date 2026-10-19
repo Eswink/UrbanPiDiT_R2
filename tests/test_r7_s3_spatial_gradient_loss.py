@@ -1,22 +1,18 @@
 """CI-safe checks for the spatial-gradient-loss driver and its loss branch.
-
 S3 adds the frozen ``L = L_mse + 0.1 * L_grad`` penalty on every draft of every
 physical step; ``gradient_lambda=0.0`` must stay bit-identical to the registered
 formula. Everything runs on synthetic tensors/specs/fixtures: nothing reads
 ``outputs/`` or ``test.jsonl``, and every frozen claim has a counterproof.
 """
 from __future__ import annotations
-
 import copy
 import csv
 import importlib.util
 import json
 from pathlib import Path
 import sys
-
 import pytest
 import torch
-
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -97,7 +93,9 @@ def _brute_gradient(prediction, target, latitude, mask):
                     weight = 0.5 * (cosine[row] + cosine[row + 1])
                     denominator = denominator + weight
                     for channel in range(channels):
-                        delta = (prediction[index, channel, row + 1, column] - prediction[index, channel, row, column]) - (target[index, channel, row + 1, column] - target[index, channel, row, column])
+                        pred_delta = prediction[index, channel, row + 1, column] - prediction[index, channel, row, column]
+                        target_delta = target[index, channel, row + 1, column] - target[index, channel, row, column]
+                        delta = pred_delta - target_delta
                         numerator = numerator + weight * delta.square()
         for row in range(height):
             for column in range(width - 1):
@@ -105,7 +103,9 @@ def _brute_gradient(prediction, target, latitude, mask):
                     weight = cosine[row]
                     denominator = denominator + weight
                     for channel in range(channels):
-                        delta = (prediction[index, channel, row, column + 1] - prediction[index, channel, row, column]) - (target[index, channel, row, column + 1] - target[index, channel, row, column])
+                        pred_delta = prediction[index, channel, row, column + 1] - prediction[index, channel, row, column]
+                        target_delta = target[index, channel, row, column + 1] - target[index, channel, row, column]
+                        delta = pred_delta - target_delta
                         numerator = numerator + weight * delta.square()
     return numerator / (denominator * channels)
 
