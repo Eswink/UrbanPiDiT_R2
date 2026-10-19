@@ -64,7 +64,8 @@ def _physical_targets(batch, history, physical_steps):
 
 def training_long_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], reasoning_steps: int = 4,
                           *, physical_weights, supervision_mask=None,
-                          draft_supervision=DRAFT_SUPERVISION_DEEP) -> LongTrainingRolloutOutput:
+                          draft_supervision=DRAFT_SUPERVISION_DEEP,
+                          gradient_lambda=0.0) -> LongTrainingRolloutOutput:
     """Weighted sum of unchanged K-axis draft losses over N physical 6 h steps.
 
     N is the number of physical weights, with no maximum horizon here. Known
@@ -77,6 +78,9 @@ def training_long_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], r
     registered objective unchanged. ``draft_supervision`` selects the K-axis
     organization (default ``deep``, bit-identical to the registered objective;
     ``final_only`` scores only the last draft of each physical step).
+    ``gradient_lambda`` optionally adds the frozen first-difference spatial
+    penalty to every draft on every physical step; ``0.0`` is a separate branch
+    that reproduces the registered loss bit for bit.
     """
     weights = validate_physical_weights(physical_weights)
     inputs = _training_inputs(model, batch, reasoning_steps)
@@ -86,7 +90,7 @@ def training_long_rollout(model: nn.Module, batch: Mapping[str, torch.Tensor], r
         forecast, drafts = _forward_final(model, inputs, reasoning_steps)
         forecasts.append(forecast)
         losses.append(_draft_loss(forecast, drafts, targets[:, step], batch.get("latitude"),
-                                  supervision_mask, draft_supervision))
+                                  supervision_mask, draft_supervision, gradient_lambda))
         if step + 1 < len(weights):
             next_inputs = _advance_inputs(inputs)
             history = inputs["coarse_history"]

@@ -14,6 +14,7 @@ from data.r7_long_rollout_dataset import ZarrLongRolloutDataset
 from .r7_long_rollout import training_long_rollout, validate_physical_weights
 from .r7_recursive_losses import (
     DRAFT_SUPERVISION_DEEP, DRAFT_SUPERVISION_FINAL_ONLY, DRAFT_SUPERVISION_MODES,
+    ZERO_GRADIENT_LAMBDA, require_gradient_lambda,
 )
 from .r7_autoregressive_runner import (
     SOURCE_FILES as AUTOREGRESSIVE_SOURCES, _bind, _finite_state, _output_path,
@@ -63,30 +64,51 @@ def _supervision_block(supervision_mask):
             "normalization": "mask-and-latitude weighted mean over the selected cells"}
 
 
-def _draft_semantics(draft_supervision):
+def _gradient_semantics(gradient_lambda):
+    """Extra contract/report fields for the spatial-gradient penalty.
+
+    ``0.0`` adds nothing, so the registered contract and report stay word for word
+    unchanged. A positive value records the frozen design coefficient and formula.
+    """
+    if gradient_lambda == ZERO_GRADIENT_LAMBDA:
+        return {}
+    return {"spatial_gradient_lambda": gradient_lambda,
+            "spatial_gradient_penalty": "latitude_weighted_first_difference_mse",
+            "spatial_gradient_pairs": "both endpoints inside the supervision mask; interior_32",
+            "spatial_gradient_application": ("per draft: L_mse + lambda * L_grad, then the "
+                                             "registered K-axis weights")}
+
+
+def _draft_semantics(draft_supervision, gradient_lambda=ZERO_GRADIENT_LAMBDA):
     """The frozen contract/report description of the K-axis organization.
 
     ``deep`` repeats the registered fields verbatim. ``final_only`` records the
-    actual objective instead of pretending the deep form is still in force.
+    actual objective instead of pretending the deep form is still in force. The
+    spatial-gradient fields are appended only when the penalty is active.
     """
     if draft_supervision == DRAFT_SUPERVISION_DEEP:
-        return {"draft_supervision": DRAFT_SUPERVISION_DEEP,
-                "internal_deep_supervision": True,
-                "objective": "deep_supervised_latitude_area_mse", "final_weight": 2.,
-                "k_weights": "linspace(1,2,K+1) normalized; initial plus every K draft"}
-    if draft_supervision == DRAFT_SUPERVISION_FINAL_ONLY:
-        return {"draft_supervision": DRAFT_SUPERVISION_FINAL_ONLY,
-                "internal_deep_supervision": False,
-                "objective": "final_draft_latitude_area_mse", "final_weight": 1.,
-                "k_weights": ("final draft only (weight 1.0); initial and intermediate "
-                              "drafts carry no direct target term")}
-    raise ValueError(f"draft_supervision must be one of {DRAFT_SUPERVISION_MODES}")
+        semantics = {"draft_supervision": DRAFT_SUPERVISION_DEEP,
+                     "internal_deep_supervision": True,
+                     "objective": "deep_supervised_latitude_area_mse", "final_weight": 2.,
+                     "k_weights": "linspace(1,2,K+1) normalized; initial plus every K draft"}
+    elif draft_supervision == DRAFT_SUPERVISION_FINAL_ONLY:
+        semantics = {"draft_supervision": DRAFT_SUPERVISION_FINAL_ONLY,
+                     "internal_deep_supervision": False,
+                     "objective": "final_draft_latitude_area_mse", "final_weight": 1.,
+                     "k_weights": ("final draft only (weight 1.0); initial and intermediate "
+                                   "drafts carry no direct target term")}
+    else:
+        raise ValueError(f"draft_supervision must be one of {DRAFT_SUPERVISION_MODES}")
+    semantics.update(_gradient_semantics(gradient_lambda))
+    return semantics
 
 
 def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
               weight_decay, device, batch_size, clip, checkpoint_every, physical_weights,
-              supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP):
+              supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP,
+              gradient_lambda=ZERO_GRADIENT_LAMBDA):
     contract = deepcopy(supplied)
+    gradient_lambda = require_gradient_lambda(gradient_lambda)
     identity, _ = dataset_identity(dataset.manifest)
     if identity != contract["data_identity"]:
         raise ValueError("actual training data identity differs from the frozen contract")
@@ -110,7 +132,7 @@ def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
                           "window_sha256": dataset.summary["window_sha256"], "windows": dataset.summary,
                           "excluded_sample_ids": dataset.summary["excluded_sample_ids"],
                           "supervision": _supervision_block(supervision_mask),
-                          **_draft_semantics(draft_supervision)})
+                          **_draft_semantics(draft_supervision, gradient_lambda)})
     return contract
 
 
@@ -121,7 +143,9 @@ def _update(model, optimizer, batch, contract, device, deadline, supervision_mas
                                   physical_weights=contract["autoregression"]["physical_weights"],
                                   supervision_mask=supervision_mask,
                                   draft_supervision=contract["autoregression"].get(
-                                      "draft_supervision", DRAFT_SUPERVISION_DEEP))
+                                      "draft_supervision", DRAFT_SUPERVISION_DEEP),
+                                  gradient_lambda=contract["autoregression"].get(
+                                      "spatial_gradient_lambda", ZERO_GRADIENT_LAMBDA))
     result.loss.backward()
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), contract["clip"], error_if_nonfinite=True)
     if deadline is not None:
@@ -166,10 +190,12 @@ def _run_updates(dataset, folder, model, optimizer, contract, signature, deadlin
 def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weights, parent_weights=None,
                           steps=4, updates=200, seed=0, lr=2e-5, warmup=10, weight_decay=1e-4,
                           deadline=None, checkpoint_every=20, device_name="cpu", batch_size=1, clip=1.,
-                          supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP):
+                          supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP,
+                          gradient_lambda=ZERO_GRADIENT_LAMBDA):
     weights = validate_physical_weights(physical_weights)
     if draft_supervision not in DRAFT_SUPERVISION_MODES:
         raise ValueError(f"draft_supervision must be one of {DRAFT_SUPERVISION_MODES}")
+    gradient_lambda = require_gradient_lambda(gradient_lambda)
     _validate_options(steps=steps, updates=updates, seed=seed, mode="two_step", lr=lr, warmup=warmup,
                       weight_decay=weight_decay, bf16=False, batch_size=batch_size, clip=clip,
                       lambda12=0., checkpoint_every=checkpoint_every, deadline=deadline)
@@ -185,6 +211,8 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
         raise ValueError("physical steps/weights/window digest must be predeclared exactly")
     if declared.get("draft_supervision", DRAFT_SUPERVISION_DEEP) != draft_supervision:
         raise ValueError("the declared draft supervision organization differs from the actual run")
+    if require_gradient_lambda(declared.get("spatial_gradient_lambda", ZERO_GRADIENT_LAMBDA)) != gradient_lambda:
+        raise ValueError("the declared spatial gradient lambda differs from the actual run")
     dataset = ZarrLongRolloutDataset(manifest, physical_steps=len(weights),
         expected_exclusions=declared.get("excluded_sample_ids", ()),
         expected_window_sha256=declared["window_sha256"])
@@ -193,7 +221,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                       lr=lr, warmup=warmup, weight_decay=weight_decay, device=device,
                       batch_size=batch_size, clip=clip, checkpoint_every=checkpoint_every,
                       physical_weights=weights, supervision_mask=supervision_mask,
-                      draft_supervision=draft_supervision)
+                      draft_supervision=draft_supervision, gradient_lambda=gradient_lambda)
     signature = canonical_digest(bound)
     if deadline is not None:
         _check_deadline(deadline)
@@ -207,7 +235,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                                           supervision_mask)
         if deadline is not None:
             _check_deadline(deadline)
-        semantics = _draft_semantics(draft_supervision)
+        semantics = _draft_semantics(draft_supervision, gradient_lambda)
         report = {"scientific_claim": False, "limitations": LIMITATIONS, "test_read": False,
                   "contract": bound, "signature": signature, "protocol_sha256": bound["protocol_sha256"],
                   "model_code_sha256": bound["model_code_sha256"], "source_sha256": bound["source_sha256"],
@@ -224,6 +252,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                   "parent_optimizer_imported": False, "bf16": False, "device_type": device.type,
                   "windows": dataset.summary,
                   "reproducibility": "config-reproducible; no failed-attempt resume or bitwise GPU promise"}
+        report.update(_gradient_semantics(gradient_lambda))
         _write_json(folder / "training_report.json", report)
         return checkpoint, report
     except BaseException as exc:

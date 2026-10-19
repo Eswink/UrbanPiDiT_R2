@@ -138,7 +138,7 @@ def _forward_final(model, inputs, reasoning_steps):
 
 
 def _draft_loss(forecast, drafts, target, latitude, mask=None,
-                draft_supervision=DRAFT_SUPERVISION_DEEP):
+                draft_supervision=DRAFT_SUPERVISION_DEEP, gradient_lambda=0.0):
     if not torch.is_tensor(target) or not target.is_floating_point() or target.device != forecast.device:
         raise ValueError("training target must be floating on the forecast device")
     # Strict shape/finite/latitude validation before the existing objective; this
@@ -146,7 +146,8 @@ def _draft_loss(forecast, drafts, target, latitude, mask=None,
     per_sample_latitude_mse(forecast, target, latitude)
     with torch.autocast(forecast.device.type, enabled=False):
         loss = deep_supervised_forecast_mse(drafts.float(), target.float(), latitude, final_weight=2.,
-                                            mask=mask, draft_supervision=draft_supervision)
+                                            mask=mask, draft_supervision=draft_supervision,
+                                            gradient_lambda=gradient_lambda)
     if loss.dtype != torch.float32 or not torch.isfinite(loss):
         raise ValueError("deep-supervised training loss must be finite FP32")
     return loss
