@@ -510,6 +510,28 @@ def test_run_seeds_never_puts_two_workers_on_one_card(support, tmp_path):
     assert sorted(record["seed"] for record in result["seeds"]) == [41, 42, 43]
 
 
+def test_run_seeds_uses_another_free_card_when_the_preferred_one_is_short(support, tmp_path):
+    """Rotation is a preference: a blocked first choice must not pin the seed to it."""
+    _protocol_file(tmp_path, gpu_uuids=["GPU-a", "GPU-b"], estimated_peak_bytes=0,
+                   headroom_margin_bytes=0, neighbour_reserve_bytes=6 * 2**30)
+    # Only seed 42 is pending, so its rotation starts at the second card.
+    (tmp_path / "seed41_receipt.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "seed43_receipt.json").write_text("{}", encoding="utf-8")
+    cards = []
+
+    def runner(argv, cwd=None, env=None, timeout=None):
+        if argv[0] == "nvidia-smi":
+            return _ok("GPU-a, 30000, 24576\nGPU-b, 1000, 24576\n")
+        cards.append((env or {}).get("CUDA_VISIBLE_DEVICES"))
+        return _ok()
+
+    result = support.run_seeds(tmp_path, {"driver": "scripts/study_fake.py", "seeds": [41, 42, 43]},
+                               runner=runner, clock=lambda: 1000.0, wait_seconds=0.0, poll_seconds=0.0)
+    assert result["passed"] is True and result["headroom_blocked"] == []
+    assert cards == ["GPU-a"], "the free card that clears the gate must host the seed"
+    assert result["seeds"][-1]["seed"] == 42 and result["seeds"][-1]["device"] == "GPU-a"
+
+
 def test_run_seeds_stops_starting_seeds_after_a_failure(support, tmp_path):
     _protocol_file(tmp_path, gpu_uuids=["GPU-a"], neighbour_reserve_bytes=0)
     started = []

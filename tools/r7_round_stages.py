@@ -244,6 +244,7 @@ def run_stage(
     runner: Callable[..., dict[str, Any]] | None = None,
     clock: Callable[[], float] | None = None,
     device: str | None = None,
+    gate: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run exactly one driver stage, skipping it when its receipt already exists.
 
@@ -272,34 +273,38 @@ def run_stage(
     limit = min(deadline, now() + per_seed) if phase == "seed" else deadline
     if limit <= now():
         raise RoundError(f"the round's hard deadline has already passed; refusing to spawn {phase}")
-    gate = None
+    observed_gate = gate
     if phase in {"seed", "reading"}:
-        # The protocol's ``estimated_peak_bytes`` is a freeze-time guess; a finished
-        # seed's receipt carries what the run actually reserved. Gate on the larger of
-        # the two, so an already-measured footprint cannot be under-declared.
-        owned_peak = max(int(body.get("owned_reserved_peak_bytes", 0)), measured_peak_bytes(output))
-        if device is None:
-            gate = gpu_headroom(
-                body["gpu_uuid"],
-                estimated_peak_bytes=int(body["estimated_peak_bytes"]),
-                owned_reserved_peak_bytes=owned_peak,
-                margin_bytes=int(body["headroom_margin_bytes"]),
-                runner=runner,
-            )
-        else:
-            # A protocol that names its cards takes the multi-card path (decision 0047):
-            # the parent already picked this stage's card, so only that one is probed, and
-            # the declared neighbour reserve is added on top of footprint and margin.
-            gate = devices.gate_candidates(
-                [device],
-                estimated_peak_bytes=int(body["estimated_peak_bytes"]),
-                owned_reserved_peak_bytes=owned_peak,
-                margin_bytes=int(body["headroom_margin_bytes"]),
-                reserve_bytes=int(body.get("neighbour_reserve_bytes", 0)),
-                runner=runner,
-            )
-        if not gate["passed"]:
-            return {**plan, "status": "headroom-blocked", "passed": False, "gate": gate}
+        if observed_gate is None:
+            # The protocol's ``estimated_peak_bytes`` is a freeze-time guess; a finished
+            # seed's receipt carries what the run actually reserved. Gate on the larger of
+            # the two, so an already-measured footprint cannot be under-declared.
+            owned_peak = max(int(body.get("owned_reserved_peak_bytes", 0)), measured_peak_bytes(output))
+            if device is None:
+                observed_gate = gpu_headroom(
+                    body["gpu_uuid"],
+                    estimated_peak_bytes=int(body["estimated_peak_bytes"]),
+                    owned_reserved_peak_bytes=owned_peak,
+                    margin_bytes=int(body["headroom_margin_bytes"]),
+                    runner=runner,
+                )
+            else:
+                # A protocol that names its cards takes the multi-card path (decision 0047):
+                # the parent already picked this stage's card, so only that one is probed, and
+                # the declared neighbour reserve is added on top of footprint and margin.
+                observed_gate = devices.gate_candidates(
+                    [device],
+                    estimated_peak_bytes=int(body["estimated_peak_bytes"]),
+                    owned_reserved_peak_bytes=owned_peak,
+                    margin_bytes=int(body["headroom_margin_bytes"]),
+                    reserve_bytes=int(body.get("neighbour_reserve_bytes", 0)),
+                    runner=runner,
+                )
+        if not observed_gate["passed"]:
+            return {**plan, "status": "headroom-blocked", "passed": False, "gate": observed_gate}
+        # A scheduler that probes several cards hands back the card that cleared the gate.
+        if device is not None and observed_gate.get("uuid"):
+            device = observed_gate["uuid"]
     argv = [PYTHON, str(base / driver_rel), "--worker", phase, "--out", str(output), "--deadline", str(limit)]
     if seed is not None:
         argv += ["--seed", str(seed)]
@@ -320,7 +325,7 @@ def run_stage(
         "elapsed_seconds": elapsed,
         "soft_overrun_seconds": max(0.0, elapsed - float(body["planned_seconds"])),
         "hard_overrun_seconds": max(0.0, elapsed - float(body["hard_cap_seconds"])),
-        "gate": gate,
+        "gate": observed_gate,
         "receipt": str(stage_receipt(output, phase, seed)),
         "stdout_tail": result["stdout"].strip().splitlines()[-5:],
         "stderr_tail": result["stderr"].strip().splitlines()[-5:],
@@ -368,15 +373,28 @@ def run_seeds(
     pending = [seed for seed in spec["seeds"] if not stage_receipt(output, "seed", seed).is_file()]
     deadlines = {seed: now() + wait_seconds for seed in pending}
     free, records, stop = list(uuids), [], False
+    owned_peak = max(int(body.get("owned_reserved_peak_bytes", 0)), measured_peak_bytes(output))
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(uuids)) as pool:
         running: dict[Any, tuple[int, str]] = {}
         while (pending and not stop) or running:
             while pending and free and not stop:
                 seed = pending.pop(0)
-                device = next(card for card in devices.seed_order(uuids, order[seed]) if card in free)
+                candidates = [card for card in devices.seed_order(uuids, order[seed]) if card in free]
+                # Probe every free card in the seed's preference order before spawning: a
+                # blocked first choice must not pin the seed to that card when another free
+                # card clears the same frozen gate. The gate is still the protocol's.
+                gate = devices.gate_candidates(
+                    candidates,
+                    estimated_peak_bytes=int(body["estimated_peak_bytes"]),
+                    owned_reserved_peak_bytes=owned_peak,
+                    margin_bytes=int(body["headroom_margin_bytes"]),
+                    reserve_bytes=int(body.get("neighbour_reserve_bytes", 0)),
+                    runner=runner,
+                )
+                device = gate["uuid"] if gate["passed"] else candidates[0]
                 free.remove(device)
                 future = pool.submit(run_stage, output, driver, "seed", seed=seed, root=root,
-                                     runner=runner, clock=clock, device=device)
+                                     runner=runner, clock=clock, device=device, gate=gate)
                 running[future] = (seed, device)
             if not running:
                 break
