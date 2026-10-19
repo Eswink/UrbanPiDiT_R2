@@ -24,13 +24,19 @@ class R7ForecastOutput:
 
 class NativeAtmosForecaster(nn.Module):
     """Native-grid atmospheric transitions; ceil patching preserves finite edges."""
+    #: The decoder's base semantics: the registered persistence anchor or a zero base.
+    #: A zero base makes the decoded tendency the forecast (and every anchored proposal
+    #: its own tendency); it is one switch, not a reparameterization of the head.
+    DECODER_BASE_MODES = ("persistence", "zero")
+
     def __init__(self,in_channels:int,history_steps:int=2,out_channels:Optional[int]=None,
                  dim:int=128,patch_size:int=2,depth:int=4,heads:int=4,window_size:int=8,
                  dropout:float=0.,activation_checkpointing:bool=False,periodic_width:bool=False,
                  default_lead_hours:float=6.,spacetime_inputs:bool=False,
                  spacetime_field_mode:str='fields',known_context_inputs:bool=False,
                  change_scale_mode:str='identity',change_scale_ratio=None,
-                 climatology_anchor_spec=None,anchor_output_prior:bool=True):
+                 climatology_anchor_spec=None,anchor_output_prior:bool=True,
+                 decoder_base_mode:str='persistence'):
         super().__init__()
         if type(known_context_inputs) is not bool:
             raise ValueError('known_context_inputs must be boolean')
@@ -42,6 +48,18 @@ class NativeAtmosForecaster(nn.Module):
         # single factor instead of a package.
         if type(anchor_output_prior) is not bool:
             raise ValueError('anchor_output_prior must be boolean')
+        if decoder_base_mode not in self.DECODER_BASE_MODES:
+            raise ValueError(f"decoder_base_mode must be one of {self.DECODER_BASE_MODES}")
+        if (decoder_base_mode == 'zero' and anchor_output_prior
+                and climatology_anchor_spec is not None):
+            # With the climatology output prior on, the head anchor is C_valid, not the
+            # base, so zeroing the base would desynchronize the head anchor from the
+            # base_state and the local solver. Reject the combination instead of
+            # silently applying a different factor.
+            raise ValueError("decoder_base_mode='zero' with the climatology output prior "
+                             "would leave the decoder's head anchor on C_valid; set "
+                             "anchor_output_prior=False")
+        self.decoder_base_mode=str(decoder_base_mode)
         self.anchor_output_prior=anchor_output_prior
         self.known_context_inputs=known_context_inputs
         if type(spacetime_inputs) is not bool:
@@ -113,6 +131,13 @@ class NativeAtmosForecaster(nn.Module):
         base=batch.get('atmos_baseline')
         if base is None:
             base=history[:,-1,:self.out_channels]
+        # One switch with two consumers by construction: the decoder's direct anchor
+        # and ``R7ForecastOutput.base_state`` are the same tensor, so a zero base also
+        # makes every downstream anchored proposal (``Y = X_t + Decoder(Z)``) its own
+        # tendency. The persistence path below is the pre-change body, operation for
+        # operation; nothing else reads ``decoder_base_mode``.
+        if self.decoder_base_mode=='zero':
+            base=torch.zeros_like(base)
         if self.climatology_anchor is not None:
             climate=self.climatology_anchor(batch,history,
                 default_lead_hours=self.default_lead_hours)

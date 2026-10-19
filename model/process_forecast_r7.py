@@ -205,6 +205,7 @@ class ProcessForecastCoReasoner(nn.Module):
         process_init_conditioning:bool=False,
         global_mixing_mode:Optional[str]=None, global_mixing=None,
         anchor_output_prior:bool=True,
+        decoder_base_mode:str='persistence',
     ):
         super().__init__()
         _validate_switches(
@@ -287,7 +288,7 @@ class ProcessForecastCoReasoner(nn.Module):
             known_context_inputs=self.known_context_inputs,
             change_scale_mode=change_scale_mode,
             change_scale_ratio=change_scale_ratio,
-            anchor_output_prior=anchor_output_prior,
+            anchor_output_prior=anchor_output_prior,decoder_base_mode=decoder_base_mode,
         )
 
         self.process_queries=nn.Parameter(
@@ -370,6 +371,10 @@ class ProcessForecastCoReasoner(nn.Module):
         It carries no trainable tensor and is attached after every weight exists, so it cannot
         move one; the two persistent buffers it adds are the only new state-dict keys.
         """
+        if self.backbone.decoder_base_mode == 'zero' and self.backbone.anchor_output_prior:
+            raise ValueError("decoder_base_mode='zero' with the climatology output prior "
+                             "would leave the decoder's head anchor on C_valid; set "
+                             "anchor_output_prior=False")
         from .climatology_anchor_r7 import TrainClimatologyAnchor
         self.backbone.climatology_anchor=TrainClimatologyAnchor(spec)
         if self.backbone.climatology_anchor.table.shape[1]!=self.out_channels:
