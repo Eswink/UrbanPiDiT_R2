@@ -15,7 +15,9 @@ DESIGN_DECISION_TEXT = (
     "trainable parameters; reductions run in float64; if dot(g_A,g_B) < 0 then "
     "g_A <- g_A - (dot/||g_B||^2) g_B, otherwise unchanged; update = g_A + g_B; then the "
     "existing clip_grad_norm_ (clip=1) and optimizer.step. The order is fixed A -> B (a "
-    "predeclared 2-task specialization of PCGrad Algorithm 1; no random order is added).")
+    "predeclared one-sided specialization: only g_A is projected onto g_B's normal plane; "
+    "g_B is unchanged, and this is not the symmetric two-way PCGrad Algorithm 1; no random "
+    "order is added).")
 DECISION_RULE_TEXT = (
     "Report only; no scientific pass is declared. Predeclared exit, no new thresholds: (a) the "
     "candidate's 72 h interior_32 t2m skill is > 0 on seeds 41/42/43; (b) same-seed candidate "

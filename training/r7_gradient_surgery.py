@@ -2,16 +2,17 @@
 
 The registered objective is a single scalar: the weighted sum of twelve physical-step
 losses.  This module keeps that scalar definition and splits the *weighted* nonzero
-steps into two predeclared groups, then applies the PCGrad rule (arXiv:2001.06782v4,
-Algorithm 1) to the two group gradients:
+steps into two predeclared groups, then applies a **one-sided** PCGrad-style rule
+(arXiv:2001.06782v4, projection idea) to the two group gradients:
 
     group A = steps 0/1/3 (6/12/24 h), weights 1.0/0.5/0.5
     group B = steps 7/11 (48/72 h),  weights 0.5/0.5
 
 If ``dot(g_A, g_B) < 0`` then ``g_A <- g_A - (dot / ||g_B||^2) g_B``; otherwise both
-groups are unchanged. The update is ``g_A + g_B``. The order is fixed A then B, the
-projection is global (one dot over all trainable parameters), and the reductions run
-in float64.  Zero-weight steps belong to neither group; they still advance the
+groups are unchanged. The update is ``g_A + g_B``. Only ``g_A`` is projected; ``g_B``
+is never modified, so this is not the symmetric two-way PCGrad Algorithm 1. The order
+is fixed A then B, the projection is global (one dot over all trainable parameters),
+and the reductions run in float64.  Zero-weight steps belong to neither group; they still advance the
 physical history exactly as registered.
 
 The off path is deliberately a separate branch in the runner (``loss.backward()``);

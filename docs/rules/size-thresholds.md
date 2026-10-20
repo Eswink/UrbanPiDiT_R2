@@ -7,7 +7,18 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=1106 R-020=66 R-021=115 R-022=66 R-023=47 -->
+<!-- measured: R-019=0 R-019b=1106 R-020=66 R-021=117 R-022=67 R-023=47 -->
+
+**2026-10-20 gradient-surgery 驱动复算（暂存集合实测）**：R-021 **115→117**、R-022 **66→67**；
+R-019=0、R-019b=1106、R-020=66、R-023=47 保持。R-021 的两处增长来自本轮新增的
+`scripts/study_r7_s3_gradient_surgery.py`（522 行）与
+`tests/test_r7_s3_gradient_surgery_protocol.py`（491 行），两者均 >400 目标、≤600 硬限；
+R-022 的唯一增长是 `tests/test_r7_s3_gradient_surgery_protocol.py` 中
+`test_validate_protocol_rejects_tampered_blocks_budget_and_digest` 的 7 层嵌套（上限 5）。
+`tests/test_r7_s3_gradient_surgery.py`（371 行）、`scripts/r7_s3_gradient_surgery_support.py`
+（302 行）、`scripts/r7_s3_gradient_surgery_text.py`（80 行）与
+`training/r7_gradient_surgery.py`（207 行）均在 400 行目标带内；最长函数体在 R-052 200 行硬限内。
+**未改规则级别、阈值或冻结例外清单。**
 
 **2026-10-20 decoder-anchor 驱动复算（暂存集合实测）**：R-021 **113→115**、R-022 **65→66**；
 R-019=0、R-019b=1106、R-020=66、R-023=47 保持。R-021 的两处增长来自本轮新增的
