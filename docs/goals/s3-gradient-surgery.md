@@ -4,7 +4,8 @@
 
 <!-- round-spec: {"arm": "s3-gradient-surgery", "driver": "scripts/study_r7_s3_gradient_surgery.py", "output_stem": "r7_s3_gradient_surgery_20261020", "control_record": "s3-anchor-isolation-result", "reference_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_gradient_surgery.py", "tests/test_r7_s3_gradient_surgery_protocol.py"], "commit_paths": ["training/r7_long_rollout_runner.py", "training/r7_gradient_surgery.py", "scripts/study_r7_s3_gradient_surgery.py", "scripts/r7_s3_gradient_surgery_support.py", "scripts/r7_s3_gradient_surgery_text.py", "tests/test_r7_s3_gradient_surgery.py", "tests/test_r7_s3_gradient_surgery_protocol.py", "docs/goals/s3-gradient-surgery.md", "docs/goals/main-model-climatology-campaign.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): add the short/long gradient-surgery single-factor driver", "register_paths": ["docs/R7_S3_GRADIENT_SURGERY_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-gradient-surgery.md"], "register_message": "feat(r7): register the gradient-surgery run as a new evidence record", "code_archive": "outputs/r7_s3_gradient_surgery_code.zip"} -->
 
-状态 **实现中：单因素驱动与 CI-safe 测试已派生，尚未冻结/未跑 GPU、未登记**（2026-10-20）。
+状态 **完成：mixed / not-candidate，支永久关闭**（2026-10-20）。三 seed 跑完；冲突与投影
+真实发生（17.4%–18.8% 的 update），但物理效应只有 1e-4 K 量级，预声明出口 (a)(b)(d) 未满足。
 唯一主计划 `docs/goals/main-model-climatology-campaign.md`；本轮承接 decoder 负结果
 （`record:s3-decoder-base-anchor-result`）之后的训练信号方向：只改反向传播中的梯度手术，
 不改模型、数据、父、预算或任何已关轴。
@@ -158,10 +159,32 @@ output scale、不引入随机任务顺序 RNG、不与 anchor/feedback/architec
   3. 父迁移复用 decoder 轮 receipt `002f0843…`，逐 seed digest 由 `expand_parent_state`
      断言；控制 spec 断言逐字段相等；控制训练代码 pin `8ad77d93…`。
   4. 本长文与 campaign-state 指针已写。
-- **未做**：未冻结 protocol、未建 code.zip、未跑 GPU、未登记证据页/index/brief/账本；
-  `round-guard` 将在实现提交前实跑并记录。test 未读、r=0、S4 未启动。
-- **下一动作（S3）**：实现提交 → `freeze`/`prepare`/`archive` → `stage-seeds` 三 seed →
-  `reading` → 按 §3 预声明出口读；全真才提请独立复核，任一科学出口假即永久关支；
-  身份失败只修工程原因。
+- **运行与登记（2026-10-20）**：实现提交 `7a31fb8` 的 CI 因 `size-thresholds.md` 标记漂移
+  为红；机械修复并改正 one-sided 措辞后 `97d2910` 的 `R7 CPU CI` **39404683289** green。
+  `freeze` → `prepare`（411.951 s）→ `archive`（427.177 s）→ 三 seed（8284.794/8374.811/
+  9901.152 s，全 success）→ `reading`（403.761 s）全 success；attempt
+  `outputs/r7_s3_gradient_surgery_20261020_attempt01/`。
+- **读数（预声明出口）**：三 seed 2400 updates + 五 lead 全跑完（cohort 472/468/460/444/428）。
+  (a) 72h `interior_32` t2m skill **−0.174434/−0.277317/−0.155566**（三 seed 全负）→ **false**；
+  (b) 候选−控制 72h Δrmse **−0.000307/+0.000103/−0.000931 K**（非全负）→ **false**；
+  (c) 48h skill **+0.061437/+0.027831/+0.113059**（三 seed 全正）→ **true**；
+  (d) 6/12/24h seed 均值 Δ **+0.000162/+0.000287/−0.000019 K**（6/12h 为正）→ **false**；
+  (e) 桥 N−A 在 **−4.787001e-6…+1.778038e-5 K**（15/15）→ **true**。
+  ⇒ `scientific_exit_met=false`、`predeclared_exit_met=false`、`identity_unresolved=false`：
+  **按预声明永久关闭 short/long one-sided gradient surgery 支**（不扫组定义/系数/顺序、不加 seed、
+  不改 updates/LR/warmup/clip/head reset、不与已关轴组合、不换名重开）。三 seed 冲突
+  417/445/452 次（17.4%–18.8%），投影真实发生；48h 三 seed 略优（−0.00016…−0.00058 K），
+  6/12h 三 seed 略差（+0.00010…+0.00046 K），72h 方向不一致且 skill 仍全负。这是
+  **mixed/negative**，不是 null/inert，也不是正结果；不能把 48h 微小改善读成“长 lead 解决”。
+- **成本**：process 合计 27,803.646 s、**7.723234917 GPU-h**（prepare 0.114431 + archive
+  0.118660 + seed41 2.301332 + seed42 2.326336 + seed43 2.750320 + reading 0.112156）；
+  墙钟 19,450.883 s（5.4030 h）；soft/hard overrun 均 0；网络 0；磁盘 19.52 GiB；
+  峰值 9,045,016,576 B = 8.423 GiB（协议估计 9.5 GiB，高估约 1.08 GiB）；累计
+  **157.289621 → 165.012856 GPU-h**。
+- **登记**：证据页 `docs/R7_S3_GRADIENT_SURGERY_RESULT.md`、record
+  `s3-gradient-surgery-result`（index86）、账本行、§8 与 campaign-state；**不进 S4 冻结包**。
+- **无未做项**：`test` 未读、r=0、S4 未启动。
+- **下一动作（S3）**：本轮支已永久关闭；回到 `docs/goals/main-model-climatology-campaign.md` §8，
+  基于本轮混合结果另选独立因子。`test` 未读、r=0、S4 未启动。
 - **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
 - 不宣布科学通过、不称泛化/SOTA。
