@@ -1614,8 +1614,10 @@ test 未读、r=0、S4 未启动不变。
   anchor/dose 两条 record 追加 `correction_record_id`。**不进 S4 冻结包。**
 - **CI 如实**：实验 commit `a6f7a14` 的 `R7 CPU CI` run **`39344273382` completed/success**；
   前一提交 `df76556` 的 CI 为红（测试文件 EOF 空行 + 尺寸标记漂移，机械修复），未进入 freeze；
-  另 17 条标签 workflow `skipped` 是设计行为、非实验 PASS。登记 commit 与它的精确 CI 见登记提交后的
-  回填/下一提交。
+  另 17 条标签 workflow `skipped` 是设计行为、非实验 PASS。登记 commit `8bddaeb` 的 `R7 CPU CI`
+  run **`39374940203` completed/success**；证据指针回填 commit `62528d0` 的 run
+  **`39376746943` completed/success**；§8 下一动作指针 commit `8660bdd` 的 run
+  **`39378050885` completed/success**。
 - **运行记录**：attempt `outputs/r7_s3_decoder_base_anchor_20261020_attempt01/`（六阶段全 success、
   `exit_code=0`、无 `failure.json`）；seed41 在卡 0，seed42 在卡 1，seed41 完成后 seed43 使用卡 0；
   每次 spawn 前只读核对 `估计峰值 + margin + 6 GiB 邻接预留` 门，**未对邻居进程发送任何信号**（R-054）。
