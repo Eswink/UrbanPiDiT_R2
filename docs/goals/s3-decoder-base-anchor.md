@@ -4,8 +4,9 @@
 
 <!-- round-spec: {"arm": "s3-decoder-base-anchor", "driver": "scripts/study_r7_s3_decoder_base_anchor.py", "output_stem": "r7_s3_decoder_base_anchor_20261020", "control_record": "s3-anchor-isolation-result", "reference_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_decoder_base_anchor.py", "tests/test_r7_s3_decoder_base_anchor_protocol.py"], "commit_paths": ["model/weather_forecaster_r7.py", "model/process_forecast_r7.py", "scripts/r7_s3_decoder_base_anchor_parent.py", "scripts/r7_s3_decoder_base_anchor_support.py", "scripts/r7_s3_decoder_base_anchor_text.py", "scripts/study_r7_s3_decoder_base_anchor.py", "tests/test_r7_s3_decoder_base_anchor.py", "tests/test_r7_s3_decoder_base_anchor_protocol.py", "docs/goals/s3-decoder-base-anchor.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): add the zero-base decoder single-factor driver [model-digest-change]", "register_paths": ["docs/R7_S3_DECODER_BASE_ANCHOR_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-decoder-base-anchor.md"], "register_message": "feat(r7): register the zero-base decoder run as a new evidence record", "code_archive": "outputs/r7_s3_decoder_base_anchor_code.zip"} -->
 
-状态 **实现完成、待 freeze/GPU**（2026-10-20）。唯一主计划
-`docs/goals/main-model-climatology-campaign.md`；承接已登记的 EMA 负结果
+状态 **完成：negative / not-candidate，支永久关闭**（2026-10-20）。三 seed 跑完，预声明出口
+(a)–(d) 全未满足、(e) 通过；zero-base 在全部 15 个 seed×lead 单元上差于 pinned 控制。
+唯一主计划 `docs/goals/main-model-climatology-campaign.md`；承接已登记的 EMA 负结果
 （`record:s3-ema-weight-averaging-result`）与「残差目标参数化侦察被阻断」条目所指明的、唯一可辩护的
 后续：**另立预声明模型改动轮**，只改 decoder 的 base 语义。
 
@@ -175,8 +176,29 @@ LR/warmup/K/dim/depth/监督域/物理权重、不 reset 输出头、不改 chan
      seed41 的父迁移装载 + 129×129 zero-base forward（`base_state` 全 0、head 输出 == tendency）
      集成检查通过。`model_code_sha256=bec3859f…`、migration receipt `002f0843…`、逐 seed
      state_digest 与 expanded/anchor_init digest 已核对。
-- **未做 / 待做**：尚未 freeze、未跑 GPU、未评分、未登记；无读数、无结论；code zip 尚未重建。
-- **下一动作（S3）**：`round-guard` → 重建 code zip → `freeze` → `stage prepare/archive/stage-seeds/reading`
-  → 按预声明出口读数并按四件套登记；`test` 未读、r=0、S4 未启动。
+- **运行与登记（2026-10-20）**：实验 commit `a6f7a14`（`R7 CPU CI` **39344273382** green；
+  前一提交 `df76556` 的 CI 因测试文件 EOF 空行与尺寸标记漂移为红，机械修复后重建 code.zip）。
+  `freeze` → `prepare` → `archive` → 三 seed（8260.966/9265.008/8798.317 s，全 success）→ `reading`
+  全 success；attempt `outputs/r7_s3_decoder_base_anchor_20261020_attempt01/`。
+- **读数（预声明出口）**：三 seed 2400 updates + 五 lead 全跑完（cohort 472/468/460/444/428）。
+  (a) 72h `interior_32` t2m skill **−1.366793/−1.234491/−1.236888**（三 seed 全负）→ **false**；
+  (b) 候选−控制 72h Δrmse **+1.508636/+1.210100/+1.394940 K**（三 seed 全正，均值 +1.371225）→ **false**；
+  (c) 48h skill **−1.148466/−1.045917/−1.062917**（三 seed 全负）→ **false**；
+  (d) 6/12/24h seed 均值 Δ **+2.544271/+1.556526/+1.899833 K**（全为正）→ **false**；
+  (e) 桥一致性 N−A 在 **−4.787001e-6…+1.778038e-5 K**（15/15）→ **true**。
+  ⇒ `scientific_exit_met=false`、`predeclared_exit_met=false`、`identity_unresolved=false`：
+  **按预声明永久关闭「zero-base decoder」支**（不扫 anchor 值、不加 seed、不调 updates/LR/head
+  reset/output scale、不与任何已关轴组合、不换名重开）。候选在全部 15 个 seed×lead 单元上
+  差于控制；72h skill 低至 −1.37，说明该残差父的近零输出头无法在 2400 updates 内承担绝对
+  状态尺度。**zero-base 不是 from-scratch 绝对模型**，不能外推为「绝对预测不可行」。
+- **成本**：process 合计 27,596.832 s、**7.665786755 GPU-h**（prepare 0.117911 + archive 0.119331 +
+  seed41 2.294713 + seed42 2.573613 + seed43 2.443977 + reading 0.116242）；墙钟 18,347.936 s
+  （5.0966 h）；soft/hard overrun 均 0；网络 0；磁盘 19.52 GiB；峰值 8,996,782,080 B =
+  8.378 GiB（协议估计 9.5 GiB，高估约 1.12 GiB）；累计 **149.623834 → 157.289621 GPU-h**。
+- **登记**：证据页 `docs/R7_S3_DECODER_BASE_ANCHOR_RESULT.md`、record
+  `s3-decoder-base-anchor-result`（index85）、账本行、§8 与 campaign-state；**不进 S4 冻结包**。
+- **无未做/待做项**：`test` 未读、r=0、S4 未启动。
+- **下一动作（S3）**：本轮支已永久关闭；回到 `docs/goals/main-model-climatology-campaign.md` §8，
+  基于本轮负结果另选独立因子。`test` 未读、r=0、S4 未启动。
 - **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
 - 不宣布科学通过、不称泛化/SOTA。
