@@ -1671,8 +1671,9 @@ test 未读、r=0、S4 未启动不变。
   anchor/dose 两条 record 追加 `correction_record_id`。**不进 S4 冻结包。**
 - **CI 如实**：实现 commit `7a31fb8` 的 `R7 CPU CI` run `39396632129` 为 failure（`size-thresholds.md`
   标记漂移：R-021 115→117、R-022 66→67；pytest 第 9 步红，非 GPU/读数问题）；机械修复并改正
-  one-sided 措辞后 `97d2910` 的 run **`39404683289` completed/success**；另 17 条标签 workflow
-  `skipped` 是设计行为、非实验 PASS。登记 commit 与它的精确 CI 见登记提交后的回填/下一提交。
+  one-sided 措辞后 `97d2910` 的 run **`39404683289` completed/success**；登记 commit `616540e`
+  的 `R7 CPU CI` run **`39450836596` completed/success**；另 17 条标签 workflow `skipped`
+  是设计行为、非实验 PASS。
 - **运行记录**：attempt `outputs/r7_s3_gradient_surgery_20261020_attempt01/`（六阶段全 success、
   `exit_code=0`、无 `failure.json`）；seed41 在卡 0，seed42 在卡 1 并发，seed41 完成后 seed43
   使用卡 0；每次 spawn 前只读核对 `估计峰值 + margin + 6 GiB 邻接预留` 门，**未对邻居进程发送
