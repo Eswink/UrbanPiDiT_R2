@@ -1622,3 +1622,7 @@ test 未读、r=0、S4 未启动不变。
 - **为何停 + 恢复第一条命令**：本轮按预声明出口**正常结束**（不是被打断，无 hard overrun、无身份/资源门
   失败）；72h skill 三 seed 全负、72h 配对 Δ 三 seed 全正 ⇒ **永久关闭 zero-base decoder 支**。
   恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`，随后在 §8 基于本轮负结果选择下一独立因子。
+- **下一动作（S3）**：zero-base decoder 支已永久关闭；下一轮必须先完成所需的一手检索，提出一个新的、
+  与已关闭轴不重叠且可独立检验的表示/优化因子，写新的 round brief 并预声明出口后再 freeze/GPU。
+  不再扫 anchor 值、不加 seed、不调已冻结配方、不与已关轴组合；数据扩充按 D3 继续暂缓。
+  `test` 未读、r=0、S4 未启动。
