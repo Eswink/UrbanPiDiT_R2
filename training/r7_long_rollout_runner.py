@@ -21,6 +21,7 @@ from .r7_autoregressive_runner import (
     _paths, _validate_imported_model, _validate_options, _write_json,
 )
 from .r7_ema import ParameterEMA, require_ema_decay
+from .r7_gradient_surgery import pcgrad_backward, require_gradient_surgery
 from .r7_experiment import canonical_digest, dataset_identity, load_checkpoint, model_code_digest
 from .r7_experiment import rng_state, save_exclusive, seed_everything, select_device
 from .r7_scheduled_runner import _check_deadline, _publish_checkpoint, warmup_cosine_factor
@@ -29,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_FILES = tuple(AUTOREGRESSIVE_SOURCES) + (
     "data/r7_long_rollout_dataset.py", "training/r7_long_rollout.py",
     "training/r7_long_rollout_runner.py", "training/r7_ema.py",
+    "training/r7_gradient_surgery.py",
 )
 LIMITATIONS = [
     "Normalized draft-supervised training MSE is not held-out physical forecast skill.",
@@ -121,10 +123,23 @@ def _ema_semantics(ema_decay):
             "ema_bias_correction": False, "ema_warmup_updates": 0}
 
 
+def _surgery_semantics(gradient_surgery):
+    """Extra contract/report fields for the short/long gradient surgery.
+
+    ``off`` adds nothing, so the registered contract and report stay word for word
+    unchanged. ``pcgrad`` records exactly one new contract field; the group rule
+    lives in ``training/r7_gradient_surgery.py``.
+    """
+    mode = require_gradient_surgery(gradient_surgery)
+    if mode == "off":
+        return {}
+    return {"gradient_surgery": mode}
+
+
 def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
               weight_decay, device, batch_size, clip, checkpoint_every, physical_weights,
               supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP,
-              gradient_lambda=ZERO_GRADIENT_LAMBDA, ema_decay=None):
+              gradient_lambda=ZERO_GRADIENT_LAMBDA, ema_decay=None, gradient_surgery="off"):
     contract = deepcopy(supplied)
     gradient_lambda = require_gradient_lambda(gradient_lambda)
     identity, _ = dataset_identity(dataset.manifest)
@@ -151,7 +166,8 @@ def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
                           "excluded_sample_ids": dataset.summary["excluded_sample_ids"],
                           "supervision": _supervision_block(supervision_mask),
                           **_draft_semantics(draft_supervision, gradient_lambda),
-                          **_ema_semantics(ema_decay)})
+                          **_ema_semantics(ema_decay),
+                          **_surgery_semantics(gradient_surgery)})
     return contract
 
 
@@ -165,17 +181,29 @@ def _update(model, optimizer, batch, contract, device, deadline, supervision_mas
                                       "draft_supervision", DRAFT_SUPERVISION_DEEP),
                                   gradient_lambda=contract["autoregression"].get(
                                       "spatial_gradient_lambda", ZERO_GRADIENT_LAMBDA))
-    result.loss.backward()
+    surgery_mode = require_gradient_surgery(
+        contract["autoregression"].get("gradient_surgery", "off"))
+    if surgery_mode == "off":
+        # The registered path, verbatim; no extra reduction touches the graph.
+        result.loss.backward()
+        surgery = {}
+    else:
+        surgery = pcgrad_backward(
+            model, result.per_step_losses,
+            physical_weights=contract["autoregression"]["physical_weights"],
+            registered_loss=result.loss, clip=contract["clip"])
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), contract["clip"], error_if_nonfinite=True)
     if deadline is not None:
         _check_deadline(deadline)
     optimizer.step()
     optimizer.zero_grad(set_to_none=True)
     _finite_state(model)
-    return {"loss": float(result.loss.detach()), "l6": float(result.l6.detach()),
-            "l12": None if result.l12 is None else float(result.l12.detach()),
-            "per_step_losses": result.per_step_losses.detach().cpu().tolist(),
-            "gradient_norm": float(norm)}
+    metrics = {"loss": float(result.loss.detach()), "l6": float(result.l6.detach()),
+               "l12": None if result.l12 is None else float(result.l12.detach()),
+               "per_step_losses": result.per_step_losses.detach().cpu().tolist(),
+               "gradient_norm": float(norm)}
+    metrics.update(surgery)
+    return metrics
 
 
 def _publish_ema_checkpoint(folder, update_number, *, model, ema, signature, contract, epoch, cursor):
@@ -228,12 +256,18 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                           steps=4, updates=200, seed=0, lr=2e-5, warmup=10, weight_decay=1e-4,
                           deadline=None, checkpoint_every=20, device_name="cpu", batch_size=1, clip=1.,
                           supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP,
-                          gradient_lambda=ZERO_GRADIENT_LAMBDA, ema_decay=None):
+                          gradient_lambda=ZERO_GRADIENT_LAMBDA, ema_decay=None,
+                          gradient_surgery="off"):
     weights = validate_physical_weights(physical_weights)
     if draft_supervision not in DRAFT_SUPERVISION_MODES:
         raise ValueError(f"draft_supervision must be one of {DRAFT_SUPERVISION_MODES}")
     gradient_lambda = require_gradient_lambda(gradient_lambda)
     ema_decay = require_ema_decay(ema_decay)
+    gradient_surgery = require_gradient_surgery(gradient_surgery)
+    if gradient_surgery != "off":
+        from .r7_gradient_surgery import require_pcgrad_axes
+        require_pcgrad_axes(physical_weights=weights, draft_supervision=draft_supervision,
+                            gradient_lambda=gradient_lambda, ema_decay=ema_decay)
     _validate_options(steps=steps, updates=updates, seed=seed, mode="two_step", lr=lr, warmup=warmup,
                       weight_decay=weight_decay, bf16=False, batch_size=batch_size, clip=clip,
                       lambda12=0., checkpoint_every=checkpoint_every, deadline=deadline)
@@ -249,6 +283,10 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
         raise ValueError("physical steps/weights/window digest must be predeclared exactly")
     if declared.get("draft_supervision", DRAFT_SUPERVISION_DEEP) != draft_supervision:
         raise ValueError("the declared draft supervision organization differs from the actual run")
+    declared_surgery = require_gradient_surgery(declared.get("gradient_surgery", "off"))
+    if (declared_surgery != gradient_surgery
+            or (gradient_surgery == "off" and "gradient_surgery" in declared)):
+        raise ValueError("the declared gradient surgery differs from the actual run")
     if require_gradient_lambda(declared.get("spatial_gradient_lambda", ZERO_GRADIENT_LAMBDA)) != gradient_lambda:
         raise ValueError("the declared spatial gradient lambda differs from the actual run")
     if require_ema_decay(declared.get("ema_decay")) != ema_decay:
@@ -262,7 +300,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                       batch_size=batch_size, clip=clip, checkpoint_every=checkpoint_every,
                       physical_weights=weights, supervision_mask=supervision_mask,
                       draft_supervision=draft_supervision, gradient_lambda=gradient_lambda,
-                      ema_decay=ema_decay)
+                      ema_decay=ema_decay, gradient_surgery=gradient_surgery)
     signature = canonical_digest(bound)
     if deadline is not None:
         _check_deadline(deadline)
@@ -299,6 +337,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                   "reproducibility": "config-reproducible; no failed-attempt resume or bitwise GPU promise"}
         report.update(_gradient_semantics(gradient_lambda))
         report.update(_ema_semantics(ema_decay))
+        report.update(_surgery_semantics(gradient_surgery))
         if ema is not None:
             report["ema_checkpoint"] = str(ema_checkpoint)
             report["ema_updates_applied"] = ema.updates
