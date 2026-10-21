@@ -295,6 +295,10 @@ forecast/initial_forecast/draft_forecasts/final_correction 逐位相同（差 0.
 | peak reserved | 9,013,559,296 B = 8.395 GiB |
 | 累计 GPU-h | 165.012856 → **172.818261** |
 
+上表的 seed elapsed 是 stage wrapper 的墙钟（含 dataset preflight/父装载/模型构造与评分），
+因此大于 §3 的 receipt `elapsed_seconds`（纯训练+评分：seed41 4,930.559、seed42 4,931.566、
+seed43 9,055.908 s）；GPU-h 记账沿用 stage wrapper 口径，与既往轮次一致。
+
 ## 6. 限制
 
 - 开发性筛查：单 wide 实例（129×129 输入、`interior_32` 监督、单 ROI、17 通道、
