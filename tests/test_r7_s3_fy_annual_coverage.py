@@ -143,7 +143,11 @@ def test_bridge_is_reported_but_never_scientific():
                for seed in driver.SEEDS}
     passed = driver.bridge_verdict(control, reference)
     assert passed["scientific"] is False and passed["passed"] is True
-    control[str(driver.SEEDS[0])]["72"] = reference["72"]["mean"] + 2.0 * reference["72"]["band"]
+    # The bridge statistic is the seed mean, so a single-seed perturbation of 2 bands
+    # still moves the mean by only 2/3 band. Perturb every seed to move the mean past
+    # the band, which is the counterexample the rule actually claims.
+    for seed in driver.SEEDS:
+        control[str(seed)]["72"] = reference["72"]["mean"] + 2.0 * reference["72"]["band"]
     failed = driver.bridge_verdict(control, reference)
     assert failed["scientific"] is False and failed["passed"] is False
 
