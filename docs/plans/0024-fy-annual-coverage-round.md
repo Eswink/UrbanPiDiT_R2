@@ -73,7 +73,7 @@ FY 源覆盖 2000-01-01–2022-12-31，**没有 2023**；store builder 要求 te
 ### 3.3 两套清单（同一 store）
 
 - `control_manifests/train.jsonl`：从全年 store 的时间轴按注册 4 个月选择重算窗口
-  （Jan/Apr/Jul/Oct、1–30 日、00/06/12/18），预计约 2,360 条；
+  （Jan/Apr/Jul/Oct、1–30 日、00/06/12/18），预计约 2,360 条；再按 72h 完整窗过滤，预计约 2,140 条；
 - `treatment_manifests/train.jsonl`：2017–2021 全部 12 个月窗口，预计约 7,304 条；
 - 两套 `val.jsonl` **逐字节相同**：2022 全年 1,460 个窗口；
 - 两套 `test.jsonl`：2023 封存，同一内容，不读；
@@ -177,11 +177,16 @@ FY 源覆盖 2000-01-01–2022-12-31，**没有 2023**；store builder 要求 te
    `validate_store` 通过。
 3. **两套清单（同一 store）**：`store/manifests_control/` 与 `store/manifests_treatment/`，
    各自 `train/val/test.jsonl` + `BUILD_COMPLETE.json`（均为 `build_complete=true`）。
-   - control train **2,360** 条（Jan/Apr/Jul/Oct、1–30 日、UTC 00/06/12/18；history/init/target
-     三段都落在该子集内，避免跨月/跨日窗）；identity
-     `9d0e2e8dad0843aa842b6f81e20e19281c732a134b6cc83e6796f21705df8c3e`。
+   - control 6h 清单 **2,360** 条（Jan/Apr/Jul/Oct、1–30 日、UTC 00/06/12/18）；再按
+     **72h 完整窗**过滤（`t+6..t+72` 每个目标都在同一子集），得到 **2,140** 条
+     （丢弃 220 条跨到 31 日/下个月的窗）；identity
+     `04693129781a234e662daaf2b379c3e4a53c50ca8ba016a73c4478ef12b7e3c1`；
+     `preflight_long_rollout_windows` 实测 **input 2,140 / usable 2,140 / excluded 0**，
+     `window_sha256 6b816071…`。旧 6h 清单保留为中间产物，**不被任何臂使用**。
    - treatment train **7,302** 条（2017–2021 全部 12 个月）；identity
-     `c17494ab63d54855697567f1195a613ca61e32cfcc3db22d709a7ff00dc17422`。
+     `c17494ab63d54855697567f1195a613ca61e32cfcc3db22d709a7ff00dc17422`；
+     长 rollout 实测 **input 7,302 / usable 7,291 / excluded 11**（年末跨到 2022 的窗），
+     `window_sha256 df867b47…`。
    - 两套 val **相同**，**1,458** 条（2022 全年）；identity
      `94a0e509e87bd255369b7b5f48ba3a1997240406d20b01f0c96f591a1b8d5a45`。
    - 两套 test 相同（2023 四个月、472 条），**未读取**。
@@ -198,6 +203,9 @@ FY 源覆盖 2000-01-01–2022-12-31，**没有 2023**；store builder 要求 te
 
 - Phase 4–7：正式 round brief、决策记录、两臂驱动/父模块/测试、独立复核、`round-guard`、
   `freeze`、六次训练（2 臂 × 3 seed）、读数与四件套登记。
-- **阻塞项**：另一窗口的 tendency-input 轮仍有未提交的 `model/*.py` 等改动（决策 0049 尚未
-  提交），工作树 model digest 不是干净的 `3fe747b2…`。本轮**不合并、不覆盖**其改动；GPU 阶段
-  必须在干净、已提交的 revision 上开工（§6 Phase 0），在此之前不 `freeze`、不训练。
+- **阻塞项（2026-10-21 更新）**：另一窗口已把 tendency-input 轮提交为 `15ba518`
+  （`model_code_sha256` 变为 `60de3b2d…`），campaign-state 的 `current_round_goal` 指向
+  `docs/goals/s3-tendency-input.md`。本轮因此不是当前轮次，且迁移父 attempt04（`3fe747b2…`）
+  在 HEAD 上会被 `load_checkpoint` 按设计拒绝。恢复路径：等 tendency 轮结束后，在干净的
+  `fd92268` checkout 上应用本轮驱动并跑 GPU；把数据因子叠加到 `60de3b2d…` 会同时改变模型
+  输入表示，必须另立决策，不能算作本计划的纯数据单因素。

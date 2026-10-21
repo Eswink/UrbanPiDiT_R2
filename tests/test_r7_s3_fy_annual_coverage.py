@@ -52,7 +52,7 @@ def _provenance():
 
 def test_frozen_constants_pin_the_two_arm_factor():
     body = driver.frozen_constants()
-    assert body["train_file_counts"] == {"control": 2360, "treatment": 7302}
+    assert body["train_file_counts"] == {"control": 2140, "treatment": 7302}
     assert body["val_count"] == 1458 and body["test_count"] == 472
     assert body["val_cohorts"] == {"6": 1458, "12": 1457, "24": 1455,
                                    "48": 1451, "72": 1447}

@@ -43,9 +43,9 @@ STORE = INSTANCE / "store/cache.zarr"
 SOURCE = INSTANCE / "source.nc"
 SOURCE_SHA256 = "449470415aa8b845a6d8c3870140bd47e43bb5e3dc7b6a87c302cd26976afbc8"
 CONTROL, TREATMENT = "control", "treatment"
-ARMS = ((CONTROL, INSTANCE / "store/manifests_control"),
+ARMS = ((CONTROL, INSTANCE / "store/manifests_control_h72"),
         (TREATMENT, INSTANCE / "store/manifests_treatment"))
-TRAIN_COUNTS = {CONTROL: 2360, TREATMENT: 7302}
+TRAIN_COUNTS = {CONTROL: 2140, TREATMENT: 7302}
 VAL_COUNT, TEST_COUNT = 1458, 472
 VAL_COHORTS = {"6": 1458, "12": 1457, "24": 1455, "48": 1451, "72": 1447}
 CLIMATOLOGY_T2M_RMSE = {
@@ -75,7 +75,7 @@ SEEDS = wide.SEEDS
 DEVICE_MODE = "dual"
 PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 9000., 21600., 43200.
 ESTIMATED_PEAK_BYTES, HEADROOM_MARGIN_BYTES = 4096 * 2**20, 512 * 2**20
-ENTRY_FILES = ("scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", *wide.execution_files())
+ENTRY_FILES = ("scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", "scripts/build_r7_s3_fy_control_manifest.py", *wide.execution_files())
 
 LIMITATIONS = [
     "development screening on the 65x65 instance only (2017-2021 train / 2022 val, 17 channels); the 129x129 wide instance is a different store and is not covered",

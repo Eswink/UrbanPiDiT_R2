@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-fy-annual-coverage", "driver": "scripts/study_r7_s3_fy_annual_coverage.py", "output_stem": "r7_s3_fy_annual_coverage_20261021", "control_record": "s3-v3-budget-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_annual_coverage.py"], "commit_paths": ["scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", "tests/test_r7_s3_fy_annual_coverage.py", "docs/goals/s3-fy-annual-coverage.md", "docs/decisions/0050-fy-annual-coverage-round.md"], "commit_message": "feat(r7): implement the FY annual-coverage two-arm data round", "register_paths": ["docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the FY annual-coverage run as a new evidence record", "code_archive": "outputs/r7_s3_fy_annual_coverage_code.zip"} -->
+<!-- round-spec: {"arm": "s3-fy-annual-coverage", "driver": "scripts/study_r7_s3_fy_annual_coverage.py", "output_stem": "r7_s3_fy_annual_coverage_20261021", "control_record": "s3-v3-budget-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_annual_coverage.py"], "commit_paths": ["scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", "scripts/build_r7_s3_fy_control_manifest.py", "tests/test_r7_s3_fy_annual_coverage.py", "docs/goals/s3-fy-annual-coverage.md", "docs/decisions/0050-fy-annual-coverage-round.md"], "commit_message": "feat(r7): implement the FY annual-coverage two-arm data round", "register_paths": ["docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the FY annual-coverage run as a new evidence record", "code_archive": "outputs/r7_s3_fy_annual_coverage_code.zip"} -->
 
 状态 **CPU 数据准备与正式 brief 已定、驱动/测试待实现、GPU 未开跑**（2026-10-21）。
 唯一主计划 `docs/goals/main-model-climatology-campaign.md`；承接 **H-D 关闭**
@@ -11,7 +11,7 @@
 
 ## §0 Objective（单段）
 
-> 在 docs/goals/s3-fy-annual-coverage.md 接续 S3/index80/120.775625 GPU-h、2023 test 未评分 r0、S4 未启动；容量轴（0048）、架构轴 H-A/H-B/H-C、训练信号/目标组织各单因素臂均已按各自预声明出口关闭或未越过气候态门，用户 2026-10-21 明确选择数据方向并授权用已下载 FY 源做「全年 vs 4 个月」单因素轮：在同一个全新 65×65 全年 store（2017–2021 train / 2022 val / 2023 四个月 test 封存，source SHA 449470415aa8b845a6d8c3870140bd47e43bb5e3dc7b6a87c302cd26976afbc8，9,244 帧，48 桶 train-only 气候态）上，只把训练清单的月份覆盖从 Jan/Apr/Jul/Oct（2,360 条）扩到 12 个月（7,302 条），年份固定 2017–2021；两臂同模型 spec、同迁移父（attempt04，model_code_sha256 3fe747b2…）、同 2400 updates、K=4、depth=4、dim=192、同物理权重、同 seed 41/42/43、同 2022 全年 val、同 48 桶分母，只差训练清单；本轮只在 65×65 上成立，不新增下载、不改模型代码、不做 129×129 上采样、不把结果外推为宽实例结论；预声明出口：(a) F 的 72h t2m skill 三 seed 全 >0、(b) F−N 72h ΔRMSE 三 seed 全 <0、(c) F 48h skill 三 seed 全 >0、(d) F−N 6/12/24h seed 均值 ΔRMSE ≤0，全真只提请独立验收，任一假则永久关闭「全年覆盖」支；桥 (e)（控制臂 vs 已登记 s3-v3-budget-dose）只用于身份/工程核对，不作科学判定；本轮只报读数、不宣布科学通过、不称泛化/SOTA、不自行宣布最终 goal 完成；不 paid/rental/exclusive/main/release/issueclose/force/mirror/破坏性/cron，不改科学合同/冻结证据/用户配置，不读 test。
+> 在 docs/goals/s3-fy-annual-coverage.md 接续 S3/index80/120.775625 GPU-h、2023 test 未评分 r0、S4 未启动；容量轴（0048）、架构轴 H-A/H-B/H-C、训练信号/目标组织各单因素臂均已按各自预声明出口关闭或未越过气候态门，用户 2026-10-21 明确选择数据方向并授权用已下载 FY 源做「全年 vs 4 个月」单因素轮：在同一个全新 65×65 全年 store（2017–2021 train / 2022 val / 2023 四个月 test 封存，source SHA 449470415aa8b845a6d8c3870140bd47e43bb5e3dc7b6a87c302cd26976afbc8，9,244 帧，48 桶 train-only 气候态）上，只把训练清单的月份覆盖从 Jan/Apr/Jul/Oct（2,140 条 72h 完整窗）扩到 12 个月（7,302 条），年份固定 2017–2021；两臂同模型 spec、同迁移父（attempt04，model_code_sha256 3fe747b2…）、同 2400 updates、K=4、depth=4、dim=192、同物理权重、同 seed 41/42/43、同 2022 全年 val、同 48 桶分母，只差训练清单；本轮只在 65×65 上成立，不新增下载、不改模型代码、不做 129×129 上采样、不把结果外推为宽实例结论；预声明出口：(a) F 的 72h t2m skill 三 seed 全 >0、(b) F−N 72h ΔRMSE 三 seed 全 <0、(c) F 48h skill 三 seed 全 >0、(d) F−N 6/12/24h seed 均值 ΔRMSE ≤0，全真只提请独立验收，任一假则永久关闭「全年覆盖」支；桥 (e)（控制臂 vs 已登记 s3-v3-budget-dose）只用于身份/工程核对，不作科学判定；本轮只报读数、不宣布科学通过、不称泛化/SOTA、不自行宣布最终 goal 完成；不 paid/rental/exclusive/main/release/issueclose/force/mirror/破坏性/cron，不改科学合同/冻结证据/用户配置，不读 test。
 
 （objective 实测字符数由 `tools/check_goal_brief.py` 在提交前核验。）
 
@@ -48,9 +48,10 @@
 
 - **唯一因子：训练覆盖的月份数，4 → 12；年份固定 2017–2021。**
 - **控制臂 N（4 个月）**：全年 store 的 train 时间轴取 Jan/Apr/Jul/Oct、每月 1–30 日、
-  UTC 00/06/12/18，且 history/init/target 三段都在该子集内；**2,360** 条 6h 清单，
-  dataset identity `9d0e2e8d…`。长 rollout 完整窗数由 `preflight_long_rollout_windows`
-  在 freeze 时写入协议。
+  UTC 00/06/12/18，6h 清单 2,360 条；再按 **72h 完整窗**过滤——`t+6..t+72` 的每个目标都必须
+  落在同一子集（否则长 rollout 会从全年 store 读到 31 日/下个月的帧，控制臂就不再是纯 4 个月），
+  得到 **2,140** 条（丢弃 220 条）；dataset identity `04693129…`。长 rollout 完整窗数由
+  `preflight_long_rollout_windows` 在 freeze 时写入协议（该过滤后应为 2,140、0 排除）。
 - **候选臂 F（12 个月）**：2017–2021 全部日期；**7,302** 条 6h 清单，dataset identity
   `c17494ab…`。长 rollout 完整窗数同样在 freeze 时冻结。
 - **两臂共用**：同一个 store（`store_path=../cache.zarr`）、同全年归一化、同模型 spec
@@ -120,7 +121,8 @@ gradient-surgery/tendency-input；不读 test；不 main/force/merge/发版/关 
      `source.nc` 2,036,671,757 B，SHA256 `44947041…`。
   2. store：shape `[9244,17,65,65]`，windows `7302/1458/472`，`BUILD_COMPLETE`，
      `validate_store` 通过。
-  3. 两套清单：control train 2,360、treatment train 7,302、val 1,458（逐字节相同）、
+  3. 两套清单：control 6h 2,360 → **72h 完整窗 2,140**（丢弃 220 条跨月/31 日窗）、
+     treatment train 7,302（长 rollout 可用 7,291，11 条年末排除）、val 1,458（逐字节相同）、
      test 472（封存）；各自 `BUILD_COMPLETE`。
   4. 48 桶 train-only 气候态：5 个 lead 满覆盖，`reference.json` 已写。
   5. 决策 0050 与本 brief。
