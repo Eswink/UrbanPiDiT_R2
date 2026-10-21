@@ -207,5 +207,6 @@ FY 源覆盖 2000-01-01–2022-12-31，**没有 2023**；store builder 要求 te
   （`model_code_sha256` 变为 `60de3b2d…`），campaign-state 的 `current_round_goal` 指向
   `docs/goals/s3-tendency-input.md`。本轮因此不是当前轮次，且迁移父 attempt04（`3fe747b2…`）
   在 HEAD 上会被 `load_checkpoint` 按设计拒绝。恢复路径：等 tendency 轮结束后，在干净的
-  `fd92268` checkout 上应用本轮驱动并跑 GPU；把数据因子叠加到 `60de3b2d…` 会同时改变模型
-  输入表示，必须另立决策，不能算作本计划的纯数据单因素。
+  `0becf24` checkout（H-D 实验提交，`3fe747b2…`）上建一个只含本轮文件的临时提交并跑 GPU
+  （`fd92268` 已含 H-D 之后的架构轮 `bec3859f…`，不是可用基线）；把数据因子叠加到
+  `60de3b2d…` 会同时改变模型输入表示，必须另立决策，不能算作本计划的纯数据单因素。

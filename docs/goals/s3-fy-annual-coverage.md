@@ -136,9 +136,11 @@ gradient-surgery/tendency-input；不读 test；不 main/force/merge/发版/关 
   1. 本轮的迁移父 attempt04（`3fe747b2…`）在 HEAD 上会被 `load_checkpoint` **按设计拒绝**；
      本轮不能把数据因子叠加到 tendency 架构上（那会同时改变模型输入表示与数据覆盖，破坏单因子）。
   2. 本轮不是当前 campaign 轮次；GPU 由统一父调度串行，**不**与 tendency 轮并发开跑。
-  3. 恢复路径：等 tendency 轮完成/登记后，在**干净的 `fd92268` checkout**（最后一个
-     `3fe747b2…` 修订）上应用本轮数据驱动提交并跑 GPU；若要在 `60de3b2d…` 上跑，必须先
-     重新迁移父并另立决策，且明确本轮不再是「注册架构上的纯数据单因素」。
+  3. 恢复路径：等 tendency 轮完成/登记后，在**干净的 `0becf24` checkout**（H-D 实验提交，
+     `model_code_sha256 3fe747b2…`）上建一个**只含本轮文件的临时提交**（父 commit 为
+     `0becf24`），用该 commit 冻结/归档并跑 GPU；**不要**用未提交的 worktree。注意
+     `fd92268` 已含 H-D 之后的架构轮（digest `bec3859f…`），**不是**可用基线。若要在
+     `60de3b2d…` 上跑，必须先重新迁移父并另立决策，且明确本轮不再是「注册架构上的纯数据单因素」。
 - **本轮 GPU 未开跑**：0 GPU-h 新增；store/manifest/climatology 是 CPU 派生数据，不是训练读数。
 - **父迁移前提**：本轮不改 `model/**/*.py`，所以 `model_code_sha256` 应保持 `3fe747b2…`；
   迁移父用 attempt04 的三 seed checkpoint（`f9f12e…/8d4e05…/5af646…`），
