@@ -7,14 +7,20 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=1 R-019b=1113 R-020=66 R-021=121 R-022=67 R-023=47 -->
+<!-- measured: R-019=1 R-019b=1113 R-020=66 R-021=124 R-022=67 R-023=47 -->
 
-**2026-10-21 SAM（sharpness-aware minimization）驱动复算（暂存集合实测）**：R-021 **120→121**
-（其中 **3 处为未跟踪的 tolerated**）；R-019=1、R-019b=1113、R-020=66、R-022=67、R-023=47 保持。
+**2026-10-21 SAM（sharpness-aware minimization）驱动复算（提交集合实测）**：R-021 **120→124**；
+R-019=1、R-019b=1113、R-020=66、R-022=67、R-023=47 保持。
+**更正**：实现者最初记的是 121，那是在三个新文件**尚未进入跟踪集合**时测的——
+`check_conventions` 把未跟踪文件的命中标为 `tolerated`，而
+`test_size_report_counts_match_the_checker` 只数 `not hit.tolerated`，于是同一棵树在
+`git add` 前后差 3。提交后这三个文件进入跟踪集合，R-021 的真实值是 **124**；CI 在提交
+`1b3bc4d` 上正是以 `R-021: size-thresholds.md says 121, the checker reports 124` 失败。
+此后本页数字一律按**提交集合**记录。
 本轮新增三个 >400 目标、≤600 硬限的文件：`scripts/study_r7_s3_sharpness_aware_minimization.py`
 （548 行）、`tests/test_r7_s3_sharpness_aware_minimization_protocol.py`（539 行）、
-`tests/test_r7_s3_sharpness_aware_minimization.py`（471 行）——三者尚未提交，故被标记为
-`tolerated`。第 4 处增长落在**共享**文件 `training/r7_long_rollout_runner.py`（355→**403** 行，
+`tests/test_r7_s3_sharpness_aware_minimization.py`（471 行）。第 4 处增长落在**共享**文件
+`training/r7_long_rollout_runner.py`（355→**403** 行，
 >400 目标但远低于 R-051 的 600 硬限）：新增 `sam_rho` 加性开关、`_rollout`、两个轴/声明守卫
 与 SAM 分支；为不新增 R-020 命中，SAM 的契约/报告字段已移入 `training/r7_sam.py`
 （`sam_semantics`，215 行，目标带内），因此 `fine_tune_long_rollout` 仍在 100 行目标带内。
