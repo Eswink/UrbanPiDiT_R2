@@ -7,7 +7,20 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=1 R-019b=1113 R-020=66 R-021=120 R-022=67 R-023=47 -->
+<!-- measured: R-019=1 R-019b=1113 R-020=66 R-021=121 R-022=67 R-023=47 -->
+
+**2026-10-21 SAM（sharpness-aware minimization）驱动复算（暂存集合实测）**：R-021 **120→121**
+（其中 **3 处为未跟踪的 tolerated**）；R-019=1、R-019b=1113、R-020=66、R-022=67、R-023=47 保持。
+本轮新增三个 >400 目标、≤600 硬限的文件：`scripts/study_r7_s3_sharpness_aware_minimization.py`
+（548 行）、`tests/test_r7_s3_sharpness_aware_minimization_protocol.py`（539 行）、
+`tests/test_r7_s3_sharpness_aware_minimization.py`（471 行）——三者尚未提交，故被标记为
+`tolerated`。第 4 处增长落在**共享**文件 `training/r7_long_rollout_runner.py`（355→**403** 行，
+>400 目标但远低于 R-051 的 600 硬限）：新增 `sam_rho` 加性开关、`_rollout`、两个轴/声明守卫
+与 SAM 分支；为不新增 R-020 命中，SAM 的契约/报告字段已移入 `training/r7_sam.py`
+（`sam_semantics`，215 行，目标带内），因此 `fine_tune_long_rollout` 仍在 100 行目标带内。
+`scripts/r7_s3_sharpness_aware_minimization_parent.py`（223 行）、
+`..._support.py`（337 行）、`..._text.py`（97 行）均在 400 行目标带内。
+**未改规则级别、阈值或冻结例外清单。**
 
 **2026-10-21 FY annual-coverage 驱动复算（暂存集合实测，跨轮）**：R-019 **0→1**、R-019b
 **1106→1113**、R-021 **119→120**；R-020=66、R-022=67、R-023=47 保持。增长来自同分支的

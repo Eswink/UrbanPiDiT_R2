@@ -330,7 +330,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-tendency-input.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_S3_TENDENCY_INPUT_RESULT.md", "previous_round_goal": "docs/goals/s3-tendency-input.md", "remaining_gpu_h": -152.818261, "route_decision": "0038", "status": "active", "used_gpu_h": 172.818261} -->
+<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-sharpness-aware-minimization.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_S3_TENDENCY_INPUT_RESULT.md", "previous_round_goal": "docs/goals/s3-tendency-input.md", "remaining_gpu_h": -152.818261, "route_decision": "0038", "status": "active", "used_gpu_h": 172.818261} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -1773,3 +1773,38 @@ test 未读、r=0、S4 未启动不变。
 - **下一动作（S3）**：显式 tendency 输入支已关闭；下一轮必须先完成所需的一手检索，提出一个
   新的、与已关闭轴不重叠且可独立检验的因子，写新 round brief 并预声明出口后再 freeze/GPU。
   `test` 未读、r=0、S4 未启动；不宣布科学通过、不称泛化/SOTA。
+
+### 2026-10-21 — 重新激活：SAM 作为独立优化因子（不宣布科学通过）
+
+- **指令来源与范围**：运行时要求从 §8 继续下一独立单因素轮，并先完成所需一手检索、写新
+  brief、预声明出口；因此 2026-10-20「暂停单因素训练/优化搜索」块**仅就 SAM 这一优化因子**
+  被取代（与 2026-10-21 tendency 块同形的写法）。数据扩充仍按 D3 暂缓（无新下载、不重建
+  store、不碰受保护数据）；决策 0048 的容量轴与 H-A…H-D 架构轴仍永久关闭；不重开已关闭的
+  PE/scale/typed/ordering/anchor/rollout-dose/EMA/dense/final-only/spatial-gradient/
+  zero-base decoder/gradient-surgery/**tendency 输入** 支。
+- **为何它不是已关轴的重命名**：本轮只改**优化器更新步**——把注册的单步
+  `result.loss.backward()` 换成预声明的 SAM 双 forward/backward 扰动更新（rho=0.05）。模型层、
+  输入表示、spec、persistence decoder base、数据、损失定义、2400 updates、LR/warmup、
+  K/depth/dim、物理权重、seed、评分域、气候态分母全部逐字不变，**参数个数不变**。已关轴里
+  没有任何一条是「更新点」：梯度手术改的是反向的**分组**，tendency 改的是**输入通路**，
+  容量/架构轴改的是**模型**。
+- **一手检索状态**：主链路已按决策 0046 核对 Foret et al. arXiv:2010.01412v3 §2（p=2 对偶解
+  ε̂(w) 即「把梯度重标到范数 ρ」）与 §3.1（默认 ρ=0.05，且该文自己给非 SAM 基线两倍 epoch
+  以对齐算力），以及最接近的时序先例 SAMformer arXiv:2402.10198v3 Table 4（最优 ρ*=0.1–1.0、
+  用 Adam 而非 AdamW）。检索只作线索、不作证据；引用位置已写入 brief 与决策 0051。
+- **预声明边界（冻结前写死，不新增阈值）**：出口沿用既有 (a)–(e)；72h skill 三 seed 全正、
+  72h 配对 Δ 三 seed 全负、48h skill 三 seed 全正、6/12/24h seed 均值 Δ≤0、控制−pinned dose
+  桥在 −4.8e-6…+1.8e-5 K。任一 (a)–(d) 不满足即**永久关闭 SAM 支**：不扫 rho、不改扰动
+  定义/范数/eps/符号、不加 seed、不改 updates/LR/warmup/K/depth/dim/clip、不做
+  parameter-matched 臂、不与已关轴组合、不换名重开。SAM 支每个 update 的扰动恰为零或每个
+  配对 Δ 恰为 0.0 才记 null 并关支；小而非零效应按 (a)–(d) 判读。
+- **算力混杂（必须分报）**：SAM 每 update 两次 forward/backward，FLOPs/GPU-h 约 2×；必须分报
+  参数/FLOPs/GPU-h 并声明算力混杂。一手依据 arXiv:2010.01412v3 §3.1 该文自己「给非 SAM 基线
+  两倍 epoch」来对齐算力，故**同 updates 比较在其自身框架下对基线有利**。本轮**不**跑
+  4800-update 算力匹配控制（那会是第二臂与新 recipe）。
+- **下一动作（S3）**：写 `docs/goals/s3-sharpness-aware-minimization.md`（含一手检索、单因素
+  差异、预声明出口、预算与停止条件），派生新驱动/更新规则模块/父扩张模块/CI-safe 测试，先跑
+  `.venv/bin/python tools/r7_round.py round-guard`，再 freeze/GPU。模型 spec 必须与 pinned
+  控制 spec **逐字相等**（不是「加一个开关」）；父迁移可复用（model/*.py 不动），但控制 spec
+  下的 expanded state digest 必须重算并 pin。`test` 未读、r=0、S4 未启动；不宣布 SOTA/complete。
+- **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。

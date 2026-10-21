@@ -76,3 +76,4 @@
 | [0048](0048-capacity-axis-scope-and-cap.md) | 容量轴的适用范围与封顶：容量轮出口收窄为**深度轴**、宽度封顶为**最后一个**容量臂（失败即整条容量轴永久关闭）；含时序披露、宽度无逐位恒等扩张、成本口径更正 | accepted | 2026-10-13 |
 | [0049](0049-explicit-tendency-input-round.md) | 显式 tendency 输入单因素轮的授权边界：只改 encoder 输入表示、+13,056 参数作为容量混杂、预声明 (a)–(e) 出口与 null 口径、新 revision 父迁移；不重开容量/架构轴 | accepted | 2026-10-21 |
 | [0050](0050-fy-annual-coverage-round.md) | 全年覆盖单因素轮：4→12 个月、年份固定 2017–2021、65×65 限制、预声明 (a)–(d) 出口与非科学桥 (e)；不新增下载、不改模型 | accepted | 2026-10-21 |
+| [0051](0051-sharpness-aware-minimization-round.md) | SAM 单因素轮：只改训练期更新规则（rho=0.05 全局重标扰动 + 二次 forward/backward + 逐位恢复），模型/spec/父不变；预声明 (a)–(e) 出口、null 口径、2× 算力混杂与负结果范围 | accepted | 2026-10-21 |

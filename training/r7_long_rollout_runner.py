@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from functools import partial
 import hashlib
 import json
 from pathlib import Path
@@ -24,13 +25,16 @@ from .r7_ema import ParameterEMA, require_ema_decay
 from .r7_gradient_surgery import pcgrad_backward, require_gradient_surgery
 from .r7_experiment import canonical_digest, dataset_identity, load_checkpoint, model_code_digest
 from .r7_experiment import rng_state, save_exclusive, seed_everything, select_device
+from .r7_sam import (
+    require_sam_axes, require_sam_rho, sam_backward, sam_semantics,
+)
 from .r7_scheduled_runner import _check_deadline, _publish_checkpoint, warmup_cosine_factor
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_FILES = tuple(AUTOREGRESSIVE_SOURCES) + (
     "data/r7_long_rollout_dataset.py", "training/r7_long_rollout.py",
     "training/r7_long_rollout_runner.py", "training/r7_ema.py",
-    "training/r7_gradient_surgery.py",
+    "training/r7_gradient_surgery.py", "training/r7_sam.py",
 )
 LIMITATIONS = [
     "Normalized draft-supervised training MSE is not held-out physical forecast skill.",
@@ -139,7 +143,8 @@ def _surgery_semantics(gradient_surgery):
 def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
               weight_decay, device, batch_size, clip, checkpoint_every, physical_weights,
               supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP,
-              gradient_lambda=ZERO_GRADIENT_LAMBDA, ema_decay=None, gradient_surgery="off"):
+              gradient_lambda=ZERO_GRADIENT_LAMBDA, ema_decay=None, gradient_surgery="off",
+              sam_rho=None):
     contract = deepcopy(supplied)
     gradient_lambda = require_gradient_lambda(gradient_lambda)
     identity, _ = dataset_identity(dataset.manifest)
@@ -167,31 +172,50 @@ def _contract(dataset, supplied, *, output, steps, updates, seed, lr, warmup,
                           "supervision": _supervision_block(supervision_mask),
                           **_draft_semantics(draft_supervision, gradient_lambda),
                           **_ema_semantics(ema_decay),
-                          **_surgery_semantics(gradient_surgery)})
+                          **_surgery_semantics(gradient_surgery),
+                          **sam_semantics(sam_rho)})
     return contract
+
+
+def _rollout(model, moved, contract, supervision_mask):
+    """The registered long-rollout forward, shared by the registered and SAM paths."""
+    return training_long_rollout(model, moved, contract["steps"],
+                                 physical_weights=contract["autoregression"]["physical_weights"],
+                                 supervision_mask=supervision_mask,
+                                 draft_supervision=contract["autoregression"].get(
+                                     "draft_supervision", DRAFT_SUPERVISION_DEEP),
+                                 gradient_lambda=contract["autoregression"].get(
+                                     "spatial_gradient_lambda", ZERO_GRADIENT_LAMBDA))
 
 
 def _update(model, optimizer, batch, contract, device, deadline, supervision_mask=None):
     optimizer.zero_grad(set_to_none=True)
     moved = {name: value.to(device) if torch.is_tensor(value) else value for name, value in batch.items()}
-    result = training_long_rollout(model, moved, contract["steps"],
-                                  physical_weights=contract["autoregression"]["physical_weights"],
-                                  supervision_mask=supervision_mask,
-                                  draft_supervision=contract["autoregression"].get(
-                                      "draft_supervision", DRAFT_SUPERVISION_DEEP),
-                                  gradient_lambda=contract["autoregression"].get(
-                                      "spatial_gradient_lambda", ZERO_GRADIENT_LAMBDA))
+    result = _rollout(model, moved, contract, supervision_mask)
     surgery_mode = require_gradient_surgery(
         contract["autoregression"].get("gradient_surgery", "off"))
-    if surgery_mode == "off":
+    sam_rho = require_sam_rho(contract["autoregression"].get("sam_rho"))
+    if sam_rho is not None and surgery_mode != "off":
+        raise ValueError("the SAM update rule cannot be combined with the gradient-surgery axis")
+    if surgery_mode == "off" and sam_rho is None:
         # The registered path, verbatim; no extra reduction touches the graph.
         result.loss.backward()
+        surgery, sam = {}, {}
+    elif sam_rho is not None:
+        # Two forward/backward passes: the registered gradient (this first backward) is
+        # rescaled into the ascent step, the same registered loss is differentiated again
+        # at w + e, and the parameters are restored before the registered clip and step.
+        result.loss.backward()
+        sam = sam_backward(
+            model, rho=sam_rho, first_loss=result.loss,
+            recompute=partial(_rollout, model, moved, contract, supervision_mask))
         surgery = {}
     else:
         surgery = pcgrad_backward(
             model, result.per_step_losses,
             physical_weights=contract["autoregression"]["physical_weights"],
             registered_loss=result.loss, clip=contract["clip"])
+        sam = {}
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), contract["clip"], error_if_nonfinite=True)
     if deadline is not None:
         _check_deadline(deadline)
@@ -203,6 +227,7 @@ def _update(model, optimizer, batch, contract, device, deadline, supervision_mas
                "per_step_losses": result.per_step_losses.detach().cpu().tolist(),
                "gradient_norm": float(norm)}
     metrics.update(surgery)
+    metrics.update(sam)
     return metrics
 
 
@@ -252,22 +277,51 @@ def _run_updates(dataset, folder, model, optimizer, contract, signature, deadlin
     return checkpoint, ema_checkpoint, losses
 
 
+def _require_option_axes(*, physical_weights, draft_supervision, gradient_lambda, ema_decay,
+                         gradient_surgery, sam_rho):
+    """The predeclared closed-axis guards for the two alternative update rules."""
+    if gradient_surgery != "off":
+        from .r7_gradient_surgery import require_pcgrad_axes
+        require_pcgrad_axes(physical_weights=physical_weights, draft_supervision=draft_supervision,
+                            gradient_lambda=gradient_lambda, ema_decay=ema_decay)
+    if sam_rho is not None:
+        require_sam_axes(physical_weights=physical_weights, draft_supervision=draft_supervision,
+                         gradient_lambda=gradient_lambda, ema_decay=ema_decay,
+                         gradient_surgery=gradient_surgery)
+
+
+def _require_declared(declared, *, gradient_lambda, ema_decay, gradient_surgery, sam_rho):
+    """Every declared optimization field must match the actual run exactly."""
+    declared_surgery = require_gradient_surgery(declared.get("gradient_surgery", "off"))
+    if (declared_surgery != gradient_surgery
+            or (gradient_surgery == "off" and "gradient_surgery" in declared)):
+        raise ValueError("the declared gradient surgery differs from the actual run")
+    if require_gradient_lambda(declared.get("spatial_gradient_lambda", ZERO_GRADIENT_LAMBDA)) != gradient_lambda:
+        raise ValueError("the declared spatial gradient lambda differs from the actual run")
+    if require_ema_decay(declared.get("ema_decay")) != ema_decay:
+        raise ValueError("the declared EMA decay differs from the actual run")
+    if sam_rho is None and "sam_rho" in declared:
+        raise ValueError("the registered path must not declare a SAM radius")
+    if require_sam_rho(declared.get("sam_rho")) != sam_rho:
+        raise ValueError("the declared SAM radius differs from the actual run")
+
+
 def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weights, parent_weights=None,
                           steps=4, updates=200, seed=0, lr=2e-5, warmup=10, weight_decay=1e-4,
                           deadline=None, checkpoint_every=20, device_name="cpu", batch_size=1, clip=1.,
                           supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP,
                           gradient_lambda=ZERO_GRADIENT_LAMBDA, ema_decay=None,
-                          gradient_surgery="off"):
+                          gradient_surgery="off", sam_rho=None):
     weights = validate_physical_weights(physical_weights)
     if draft_supervision not in DRAFT_SUPERVISION_MODES:
         raise ValueError(f"draft_supervision must be one of {DRAFT_SUPERVISION_MODES}")
     gradient_lambda = require_gradient_lambda(gradient_lambda)
     ema_decay = require_ema_decay(ema_decay)
     gradient_surgery = require_gradient_surgery(gradient_surgery)
-    if gradient_surgery != "off":
-        from .r7_gradient_surgery import require_pcgrad_axes
-        require_pcgrad_axes(physical_weights=weights, draft_supervision=draft_supervision,
-                            gradient_lambda=gradient_lambda, ema_decay=ema_decay)
+    sam_rho = require_sam_rho(sam_rho)
+    _require_option_axes(physical_weights=weights, draft_supervision=draft_supervision,
+                         gradient_lambda=gradient_lambda, ema_decay=ema_decay,
+                         gradient_surgery=gradient_surgery, sam_rho=sam_rho)
     _validate_options(steps=steps, updates=updates, seed=seed, mode="two_step", lr=lr, warmup=warmup,
                       weight_decay=weight_decay, bf16=False, batch_size=batch_size, clip=clip,
                       lambda12=0., checkpoint_every=checkpoint_every, deadline=deadline)
@@ -283,14 +337,8 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
         raise ValueError("physical steps/weights/window digest must be predeclared exactly")
     if declared.get("draft_supervision", DRAFT_SUPERVISION_DEEP) != draft_supervision:
         raise ValueError("the declared draft supervision organization differs from the actual run")
-    declared_surgery = require_gradient_surgery(declared.get("gradient_surgery", "off"))
-    if (declared_surgery != gradient_surgery
-            or (gradient_surgery == "off" and "gradient_surgery" in declared)):
-        raise ValueError("the declared gradient surgery differs from the actual run")
-    if require_gradient_lambda(declared.get("spatial_gradient_lambda", ZERO_GRADIENT_LAMBDA)) != gradient_lambda:
-        raise ValueError("the declared spatial gradient lambda differs from the actual run")
-    if require_ema_decay(declared.get("ema_decay")) != ema_decay:
-        raise ValueError("the declared EMA decay differs from the actual run")
+    _require_declared(declared, gradient_lambda=gradient_lambda, ema_decay=ema_decay,
+                      gradient_surgery=gradient_surgery, sam_rho=sam_rho)
     dataset = ZarrLongRolloutDataset(manifest, physical_steps=len(weights),
         expected_exclusions=declared.get("excluded_sample_ids", ()),
         expected_window_sha256=declared["window_sha256"])
@@ -300,7 +348,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                       batch_size=batch_size, clip=clip, checkpoint_every=checkpoint_every,
                       physical_weights=weights, supervision_mask=supervision_mask,
                       draft_supervision=draft_supervision, gradient_lambda=gradient_lambda,
-                      ema_decay=ema_decay, gradient_surgery=gradient_surgery)
+                      ema_decay=ema_decay, gradient_surgery=gradient_surgery, sam_rho=sam_rho)
     signature = canonical_digest(bound)
     if deadline is not None:
         _check_deadline(deadline)
@@ -338,6 +386,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
         report.update(_gradient_semantics(gradient_lambda))
         report.update(_ema_semantics(ema_decay))
         report.update(_surgery_semantics(gradient_surgery))
+        report.update(sam_semantics(sam_rho))
         if ema is not None:
             report["ema_checkpoint"] = str(ema_checkpoint)
             report["ema_updates_applied"] = ema.updates

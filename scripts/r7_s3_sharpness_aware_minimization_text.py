@@ -1,0 +1,97 @@
+"""Frozen prose for the S3 sharpness-aware-minimization round (kept out of the driver for R-051)."""
+from __future__ import annotations
+
+DESIGN_DECISION_TEXT = (
+    "Single factor: the training-time update rule. The registered 2400-update "
+    "wide/interior_32 long-rollout recipe keeps its model spec (no tendency_input, no "
+    "decoder_base_mode), data/source, parent, seeds, loss definition, 12-step physical "
+    "weights (1,.5,0,.5,0,0,0,.5,0,0,0,.5), deep K-axis supervision, 2400 updates, LR "
+    "2e-5, warmup 10, K=4, depth=4, dim=192, batch 1, clip 1, scoring domain, "
+    "climatology denominator and test policy word for word; only the optimizer update "
+    "step changes, from the registered single result.loss.backward() to a predeclared "
+    "SAM step with sam_rho=0.05. The SAM step follows Foret et al. "
+    "(arXiv:2010.01412v3 section 3.1) with the paper's p=2 dual solution: e = "
+    "0.05 * g / (||g|| + 1e-12) with one global norm over every trainable parameter, "
+    "w -> w + e, the same registered scalar loss differentiated again at w + e, the "
+    "saved parameters copied back bit for bit, and then the registered "
+    "clip_grad_norm_(clip=1) and optimizer.step() acting on the perturbed-point "
+    "gradient. No rho sweep, no change to the perturbation norm/eps/sign, no "
+    "parameter-matched arm and no combination with a closed axis. Model layers, input "
+    "representation, spec, parent, data, source and loss definition are untouched, so "
+    "the parameter count is unchanged.")
+DECISION_RULE_TEXT = (
+    "Report only; no scientific pass is declared. Predeclared exit, no new thresholds: (a) the "
+    "candidate's 72 h interior_32 t2m skill is > 0 on seeds 41/42/43; (b) same-seed candidate "
+    "minus pinned s3-anchor-isolation-result control 72 h RMSE is < 0 on all three seeds "
+    "(negative = candidate better); (c) the candidate's 48 h skill is > 0 on all three seeds; "
+    "(d) the seed-mean candidate minus control RMSE at 6/12/24 h is <= 0; (e) the bridge: the "
+    "pinned control's 15 seed x lead RMSE differences against the pinned s3-wide-interior-dose "
+    "arm stay inside the anchor round's -4.8e-6 ... +1.8e-5 K band. All of (a)-(e) -> "
+    "candidate_state needs-review and independent review only, never automatic S4 promotion. "
+    "Any of (a)-(d) false -> permanently close the SAM branch (no rho sweep, no change to the "
+    "perturbation definition/norm/eps/sign, no extra seed, no update/LR/warmup/K/depth/dim/clip "
+    "change, no parameter-matched arm, no combination with a closed axis, no rename). An (e) "
+    "failure only sets identity_unresolved=true: an engineering identity failure, not a "
+    "scientific judgement. Null/inert is recorded only if the SAM branch saw an exactly zero "
+    "gradient on every update (e identically 0, so the update is bitwise the registered one) or "
+    "every paired delta is exactly 0.0 at recorded precision; a small nonzero effect follows "
+    "(a)-(d) and is never relabelled null.")
+HYPOTHESIS_TEXT = (
+    "On the frozen 2400-update wide/interior_32 long-rollout recipe, replacing the registered "
+    "single-step update with a predeclared SAM step (sam_rho=0.05: the registered scalar loss's "
+    "global gradient rescaled into the ascent perturbation e = 0.05 * g / (||g|| + 1e-12), the "
+    "same registered loss differentiated again at w + e, the parameters restored, then the "
+    "registered clip and optimizer step) will make the candidate's 72 h interior_32 t2m skill "
+    "positive on all three seeds and its 72 h RMSE better than the pinned "
+    "s3-anchor-isolation-result control on all three seeds, satisfying the predeclared (a)-(e) "
+    "exit. Any of (a)-(d) failing falsifies the hypothesis.")
+DIFFERENCE_TEXT = (
+    "One factor only: the optimizer update step, from the registered single "
+    "result.loss.backward() to the predeclared SAM double forward/backward perturbation with "
+    "sam_rho=0.05. The candidate model spec is exactly the pinned s3-anchor-isolation-result "
+    "control spec (no tendency_input and no decoder_base_mode key) and the parameter count is "
+    "identical; every model layer, the persistence decoder base, the data/source, the loss "
+    "definition, the 2400 updates, LR 2e-5, warmup 10, K=4, depth=4, dim=192, batch 1, clip 1, "
+    "deep K-axis supervision, physical weights (1,.5,0,.5,0,0,0,.5,0,0,0,.5), seeds 41/42/43, "
+    "scoring domain and climatology denominator are unchanged. Because training/r7_sam.py and "
+    "the runner's update branch change, training_code_sha256 moves away from the control's "
+    "8ad77d93...; the candidate model revision stays at the current 60de3b2d... (model/*.py is "
+    "not touched this round). The migrated parent produced under that revision is reused, and "
+    "the expansion under this round's control spec adds exactly the two published "
+    "climatology-anchor buffers, giving new per-seed expanded state digests "
+    "00ada5e2.../baed2ff9.../4dda647f... while the migrated state digests stay "
+    "7c416ccb.../857d8804.../61fdac58... and the anchor init stays de0e76... .")
+LIMITATIONS = [
+    "development screening on one wide instance (129x129 input, interior_32 supervision, one "
+    "ROI, 17 channels, 2017-2021 train / 2022 val); no significance, convergence, SOTA or "
+    "generalization claim",
+    "the candidate is a new-training-code three-seed trajectory while the paired control is a "
+    "pinned old-training-code reading (s3-anchor-isolation-result, training_code 8ad77d93..., "
+    "not retrained), so the paired difference mixes the training-code revision with the SAM "
+    "factor; the only mitigation evidence is the counter-proof that the off branch is an "
+    "independent, bitwise-registered path (sam_rho=None leaves the registered loss.backward() "
+    "branch untouched, and sam_rho=0 reproduces the registered gradient exactly) plus the "
+    "requirement that the candidate's update-0 unperturbed loss equals the control's bit for "
+    "bit (1.6504188776 / 1.2071821690 / 1.4734519720)",
+    "same updates is not the same compute: the SAM step runs two forward/backward passes per "
+    "update, so FLOPs and GPU-hours are roughly doubled. Parameters, FLOPs and GPU-hours are "
+    "reported separately and the compute confound is declared. The primary source itself "
+    "(arXiv:2010.01412v3 section 3.1) gives its non-SAM baseline twice the epochs to align "
+    "compute, so an equal-updates comparison is favourable to the baseline under that paper's "
+    "own framework; this round does NOT run a 4800-update compute-matched control, which would "
+    "be a second arm and a new recipe",
+    "rho=0.05 is taken from arXiv:2010.01412v3 section 3.1's default, but the closest temporal "
+    "precedent, SAMformer (arXiv:2402.10198v3 Table 4), reports an optimal rho*=0.1-1.0 and uses "
+    "Adam rather than AdamW (this recipe uses AdamW with weight_decay 1e-4). A negative result "
+    "therefore closes only 'SAM at the predeclared rho'; it does not show that SAM is "
+    "ineffective at other radii",
+    "single instance, single ROI and one season; three seeds are consistency evidence, not a "
+    "significance test; GPU runs are co-resident and not bitwise reproducible; validation split "
+    "only and the test split stays sealed",
+    "the candidate model revision (60de3b2d...) is newer than the pinned control's "
+    "(3fe747b2...): model/*.py gained the tendency_input attribute in the previous round even "
+    "though this round's spec leaves that switch off. This round changes no model file, and the "
+    "declared model-code difference is bounded by the update-0 bitwise loss equality above, but "
+    "it is an additional declared difference between the two arms rather than something "
+    "controlled away",
+]
