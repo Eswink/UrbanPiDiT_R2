@@ -277,8 +277,16 @@ def test_the_update_gradient_is_the_gradient_at_the_perturbed_point(monkeypatch)
     assert not _same(sam_grads, accumulated)
     assert not _same(sam_grads, first_grads)
     assert metrics["sam_grad_norm"] == pytest.approx(sam.global_norm(first_grads), abs=1e-12)
-    assert metrics["sam_perturbation_norm"] == pytest.approx(SAM_RHO, abs=1e-9)
-    # The ratio is 1 up to the fp32 rounding of ``g * scale`` (~6e-9 relative here).
+    # The declared radius holds through the closed form of ``e = rho*g/(||g||+eps)``: its norm
+    # is ``rho*||g||/(||g||+eps)``, so it misses ``rho`` by ``rho*eps/(||g||+eps)`` plus the
+    # fp32 rounding of ``g * scale`` (~6e-9 relative). Both residuals move with the fixture's
+    # gradient norm and with the reduction order, so the identity is asserted against the
+    # closed form and the "it is the predeclared 0.05" claim carries a bound wide enough for
+    # the eps term at any fixture scale.
+    grad_norm = sam.global_norm(first_grads)
+    assert metrics["sam_perturbation_norm"] == pytest.approx(
+        SAM_RHO * grad_norm / (grad_norm + sam.SAM_EPS), rel=1e-6)
+    assert metrics["sam_perturbation_norm"] == pytest.approx(SAM_RHO, rel=1e-4)
     assert metrics["sam_perturbation_ratio"] == pytest.approx(1.0, abs=1e-6)
     assert metrics["sam_loss_increase"] > 0.0
 
