@@ -4,7 +4,7 @@
 
 <!-- round-spec: {"arm": "s3-tendency-input", "driver": "scripts/study_r7_s3_tendency_input.py", "output_stem": "r7_s3_tendency_input_20261021", "control_record": "s3-anchor-isolation-result", "reference_record": "s3-wide-interior-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_tendency_input.py", "tests/test_r7_s3_tendency_input_protocol.py"], "code_archive": "outputs/r7_s3_tendency_input_code.zip", "commit_paths": ["model/coarse_encoder.py", "model/weather_forecaster_r7.py", "model/process_forecast_r7.py", "scripts/r7_s3_tendency_input_parent.py", "scripts/r7_s3_tendency_input_support.py", "scripts/r7_s3_tendency_input_text.py", "scripts/study_r7_s3_tendency_input.py", "tests/test_r7_s3_tendency_input.py", "tests/test_r7_s3_tendency_input_protocol.py", "docs/goals/s3-tendency-input.md", "docs/goals/main-model-climatology-campaign.md", "docs/decisions/0049-explicit-tendency-input-round.md", "docs/decisions/README.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): add the explicit tendency-input single-factor driver [model-digest-change]", "register_paths": ["docs/R7_S3_TENDENCY_INPUT_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-tendency-input.md"], "register_message": "feat(r7): register the tendency-input run as a new evidence record"} -->
 
-状态 **实现轮：驱动/测试/父扩张已写，尚未 freeze、未跑 GPU、未登记**（2026-10-21）。唯一主计划
+状态 **完成：mixed / not-candidate；预声明出口 (a)(b) 未满足，支已永久关闭；证据已登记**（2026-10-21）。唯一主计划
 `docs/goals/main-model-climatology-campaign.md`；本轮承接 2026-10-21 §8 重新激活块与决策
 `0049-explicit-tendency-input-round.md`，只改模型输入表示，不改数据、父、预算、损失或任何已关轴。
 
@@ -154,10 +154,29 @@ architecture/容量/K 轴组织/损失加权/EMA/空间梯度/梯度手术组合
      `tests/test_check_conventions.py` 共 175 passed；`commit_guard` 对 14 个实现路径
      exit 0）。另以 CPU 只读方式对三 seed 跑了真实迁移 + `expand_parent_state`：参数
      3,299,093、扩张 digest `7105700b…/b1695349…/691058ad…`、anchor `de0e76…` 全部命中。
-- **未做（如实）**：尚未 `freeze`/`prepare`/`archive`/GPU 训练/`reading`；
-  尚未登记证据页、index、brief 或账本；`test` 未读、r=0、S4 未启动。
-- **下一动作（S3）**：在实现提交后按 `freeze` → `prepare` → `archive` →
-  `stage-seeds` → `reading` 推进（`round-guard` 已通过）；读数按 §3 的 (a)–(e) 判读并登记
-  四件套。若任一 (a)–(d) 假，永久关闭显式 tendency-input 支并回到主计划 §8 另选独立因子。
+- **已完成（2026-10-21，运行轮）**：
+  1. `freeze` 成功：attempt `outputs/r7_s3_tendency_input_20261021_attempt01/`，protocol
+     `f25f3eb7…`、code.zip `9b75245d…`（1477 entries，ZIP comment == code commit
+     `5ef6c46…`）；prepare/archive 各 success。
+  2. `stage-seeds` 双卡完成 seed41/42/43（2400 updates + 五 lead，`exit_code=0`，无
+     `failure.json`）；`reading` success，`readings.json` `968bf0fb…`。
+  3. **结果**：72 h `interior_32` t2m skill 三 seed 全负（−0.174997/−0.276587/−0.155372）；
+     72 h 候选−控制 ΔRMSE 非全负（+0.000555/−0.000969/−0.001230 K）；48 h skill 三 seed
+     全正（+0.061523/+0.028408/+0.113681）；6/12/24 h seed 均值 Δ 全 ≤0
+     （−0.000840/−0.001171/−0.002572 K）；桥 15/15 一致。⇒ (a)(b) false、(c)(d)(e) true、
+     `predeclared_exit_met=false`、`identity_unresolved=false`；**支已按预声明永久关闭**。
+     这不是 null：三 seed 的 `tendency_patch` 全部 13056 个元素非零，L2 0.130…0.151。
+  4. **成本**：process 合计 28,099.457 s = **7.805404837 GPU-h**；墙钟 20,548.289 s；
+     soft/hard overrun 0；网络 0；磁盘 19.57 GiB；累计 165.012856 → **172.818261 GPU-h**。
+  5. **登记**：证据页 `docs/R7_S3_TENDENCY_INPUT_RESULT.md`、index record
+     `s3-tendency-input-result`（`mixed`/`not-candidate`）、brief、账本行、§8、campaign-state。
+  6. **CI 如实**：实现 commit `15ba518` 的 CI 被同分支并发推送取消；`97463bf` 修复并发会话
+     引入的 FY 反例与尺寸标记；最终 code commit `5ef6c46…` 的 `R7 CPU CI` **39571181164
+     completed/success**。并发提交把我们新增的 driver/tests 带进了 `ee5b99f`，文件内容未变，
+     已在证据页披露。
+- **未做（如实）**：未读 2023 test；未启动 S4；未做 parameter-matched 控制臂；未扫 tendency
+  定义/缩放/符号；未把结果称为泛化或 SOTA。
+- **下一动作（S3）**：支已关闭；下一轮必须先完成所需的一手检索，提出一个新的、与已关闭轴
+  不重叠且可独立检验的因子，写新 round brief 并预声明出口后再 freeze/GPU。
 - **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
 - 不宣布科学通过、不称泛化/SOTA。
