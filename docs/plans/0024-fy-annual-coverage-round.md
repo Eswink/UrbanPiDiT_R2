@@ -1,7 +1,7 @@
 # 0024 — S3 全年覆盖单因素轮（4 个月 → 12 个月，2017–2021 / 2022）
 
-**状态：工作态计划（2026-10-21 用户授权写入），尚未执行。** 本文件是**计划**，不是 round brief，
-不产生任何科学结论；正式 brief、冻结协议与预声明出口必须在开工时按 R-006 重新写定。
+**状态：工作态计划（2026-10-21 用户授权写入）；Phase 1–3 的 CPU 数据准备已执行，训练/评分未开始。**
+本文件是**计划**，不是 round brief，不产生任何科学结论；正式 brief、冻结协议与预声明出口必须在开工时按 R-006 重新写定。
 **授权来源**：用户本轮明确指示「用我们最新下载的数据」，并选择「数据方向（全年 store + 全年 vs
 4 个月验证）」；不再新增下载。数据扩充的 D3 前置（架构/训练信号/优化全无收益）当前已满足。
 
@@ -158,5 +158,46 @@ FY 源覆盖 2000-01-01–2022-12-31，**没有 2023**；store builder 要求 te
 
 ## 实际结果
 
-**工作态计划，尚未执行（2026-10-21）。** 没有 store、没有训练、没有读数；本文件不产生科学结论。
-实际结果（两臂 5-lead skill、F−N 配对 Δ、GPU-h、失败/关闭判定）在本轮跑完并登记后补写。
+**CPU 数据准备已执行（Phase 1–3，2026-10-21）；训练/评分（Phase 4–7）尚未开始。**
+本节只记录可核查的派生事实，不产生科学结论、不是读数的替代。
+
+### 已执行
+
+1. **合并源**（`outputs/r7_s3_fy_annual_20261021_attempt01/`）：FY 源 `2017-01-01..2022-12-31`
+   （`b5a8dba0…`）+ 2023 封存块 `2023-01-01..2023-10-30`（`44a24ca0…`），坐标/变量/单位逐位一致
+   （`coordinates_equal=true`、`variables_equal=true`、`units_equal=true`、`dtype=float32`）。
+   合并后 **9,244 帧**、`2017-01-01 00:00 .. 2023-10-30 18:00`、12 个月、
+   `source.nc` **2,036,671,757 B**、SHA256
+   `449470415aa8b845a6d8c3870140bd47e43bb5e3dc7b6a87c302cd26976afbc8`；
+   receipt `merge_receipt.json`（`r7-fy-annual-merged-source-v1`，`scientific_claim=false`）。
+2. **只读 preflight → `--write` store**：`preflight_store_report.json` 记录 shape
+   `[9244, 17, 65, 65]`、windows `train/val/test = 7302/1458/472`、
+   `split_years {train: 2017–2021, val: 2022, test: 2023}`、源指纹 `full-local-file`；
+   store `store/cache.zarr` 约 2.0 GiB，`store/manifests/BUILD_COMPLETE.json` 存在，
+   `validate_store` 通过。
+3. **两套清单（同一 store）**：`store/manifests_control/` 与 `store/manifests_treatment/`，
+   各自 `train/val/test.jsonl` + `BUILD_COMPLETE.json`（均为 `build_complete=true`）。
+   - control train **2,360** 条（Jan/Apr/Jul/Oct、1–30 日、UTC 00/06/12/18；history/init/target
+     三段都落在该子集内，避免跨月/跨日窗）；identity
+     `9d0e2e8dad0843aa842b6f81e20e19281c732a134b6cc83e6796f21705df8c3e`。
+   - treatment train **7,302** 条（2017–2021 全部 12 个月）；identity
+     `c17494ab63d54855697567f1195a613ca61e32cfcc3db22d709a7ff00dc17422`。
+   - 两套 val **相同**，**1,458** 条（2022 全年）；identity
+     `94a0e509e87bd255369b7b5f48ba3a1997240406d20b01f0c96f591a1b8d5a45`。
+   - 两套 test 相同（2023 四个月、472 条），**未读取**。
+4. **48 桶 train-only 气候态分母**（`outputs/r7_s3_fy_annual_d2_20261021_attempt01/`）：
+   在全年 train（`n_selected_steps=7,304`，`training_years=[2017..2021]`）上拟合，48 个
+   `(month, hour)` 桶，每桶 141–155 帧；5 个 lead 的 val 评分均满覆盖
+   （1,458/1,457/1,455/1,451/1,447 个窗口），区域取 `full`（65×65 = 4,225 点，
+   `boundary_margins=(1,)`）。气候态 t2m RMSE：6h **3.8878542160913172 K**、
+   12h **3.8887477466606346 K**、24h **3.8906948018885616 K**、48h **3.8946928171358484 K**、
+   72h **3.8970789101854089 K**。`reference.json`（`r7-s3-fy-annual-d2-reference-v1`，
+   `scientific_claim=false`）记录每 lead 的 `boundary_rmse.csv` SHA256 与 `n_evaluated`。
+
+### 尚未执行
+
+- Phase 4–7：正式 round brief、决策记录、两臂驱动/父模块/测试、独立复核、`round-guard`、
+  `freeze`、六次训练（2 臂 × 3 seed）、读数与四件套登记。
+- **阻塞项**：另一窗口的 tendency-input 轮仍有未提交的 `model/*.py` 等改动（决策 0049 尚未
+  提交），工作树 model digest 不是干净的 `3fe747b2…`。本轮**不合并、不覆盖**其改动；GPU 阶段
+  必须在干净、已提交的 revision 上开工（§6 Phase 0），在此之前不 `freeze`、不训练。
