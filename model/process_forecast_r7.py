@@ -205,7 +205,7 @@ class ProcessForecastCoReasoner(nn.Module):
         process_init_conditioning:bool=False,
         global_mixing_mode:Optional[str]=None, global_mixing=None,
         anchor_output_prior:bool=True,
-        decoder_base_mode:str='persistence',
+        decoder_base_mode:str='persistence',tendency_input:bool=False,
     ):
         super().__init__()
         _validate_switches(
@@ -289,8 +289,8 @@ class ProcessForecastCoReasoner(nn.Module):
             change_scale_mode=change_scale_mode,
             change_scale_ratio=change_scale_ratio,
             anchor_output_prior=anchor_output_prior,decoder_base_mode=decoder_base_mode,
+            tendency_input=tendency_input,
         )
-
         self.process_queries=nn.Parameter(
             torch.randn(1,self.num_process_tokens,dim)*0.02
         )

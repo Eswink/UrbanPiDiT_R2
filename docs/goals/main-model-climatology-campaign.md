@@ -329,7 +329,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-gradient-surgery.md", "previous_round_goal": "docs/goals/s3-gradient-surgery.md", "previous_round_evidence": "docs/R7_S3_GRADIENT_SURGERY_RESULT.md", "cap_gpu_h": 20.0, "used_gpu_h": 165.012856, "remaining_gpu_h": -145.012856, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
+<!-- campaign-state: {"current_node": "S3", "previous_node": "S3", "current_round_goal": "docs/goals/s3-tendency-input.md", "previous_round_goal": "docs/goals/s3-gradient-surgery.md", "previous_round_evidence": "docs/R7_S3_GRADIENT_SURGERY_RESULT.md", "cap_gpu_h": 20.0, "used_gpu_h": 165.012856, "remaining_gpu_h": -145.012856, "status": "active", "next_node_proposal": "S4", "budget_mode": "per-node-hard-cap-summed", "route_decision": "0038"} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -1707,4 +1707,29 @@ test 未读、r=0、S4 未启动不变。
   real-data-acquisition 技能先冻 source/范围/单位/网格/split/预算，只读 preflight 后 `--write`
   到全新排他 `outputs/`）；(b) 新的模型/架构方向（需新的决策记录与预声明，因为 0048 已永久关闭
   容量轴、H-A…H-D 也已关闭）。未获授权前不 freeze、不开 GPU、不加 seed、不重开已关轴。
+- **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
+
+### 2026-10-21 — 重新激活：显式 tendency 输入作为独立表示因子（不宣布科学通过）
+
+- **指令来源与范围**：运行时已要求从 §8 继续下一独立单因素轮，并先完成一手检索、写新 brief、
+  预声明出口；因此上一条 2026-10-20「暂停并等待具名授权」只在本轮**显式 tendency 输入**这一
+  表示因子上被取代。数据扩充仍按 D3 暂缓（无新下载、不重建 store、不碰受保护数据）；决策 0048
+  的容量轴与 H-A…H-D 架构轴仍永久关闭；不重开已关闭的 PE/scale/typed/ordering/anchor/
+  rollout-dose/EMA/dense/final-only/spatial-gradient/zero-base decoder/gradient-surgery 支。
+- **为何它不是已关轴的重命名**：本轮只改输入表示——把显式 `D_t = X_t − X_{t−1}` 作为第三组
+  17 通道与 `X_{t−1}, X_t` 一起送入 encoder patch（34→51 列），新增列零初始化；模型其余层、
+  decoder base、数据、损失、2400 updates、LR/warmup、K/depth/dim、物理权重、seed、评分域、
+  气候态分母全部逐字不变。它是**输入通路/表示**的单因素，不是容量、深度或已关闭的架构开关。
+- **一手检索状态**：主链路已按决策 0046 用 arXiv MCP 核对 GraphCast/FuXi/Pangu/Stormer/NeuralGCM
+  的输入与 tendency 用法；未检索到把显式 6h tendency 作为**输入**与两个历史帧一起喂入中程天气
+  模型并做受控消融的一手工作。检索只作线索，不作证据；引用落到论文/源码位置后写入 brief。
+- **预声明边界（冻结前写死，不新增阈值）**：出口沿用既有 (a)–(e)；72h skill 三 seed 全正、
+  72h 配对 Δ 三 seed 全负、48h skill 三 seed 全正、6/12/24h seed 均值 Δ≤0、控制−pinned dose
+  桥在 −4.8e-6…+1.8e-5 K。任一 (a)–(d) 不满足即永久关闭该支；不加 seed、不扫 tendency 通道
+  定义/缩放、不改 updates/LR、不与已关轴组合；新列训练后仍近零或读数无差异则记 null 并关支。
+- **下一动作（S3）**：写 `docs/goals/s3-tendency-input.md`（含一手检索、单因素差异、预声明出口、
+  预算与停止条件），派生新驱动/父扩张模块/CI-safe 测试，先跑
+  `.venv/bin/python tools/r7_round.py round-guard`，再 freeze/GPU。参数增加必须按实际 patch
+  形状报告（17×dim×patch_size²，当前 dim=192、patch_size=2 时为 **13,056**，不是 3,264）。
+  `test` 未读、r=0、S4 未启动；不宣布 SOTA/complete。
 - **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。

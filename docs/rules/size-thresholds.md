@@ -7,7 +7,16 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=0 R-019b=1106 R-020=66 R-021=117 R-022=67 R-023=47 -->
+<!-- measured: R-019=0 R-019b=1106 R-020=66 R-021=119 R-022=67 R-023=47 -->
+
+**2026-10-21 tendency-input 驱动复算（暂存集合实测）**：R-021 **117→119**；R-019=0、R-019b=1106、
+R-020=66、R-022=67、R-023=47 保持。R-021 的两处增长来自本轮新增的
+`scripts/study_r7_s3_tendency_input.py`（531 行）与
+`tests/test_r7_s3_tendency_input_protocol.py`（505 行），两者均 >400 目标、≤600 硬限。
+`tests/test_r7_s3_tendency_input.py`、`scripts/r7_s3_tendency_input_parent.py`、
+`scripts/r7_s3_tendency_input_support.py` 与 `scripts/r7_s3_tendency_input_text.py` 均在 400 行
+目标带内；模型改动只增加 4 行（`model/process_forecast_r7.py` 552 行，R-052 200 行硬限内）。
+**未改规则级别、阈值或冻结例外清单。**
 
 **2026-10-20 gradient-surgery 驱动复算（暂存集合实测）**：R-021 **115→117**、R-022 **66→67**；
 R-019=0、R-019b=1106、R-020=66、R-023=47 保持。R-021 的两处增长来自本轮新增的

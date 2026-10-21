@@ -36,7 +36,7 @@ class NativeAtmosForecaster(nn.Module):
                  spacetime_field_mode:str='fields',known_context_inputs:bool=False,
                  change_scale_mode:str='identity',change_scale_ratio=None,
                  climatology_anchor_spec=None,anchor_output_prior:bool=True,
-                 decoder_base_mode:str='persistence'):
+                 decoder_base_mode:str='persistence',tendency_input:bool=False):
         super().__init__()
         if type(known_context_inputs) is not bool:
             raise ValueError('known_context_inputs must be boolean')
@@ -50,6 +50,8 @@ class NativeAtmosForecaster(nn.Module):
             raise ValueError('anchor_output_prior must be boolean')
         if decoder_base_mode not in self.DECODER_BASE_MODES:
             raise ValueError(f"decoder_base_mode must be one of {self.DECODER_BASE_MODES}")
+        if type(tendency_input) is not bool:
+            raise ValueError('tendency_input must be boolean')
         if (decoder_base_mode == 'zero' and anchor_output_prior
                 and climatology_anchor_spec is not None):
             # With the climatology output prior on, the head anchor is C_valid, not the
@@ -76,12 +78,14 @@ class NativeAtmosForecaster(nn.Module):
                 "spacetime_inputs=True; with the pathway off it would be silently ignored")
         self.in_channels=int(in_channels)
         self.history_steps=int(history_steps)
+        self.tendency_input=tendency_input
         self.out_channels=int(out_channels or in_channels)
         if self.out_channels>self.in_channels:
             raise ValueError('R7.1 默认 persistence base 要求 out_channels <= in_channels')
         self.default_lead_hours=float(default_lead_hours)
         self.encoder=CoarseEncoder(self.in_channels,self.history_steps,dim,patch_size,depth,
-            heads,window_size,dropout,activation_checkpointing,periodic_width,pad_to_patch=True)
+            heads,window_size,dropout,activation_checkpointing,periodic_width,pad_to_patch=True,
+            tendency_input=tendency_input)
         self.lead_time=LeadTimeEmbedding(dim)
         self.head=CoarseForecastHead(dim,self.out_channels,patch_size,
             change_scale_mode=change_scale_mode,change_scale_ratio=change_scale_ratio)

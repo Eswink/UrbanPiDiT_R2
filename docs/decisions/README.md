@@ -74,3 +74,5 @@
 | [0046](0046-arxiv-literature-research-route.md) | 文献检索通道：新增 `arxiv-researcher`（arXiv MCP 只读 9 工具）承担一手论文，网络通道维持 0018 的单一出口；文献通道无机械闸门、靠约定约束 | accepted | 2026-10-12 |
 | [0047](0047-dual-card-seed-distribution.md) | 一轮内双卡 seed 分配：一卡一 seed 并发（默认双卡、保留单卡、不引入 DDP）、逐卡只读余量门 + 邻居增长 reserve；界定与 0042 第 4 条的适用范围 | accepted | 2026-10-12 |
 | [0048](0048-capacity-axis-scope-and-cap.md) | 容量轴的适用范围与封顶：容量轮出口收窄为**深度轴**、宽度封顶为**最后一个**容量臂（失败即整条容量轴永久关闭）；含时序披露、宽度无逐位恒等扩张、成本口径更正 | accepted | 2026-10-13 |
+| [0049](0049-explicit-tendency-input-round.md) | 显式 tendency 输入单因素轮的授权边界：只改 encoder 输入表示、+13,056 参数作为容量混杂、预声明 (a)–(e) 出口与 null 口径、新 revision 父迁移；不重开容量/架构轴 | accepted | 2026-10-21 |
+| [0050](0050-fy-annual-coverage-round.md) | 全年覆盖单因素轮：4→12 个月、年份固定 2017–2021、65×65 限制、预声明 (a)–(d) 出口与非科学桥 (e)；不新增下载、不改模型 | accepted | 2026-10-21 |
