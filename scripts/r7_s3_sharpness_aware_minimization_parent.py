@@ -33,6 +33,9 @@ from scripts import r7_s3_tendency_input_parent as migrated
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATED_PARENT_RUN = migrated.MIGRATED_PARENT_RUN
+#: The published train-only climatology table the control's anchor reads; re-exported
+#: because the driver writes it into the arm contract's initialization block.
+ANCHOR_TABLE_RUN = migrated.ANCHOR_TABLE_RUN
 MIGRATION_RECEIPT_SHA256 = migrated.MIGRATION_RECEIPT_SHA256
 CURRENT_MODEL_CODE_SHA256 = migrated.CURRENT_MODEL_CODE_SHA256
 MIGRATED_PARENT_SHA256 = dict(migrated.MIGRATED_PARENT_SHA256)

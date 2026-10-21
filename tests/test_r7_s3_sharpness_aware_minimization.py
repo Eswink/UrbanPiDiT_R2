@@ -469,3 +469,54 @@ def test_sam_training_refuses_a_changed_physical_contour(tmp_path):
     options["physical_weights"] = (1.0, 0.5, 0.5)
     with pytest.raises(ValueError):
         runner.fine_tune_long_rollout(paths["train"], tmp_path / "refused", **options)
+
+
+# --------------------------------------------------------- the frozen arm contract
+
+
+def _contract_body():
+    """Exactly the protocol keys ``_arm_contract`` reads, with synthetic values."""
+    return {"train_data_identity": canonical_digest("synthetic-train"),
+            "source_sha256": canonical_digest("synthetic-source"),
+            "protocol_sha256": canonical_digest("synthetic-protocol"),
+            "training_code_sha256": canonical_digest("synthetic-training-code"),
+            "train_windows": {"window_sha256": canonical_digest("synthetic-window"),
+                              "excluded_sample_ids": []},
+            "supervision": {"runner_block": {"mask": "interior_32"}}}
+
+
+def test_every_parent_attribute_the_driver_reads_is_re_exported():
+    """Anti-drift guard for the defect that killed the first GPU attempt.
+
+    ``_arm_contract`` reads names off the parent module, but it only runs inside a
+    frozen, GPU-started round; a name the parent forgot to re-export therefore costs a
+    whole freeze/prepare/archive cycle before it surfaces. This compares the driver's
+    static attribute references against the module, so the gap shows up in CI instead.
+    """
+    import ast
+    source = (ROOT / "scripts" / "study_r7_s3_sharpness_aware_minimization.py").read_text(
+        encoding="utf-8")
+    referenced = {node.attr for node in ast.walk(ast.parse(source))
+                  if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
+                  and node.value.id == "parent"}
+    assert "ANCHOR_TABLE_RUN" in referenced, "the driver no longer records the anchor table run"
+    missing = sorted(name for name in referenced if not hasattr(parent, name))
+    assert not missing, f"the driver reads parent.{missing}, which the parent module lacks"
+
+
+def test_the_arm_contract_initialization_block_resolves():
+    body = _contract_body()
+    spec = {"architecture": "window", "dim": 192, "depth": 4}
+    expansion = {"anchor_table_sha256": canonical_digest("synthetic-anchor-table")}
+    contract = driver._arm_contract(body, spec, Path("/synthetic/parent.pt"),
+                                    canonical_digest("synthetic-parent"), expansion)
+    init = contract["initialization"]
+    assert contract["model"] is spec
+    assert init["parent_run"] == str(parent.MIGRATED_PARENT_RUN)
+    assert init["anchor_table_run"] == str(parent.ANCHOR_TABLE_RUN)
+    assert init["anchor_table_sha256"] == expansion["anchor_table_sha256"]
+    assert init["parent_migration_receipt_sha256"] == parent.MIGRATION_RECEIPT_SHA256
+    assert init["parent_endpoint_updates"] == 1600
+    assert contract["autoregression"]["sam_rho"] == SAM_RHO
+    assert contract["autoregression"]["draft_supervision"] == driver.DRAFT_SUPERVISION
+    assert contract["training_code_sha256"] == body["training_code_sha256"]
