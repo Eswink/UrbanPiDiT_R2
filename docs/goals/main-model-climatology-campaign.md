@@ -1864,3 +1864,37 @@ test 未读、r=0、S4 未启动不变。
   再提假设；若检索不到与已关轴不重叠的新可证伪因子，应把结论落到「当前 recipe 的瓶颈不在这些
   单因素上」，转向长 lead 误差增长与目标/监督结构的更基础假设。`test` 未读、r=0、S4 未启动；
   不宣布科学通过、不称泛化/SOTA。
+
+### 2026-10-22 — SAM 轮之后的一手检索侦察：单因素空间确认饱和，下一轮回到用户已选的数据方向
+
+- **做了什么**：按 §8 要求，在启动下一独立单因素轮前先做一手检索（委派 `arxiv-researcher`，
+  arXiv MCP，只读；检索词覆盖 multi-frame/history input、recursive-draft regularizer、
+  stochastic depth、loss function/spectral loss、training horizon curriculum；范围 2022 年起
+  cs.LG / physics.ao-ph，另核 Pangu/FuXi/GraphCast/Stormer/NeuralGCM/MetMamba）。
+- **检索结论（线索级，不作证据）**：
+  1. **谱损失**是唯一有一手受控消融的候选——arXiv **2501.19374v2**（Subich 等，spherical-harmonic
+     修正损失）在 **GraphCast** 上只改损失函数，240 h lead RMSE 降 **7.09–14.60%**（11 个变量组），
+     有效分辨率 1250 km → 160 km。但本仓 2026-10-20 的侦察已把「频域/谱损失」记为与**已关闭的
+     空间梯度/损失加权族相邻**，且该支的关闭文本明确写「不换名重开」；同时本仓是**区域 129×129**
+     网格、没有球谐结构，把该结果搬到区域 2D FFT 上属于**新的实现对象**而非复现。因此**不**在本轮
+     自行启用谱损失——它需要一条新决策把「它与已关闭的空间梯度损失不是同一族」论证清楚。
+  2. **三帧历史输入**（`X_{t−2}`）：**未检索到**「2 帧 vs 3+ 帧」的受控消融；GraphCast/Pangu/FuXi
+     堆叠两帧是设计事实，GraphCast-Mamba 用的是 temporal memory 而非第三帧。与已关闭的「显式 6 h
+     tendency 输入」不是同一个对象（那是同一两帧的差分通道），但同属「改 encoder 输入通道」，
+     无一手支撑。
+  3. **递归草稿 K 步正则**、**随机深度/丢弃递归输入**、**渐进 horizon 课程**：**均未检索到**
+     区域或全局确定性中程天气模型上的受控消融；GraphCast 的 curriculum 报告显示「加长
+     autoregressive 步数后短 lead 变差」的 tradeoff，不是纯增益。
+- **判断**：**单因素空间已确认饱和**——除谱损失（与已关闭族相邻、需新决策）外，剩余候选既无一手
+  受控消融、又与已关闭轴同属一个改动面。这与 2026-10-20 的侦察结论一致，并被其后两轮
+  （tendency 输入、SAM）的负结果再次印证。
+- **下一轮＝用户已选的数据方向**：用户 2026-10-21 已明确选择数据方向并要求「用我们最新下载的
+  数据」，对应 **决策 0050**（`docs/decisions/0050-fy-annual-coverage-round.md`）与已写好的
+  brief `docs/goals/s3-fy-annual-coverage.md`（全年覆盖 4 个月 → 12 个月，年份固定 2017–2021，
+  65×65 实例）。D3 的「架构/训练信号/优化全无收益」前置条件现已由 SAM 轮补齐。
+  **注意该 brief 的时序约束**：决策 0050 要求它在**最后一个 `model_code_sha256 3fe747b2…` 修订
+  （H-D 实验提交 `0becf24`）的干净 checkout** 上运行，以保持「注册架构上的纯数据单因素」；
+  当前 HEAD 的模型修订已是 `60de3b2d…`（tendency 轮引入、默认 `tendency_input=False` 路径），
+  把数据因子叠到 `60de3b2d…` 会同时改变模型修订，**必须另立决策**，不能借用 0050。
+- **不宣布科学通过**：`test` 未读、r=0、S4 未启动；本块只是侦察与轮次指针，不含任何读数。
+- **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
