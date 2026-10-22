@@ -113,16 +113,35 @@ def default_runner(
 ) -> dict[str, Any]:
     if timeout is None and argv and argv[0] == "git":
         timeout = GIT_TIMEOUT_SECONDS
-    completed = subprocess.run(  # fixed argv, no shell
-        list(argv),
-        cwd=str(cwd or ROOT),
-        env=env,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        check=False,
-        timeout=timeout,
-    )
+    try:
+        completed = subprocess.run(  # fixed argv, no shell
+            list(argv),
+            cwd=str(cwd or ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as expired:
+        # A stage that runs past its frozen limit is a failed stage, not an orchestrator
+        # crash: the caller records exit_code != 0 and stops the round, exactly as for any
+        # other non-zero exit. Letting this escape killed a whole `stage-seeds` call on
+        # 2026-10-22 with a traceback instead of a structured failure.
+        def decode(value):
+            if value is None:
+                return ""
+            return value.decode("utf-8", "replace") if isinstance(value, bytes) else value
+
+        return {
+            "argv": list(argv),
+            "exit_code": 124,
+            "timed_out": True,
+            "timeout_seconds": timeout,
+            "stdout": decode(expired.stdout),
+            "stderr": decode(expired.stderr) + f"\nstage exceeded its frozen limit of {timeout} s\n",
+        }
     return {
         "argv": list(argv),
         "exit_code": completed.returncode,

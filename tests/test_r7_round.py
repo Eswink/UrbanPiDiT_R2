@@ -337,3 +337,25 @@ def test_run_pytest_counterproof_a_red_module_is_not_passing(support):
     assert verdict["passed"] is False
     assert seen["argv"][-1] == "tests/test_check_conventions.py"
     assert "no:cacheprovider" in seen["argv"]
+
+def test_default_runner_turns_a_timeout_into_a_structured_failure(support):
+    """A stage past its frozen limit is a failed stage, not an orchestrator crash.
+
+    On 2026-10-22 a `stage-seeds` call died with an unhandled `subprocess.TimeoutExpired`
+    traceback and no JSON at all, because the timeout escaped `default_runner`. The exit
+    code stays non-zero, so every caller still stops the round; it is only the shape of
+    the failure that changes.
+    """
+    import subprocess
+    import sys
+
+    result = support.default_runner(
+        [sys.executable, "-c", "import time; time.sleep(5)"], timeout=0.2)
+    assert result["exit_code"] == 124 and result["timed_out"] is True
+    assert result["timeout_seconds"] == 0.2
+    assert "frozen limit" in result["stderr"]
+    # Counter-evidence: a command that finishes inside the limit is untouched.
+    ok = support.default_runner([sys.executable, "-c", "print('ok')"], timeout=30)
+    assert ok["exit_code"] == 0 and ok["stdout"].strip() == "ok"
+    assert "timed_out" not in ok
+    assert subprocess.TimeoutExpired  # the exception type this path exists for

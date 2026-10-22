@@ -281,6 +281,20 @@ def test_provenance_must_be_val_full_grid_and_48_buckets():
         driver._check_provenance(wrong_cohort, 41, "control", 6)
 
 
+def test_the_budget_matches_the_measured_two_arm_cost():
+    """Decision 0053: the first protocol's per-seed budget was 1.6x too small.
+
+    One arm's 2,400 updates plus its five-lead evaluation measured 7,169.6-7,201.4 s, so a
+    seed's two arms need about 14,400 s. The frozen 9,000 s killed the first attempt's
+    workers at their limit, which is a failed attempt, not something to retry smaller.
+    """
+    assert (driver.PER_SEED_SECONDS, driver.PLANNED_SECONDS, driver.HARD_CAP_SECONDS) == \
+        (21600.0, 43200.0, 86400.0)
+    assert driver.PER_SEED_SECONDS > 2 * 7201.4
+    assert driver.PLANNED_SECONDS == 2 * driver.PER_SEED_SECONDS
+    assert driver.HARD_CAP_SECONDS == 4 * driver.PER_SEED_SECONDS
+
+
 def test_decision_rule_is_frozen_into_the_constants():
     rule = driver.frozen_constants()["decision"]
     assert set(rule["exits"]) == {"a", "b", "c", "d"}

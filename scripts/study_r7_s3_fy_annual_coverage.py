@@ -64,7 +64,8 @@ WEIGHT_DECAY, BATCH_SIZE, CLIP = wide.WEIGHT_DECAY, wide.BATCH_SIZE, wide.CLIP
 CHECKPOINT_EVERY, BF16, PHYSICAL_WEIGHTS = wide.CHECKPOINT_EVERY, wide.BF16, wide.PHYSICAL_WEIGHTS
 EVALUATION_LEADS, REASONING_STEPS, SEEDS = wide.EVALUATION_LEADS, wide.REASONING_STEPS, wide.SEEDS
 BOUNDARY_MARGINS, REGION, FULL_GRID_POINTS, DEVICE_MODE = (1,), "full", 4225, "dual"
-PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 9000., 21600., 43200.
+# Budget corrected after first real use (0053): one arm measured 7,170-7,201 s (2 arms = 14,400 s).
+PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 21600., 43200., 86400.
 ESTIMATED_PEAK_BYTES, HEADROOM_MARGIN_BYTES = 4096 * 2**20, 512 * 2**20
 ENTRY_FILES = ("scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", "scripts/build_r7_s3_fy_control_manifest.py", *wide.execution_files())
 
@@ -76,8 +77,7 @@ LIMITATIONS = [
     "the external bridge to s3-v3-budget-dose differs in normalization, val cases and update budget; it is an identity/engineering check, never a scientific verdict",
     "three seeds are consistency evidence, not a significance test",
     "GPU runs are co-resident; latency/memory observations include neighbor load",
-    "validation split only; the test split stays sealed until a later preregistered read",
-]
+    "validation split only; the test split stays sealed until a later preregistered read"]
 DECISION_RULE = (
     "Exit (a): treatment 72 h t2m skill > 0 on seeds 41/42/43. (b): treatment minus control 72 h t2m delta RMSE < 0 on all three seeds. "
     "(c): treatment 48 h t2m skill > 0 on all three seeds. (d): treatment minus control delta RMSE at 6/12/24 h, averaged over seeds, <= 0. "

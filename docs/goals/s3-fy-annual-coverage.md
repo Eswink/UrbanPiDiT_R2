@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-fy-annual-coverage", "driver": "scripts/study_r7_s3_fy_annual_coverage.py", "output_stem": "r7_s3_fy_annual_coverage_20261021", "control_record": "s3-v3-budget-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_annual_coverage.py"], "commit_paths": ["scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", "scripts/build_r7_s3_fy_control_manifest.py", "tests/test_r7_s3_fy_annual_coverage.py", "docs/goals/s3-fy-annual-coverage.md", "docs/decisions/0050-fy-annual-coverage-round.md", "docs/decisions/0052-fy-annual-coverage-rebinding.md", "docs/decisions/README.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): implement the FY annual-coverage two-arm data round", "register_paths": ["docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the FY annual-coverage run as a new evidence record", "code_archive": "outputs/r7_s3_fy_annual_coverage_code.zip"} -->
+<!-- round-spec: {"arm": "s3-fy-annual-coverage", "driver": "scripts/study_r7_s3_fy_annual_coverage.py", "output_stem": "r7_s3_fy_annual_coverage_20261021", "control_record": "s3-v3-budget-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_annual_coverage.py"], "commit_paths": ["scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", "scripts/build_r7_s3_fy_control_manifest.py", "tests/test_r7_s3_fy_annual_coverage.py", "docs/goals/s3-fy-annual-coverage.md", "docs/decisions/0050-fy-annual-coverage-round.md", "docs/decisions/0052-fy-annual-coverage-rebinding.md", "docs/decisions/README.md", "docs/goals/main-model-climatology-campaign.md", "docs/decisions/0053-fy-annual-coverage-budget-correction.md", "tools/r7_round_support.py", "tests/test_r7_round.py"], "commit_message": "feat(r7): implement the FY annual-coverage two-arm data round", "register_paths": ["docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the FY annual-coverage run as a new evidence record", "code_archive": "outputs/r7_s3_fy_annual_coverage_code.zip"} -->
 
 状态 **CPU 数据准备与正式 brief 已定、驱动/测试待实现、GPU 未开跑**（2026-10-21）。
 唯一主计划 `docs/goals/main-model-climatology-campaign.md`；承接 **H-D 关闭**
@@ -81,9 +81,10 @@
 - **正/负控制**：两臂由同一 seed、同一父状态、同一 spec 构造，初始化逐位相同；清单 identity
   是唯一允许的协议差异（测试断言 `set(diff) == {"train_manifest","train_data_identity",
   "train_windows"}`）。无新增参数，故无参数量混杂。
-- **预算**：两臂 × 三 seed = 六次 2400-update 训练 + 每臂五 lead 评分。per-seed **9,000 s**
-  （软），round planned **21,600 s**，hard **43,200 s**；软超继续并记 overrun，hard 截止即停
-  attempt 并全额留 `failure.json`。峰值估计 **4,096 MiB** + margin **512 MiB** +
+- **预算（决策 0053 更正后）**：两臂 × 三 seed = 六次 2400-update 训练 + 每臂五 lead 评分。
+  per-seed **21,600 s**（软）、round planned **43,200 s**、hard **86,400 s**；实测单臂
+  训练+评分 7,169.6–7,201.4 s，一 seed 两臂约 14,400 s（0050 的 9,000 s 低估 1.6×，
+  `attempt02` 因此被杀，见 §6）。软超继续并记 overrun，hard 截止即停 attempt 并全额留失败记录。峰值估计 **4,096 MiB** + margin **512 MiB** +
   neighbour reserve **6 GiB** = 10.75 GiB 门槛；按 H-D 宽臂实测峰值 9,170 MiB 以
   token 格点比例（65×65→约 1,089 token vs 129×129→约 4,225）缩放，并保留余量；
   **这是估计，不是实测**，首次 seed 后按 `owned_reserved_peak_bytes` 提升。
@@ -96,9 +97,9 @@
 | 项 | 冻结值 |
 | --- | --- |
 | 训练次数 | 2 臂 × 3 seed = 6 |
-| 每 seed 软预算 | 9,000 s |
-| round planned（软） | 21,600 s |
-| round hard（宽松硬上限） | 43,200 s |
+| 每 seed 软预算 | 21,600 s（决策 0053 按实测更正；0050 原值 9,000 s） |
+| round planned（软） | 43,200 s（原 21,600 s） |
+| round hard（宽松硬上限） | 86,400 s（原 43,200 s） |
 | 峰值估计 / margin / reserve | 4,096 MiB / 512 MiB / 6 GiB |
 | 评分窗口（全 65×65） | 6h 1,458；12h 1,457；24h 1,455；48h 1,451；72h 1,447 |
 
@@ -159,7 +160,17 @@ gradient-surgery/tendency-input；不读 test；不 main/force/merge/发版/关 
   `manifests_control_h72`；并新增 CI-safe 测试
   `test_the_control_arm_reads_the_complete_horizon_subset` 断言目录名不是 `manifests_control`。
   修复后 treatment 侧复核仍为 7,302 条 / 7,291 可用 / 11 排除，与 brief 一致。
-- **本轮 GPU 未开跑**：0 GPU-h 新增；store/manifest/climatology 是 CPU 派生数据，不是训练读数。
+- **`attempt02`（协议 `23235448…`，code commit `27cfc39`）第一次真实使用失败，如实登记**：
+  seed41/seed42 各自完成 **control 臂**（训练 4,522.2 / 4,427.2 s + 五 lead 评分合计
+  2,679.2 / 2,742.4 s，receipt 已落盘），随后 treatment 臂训练中途被 `run_stage` 的
+  `per_seed_seconds + 60` 超时杀掉（`subprocess.TimeoutExpired: ... timed out after
+  9059.999915540917 seconds`）。**根因是预算估计过低 1.6×**，不是科学失败；决策 0053 把每
+  seed 预算更正为 21,600 s 并按新协议重跑（`attempt03`）。`attempt02` 原样保留、不删、
+  不做 in-place resume，其 control 臂 receipt 只作为**预算实测证据**引用，**不**作为本轮读数。
+  同一次还修了工具缺陷：超时从 `default_runner` 逃逸导致整个 `stage-seeds` 带 traceback
+  崩溃、无 JSON 输出；现在返回 `exit_code=124` 的结构化失败，反证测试在 `tests/test_r7_round.py`。
+  实测峰值保留显存 **2,322 MiB** 低于冻结估计 4,096 MiB（保守方向，不改门）。
+- **本轮 GPU 尚未产生任何科学读数**；store/manifest/climatology 是 CPU 派生数据。
   `attempt01`（协议 `e2750d58…`）prepare 成功、archive 失败，作为失败尝试**原样保留**；
 - **父迁移前提（改绑后）**：本轮仍不改 `model/**/*.py`；`model_code_sha256` 就是 HEAD 的
   `60de3b2d…`；迁移父用上面第 2 条的三 seed checkpoint

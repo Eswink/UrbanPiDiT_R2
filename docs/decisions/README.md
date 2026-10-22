@@ -78,3 +78,4 @@
 | [0050](0050-fy-annual-coverage-round.md) | 全年覆盖单因素轮：4→12 个月、年份固定 2017–2021、65×65 限制、预声明 (a)–(d) 出口与非科学桥 (e)；不新增下载、不改模型 | accepted | 2026-10-21 |
 | [0051](0051-sharpness-aware-minimization-round.md) | SAM 单因素轮：只改训练期更新规则（rho=0.05 全局重标扰动 + 二次 forward/backward + 逐位恢复），模型/spec/父不变；预声明 (a)–(e) 出口、null 口径、2× 算力混杂与负结果范围 | accepted | 2026-10-21 |
 | [0052](0052-fy-annual-coverage-rebinding.md) | 全年覆盖轮改绑当前模型修订（`3fe747b2…` → `60de3b2d…`）：两个新增开关经测试断言为惰性、父迁移状态逐 seed 相同、桥 (e) 解释力下降如实声明；不放宽模型修订门 | accepted | 2026-10-22 |
+| [0053](0053-fy-annual-coverage-budget-correction.md) | 全年覆盖轮预算更正：按首次真实使用实测把每 seed 9,000 s → 21,600 s（planned 43,200 / hard 86,400），并修 `default_runner` 超时逃逸导致 `stage-seeds` 整轮崩溃的工具缺陷；`attempt02` 保留为失败 attempt | accepted | 2026-10-22 |
