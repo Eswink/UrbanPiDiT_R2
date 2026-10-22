@@ -182,11 +182,27 @@ gradient-surgery/tendency-input；不读 test；不 main/force/merge/发版/关 
 - **第一条命令**：`.venv/bin/python tools/r7_round.py round-guard` → 重建 code zip →
   `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/stage-seeds/reading`。
 
+## §6b 结果（2026-10-23）
+
+- **已跑完**：`attempt03`（协议 `ee532b3c…`、code commit `16ce94e`、code.zip `f980713d…`）
+  六阶段全 success、soft/hard overrun 均 0、process 15.346337 GPU-h、墙钟 10.6591 h、
+  峰值保留显存 2,436,890,624 B。三 seed 两臂全部完成训练与五 lead 评分。
+- **预声明出口 (a)–(d) 全部满足**（详见 §3 与证据页）：72 h skill
+  +0.012121/+0.032076/+0.064427；F−N 72 h ΔRMSE −0.060269/−0.065575/−0.085518 K；
+  48 h skill +0.213089/+0.215091/+0.263743；6/12/24 h seed 均值 Δ
+  −0.015227/−0.012738/−0.016615 K。**桥 (e) 未通过**，按预声明记
+  `identity/engineering unresolved`（非科学判定），不进入 (a)–(d)。
+- **状态 ⇒ `candidate`，提请独立复核/验收**。**不自动进 S4、不宣布科学通过、不称泛化/SOTA。**
+- **已登记**：证据页 `docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md`、index record
+  `s3-fy-annual-coverage-result`（`engineering-positive`/`candidate`）、brief、账本行、§8、
+  campaign-state；累计 186.014183 → **202.359827 GPU-h**。
+- **两个失败 attempt 如实保留**：`attempt01`（控制臂误读未过滤清单，已修）、
+  `attempt02`（每 seed 预算过低被调度器杀掉，决策 0053 已更正为 21,600 s）。
+
 ## §7 下一动作（S3）
 
-- 本轮实现已完成（父模块/驱动/测试已提交）；改绑决策 0052 已写，`round-guard` 通过后推工作分支
-  并等 `R7 CPU CI` 绿。
-- 然后：`freeze` → `stage prepare/archive/stage-seeds/reading`；两臂 × 三 seed（六次 2400-update
-  训练 + 每臂五 lead 评分）。
-- 预声明出口见 §3：**(a)–(d) 全真 → 提请独立验收；任一假 → 永久关闭「全年覆盖」支**。
-- 本轮**未产生任何训练读数**；不宣布通过、不关闭任何支。
+- **出口全真 ⇒ 本轮的下一步是独立复核**（只读，不重训、不重评分、不改任何已冻结判据）。
+  复核通过前**不进入 S4**；若复核要求补充，另立新协议，不在本轮上原地改。
+- 预声明出口见 §3：**(a)–(d) 全真 → 提请独立验收；任一假 → 永久关闭「全年覆盖」支**——
+  本轮走的是「全真」分支。
+- `test` 未读、r=0；不宣布科学通过、不称泛化/SOTA、不自宣最终 goal 完成。
