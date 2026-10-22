@@ -117,7 +117,9 @@ tensor `state_digest` 相同。证据（协议内 `model_only_migration.state_eq
    "attempt04_migrated_sha256": "5af64655402cb16f0148b692ef7a84eb8934230cf43ed6ac9306501a7756cafa"
   }
  },
- "claim": "the current-revision migration carries the same v3-BD 1600 parent state that decision 0050 froze; only 
+ "claim": "the current-revision migration carries the same v3-BD 1600 parent state that decision 0050 froze; only the embedded code identity differs, so the migrated files' own SHA256 values differ while the tensor digests do not",
+ "scientific_claim": false
+}
 ```
 
 ## 5. 桥 (e)（**非科学判定**）
