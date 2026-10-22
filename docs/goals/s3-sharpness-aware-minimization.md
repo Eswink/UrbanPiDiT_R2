@@ -165,9 +165,22 @@ PE/scale/typed/ordering/rollout-dose 组合、不换名重开、不改 `data/raw
   4. 本长文、决策 0051、§8 重新激活块、campaign-state 指针、size-thresholds 复算。
   5. 回归：既有 `tests/test_r7_s3_gradient_surgery*.py`、`tests/test_r7_s3_tendency_input*.py`、
      `tests/test_r7_s3_ema_weight_averaging.py` 共 163 passed（off 路径未变）。
-- **未做（如实）**：未跑 GPU、未 freeze、未读 2023 test、未启动 S4、未做 parameter-matched
-  臂、未跑 4800-update 算力匹配控制、未扫 rho；未把任何结果称为泛化或 SOTA。
-- **下一动作（S3）**：`.venv/bin/python tools/r7_round.py round-guard` 通过后 `freeze` →
-  `stage-seeds` → `reading`，再按预声明出口判读并登记四件套。
+- **未做（如实）**：未读 2023 test、未启动 S4、未做 parameter-matched 臂、未跑 4800-update
+  算力匹配控制、未扫 rho；未把任何结果称为泛化或 SOTA。
+- **已跑完（2026-10-22，结果轮）**：`attempt01` 因父模块缺 `ANCHOR_TABLE_RUN` 再导出全部 seed
+  失败（目录保留不删）；修复后重新冻结为 `attempt02`（协议 `b7ae03e1…`、code commit `23f9af3`、
+  code.zip `fd572377…`），六阶段全 success、soft/hard overrun 均 0、process 13.195922 GPU-h、
+  墙钟 8.0188 h、峰值 9,024,045,056 B、网络 0、磁盘 19.52 GiB。三 seed 各 2400 更新全部施加非零
+  扰动（`zero_perturbation_updates` 0/0/0、`restore_residual_max` 0.0）。**读数：15/15 个
+  seed×lead 配对 ΔRMSE 全为正（候选更差，+0.0963…+0.2229 K）**；72 h skill 三 seed 全负
+  （−0.267285/−0.351110/−0.227842）；48 h skill −0.017313/−0.107794/+0.009830；
+  6/12/24 h seed 均值 Δ +0.119104/+0.172023/+0.098197 K；桥 15/15 通过。⇒ 预声明出口
+  (a)(b)(c)(d) 全部未满足、(e) 通过 ⇒ **按预声明永久关闭 SAM 支**。已登记证据页
+  `docs/R7_S3_SHARPNESS_AWARE_MINIMIZATION_RESULT.md`、index record
+  `s3-sharpness-aware-minimization-result`（`negative`/`not-candidate`）、brief、账本行与 §8。
+- **下一动作（S3）**：SAM 支已关闭，且 15/15 一致变差 ⇒ 不再在 ρ/eps/seed 上追加尝试。
+  下一独立单因素轮必须先做一手检索再提假设；若检索不到与已关轴不重叠的新可证伪因子，
+  应把结论落到「当前 recipe 的瓶颈不在这些单因素上」，转向长 lead 误差增长与目标/监督结构的
+  更基础假设。
 - **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
 - 不宣布科学通过、不称泛化/SOTA。
