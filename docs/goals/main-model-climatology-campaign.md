@@ -1947,10 +1947,12 @@ test 未读、r=0、S4 未启动不变。
   4,096 MiB，保守方向）、网络 0；累计 **186.014183 → 202.359827 GPU-h**。
 - **登记**：证据页 `docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md`、index record
   `s3-fy-annual-coverage-result`（`engineering-positive` / `candidate`）、brief、本账本行与 §8。
-- **CI 如实**：本轮共 4 个 commit，`3312000`（实现，CI `39735871063` success）、
-  `27cfc39`（修 `manifest_path`，CI `39746734336` success）、
-  `16ce94e`（预算更正 + `default_runner` 超时修复，CI `39775347018` success），
-  另有决策 0052 首版随 `3312000` 一并提交。全部绿。
+- **CI 如实**：本轮共 5 个 commit——`3312000`（实现 + 决策 0052，CI `39735871063` success）、
+  `27cfc39`（修 `manifest_path`，CI `39746734336` success）、`16ce94e`（预算更正 + `default_runner`
+  超时修复，CI `39775347018` success）、`fdc7873`（登记，CI `39870014546` **failure**：
+  证据页把父迁移证据 JSON 按 1800 字符截断，切断字符串留下行尾空白，CI 的
+  `Compile active modules and check whitespace` 步报 `git show --check` 失败）、
+  `9c8fbce`（改为输出完整 JSON 块并刷新 digest，CI `39871493608` success）。最终树为绿。
 - **为何停 + 恢复第一条命令**：本轮按预声明出口正常结束（无 hard overrun、无资源门失败），
   出口全真 ⇒ 状态 `candidate`，**等独立复核/验收**，执行者不自行宣布科学通过、不自动进 S4。
   恢复第一条命令＝`.venv/bin/python tools/r7_round.py state`。

@@ -178,6 +178,27 @@ cohort 与 48 桶气候态由 `_check_provenance` 逐条断言通过。
 - GPU runs are co-resident; latency/memory observations include neighbor load
 - validation split only; the test split stays sealed until a later preregistered read
 
+## 7b. CI 与提交（如实披露）
+
+本轮共 **5 个 commit**，其中前两个被 CI 判红并已修复，最后一个（本记录所在的树）为绿：
+
+| commit | 内容 | CI |
+| --- | --- | --- |
+| `3312000` | 实现：改绑当前修订（决策 0052）+ 惰性开关断言 + 父迁移复用 | `R7 CPU CI` 39735871063 success |
+| `27cfc39` | 修 `manifest_path()`：控制臂误读未过滤清单 | `R7 CPU CI` 39746734336 success |
+| `16ce94e` | 预算更正（决策 0053）+ `default_runner` 超时结构化 | `R7 CPU CI` 39775347018 success |
+| `fdc7873` | 登记本轮证据（本页 + index record + brief + 账本 + §8） | `R7 CPU CI` 39870014546 **failure** |
+| `9c8fbce` | 去掉被截断的 JSON 块（`git show --check` 报本页 120 行行尾空白） | `R7 CPU CI` 39871493608 success |
+
+**失败原因如实记录**：`fdc7873` 在 CI 的 `Compile active modules and check whitespace` 步失败——
+本页原先把父迁移的 `state_equality_evidence` JSON **按 1800 字符截断**，切断了一个字符串导致该行
+以空格结尾，`git show --check` 判行尾空白。`9c8fbce` 改为输出**完整** JSON 块并同步刷新证据 digest、
+index record 与 canonical brief；`git show --check` 本地复跑 exit 0。
+
+**两次失败 attempt 与冻结协议的对应**：`attempt01` 协议 `e2750d58…`（archive 被
+`validate_protocol` 拦下）、`attempt02` 协议 `23235448…`（每 seed 预算过低被调度器杀掉）、
+本轮读数所用 `attempt03` 协议 `ee532b3c…`。三次 attempt 全部原样保留、全额计费。
+
 ## 8. 未做的事与下一步
 
 - 未读 `test.jsonl`（2023 只有四个月块，仍封存），`test_read: false`，确认消耗 r=0；
