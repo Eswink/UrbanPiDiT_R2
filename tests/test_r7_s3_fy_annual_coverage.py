@@ -153,12 +153,78 @@ def test_bridge_is_reported_but_never_scientific():
 
 
 def test_parent_pins_are_three_and_bound_to_the_current_revision():
+    """Decision 0052 rebinds the round to ``60de3b2d...``; the state pins do not move."""
     pins = driver.fy_parent.pins()
     assert sorted(pins) == ["41", "42", "43"]
     assert driver.fy_parent.MODEL_CODE_SHA256 == \
+        "60de3b2dc5de2871f45c7a563153ef8e1cfa688be38367c89d0c718dfc06df3e"
+    assert driver.fy_parent.MODEL_CODE_SHA256 != \
         "3fe747b28e7d0ef53febc07739f210f103514a73fd19bfba6643670db65ffeb1"
     assert all(item["sha256"] for item in pins.values())
     assert all(f"seed{seed}" in item["path"] for seed, item in pins.items())
+    assert "r7_s3_tendency_input_parent_migrated_20261021_attempt02" in \
+        driver.fy_parent.MIGRATED_PARENT_RUN.name
+
+
+def test_the_rebinding_keeps_decision_0050s_parent_state():
+    """The static half of the equality claim; ``state_equality_evidence`` is its runtime form.
+
+    The two migrations read the same v3-BD 1600 source checkpoints and carry the same tensor
+    ``state_digest`` per seed, so the round's factor stays the training-manifest month
+    coverage. Only the embedded code identity, and therefore the files' own SHA256 values,
+    differ.
+    """
+    parent = driver.fy_parent
+    assert set(parent.MIGRATED_PARENT_STATE_DIGEST) == {41, 42, 43}
+    assert set(parent.ATTEMPT04_PARENT_SHA256) == {41, 42, 43}
+    assert all(parent.MIGRATED_PARENT_SHA256[seed] != parent.ATTEMPT04_PARENT_SHA256[seed]
+               for seed in (41, 42, 43))
+    # The state digests are the same values the attempt04 receipt records; the parent module
+    # re-checks that at freeze time against both receipts.
+    assert parent.MIGRATED_PARENT_STATE_DIGEST[41] == \
+        "7c416ccb4054cf7e077788a43b02917e6a2dcf2503058152a7f0ab4b0ab70707"
+
+
+def test_the_two_post_hd_switches_are_inert_at_their_registered_defaults():
+    """The rebinding rests on this, so it is asserted rather than assumed.
+
+    ``tendency_input`` and ``decoder_base_mode`` were added to ``model/`` after the revision
+    decision 0050 froze. If either changed the registered forward, running the FY round at
+    HEAD would change the model as well as the data, and the round would no longer be a
+    single-factor data test. A model built from a spec that names both at their registered
+    defaults must therefore reproduce the registered training forward bit for bit.
+    """
+    import torch
+    from test_r7_m4_autoregressive_rollout import tiny_spec
+    from training.r7_experiment import make_model
+    from training.r7_long_rollout import training_long_rollout
+    spec = tiny_spec("process")
+    assert "tendency_input" not in spec and "decoder_base_mode" not in spec
+    torch.manual_seed(31)
+    registered = make_model("process", spec)
+    torch.manual_seed(31)
+    explicit = make_model("process", {**spec, "tendency_input": False,
+                                      "decoder_base_mode": "persistence"})
+    shared = registered.state_dict()
+    other = explicit.state_dict()
+    assert set(shared) == set(other)
+    assert all(torch.equal(value, other[name]) for name, value in shared.items())
+    batch = {"coarse_history": torch.randn(1, 2, 17, 4, 5,
+                                          generator=torch.Generator().manual_seed(7)),
+             "latitude": torch.linspace(50., 44., 4),
+             "longitude": torch.linspace(90., 98., 5),
+             "lead_time_hours": torch.tensor([6.]),
+             "init_utc_hour": torch.tensor([18.]),
+             "init_day_of_year": torch.tensor([366.]),
+             "init_calendar_year": torch.tensor([2016.]),
+             "history_offsets_hours": torch.tensor([[-6., 0.]]),
+             "physical_targets": torch.randn(1, 4, 17, 4, 5,
+                                             generator=torch.Generator().manual_seed(8))}
+    weights = (1., .5, 0., .5)
+    first = training_long_rollout(registered, batch, 2, physical_weights=weights)
+    second = training_long_rollout(explicit, batch, 2, physical_weights=weights)
+    assert torch.equal(first.loss, second.loss)
+    assert torch.equal(first.per_step_losses, second.per_step_losses)
 
 
 def test_clean_model_revision_is_a_precondition():

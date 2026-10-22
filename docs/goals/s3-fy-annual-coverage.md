@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-fy-annual-coverage", "driver": "scripts/study_r7_s3_fy_annual_coverage.py", "output_stem": "r7_s3_fy_annual_coverage_20261021", "control_record": "s3-v3-budget-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_annual_coverage.py"], "commit_paths": ["scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", "scripts/build_r7_s3_fy_control_manifest.py", "tests/test_r7_s3_fy_annual_coverage.py", "docs/goals/s3-fy-annual-coverage.md", "docs/decisions/0050-fy-annual-coverage-round.md"], "commit_message": "feat(r7): implement the FY annual-coverage two-arm data round", "register_paths": ["docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the FY annual-coverage run as a new evidence record", "code_archive": "outputs/r7_s3_fy_annual_coverage_code.zip"} -->
+<!-- round-spec: {"arm": "s3-fy-annual-coverage", "driver": "scripts/study_r7_s3_fy_annual_coverage.py", "output_stem": "r7_s3_fy_annual_coverage_20261021", "control_record": "s3-v3-budget-dose", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_annual_coverage.py"], "commit_paths": ["scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", "scripts/build_r7_s3_fy_control_manifest.py", "tests/test_r7_s3_fy_annual_coverage.py", "docs/goals/s3-fy-annual-coverage.md", "docs/decisions/0050-fy-annual-coverage-round.md", "docs/decisions/0052-fy-annual-coverage-rebinding.md", "docs/decisions/README.md", "docs/goals/main-model-climatology-campaign.md"], "commit_message": "feat(r7): implement the FY annual-coverage two-arm data round", "register_paths": ["docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the FY annual-coverage run as a new evidence record", "code_archive": "outputs/r7_s3_fy_annual_coverage_code.zip"} -->
 
 状态 **CPU 数据准备与正式 brief 已定、驱动/测试待实现、GPU 未开跑**（2026-10-21）。
 唯一主计划 `docs/goals/main-model-climatology-campaign.md`；承接 **H-D 关闭**
@@ -126,26 +126,35 @@ gradient-surgery/tendency-input；不读 test；不 main/force/merge/发版/关 
      test 472（封存）；各自 `BUILD_COMPLETE`。
   4. 48 桶 train-only 气候态：5 个 lead 满覆盖，`reference.json` 已写。
   5. 决策 0050 与本 brief。
-- **待做（开工前）**：① `scripts/r7_s3_fy_annual_parent.py`（钉 attempt04 迁移父，不改比对逻辑）；
-  ② `scripts/study_r7_s3_fy_annual_coverage.py`（两臂同协议，≤600 行）；③
-  `tests/test_r7_s3_fy_annual_coverage.py`（协议/单因子/预声明出口/CI-safe，不依赖 `outputs/`）；
-  ④ 独立复核、`round-guard`、`commit-guard`、提交推工作分支并等 CI 绿。
-- **阻塞项（2026-10-21 更新）**：另一窗口已把 tendency-input 轮提交为 `15ba518`
-  （`model_code_sha256` 从 `3fe747b2…` 变为 `60de3b2d…`），并把 campaign-state 的
-  `current_round_goal` 指向 `docs/goals/s3-tendency-input.md`。因此：
-  1. 本轮的迁移父 attempt04（`3fe747b2…`）在 HEAD 上会被 `load_checkpoint` **按设计拒绝**；
-     本轮不能把数据因子叠加到 tendency 架构上（那会同时改变模型输入表示与数据覆盖，破坏单因子）。
-  2. 本轮不是当前 campaign 轮次；GPU 由统一父调度串行，**不**与 tendency 轮并发开跑。
-  3. 恢复路径：等 tendency 轮完成/登记后，在**干净的 `0becf24` checkout**（H-D 实验提交，
-     `model_code_sha256 3fe747b2…`）上建一个**只含本轮文件的临时提交**（父 commit 为
-     `0becf24`），用该 commit 冻结/归档并跑 GPU；**不要**用未提交的 worktree。注意
-     `fd92268` 已含 H-D 之后的架构轮（digest `bec3859f…`），**不是**可用基线。若要在
-     `60de3b2d…` 上跑，必须先重新迁移父并另立决策，且明确本轮不再是「注册架构上的纯数据单因素」。
+- **待做（开工前）**：① 独立复核、`round-guard`、`commit-guard`、提交推工作分支并等 CI 绿；
+  ② `freeze` → `stage prepare/archive/stage-seeds/reading`；③ 登记四件套。
+- **已解除的阻塞项（2026-10-22，决策 0052）**：另一窗口把 tendency-input 轮提交为 `15ba518`
+  后 `model_code_sha256` 变为 `60de3b2d…`，本轮原先钉的 attempt04 迁移父（`3fe747b2…`）在 HEAD
+  上会被 `load_checkpoint` **按设计拒绝**。**决策 0052 把本轮改绑到当前修订 `60de3b2d…`**：
+  1. `3fe747b2…` 之后 `model/` 只多了 `tendency_input`（默认 `False`）与 `decoder_base_mode`
+     （默认 `'persistence'`）两个开关，取默认值时前向与损失与 `3fe747b2…` 逐位相同；本轮新增
+     `test_the_two_post_hd_switches_are_inert_at_their_registered_defaults` 直接断言这一点
+     （两种 spec 的 `training_long_rollout` `loss` 与 `per_step_losses` 逐位相等）。
+  2. 父迁移复用 tendency 轮在 `60de3b2d…` 下产出的
+     `outputs/r7_s3_tendency_input_parent_migrated_20261021_attempt02`（receipt `73c019dd…`）。
+     它与 0050 冻结的 attempt04 **读取同一批 v3-BD 1600 源 checkpoint**
+     （`637857c5…/8f7369fb…/08cc7db9…`）、逐 seed 的 tensor `state_digest` **完全相同**
+     （`7c416ccb…/857d8804…/61fdac58…`）；只有内嵌代码身份不同，故迁移文件自身 SHA256 不同
+     （`fb1e4d65…/d97ea802…/8aa0fac6…` vs `f9f12e06…/8d4e05ed…/5af64655…`）。
+     `scripts/r7_s3_fy_annual_parent.py::state_equality_evidence()` 在 freeze 时读**两份 receipt**
+     逐 seed 断言这两条相等，并把证据写进协议。
+  3. **模型修订门未被绕过或放宽**：`pinned_parent()` 仍要求 receipt 的
+     `current_model_code_sha256 == model_code_digest()`、迁移文件 SHA256 等于 pin、receipt 的
+     `state_digest` 等于 pin。
+  4. **桥 (e) 的解释力下降，如实声明**：对照 `record:s3-v3-budget-dose` 是 `3fe747b2…` 下的读数，
+     现在同时混有模型修订差异，故桥只用于发现身份/工程错误，失败记
+     `identity/engineering unresolved`，不进入 (a)–(d)。
 - **本轮 GPU 未开跑**：0 GPU-h 新增；store/manifest/climatology 是 CPU 派生数据，不是训练读数。
-- **父迁移前提**：本轮不改 `model/**/*.py`，所以 `model_code_sha256` 应保持 `3fe747b2…`；
-  迁移父用 attempt04 的三 seed checkpoint（`f9f12e…/8d4e05…/5af646…`），
-  由 `scripts/r7_s3_fy_annual_parent.py` 在加载时核验 receipt 的
-  `current_model_code_sha256` 与 `model_code_digest()` 相等。**不得**修改比对逻辑或放宽任何门。
+- **父迁移前提（改绑后）**：本轮仍不改 `model/**/*.py`；`model_code_sha256` 就是 HEAD 的
+  `60de3b2d…`；迁移父用上面第 2 条的三 seed checkpoint
+  （`fb1e4d65…/d97ea802…/8aa0fac6…`），由 `scripts/r7_s3_fy_annual_parent.py` 在加载时核验
+  receipt 的 `current_model_code_sha256` 与 `model_code_digest()` 相等。**不得**修改比对逻辑
+  或放宽任何门。
 - **CI 安全**：测试不得依赖 `outputs/`；纯函数 `frozen_constants()` 与 `arm_protocol()` 在
   tmp 路径上构造，`sha256_file`/`dataset_identity` 用 stub。提交前在干净 worktree 实跑。
 - **第一条命令**：`.venv/bin/python tools/r7_round.py round-guard` → 重建 code zip →
@@ -153,8 +162,9 @@ gradient-surgery/tendency-input；不读 test；不 main/force/merge/发版/关 
 
 ## §7 下一动作（S3）
 
-- 实现父模块、两臂驱动与测试；独立复核；`round-guard`；提交推 `r7/weather-reasoning` 并等
-  `R7 CPU CI` 绿。
-- 阻塞解除后：`freeze` → `stage prepare/archive/stage-seeds/reading`；两臂 × 三 seed。
+- 本轮实现已完成（父模块/驱动/测试已提交）；改绑决策 0052 已写，`round-guard` 通过后推工作分支
+  并等 `R7 CPU CI` 绿。
+- 然后：`freeze` → `stage prepare/archive/stage-seeds/reading`；两臂 × 三 seed（六次 2400-update
+  训练 + 每臂五 lead 评分）。
 - 预声明出口见 §3：**(a)–(d) 全真 → 提请独立验收；任一假 → 永久关闭「全年覆盖」支**。
 - 本轮**未产生任何训练读数**；不宣布通过、不关闭任何支。
