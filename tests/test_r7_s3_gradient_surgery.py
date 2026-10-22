@@ -120,7 +120,13 @@ def test_conflict_projects_group_a_with_exact_dyadic_arithmetic():
     assert result["projected_group"] == "A"
     assert result["negative_parameter_dots"] == 1
     assert result["group_a_grad_norm"] == 1.0
-    assert result["group_b_grad_norm"] == pytest.approx(2 ** 0.5, abs=0, rel=0)
+    # The dyadic claims stay exact; this one is irrational. ``norm_b_sq`` is exactly 2.0
+    # (dyadic operands, float64 accumulator), but the reported norm is ``sqrt`` of it, and
+    # bit-exact agreement between a library ``sqrt`` and Python's ``2 ** 0.5`` is not
+    # portable: CI run 39724538581 produced 1.414213562373095, one ulp below the
+    # correctly rounded 1.4142135623730951, on an unchanged tree that had just passed.
+    assert result["group_b_grad_norm"] == pytest.approx(2 ** 0.5, rel=1e-12)
+    assert result["group_b_grad_norm"] ** 2 == pytest.approx(2.0, rel=1e-12)
     assert result["group_global_cosine"] == pytest.approx(-0.5 ** 0.5, abs=1e-15)
     assert result["group_sum_residual"] == 0.0
     assert torch.equal(model.a.grad, torch.tensor(-0.5))
