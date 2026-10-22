@@ -565,7 +565,7 @@ Records: 88; human-review candidates: 1
 
 - Outcome class: `negative`; candidate state: `not-candidate`
 - Human triage priority: `99` (not a scientific score)
-- Evidence: `docs/R7_S3_SHARPNESS_AWARE_MINIMIZATION_RESULT.md` (SHA256 `d494dbde392098dbb28677e9e0a9246d649dda70976b5cf0b960ef74ab6185c7`)
+- Evidence: `docs/R7_S3_SHARPNESS_AWARE_MINIMIZATION_RESULT.md` (SHA256 `b6804fb39b411fec37e0c2a4b5d14bcaf226a96e8fd56b8a7bbed3626845087e`)
 - Evidence commit: `152ef4f980e03a1263f01f0429f672bca4f88454`; experiment commit: `23f9af32cc1c2f3b2427d1c379ed9805b9cc044b`
 - Protocol SHA256: `b7ae03e16afde8c36c16a549cc24897cc04b4e52fb0bce56c85ee5d93f3f2680`; data identity: `2360d42b7393cd6f53cd6f48961abc7bcd62948d3c2fa69b2d810d798d137c12`
 - Reason: Single-factor test of the training-time optimizer update rule: the registered single result.loss.backward() versus the predeclared SAM double forward/backward perturbation at sam_rho=0.05 (Foret et al., arXiv:2010.01412v3 section 3.1, the paper's own default radius, p=2 dual solution, one global rescaling). Three seeds, 2400 updates, frozen wide/interior_32 long-rollout recipe, model files unchanged.

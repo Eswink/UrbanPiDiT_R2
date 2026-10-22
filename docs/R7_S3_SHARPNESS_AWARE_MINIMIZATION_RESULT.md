@@ -197,7 +197,7 @@ then the registered clip_grad_norm_(clip) and optimizer.step() act on g_sam
 
 ## 9. CI 与提交（如实披露）
 
-本轮共有 **4 个 commit**，其中前两个被 CI 判红并已修复，最终冻结所用 commit 的 CI 为绿：
+本轮共有 **7 个 commit**，其中三个被 CI 判红并已修复，最终 HEAD 的 CI 为绿：
 
 | commit | 内容 | CI |
 | --- | --- | --- |
@@ -205,6 +205,18 @@ then the registered clip_grad_norm_(clip) and optimizer.step() act on g_sam
 | `7df8042` | 修正 `size-thresholds.md` 的提交集合 R-021 计数（121→124） | `R7 CPU CI` 39653959344 success |
 | `86f6689` | 父模块补 `ANCHOR_TABLE_RUN` 再导出 + 2 条反漂移测试 | `R7 CPU CI` 39661905622 **failure** |
 | `23f9af3` | 扰动范数断言改为对闭式 `rho*||g||/(||g||+eps)` 断言 | `R7 CPU CI` 39666233779 **success** |
+| `152ef4f` | 登记本轮证据（本页 + index record + brief + 账本 + §8） | `R7 CPU CI` 39722530466 success |
+| `d5dcafc` | 把 record 的 `evidence_commit` 绑定到 `152ef4f` | `R7 CPU CI` 39724538581 **failure** |
+| `a28dac8` | 修 `test_r7_s3_gradient_surgery.py` 中一条 ulp 不稳健的断言 | `R7 CPU CI` 39726916851 **success** |
+
+**第六次（`d5dcafc`）的判红与本轮因子无关**：失败的是上一轮已冻结的
+`tests/test_r7_s3_gradient_surgery.py::test_conflict_projects_group_a_with_exact_dyadic_arithmetic`，
+它要求库 `sqrt` 与 Python 的 `2 ** 0.5` **逐位相等**；CI 报出 `1.414213562373095`
+（比正确舍入的 `1.4142135623730951` 低 1 ulp），而该 commit 只改了两个文档文件、
+同一棵树在 `152ef4f` 上刚判绿。修复只把**无理数**（`sqrt(2)`）的那一条断言改为 `rel=1e-12`
+并补一条平方形式恒等断言；同一测试里所有**二进小数**断言（`group_a_grad_norm == 1.0`、
+`group_sum_residual == 0.0`、两个 `torch.equal` 梯度值）保持逐位相等，未放宽任何科学判据、
+阈值或冻结门。该修复在冻结的 `attempt02` 之后，**不改变**本轮协议、code.zip 或任何读数。
 
 **第一次 GPU 尝试（`attempt01`）全部 seed 失败**：`AttributeError: module 'scripts.r7_s3_sharpness_aware_minimization_parent' has no attribute 'ANCHOR_TABLE_RUN'`（`_arm_contract` 在 GPU 启动后才读到该名）。`attempt01` 目录**保留不删**，作为失败尝试记录；修复后按新 code commit 重新冻结为 `attempt02`（`protocol_sha256 b7ae03e16afde8c36c16a549cc24897cc04b4e52fb0bce56c85ee5d93f3f2680`），本轮读数全部来自 `attempt02`。修复只动了一个再导出与两条测试，未改任何因子、阈值或冻结常量。
 
