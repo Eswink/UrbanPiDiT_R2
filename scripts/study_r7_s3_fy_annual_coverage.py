@@ -7,15 +7,12 @@ the same 2,400-update budget, does training on all twelve months beat training o
 registered four-month selection (Jan/Apr/Jul/Oct, days 1-30, UTC 00/06/12/18), with the
 years fixed at 2017-2021?
 
-Both arms share the store, the full-year normalization, the model spec, the migrated
-v3-BD parent, the seeds, the 2022 full-year val split and the 48-bucket train-only
-climatology. They differ only in their train manifest. The round is 65x65 only: the FY
-source is native 65x65 and the repository has no 65->129 upsampling contract, so the
-result is never presented as a wide-instance result.
-
+Both arms share the store, the full-year normalization, the model spec, the migrated v3-BD
+parent, the seeds, the 2022 full-year val split and the 48-bucket train-only climatology;
+they differ only in their train manifest. The round is 65x65 only: the repository has no
+65->129 upsampling contract, so the result is never presented as a wide-instance result.
 Validation-only, offline, co-resident on two declared GPU UUIDs with a read-only headroom
-gate before every spawn, deadline-bounded by frozen soft/hard seconds. The 2023 test split
-is never opened.
+gate before every spawn. The 2023 test split is never opened.
 """
 from __future__ import annotations
 
@@ -52,11 +49,9 @@ CLIMATOLOGY_T2M_RMSE = {
     "6": 3.8878542160913172, "12": 3.8887477466606346, "24": 3.8906948018885616,
     "48": 3.8946928171358484, "72": 3.8970789101854089,
 }
-CLIMATOLOGY_YEARS = [2017, 2018, 2019, 2020, 2021]
-CLIMATOLOGY_BUCKETS = 48
+CLIMATOLOGY_YEARS, CLIMATOLOGY_BUCKETS = [2017, 2018, 2019, 2020, 2021], 48
 D2_REFERENCE = ROOT / "outputs/r7_s3_fy_annual_d2_20261021_attempt01/reference.json"
-D2_FORMAT = "r7-s3-fy-annual-d2-reference-v1"
-BRIDGE_RECORD, BRIDGE_UPDATES = "s3-v3-budget-dose", 1600
+D2_FORMAT, BRIDGE_RECORD, BRIDGE_UPDATES = "r7-s3-fy-annual-d2-reference-v1", "s3-v3-budget-dose", 1600
 BRIDGE_VALUES = {
     "6": [2.2576727382956983, 2.2627956234561597, 2.2229286358562574],
     "12": [2.9037256040660173, 2.9066938336085633, 2.8385020742760827],
@@ -64,15 +59,11 @@ BRIDGE_VALUES = {
     "48": [5.0496735991471065, 4.980754833624437, 4.066026449728292],
     "72": [7.044753781949937, 6.457676654363861, 4.895728801808265],
 }
-UPDATES = 2400
-STEPS, LR, WARMUP = wide.STEPS, wide.LR, wide.WARMUP
+UPDATES, STEPS, LR, WARMUP = 2400, wide.STEPS, wide.LR, wide.WARMUP
 WEIGHT_DECAY, BATCH_SIZE, CLIP = wide.WEIGHT_DECAY, wide.BATCH_SIZE, wide.CLIP
-CHECKPOINT_EVERY, BF16 = wide.CHECKPOINT_EVERY, wide.BF16
-PHYSICAL_WEIGHTS = wide.PHYSICAL_WEIGHTS
-EVALUATION_LEADS, REASONING_STEPS = wide.EVALUATION_LEADS, wide.REASONING_STEPS
-BOUNDARY_MARGINS, REGION, FULL_GRID_POINTS = (1,), "full", 4225
-SEEDS = wide.SEEDS
-DEVICE_MODE = "dual"
+CHECKPOINT_EVERY, BF16, PHYSICAL_WEIGHTS = wide.CHECKPOINT_EVERY, wide.BF16, wide.PHYSICAL_WEIGHTS
+EVALUATION_LEADS, REASONING_STEPS, SEEDS = wide.EVALUATION_LEADS, wide.REASONING_STEPS, wide.SEEDS
+BOUNDARY_MARGINS, REGION, FULL_GRID_POINTS, DEVICE_MODE = (1,), "full", 4225, "dual"
 PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 9000., 21600., 43200.
 ESTIMATED_PEAK_BYTES, HEADROOM_MARGIN_BYTES = 4096 * 2**20, 512 * 2**20
 ENTRY_FILES = ("scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_annual_coverage.py", "scripts/build_r7_s3_fy_control_manifest.py", *wide.execution_files())
@@ -98,7 +89,16 @@ def execution_files():
 
 
 def manifest_path(name, split):
-    return INSTANCE / f"store/manifests_{name}/{split}.jsonl"
+    """The arm's manifest file, read from ``ARMS`` so the two cannot drift.
+
+    The control arm reads ``manifests_control_h72`` (the complete-72h subset) rather than the
+    unfiltered ``manifests_control``, whose 6 h records admit windows that roll into another
+    month and would read frames the four-month control arm must not see.
+    """
+    folders = dict(ARMS)
+    if name not in folders:
+        raise ValueError(f"unknown arm {name!r}")
+    return folders[name] / f"{split}.jsonl"
 
 
 def bridge_reference():

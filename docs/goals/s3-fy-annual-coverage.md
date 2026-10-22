@@ -149,7 +149,18 @@ gradient-surgery/tendency-input；不读 test；不 main/force/merge/发版/关 
   4. **桥 (e) 的解释力下降，如实声明**：对照 `record:s3-v3-budget-dose` 是 `3fe747b2…` 下的读数，
      现在同时混有模型修订差异，故桥只用于发现身份/工程错误，失败记
      `identity/engineering unresolved`，不进入 (a)–(d)。
+- **冻结时发现的实现缺陷（已修，未进任何读数）**：`manifest_path()` 原先按名字拼出
+  `store/manifests_{name}/`，于是**控制臂读的是未过滤的 `manifests_control`（2,360 条）**，
+  而不是 `build_r7_s3_fy_control_manifest.py` 派生的 `manifests_control_h72`（2,140 条）。
+  在全天 store 上，未过滤清单的 2,360 条**全部**能凑出 72h 完整窗（`usable_windows=2360`、
+  `excluded=0`），即控制臂会真的从其它月份读帧，不再是四个月臂。`attempt01` 的 archive 阶段
+  正是被 `validate_protocol` 的 `input_windows != 2140` 拦下（`RuntimeError: the control arm
+  changed from the frozen record`）。修复：`manifest_path()` 改为从 `ARMS` 取值，控制臂指向
+  `manifests_control_h72`；并新增 CI-safe 测试
+  `test_the_control_arm_reads_the_complete_horizon_subset` 断言目录名不是 `manifests_control`。
+  修复后 treatment 侧复核仍为 7,302 条 / 7,291 可用 / 11 排除，与 brief 一致。
 - **本轮 GPU 未开跑**：0 GPU-h 新增；store/manifest/climatology 是 CPU 派生数据，不是训练读数。
+  `attempt01`（协议 `e2750d58…`）prepare 成功、archive 失败，作为失败尝试**原样保留**；
 - **父迁移前提（改绑后）**：本轮仍不改 `model/**/*.py`；`model_code_sha256` 就是 HEAD 的
   `60de3b2d…`；迁移父用上面第 2 条的三 seed checkpoint
   （`fb1e4d65…/d97ea802…/8aa0fac6…`），由 `scripts/r7_s3_fy_annual_parent.py` 在加载时核验

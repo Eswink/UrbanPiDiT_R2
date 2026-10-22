@@ -241,6 +241,26 @@ def test_manifests_are_not_interchangeable_but_val_is_shared():
     assert body["val_manifests"]["control"] != body["val_manifests"]["treatment"]
 
 
+def test_the_control_arm_reads_the_complete_horizon_subset():
+    """The control arm must not read the unfiltered 6 h manifest.
+
+    ``manifests_control`` still admits windows whose ``t+6..t+72`` targets roll past day 30
+    into another month; the long-rollout dataset would read those frames from the full-year
+    store and the control arm would no longer be a four-month arm. The filtered subset is
+    ``manifests_control_h72``, and the driver must name it.
+    """
+    control = driver.manifest_path(driver.CONTROL, "train")
+    assert control.parent.name == "manifests_control_h72"
+    assert control.parent.name != "manifests_control"
+    assert driver.manifest_path(driver.CONTROL, "val").parent == control.parent
+    assert driver.manifest_path(driver.TREATMENT, "train").parent.name == "manifests_treatment"
+    assert {name for name, _ in driver.ARMS} == {driver.CONTROL, driver.TREATMENT}
+    assert all(driver.manifest_path(name, "train").parent == folder
+               for name, folder in driver.ARMS)
+    with pytest.raises(ValueError):
+        driver.manifest_path("candidate", "train")
+
+
 def test_provenance_must_be_val_full_grid_and_48_buckets():
     driver._check_provenance(_provenance(), 41, "control", 6)
     wrong_region = copy.deepcopy(_provenance())
