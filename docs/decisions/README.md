@@ -80,3 +80,4 @@
 | [0052](0052-fy-annual-coverage-rebinding.md) | 全年覆盖轮改绑当前模型修订（`3fe747b2…` → `60de3b2d…`）：两个新增开关经测试断言为惰性、父迁移状态逐 seed 相同、桥 (e) 解释力下降如实声明；不放宽模型修订门 | accepted | 2026-10-22 |
 | [0053](0053-fy-annual-coverage-budget-correction.md) | 全年覆盖轮预算更正：按首次真实使用实测把每 seed 9,000 s → 21,600 s（planned 43,200 / hard 86,400），并修 `default_runner` 超时逃逸导致 `stage-seeds` 整轮崩溃的工具缺陷；`attempt02` 保留为失败 attempt | accepted | 2026-10-22 |
 | [0054](0054-fy-year-coverage-round.md) | 训练年份覆盖单因素轮：5 → 22 年、月份固定 12 个月、65×65；一手检索确认该轴在神经网络天气预测中无受控消融；预声明 (a)–(d) 出口与非科学桥 (e)；不新增下载、不改模型代码 | accepted | 2026-10-23 |
+| [0055](0055-fy-year-coverage-budget-correction.md) | 年份覆盖轮预算更正：按本轮 `attempt01` 的 prepare 实测（与两臂同一条逐记录校验路径，>95 min）把每 seed 21,600 s → 43,200 s（planned 86,400 / hard 172,800）；`attempt01` 无 seed、0 GPU-h，保留为失败 attempt | accepted | 2026-10-23 |

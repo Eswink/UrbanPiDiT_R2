@@ -248,11 +248,18 @@ def test_provenance_must_be_val_full_grid_and_48_buckets():
         driver._check_provenance(wrong_cohort, 41, "control", 6)
 
 
-def test_the_budget_matches_the_measured_two_arm_cost():
-    """Decision 0053's corrected budget is reused: one arm measured 7,169.6-7,201.4 s."""
+def test_the_budget_matches_this_rounds_own_measured_setup_cost():
+    """Decision 0055: the month round's scale does not carry over to this round.
+
+    The month round's 21,600 s was measured on a 7,302-window treatment arm. Here the
+    treatment manifest is 32,142 windows, and ``attempt01``'s prepare phase -- which pays
+    the same per-record manifest validation the arms pay -- was measured running for over
+    95 minutes before it was stopped. The budget is a ceiling and cannot bias a reading,
+    so it is raised rather than risk a kill at the limit.
+    """
     assert (driver.PER_SEED_SECONDS, driver.PLANNED_SECONDS, driver.HARD_CAP_SECONDS) == \
-        (21600.0, 43200.0, 86400.0)
-    assert driver.PER_SEED_SECONDS > 2 * 7201.4
+        (43200.0, 86400.0, 172800.0)
+    assert driver.PER_SEED_SECONDS > 2 * 20200.0
     assert driver.PLANNED_SECONDS == 2 * driver.PER_SEED_SECONDS
     assert driver.HARD_CAP_SECONDS == 4 * driver.PER_SEED_SECONDS
 

@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-fy-year-coverage", "driver": "scripts/study_r7_s3_fy_year_coverage.py", "output_stem": "r7_s3_fy_year_coverage_20261023", "control_record": "s3-fy-annual-coverage-result", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_year_coverage.py"], "commit_paths": ["scripts/study_r7_s3_fy_year_coverage.py", "scripts/build_r7_s3_fy_year_manifests.py", "scripts/build_r7_s3_fy_multiyear_source.py", "scripts/build_r7_s3_fy_year_d2_reference.py", "tests/test_r7_s3_fy_year_coverage.py", "docs/goals/s3-year-coverage.md", "docs/decisions/0054-fy-year-coverage-round.md", "docs/decisions/README.md", "docs/goals/main-model-climatology-campaign.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): implement the FY training-year coverage two-arm data round", "register_paths": ["docs/R7_S3_FY_YEAR_COVERAGE_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the FY year-coverage run as a new evidence record", "code_archive": "outputs/r7_s3_fy_year_coverage_code.zip"} -->
+<!-- round-spec: {"arm": "s3-fy-year-coverage", "driver": "scripts/study_r7_s3_fy_year_coverage.py", "output_stem": "r7_s3_fy_year_coverage_20261023", "control_record": "s3-fy-annual-coverage-result", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_year_coverage.py"], "commit_paths": ["scripts/study_r7_s3_fy_year_coverage.py", "scripts/build_r7_s3_fy_year_manifests.py", "scripts/build_r7_s3_fy_multiyear_source.py", "scripts/build_r7_s3_fy_year_d2_reference.py", "tests/test_r7_s3_fy_year_coverage.py", "docs/goals/s3-year-coverage.md", "docs/decisions/0054-fy-year-coverage-round.md", "docs/decisions/0055-fy-year-coverage-budget-correction.md", "docs/decisions/README.md", "docs/goals/main-model-climatology-campaign.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): implement the FY training-year coverage two-arm data round", "register_paths": ["docs/R7_S3_FY_YEAR_COVERAGE_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the FY year-coverage run as a new evidence record", "code_archive": "outputs/r7_s3_fy_year_coverage_code.zip"} -->
 
 状态 **CPU 数据准备进行中、驱动/测试待实现、GPU 未开跑**（2026-10-23）。
 唯一主计划 `docs/goals/main-model-climatology-campaign.md`；承接 **FY 全年覆盖轮**
@@ -80,11 +80,14 @@
 - **正/负控制**：两臂由同一 seed、同一父状态、同一 spec 构造，初始化逐位相同；清单 identity
   是唯一允许的协议差异（测试断言 `set(diff) == {"train_manifest","train_data_identity",
   "train_windows"}`）。无新增参数，故无参数量混杂。
-- **预算**：两臂 × 三 seed = 六次 2400-update 训练 + 每臂五 lead 评分。per-seed **21,600 s**（软）、
-  round planned **43,200 s**、hard **86,400 s**（沿用 FY 轮实测：单臂训练+评分 7,169.6–7,201.4 s，
-  一 seed 两臂约 14,400 s；决策 0053）。软超继续并记 overrun，hard 截止即停 attempt 并全额留
-  失败记录。峰值估计 **4,096 MiB** + margin **512 MiB** + neighbour reserve **6 GiB** = 10.75 GiB
-  门槛；**这是估计，不是实测**，首次 seed 后按 `owned_reserved_peak_bytes` 提升。
+- **预算（决策 0055 更正后）**：两臂 × 三 seed = 六次 2400-update 训练 + 每臂五 lead 评分。
+  per-seed **43,200 s**（软）、round planned **86,400 s**、hard **172,800 s**。月份轮的
+  21,600 s 是在 7,302 窗的候选臂上实测的，本轮候选臂是 **32,142** 窗（4.4×）、store 3.7×；
+  `attempt01` 的 `prepare` 阶段跑的是与两臂**同一条**逐记录校验路径，实测 **>95 min 仍在进行**
+  （月份轮同阶段只需数分钟），据此每 seed 约 20,200 s，已贴住 21,600 s ⇒ 按决策 0055 抬到 43,200 s。
+  软超继续并记 overrun，hard 截止即停 attempt 并全额留失败记录。峰值估计 **4,096 MiB** +
+  margin **512 MiB** + neighbour reserve **6 GiB** = 10.75 GiB 门槛；**这是估计，不是实测**，
+  首次 seed 后按 `owned_reserved_peak_bytes` 提升。
 - **双卡（决策 0047）**：`device_mode: "dual"`，一卡一 seed，冻结 `gpu_uuids` 与
   `neighbour_reserve_bytes = 6 GiB`；每阶段 spawn 前只读余量门，**不对邻居发信号**。
 - **test 策略**：`test.jsonl` 从不读取；`test_read=false`、`scientific_claim=false`。
@@ -94,9 +97,9 @@
 | 项 | 冻结值 |
 | --- | --- |
 | 训练次数 | 2 臂 × 3 seed = 6 |
-| 每 seed 软预算 | 21,600 s |
-| round planned（软） | 43,200 s |
-| round hard（宽松硬上限） | 86,400 s |
+| 每 seed 软预算 | 43,200 s（决策 0055 按本轮 `attempt01` 实测更正；0054 原值 21,600 s） |
+| round planned（软） | 86,400 s（原 43,200 s） |
+| round hard（宽松硬上限） | 172,800 s（原 86,400 s） |
 | 峰值估计 / margin / reserve | 4,096 MiB / 512 MiB / 6 GiB |
 | 训练帧（store train 年份 2000–2021） | 32,144 |
 | 评分窗口（全 65×65） | 6h 1,458；12h 1,457；24h 1,455；48h 1,451；72h 1,447 |
@@ -124,6 +127,13 @@ final-only/spatial-gradient/zero-base decoder/gradient-surgery/tendency-input/SA
 - **待做（开工前）**：① store 只读 preflight → `--write`；② 两套清单；③ 48 桶气候态
   `reference.json`；④ 独立复核、`round-guard`、`commit-guard`、提交推工作分支并等 CI 绿；
   ⑤ `freeze` → `stage prepare/archive/stage-seeds/reading`；⑥ 登记四件套。
+- **`attempt01`（协议 `740eae7b…`，code commit `64248e5`）第一次真实使用暴露预算不足，如实登记**：
+  `prepare` 阶段跑的是与两臂**同一条**逐记录校验路径，实测 **>95 min 仍在进行**（月份轮同阶段只需
+  数分钟），据此每 seed 估计约 20,200 s，已贴住 0054 的 21,600 s 上限 ⇒ 按**决策 0055** 把预算更正为
+  per-seed 43,200 / planned 86,400 / hard 172,800 并以**新协议**重跑。`attempt01` 只有
+  `preparation_protocol.json`、**无 seed、无读数、0 GPU-h**，原样保留、不删、不做 in-place resume。
+  **科学门、单因子约束、评分域、气候态分母与 seed 一律未动**；预算抬高只让轮次跑得更久，
+  **不能**让读数变好，因此不构成偏置。
 - **CI 安全**：测试不得依赖 `outputs/`；纯函数在 tmp 路径上构造，`sha256_file`/`dataset_identity` 用 stub。
 - **第一条命令**：`.venv/bin/python tools/r7_round.py round-guard` → 重建 code zip →
   `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/stage-seeds/reading`。

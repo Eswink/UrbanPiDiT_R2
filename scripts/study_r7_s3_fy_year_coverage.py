@@ -65,8 +65,8 @@ WEIGHT_DECAY, BATCH_SIZE, CLIP = wide.WEIGHT_DECAY, wide.BATCH_SIZE, wide.CLIP
 CHECKPOINT_EVERY, BF16, PHYSICAL_WEIGHTS = wide.CHECKPOINT_EVERY, wide.BF16, wide.PHYSICAL_WEIGHTS
 EVALUATION_LEADS, REASONING_STEPS, SEEDS = wide.EVALUATION_LEADS, wide.REASONING_STEPS, wide.SEEDS
 BOUNDARY_MARGINS, REGION, FULL_GRID_POINTS, DEVICE_MODE = (1,), "full", 4225, "dual"
-# Same measured budget the month round corrected to (decision 0053): one arm is 7,170-7,201 s.
-PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 21600., 43200., 86400.
+# Corrected after this round's own first use (0055): 32,142 windows make per-arm manifest validation cost hours.
+PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 43200., 86400., 172800.
 ESTIMATED_PEAK_BYTES, HEADROOM_MARGIN_BYTES = 4096 * 2**20, 512 * 2**20
 ENTRY_FILES = ("scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_year_coverage.py",
                "scripts/build_r7_s3_fy_year_manifests.py",

@@ -2004,8 +2004,18 @@ test 未读、r=0、S4 未启动不变。
   `--write` 后 store `BUILD_COMPLETE`；两套清单：控制（2017–2021 完整读取集）**7,291** 窗
   （24,840 条因 history 落在 2000–2016 被剔除、11 条因 72 h 目标跨到 2022 被剔除），候选 **32,142** 窗；
   两套 val/test 逐字节相同（1,458/472）。D2 气候态、冻结与 GPU **尚未开始**。
-- **下一动作（S3）**：等 D2 气候态 `reference.json` 写完 → 独立只读复核 → `round-guard`/`commit-guard`
-  → 提交并等 CI 绿 → `freeze` → `stage prepare/archive/stage-seeds/reading` → 四件套登记。
+- **`attempt01` 预算不足（2026-10-23，决策 0055）**：`freeze` 出的协议 `740eae7b…`（code commit
+  `64248e5`）在 `prepare` 阶段暴露：该阶段跑的是与两臂**同一条**逐记录校验路径（每窗 12 个 rollout
+  目标、候选臂约 41.8 万次记录校验），实测 **>95 min 仍在进行**，而月份轮同阶段只需数分钟。
+  据此每 seed 估计约 20,200 s，已贴住 0054 的 21,600 s ⇒ 决策 0055 把预算更正为 per-seed **43,200 s**、
+  planned **86,400 s**、hard **172,800 s**，以**新协议**重跑。`attempt01` 只有
+  `preparation_protocol.json`、**无 seed、无读数、0 GPU-h**，原样保留。**科学门、单因子约束、评分域、
+  气候态分母与 seed 一律未动**；预算抬高只让轮次跑得更久，**不能**让读数变好。
+- **下一动作（S3）**：D2 气候态已写完（`outputs/r7_s3_fy_year_coverage_d2_20261023_attempt01/reference.json`，
+  training_years 2000–2021、`n_selected_steps` 32,144、五 lead 覆盖 1,458/1,457/1,455/1,451/1,447、
+  48 桶；t2m RMSE 6/12/24/48/72 h = 3.918841/3.919604/3.921682/3.925382/3.926891 K）→
+  独立只读复核 → `round-guard`/`commit-guard` → 提交并等 CI 绿 → `freeze` →
+  `stage prepare/archive/stage-seeds/reading` → 四件套登记。
   第一条命令＝ `.venv/bin/python tools/r7_round.py state`。
 - **与 S4 的关系**：**本轮不推进到 S4**。FY 轮 candidate 的验收问题**保持悬挂**，仍由用户决定；
   本轮结果不代替该验收，也不得与 FY 轮的月份轴合并解释成「数据越多越好」。
