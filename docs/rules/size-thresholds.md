@@ -7,7 +7,20 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=1 R-019b=1113 R-020=66 R-021=124 R-022=67 R-023=47 -->
+<!-- measured: R-019=1 R-019b=1120 R-020=66 R-021=125 R-022=67 R-023=47 -->
+
+**2026-10-23 训练年份覆盖轮复算（提交集合实测）**：R-021 **124→125**、R-019b **1113→1120**；
+R-019=1、R-020=66、R-022=67、R-023=47 保持。
+本轮只新增一个 >400 目标、≤600 硬限的文件：`scripts/study_r7_s3_fy_year_coverage.py`（**599** 行，
+与上一轮同族的驱动同规模；它是月度覆盖轮驱动的年份轴版本）。另外 7 处 R-019b 增长全部落在同一文件里
+（该驱动的 `LIMITATIONS` 与冻结常量表为了留在 600 行硬限内用了较长的单行），
+`scripts/build_r7_s3_fy_year_manifests.py`（145）、`scripts/build_r7_s3_fy_multiyear_source.py`（199）、
+`scripts/build_r7_s3_fy_year_d2_reference.py`（96）、`tests/test_r7_s3_fy_year_coverage.py`（267）
+四个新文件均为 0 处 >120 行、0 处 >400 行。
+CI 在提交 `b868a6a` 上正是以
+`tests.test_check_conventions::test_size_report_counts_match_the_checker` 失败（标记仍是旧值），
+本页按提交集合更正。
+**未改规则级别、阈值或冻结例外清单。**
 
 **2026-10-21 SAM（sharpness-aware minimization）驱动复算（提交集合实测）**：R-021 **120→124**；
 R-019=1、R-019b=1113、R-020=66、R-022=67、R-023=47 保持。
