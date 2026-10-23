@@ -4,7 +4,7 @@
 
 <!-- round-spec: {"arm": "s3-fy-year-coverage", "driver": "scripts/study_r7_s3_fy_year_coverage.py", "output_stem": "r7_s3_fy_year_coverage_20261023", "control_record": "s3-fy-annual-coverage-result", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_year_coverage.py"], "commit_paths": ["scripts/study_r7_s3_fy_year_coverage.py", "scripts/build_r7_s3_fy_year_manifests.py", "scripts/build_r7_s3_fy_multiyear_source.py", "scripts/build_r7_s3_fy_year_d2_reference.py", "tests/test_r7_s3_fy_year_coverage.py", "docs/goals/s3-year-coverage.md", "docs/decisions/0054-fy-year-coverage-round.md", "docs/decisions/0055-fy-year-coverage-budget-correction.md", "docs/decisions/README.md", "docs/goals/main-model-climatology-campaign.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): implement the FY training-year coverage two-arm data round", "register_paths": ["docs/R7_S3_FY_YEAR_COVERAGE_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the FY year-coverage run as a new evidence record", "code_archive": "outputs/r7_s3_fy_year_coverage_code.zip"} -->
 
-状态 **CPU 数据准备进行中、驱动/测试待实现、GPU 未开跑**（2026-10-23）。
+状态 **CPU 数据准备与驱动/测试均已完成、独立复核 clean、`attempt02` 已冻结、GPU 未开跑**（2026-10-23）。
 唯一主计划 `docs/goals/main-model-climatology-campaign.md`；承接 **FY 全年覆盖轮**
 （`record:s3-fy-annual-coverage-result`，candidate、独立复核已完成、**等用户验收是否进 S4**）
 与**决策 0050 后果 4**（「2000–2016 未使用；更多年份是后续独立因子」）。
@@ -125,9 +125,14 @@ final-only/spatial-gradient/zero-base decoder/gradient-surgery/tendency-input/SA
      合并后 **34,084 帧**、`2000-01-01 00:00 .. 2023-10-30 18:00`；
      receipt `merge_receipt.json`（`r7-fy-multiyear-merged-source-v1`，`scientific_claim=false`）。
      2023 内部有 59–62 天的月间空档（封存块只有四个月），如实记录。
-- **待做（开工前）**：① store 只读 preflight → `--write`；② 两套清单；③ 48 桶气候态
-  `reference.json`；④ 独立复核、`round-guard`、`commit-guard`、提交推工作分支并等 CI 绿；
-  ⑤ `freeze` → `stage prepare/archive/stage-seeds/reading`；⑥ 登记四件套。
+- **已完成（开工前）**：① store 只读 preflight → `--write`（shape `[34084,17,65,65]`，
+  windows 32,142/1,458/472，`BUILD_COMPLETE`）；② 两套清单（控制 7,291 / 候选 32,142，
+  identity `71bb33e0…` / `81307008…`，val identity `e5fb694f…`）；③ 48 桶气候态
+  `reference.json`（2000–2021、`n_selected_steps` 32,144）；④ 独立只读复核 **clean**
+  （无 medium 缺陷；低项已修：本文状态行与「已完成」清单、`size-thresholds.md` 的行数）、
+  `round-guard`、`commit-guard`、提交推工作分支、CI 绿（`64248e5` → CI `39891052232` success、
+  `1b236dd`/`14fb768` 见 §6）；⑤ `attempt02` 已 `freeze`（协议 `cad16505…`）。
+- **待做**：⑥ `stage prepare/archive/stage-seeds/reading`；⑦ 登记四件套。
 - **`attempt01`（协议 `740eae7b…`，code commit `64248e5`）第一次真实使用暴露预算不足，如实登记**：
   `prepare` 阶段跑的是与两臂**同一条**逐记录校验路径，实测 **>95 min 仍在进行**（月份轮同阶段只需
   数分钟），据此每 seed 估计约 20,200 s，已贴住 0054 的 21,600 s 上限 ⇒ 按**决策 0055** 把预算更正为

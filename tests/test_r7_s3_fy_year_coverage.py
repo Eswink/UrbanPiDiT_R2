@@ -228,6 +228,35 @@ def test_the_control_arm_reads_the_year_filtered_subset():
         driver.manifest_path("candidate", "train")
 
 
+def test_the_control_filter_refuses_every_out_of_range_read_member():
+    """The control's whole read set must lie in 2017-2021, not just its init time.
+
+    A plain init-year filter would keep the first windows of 2017 (whose history steps read
+    2016) and the last windows of 2021 (whose 72 h targets land in 2022), and the control
+    would stop being a 2017-2021 arm. This is the invariant the round's factor rests on.
+    """
+    from scripts import build_r7_s3_fy_year_manifests as builder
+    base = {"sample_id": "s", "init_time": "2018-06-01T00:00:00",
+            "history_times": ["2018-05-31T12:00:00", "2018-05-31T18:00:00"]}
+    assert builder.why_dropped(base) is None
+    history = {**base, "history_times": ["2016-12-31T12:00:00", "2016-12-31T18:00:00"]}
+    assert builder.why_dropped(history)["reason"] == "history_outside_declared_years"
+    assert builder.why_dropped({**base, "init_time": "2022-01-01T00:00:00"})["reason"] == \
+        "init_outside_declared_years"
+    # 2021-12-30 18:00 + 30 h = 2022-01-01 00:00, the first target outside the control years.
+    late = {**base, "init_time": "2021-12-30T18:00:00",
+            "history_times": ["2021-12-30T06:00:00", "2021-12-30T12:00:00"]}
+    reason = builder.why_dropped(late)
+    assert reason["reason"] == "target_outside_declared_years" and reason["member"] == "t+30h"
+    # The same year boundary is fine for the treatment, whose declared years are 2000-2021 plus
+    # the 2022 targets the long-rollout preflight excludes; the filter is parameterised on years.
+    assert builder.why_dropped(late, builder.TREATMENT_YEARS)["reason"] == \
+        "target_outside_declared_years"
+    early = {**base, "init_time": "2017-01-01T12:00:00",
+             "history_times": ["2017-01-01T00:00:00", "2017-01-01T06:00:00"]}
+    assert builder.why_dropped(early) is None
+
+
 def test_provenance_must_be_val_full_grid_and_48_buckets():
     driver._check_provenance(_provenance(), 41, "control", 6)
     wrong_region = copy.deepcopy(_provenance())

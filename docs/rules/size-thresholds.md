@@ -15,7 +15,7 @@ R-019=1、R-020=66、R-022=67、R-023=47 保持。
 与上一轮同族的驱动同规模；它是月度覆盖轮驱动的年份轴版本）。另外 8 处 R-019b 增长全部落在同一文件里
 （该驱动的 `LIMITATIONS` 与冻结常量表为了留在 600 行硬限内用了较长的单行），
 `scripts/build_r7_s3_fy_year_manifests.py`（145）、`scripts/build_r7_s3_fy_multiyear_source.py`（199）、
-`scripts/build_r7_s3_fy_year_d2_reference.py`（96）、`tests/test_r7_s3_fy_year_coverage.py`（267）
+`scripts/build_r7_s3_fy_year_d2_reference.py`（96）、`tests/test_r7_s3_fy_year_coverage.py`（303）
 四个新文件均为 0 处 >120 行、0 处 >400 行。
 CI 在提交 `b868a6a` 上正是以
 `tests.test_check_conventions::test_size_report_counts_match_the_checker` 失败（标记仍是旧值），
