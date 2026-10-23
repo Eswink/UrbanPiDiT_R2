@@ -17,9 +17,15 @@ round planned **43,200 s**、hard **86,400 s**。那个刻度来自 2,140 / 7,30
 该阶段跑的是与两臂训练**同一条校验路径**——`dataset_identity()` 与
 `preflight_long_rollout_windows()` 都要构造 `ZarrAtmosWindowDataset` / 逐窗 `validate_record`
 （每个窗 12 个 rollout 目标，共约 41.8 万次记录校验）。实测该阶段已运行 **>95 min 仍在进行**，
-而月份轮同阶段只需数分钟。据此估计**每 seed 的清单校验开销**约 2,900 s（单进程、两臂合计），
-双卡并发时再翻倍到约 5,800 s；加上月份轮实测的 train+eval 14,370 s，每 seed 约 **20,200 s**，
-已经贴住 21,600 s 的上限。
+遂停止该 attempt；随后一次独立只读探针把同一条路径跑完并计时：**123 min 12.216 s**
+（user 115 min 54 s、sys 13 min 31 s），而月份轮同阶段只需数分钟。同一探针给出两臂的冻结身份：
+控制 `input 7,291 / usable 7,291 / excluded 0`、identity `71bb33e0…`、`window_sha256 b778893f…`；
+候选 `input 32,142 / usable 32,131 / excluded 11`、identity `81307008…`、`window_sha256 e8f22c30…`；
+val identity `e5fb694f…`。
+
+据此估计**每 seed 的清单校验开销**约 3,700 s（单进程、两臂合计；探针做了约两倍于训练的工作），
+双卡并发时再翻倍到约 7,400 s；加上月份轮实测的 train+eval 14,370 s，每 seed 约 **18,100–24,000 s**，
+已经贴住甚至越过 21,600 s 的上限。
 
 **这不是「放宽判据」**：(a)–(d) 出口、两臂单因子约束、评分域、气候态分母、updates/LR/K/depth/dim、
 seed、val 划分全部不动。改的只有**时间预算**，而 D6 明确允许「下一独立 protocol 可加时」。
@@ -31,8 +37,8 @@ seed、val 划分全部不动。改的只有**时间预算**，而 D6 明确允�
 1. **新预算（`attempt02` 起生效）**：`PER_SEED_SECONDS = 43,200 s`（12 h）、
    `PLANNED_SECONDS = 86,400 s`（24 h）、`HARD_CAP_SECONDS = 172,800 s`（48 h）。
    比例结构（per-seed : planned : hard = 1 : 2 : 4）与 0050/0053 一致。
-   43,200 s 是上面估计值 20,200 s 的 **2.1×**，比月份轮的 1.5× 更保守——因为本轮的校验开销
-   是**估计**而非实测，且双卡并发会同时抬高两个 worker 的墙钟。
+   43,200 s 是上面估计上界 24,000 s 的 **1.8×**，与月份轮的 1.5× 同量级——因为本轮的校验开销
+   虽已实测，但双卡并发会同时抬高两个 worker 的墙钟，且 store 是本轮首次真实使用。
 2. **峰值估计不变**：仍写 `estimated_peak_bytes = 4,096 MiB` + margin 512 MiB + neighbour
    reserve 6 GiB。本轮不新增参数、不改模型，显存需求与月份轮同量级。
 3. **`attempt01` 如实保留**：只有 `preparation_protocol.json`，无 seed、无读数、**0 GPU-h**；
