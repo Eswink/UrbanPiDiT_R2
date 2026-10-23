@@ -180,7 +180,7 @@ cohort 与 48 桶气候态由 `_check_provenance` 逐条断言通过。
 
 ## 7b. CI 与提交（如实披露）
 
-本轮共 **5 个 commit**，其中前两个被 CI 判红并已修复，最后一个（本记录所在的树）为绿：
+本轮共 **6 个 commit**，其中两个被 CI 判红并已修复，最后一个（本页当前内容所在的树）为绿：
 
 | commit | 内容 | CI |
 | --- | --- | --- |
@@ -189,15 +189,42 @@ cohort 与 48 桶气候态由 `_check_provenance` 逐条断言通过。
 | `16ce94e` | 预算更正（决策 0053）+ `default_runner` 超时结构化 | `R7 CPU CI` 39775347018 success |
 | `fdc7873` | 登记本轮证据（本页 + index record + brief + 账本 + §8） | `R7 CPU CI` 39870014546 **failure** |
 | `9c8fbce` | 去掉被截断的 JSON 块（`git show --check` 报本页 120 行行尾空白） | `R7 CPU CI` 39871493608 success |
+| `aff01da` | 本页补 CI 披露小节（独立复核的 low 项之一） | `R7 CPU CI` 39873974872 success |
 
 **失败原因如实记录**：`fdc7873` 在 CI 的 `Compile active modules and check whitespace` 步失败——
 本页原先把父迁移的 `state_equality_evidence` JSON **按 1800 字符截断**，切断了一个字符串导致该行
 以空格结尾，`git show --check` 判行尾空白。`9c8fbce` 改为输出**完整** JSON 块并同步刷新证据 digest、
 index record 与 canonical brief；`git show --check` 本地复跑 exit 0。
 
-**两次失败 attempt 与冻结协议的对应**：`attempt01` 协议 `e2750d58…`（archive 被
-`validate_protocol` 拦下）、`attempt02` 协议 `23235448…`（每 seed 预算过低被调度器杀掉）、
-本轮读数所用 `attempt03` 协议 `ee532b3c…`。三次 attempt 全部原样保留、全额计费。
+**两次失败 attempt 与冻结协议的对应**（每个 attempt 给两个 digest，避免口径混用：
+`preparation_protocol.json` 是 freeze 阶段的 digest，`protocol.json` 是 prepare 之后、也是本记录
+登记的那种）：
+
+| attempt | `preparation_protocol.json` | `protocol.json` | 结局 |
+| --- | --- | --- | --- |
+| `attempt01` | `e2750d58…` | `a4e1fe26…` | archive 被 `validate_protocol` 拦下（控制臂误读未过滤清单） |
+| `attempt02` | `23235448…` | `565bf130…` | 每 seed 预算过低，两个 worker 在 treatment 臂被调度器杀掉 |
+| `attempt03` | `f7c7ea00…` | `ee532b3c…` | 六阶段全 success，**本轮读数来源** |
+
+三次 attempt 全部原样保留、不删、不做 in-place resume、全额计费。
+
+**关于父迁移 receipt 的 `semantics_equal: false`**：该字段比较的是**代码文本语义**
+（archived 修订 vs 当前修订的模型源码语义），两份迁移因为代码文本不同而必然为 `false`；它
+**不是**行为等价性的判据。行为等价性由本页 §4 的逐 seed `state_digest` 相同（父状态张量未变）
+与 `tests/test_r7_s3_fy_annual_coverage.py::test_the_two_post_hd_switches_are_inert_at_their_registered_defaults`
+（新开关取默认值时前向与损失逐位相同）共同承担。
+
+## 7c. 独立只读复核（2026-10-23）
+
+一份独立只读复核（`general-purpose`，未编辑任何文件、未执行训练或 pytest）逐条核对了本页与产物，
+结论为 `findings`：**本页的数值表与 `readings.json` 逐位一致（12 行 RMSE/skill + 3 行 Δ + seed 均值，
+0 处不符）**，分母确为 D2 冻结气候态，两臂差异集合恰为 `{train_manifest, train_data_identity,
+train_windows}`，`model_code_sha256` 等于当前 `model_code_digest()`，桥未被当科学判据也未被淡化，
+两个失败 attempt 未被复用为读数，成本 16.345644 GPU-h 可由三次 attempt 的 `*_process.json` 求和复现。
+**复核指出的两条 medium 缺陷已当场修复**：campaign §8 的「15/15 全负」实为 14/15（seed42 24 h
++0.002282 K，已改）；index record 的 `evidence_commit` 原先指向不含本页的 code commit，已改绑
+本页内容所在 commit。三条 low 一致性问题（失败 attempt 的协议 digest 口径、本节的 commit 数、
+`semantics_equal` 的读法）也已修。复核**未发现**泛化/SOTA/科学通过/显著性/宽实例/已进 S4 一类措辞。
 
 ## 8. 未做的事与下一步
 

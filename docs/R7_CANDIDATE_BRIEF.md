@@ -299,8 +299,8 @@ Records: 89; human-review candidates: 2
 
 - Outcome class: `engineering-positive`; candidate state: `candidate`
 - Human triage priority: `99` (not a scientific score)
-- Evidence: `docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md` (SHA256 `adce5cc06faa10dee56c5618d0900e33a29f659f59bb64be2e8fff8e15d4c119`)
-- Evidence commit: `16ce94e57db3441607ca1db39cbc884121dbc00d`; experiment commit: `16ce94e57db3441607ca1db39cbc884121dbc00d`
+- Evidence: `docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md` (SHA256 `e95556aec11301ca0c3651e7f4f31bb5652f2aa00c1be0f3b6fde87c36547b52`)
+- Evidence commit: `fdc78737d39749975191b55cb5aeb49152ae00d4`; experiment commit: `16ce94e57db3441607ca1db39cbc884121dbc00d`
 - Protocol SHA256: `ee532b3c3194e5ffd78cc4727af856a983ea4dcd160db962ebdcb589e617ef26`; data identity: `04693129781a234e662daaf2b379c3e4a53c50ca8ba016a73c4478ef12b7e3c1`
 - Reason: Single-factor data-coverage test on the native 65x65 instance: both arms share the store, the full-year normalization, the model spec, the migrated v3-BD parent state, 2400 updates, K=4/depth=4/dim=192, the registered physical weights, the seeds, the 2022 full-year val split and the 48-bucket train-only climatology; only the train manifest's month coverage differs (control = Jan/Apr/Jul/Oct complete-72h subset, 2140 windows; treatment = all twelve months, 7291 usable windows). No model file changed. The predeclared screening exit is met on all four conditions: (a) treatment 72 h t2m skill > 0 on seeds 41/42/43 (+0.012121/+0.032076/+0.064427); (b) paired 72 h treatment-minus-control delta RMSE < 0 on all three (-0.060269/-0.065575/-0.085518 K); (c) 48 h skill all positive (+0.213089/+0.215091/+0.263743); (d) the 6/12/24 h seed-mean deltas all <= 0 (-0.015227/-0.012738/-0.016615 K). The round's own verdict is 'advance-to-independent-review': this is a 65x65 screening result awaiting independent review, NOT a scientific pass, not an S4 entry, and no significance, convergence, generalization or SOTA claim. The index's only positive bucket is named 'engineering-positive'; the class label carries no scientific claim by itself.
 - Limitations:

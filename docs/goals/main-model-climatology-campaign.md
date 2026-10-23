@@ -933,6 +933,19 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 - **分支关闭（依据合并）**：训练配方的四个杠杆（输入范围 index67、监督域 index68、剂量 index69、
   长 lead 权重 index70）加推理深度 K（本轮单 seed 旁证）都已试过，**72h 从未三 seed 转正** ⇒
   **关闭"靠训练配方解决 72 h"这一支**；宽输入支此前已按预声明关闭、不重开。
+- **独立只读复核（2026-10-23）已做，结论 `findings`，两条 medium 缺陷已当场修复**：
+  1. 本节原先写「五个 lead 的配对 Δ 在**全部 15 个 seed×lead 单元**上都是负的」——**与产物不符**，
+     实际是 14/15，seed42 24 h 为 +0.002282 K。已按实际改写（见上）。
+  2. `docs/R7_EVIDENCE_INDEX.jsonl` 的 `evidence_commit` 原先指向 code commit `16ce94e`，而证据页
+     是在 `fdc7873` 才加入的——该 commit 无法给出记录所绑定的页面内容。已改绑 `aff01da`（当前页面
+     内容与 `evidence_sha256` 所在 commit），并补记 `evidence_first_commit = fdc7873` 与
+     `evidence_revisions`。
+  另有 3 条 low 一致性问题一并修：失败 attempt 的协议 digest 口径（原先只给 `preparation_protocol.json`
+  的值，现已同时给出 `protocol.json` 的值）、证据页 §7b 的 commit 数（5 → 6）、以及父迁移 receipt 的
+  `semantics_equal: false` 是**代码文本语义**比较而非行为比较的说明。
+  **复核未发现泛化/SOTA/科学通过/显著性/宽实例/已进 S4 一类措辞**；复核者给出的最强结论与证据页
+  一致（65×65 screening，只够进独立复核）。复核**无法核对**两处 CI run id（本仓 GitHub 通道只读受限），
+  也**未执行** pytest（只读约束下只做了源码核对）。
 - **为何停 + 恢复第一条命令**：停因＝操作者判断收益不足（**非**机器可判失败：无 hard overrun、无身份/资源门失败）；
   恢复第一条命令＝ `.venv/bin/python -m pytest -q tests/test_r7_s3_wide_long_lead_weight.py`，
   然后按新 round brief `docs/goals/s3-capacity-or-architecture.md` 派生 `depth=8` 变体（新输出目录、
@@ -1908,8 +1921,10 @@ test 未读、r=0、S4 未启动不变。
   (b) 同 seed F−N 的 72 h ΔRMSE 三 seed 全负 **−0.060269 / −0.065575 / −0.085518 K**；
   (c) 48 h skill 三 seed 全正 **+0.213089 / +0.215091 / +0.263743**；
   (d) 6/12/24 h 的 seed 均值 Δ **−0.015227 / −0.012738 / −0.016615 K**。
-  五个 lead 的配对 Δ 在**全部 15 个 seed×lead 单元**上都是负的（候选更优），
-  72 h 幅度 −0.060…−0.086 K。本轮自己的判定字符串是 `advance-to-independent-review`。
+  五个 lead 的配对 Δ 在 **15 个 seed×lead 单元中 14 个**为负（候选更优），**唯一例外是 seed42 的
+  24 h：+0.002282 K**（候选略差）；其余 14 个单元为负，72 h 幅度 −0.060…−0.086 K。
+  (d) 是**seed 均值**判据且通过，不受这个单点例外影响。本轮自己的判定字符串是
+  `advance-to-independent-review`。
 - **这不是科学通过**：只在 65×65 上成立（原生 FY 源，无 65→129 上采样契约）；三 seed 是一致性证据
   **不是显著性检验**；`test_read=false`、r=0、**不自动进 S4**、不称泛化/SOTA、不自宣最终 goal 完成。
   它现在的状态是 `candidate`，**提请独立复核/验收**。
@@ -1952,7 +1967,8 @@ test 未读、r=0、S4 未启动不变。
   超时修复，CI `39775347018` success）、`fdc7873`（登记，CI `39870014546` **failure**：
   证据页把父迁移证据 JSON 按 1800 字符截断，切断字符串留下行尾空白，CI 的
   `Compile active modules and check whitespace` 步报 `git show --check` 失败）、
-  `9c8fbce`（改为输出完整 JSON 块并刷新 digest，CI `39871493608` success）。最终树为绿。
+  `9c8fbce`（改为输出完整 JSON 块并刷新 digest，CI `39871493608` success）、
+  `aff01da`（证据页补 CI 披露，CI `39873974872` success）。最终树为绿。
 - **为何停 + 恢复第一条命令**：本轮按预声明出口正常结束（无 hard overrun、无资源门失败），
   出口全真 ⇒ 状态 `candidate`，**等独立复核/验收**，执行者不自行宣布科学通过、不自动进 S4。
   恢复第一条命令＝`.venv/bin/python tools/r7_round.py state`。
