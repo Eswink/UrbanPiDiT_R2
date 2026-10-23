@@ -10,10 +10,8 @@ store already on disk covers 2000-2022 on the native 65x65 grid, so one multi-ye
 is derived from it and a single question is asked -- with the months fixed at all twelve,
 does training on 2000-2021 beat training on 2017-2021?
 
-Both arms share the store, the 2000-2021 train-only normalization, the model spec, the
-migrated v3-BD parent, the seeds, the 2022 full-year val split and the 48-bucket
-train-only climatology; they differ only in their train manifest. The round is 65x65
-only, and the 2023 test split is never opened.
+Both arms share the store, the 2000-2021 train-only normalization, the model spec, the migrated
+v3-BD parent, the seeds, the 2022 full-year val split and the 48-bucket train-only climatology.
 """
 from __future__ import annotations
 
@@ -47,7 +45,10 @@ ARMS = ((CONTROL, INSTANCE / "store/manifests_control"),
 TRAIN_COUNTS = {CONTROL: 7291, TREATMENT: 32142}
 VAL_COUNT, TEST_COUNT = 1458, 472
 VAL_COHORTS = {"6": 1458, "12": 1457, "24": 1455, "48": 1451, "72": 1447}
-CLIMATOLOGY_T2M_RMSE = {}
+CLIMATOLOGY_T2M_RMSE = {
+    "6": 3.9188406572176904, "12": 3.9196037113045894, "24": 3.921682294513083,
+    "48": 3.9253820690090073, "72": 3.926891361747067,
+}
 CLIMATOLOGY_YEARS, CLIMATOLOGY_BUCKETS, CLIMATOLOGY_STEPS = list(range(2000, 2022)), 48, 32144
 D2_REFERENCE = ROOT / "outputs/r7_s3_fy_year_coverage_d2_20261023_attempt01/reference.json"
 D2_FORMAT = "r7-s3-fy-year-coverage-d2-reference-v1"
@@ -77,6 +78,7 @@ LIMITATIONS = [
     "both arms share the 2000-2021 normalization, so the 2017-2021 control is not byte-comparable with the month round's treatment arm, which used its own 2017-2021 normalization",
     "the budget is fixed at 2400 updates: the treatment sees about 7% of an epoch, the control about a third,",
     "so a positive result prices year diversity at this budget, and a negative one cannot separate 'no extra value' from 'too few updates to use the extra years'",
+    "the climatology denominator is fit on 2000-2021, not the month round's 2017-2021 (72 h t2m 3.9269 vs 3.8971 K), so absolute skill is not comparable across rounds; both arms share it",
     "the external bridge to the month round's candidate arm differs in normalization and climatology denominator; it is an identity/engineering check, never a scientific verdict",
     "three seeds are consistency evidence, not a significance test",
     "GPU runs are co-resident; latency/memory observations include neighbor load",
@@ -135,8 +137,7 @@ def frozen_constants():
         "recipe": {"mode": "long_rollout", "updates": UPDATES, "steps": STEPS, "lr": LR,
                    "warmup": WARMUP, "weight_decay": WEIGHT_DECAY, "batch_size": BATCH_SIZE,
                    "clip": CLIP, "bf16": BF16, "checkpoint_every": CHECKPOINT_EVERY,
-                   "physical_weights": list(PHYSICAL_WEIGHTS),
-                   "reasoning_steps": REASONING_STEPS,
+                   "physical_weights": list(PHYSICAL_WEIGHTS), "reasoning_steps": REASONING_STEPS,
                    "supervision": "full_grid (no spatial mask on the native 65x65 grid)"},
         "climatology": {"kind": "train-only-month-hour-grid-mean-v1",
                         "buckets": CLIMATOLOGY_BUCKETS, "training_years": CLIMATOLOGY_YEARS,

@@ -7,12 +7,12 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=1 R-019b=1120 R-020=66 R-021=125 R-022=67 R-023=47 -->
+<!-- measured: R-019=1 R-019b=1121 R-020=66 R-021=125 R-022=67 R-023=47 -->
 
-**2026-10-23 训练年份覆盖轮复算（提交集合实测）**：R-021 **124→125**、R-019b **1113→1120**；
+**2026-10-23 训练年份覆盖轮复算（提交集合实测）**：R-021 **124→125**、R-019b **1113→1121**；
 R-019=1、R-020=66、R-022=67、R-023=47 保持。
-本轮只新增一个 >400 目标、≤600 硬限的文件：`scripts/study_r7_s3_fy_year_coverage.py`（**599** 行，
-与上一轮同族的驱动同规模；它是月度覆盖轮驱动的年份轴版本）。另外 7 处 R-019b 增长全部落在同一文件里
+本轮只新增一个 >400 目标、≤600 硬限的文件：`scripts/study_r7_s3_fy_year_coverage.py`（**600** 行，
+与上一轮同族的驱动同规模；它是月度覆盖轮驱动的年份轴版本）。另外 8 处 R-019b 增长全部落在同一文件里
 （该驱动的 `LIMITATIONS` 与冻结常量表为了留在 600 行硬限内用了较长的单行），
 `scripts/build_r7_s3_fy_year_manifests.py`（145）、`scripts/build_r7_s3_fy_multiyear_source.py`（199）、
 `scripts/build_r7_s3_fy_year_d2_reference.py`（96）、`tests/test_r7_s3_fy_year_coverage.py`（267）
