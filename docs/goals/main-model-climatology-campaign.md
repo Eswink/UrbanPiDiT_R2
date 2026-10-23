@@ -332,7 +332,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-fy-annual-coverage.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md", "previous_round_goal": "docs/goals/s3-fy-annual-coverage.md", "remaining_gpu_h": -182.359827, "route_decision": "0038", "status": "active", "used_gpu_h": 202.359827} -->
+<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-year-coverage.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md", "previous_round_goal": "docs/goals/s3-fy-annual-coverage.md", "remaining_gpu_h": -182.359827, "route_decision": "0038", "status": "active", "used_gpu_h": 202.359827} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -1979,3 +1979,35 @@ test 未读、r=0、S4 未启动不变。
 - **为何停 + 恢复第一条命令**：停的原因是**到达本轮预声明的出口边界**（出口全真 ⇒ 提请验收；
   验收是用户的决定，不是执行者可自行推进的），不是资源或授权阻塞。恢复第一条命令＝
   `.venv/bin/python tools/r7_round.py state`。
+
+- **2026-10-23 新轮开工（仍 S3）：训练年份覆盖单因素轮（`docs/goals/s3-year-coverage.md`，决策 0054）**。
+  上一轮（全年覆盖）已按预声明出口 (a)–(d) 全真登记为 candidate 并完成独立复核，**仍等用户验收是否进 S4**；
+  用户 2026-10-23 的续跑指示给出分支「确认是否进入 S4；若不进 S4，则授权 S3 内另一独立单因素轮
+  （需先做一手检索并提出与已关闭轴不重叠的新可证伪假设）」。进入 S4 是用户的决定且尚未给出，故本轮走
+  **被授权的另一支**：不动 FY 轮的 candidate、不改任何已冻结判据、不读 test。
+- **一手检索（2026-10-23）**：arXiv MCP 当次不可用（`arxiv-researcher` 连续 timeout，主链路自测同样超时），
+  按 `web-research` 技能阶梯降级到 `web-researcher`。结论：数据驱动天气预测里**没有**训练记录长度/年数的
+  受控消融。GraphCast（arXiv:2212.12794）正文报告加入 1959–1978 这 20 年「对性能几乎没有影响」
+  （无数字、无表），故最终用 1979–2015；Pangu-Weather（2211.02556，1979–2017）、FuXi（2306.12873，
+  1979–2015）、FourCastNet（2202.11214，1979–2015）均未做年数消融；Aurora（2405.13063）只报跨数据集
+  **多样性**收益，未隔离单一再分析内的年数效应。天气社区也没有「固定 updates vs 固定 epochs」双口径的
+  数据量消融。**最接近的先例方向与我们相反**（它是「加更早的 20 年、收益很小」），所以本轮是有区分力的
+  检验，不是重复已做过的对照。访问日期 2026-10-23，来源见决策 0054。
+- **本轮因子与设计**：唯一因子＝训练清单覆盖的**年份** 2017–2021（5 年）→ 2000–2021（22 年），
+  **月份固定 12 个月**；两臂同 store、同 2000–2021 train-only 归一化、同 48 桶 train-only 气候态分母、
+  同 spec（K=4/depth=4/dim=192）、同当前修订迁移父（`60de3b2d…`，与 FY 轮同一个，故本轮**不改模型代码**、
+  无需重迁移）、同 2400 updates、同 seed 41/42/43、同 2022 全年 val，**只差训练清单**。与 FY 轮的月份轴
+  互不重叠，且两臂月份覆盖相同 ⇒ FY 轮里「训练月份与 val 月份不匹配」这一成分在本轮**不存在**。
+- **已完成（CPU，2026-10-23）**：合并源 34,084 帧（2000-01-01..2023-10-30，SHA256 `1db83955…`，
+  5,492,365,397 B；2023 封存块只用于让 store builder 拿到非空 test split，永不读取）；只读 preflight 报
+  shape `[34084,17,65,65]`、windows train/val/test = **32,142/1,458/472**、raw state 9.12 GiB；
+  `--write` 后 store `BUILD_COMPLETE`；两套清单：控制（2017–2021 完整读取集）**7,291** 窗
+  （24,840 条因 history 落在 2000–2016 被剔除、11 条因 72 h 目标跨到 2022 被剔除），候选 **32,142** 窗；
+  两套 val/test 逐字节相同（1,458/472）。D2 气候态、冻结与 GPU **尚未开始**。
+- **下一动作（S3）**：等 D2 气候态 `reference.json` 写完 → 独立只读复核 → `round-guard`/`commit-guard`
+  → 提交并等 CI 绿 → `freeze` → `stage prepare/archive/stage-seeds/reading` → 四件套登记。
+  第一条命令＝ `.venv/bin/python tools/r7_round.py state`。
+- **与 S4 的关系**：**本轮不推进到 S4**。FY 轮 candidate 的验收问题**保持悬挂**，仍由用户决定；
+  本轮结果不代替该验收，也不得与 FY 轮的月份轴合并解释成「数据越多越好」。
+- **为何停（本轮尚未停）**：本轮正在推进中，不构成停止；`test` 未读、r=0；不宣布科学通过、不称泛化/SOTA、
+  不自宣最终 goal 完成。
