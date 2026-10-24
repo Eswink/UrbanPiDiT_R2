@@ -183,12 +183,19 @@ SHA256）、`readings.json`。**逐位一致未被证明**，故不写「可复�
 
 ## 9 CI 如实披露
 
-本轮实现与登记共 6 个提交：`b868a6a`（实现，CI `39888911424` **failure**：
+本轮实现与登记共 9 个提交：`b868a6a`（实现，CI `39888911424` **failure**：
 `test_size_report_counts_match_the_checker` 因 `size-thresholds.md` 标记仍是旧值）、
 `dce3133`（更正标记，CI `39891052232` success）、`64248e5`（填气候态常数，CI `39895099528` success）、
 `1b236dd`（决策 0055 预算更正，CI `39907497192` **cancelled**——被下一条推送经并发组取消，
 **不算通过**）、`14fb768`（把实测 123 min 写进 0055，CI `39907601049` success，即**冻结用的 code commit**，
 它包含 `1b236dd` 的全部内容）、`223e7a0`（独立复核低项修复 + 控制臂过滤反证测试，CI `39917524465` success）。
+其后三个提交**在本地提交后一起推送**（推送时远端从 `223e7a0` 直接前进到 `d909f2b`）：
+`1c34b46`（归档 plan 0025）、`2dfff95`（本证据页）与 `d909f2b`（登记：index record / brief / 账本行 /
+§8 / `campaign-state`）。GitHub 的 push 事件只给**推送的 tip** 建运行，因此 `1c34b46` 与 `2dfff95`
+**没有各自的 CI 运行**（实测 API 对两个 SHA 均返回「no R7 CPU CI run」）；覆盖它们的绿运行是
+`d909f2b` 的 **R7 CPU CI `40047879417` completed/success**（pytest job 12 步全 success、无非 success 步；
+另 17 条标签实验 workflow `skipped` 是设计行为、非实验 PASS）。
+`git show --check`（CI 的空白步）在本轮三个提交上本地均 rc=0。
 冻结树（`14fb768`）为绿；`1b236dd` 自身没有绿色的 CI 运行，如实记录。
 
 ## 10 未做与下一动作
