@@ -2115,7 +2115,40 @@ test 未读、r=0、S4 未启动不变。
     2000-01-01..2022-12-31），已全部用作 train/val；2023 只有四个月块 ⇒ 完整未见年份**必须新取数据**，
     属 D3 暂缓、且按 AGENTS.md 需**多年度/新数据下载的具名授权**（0038 的具名扩围只覆盖方向内免费
     合法区域天气数据的分批自审发布，是否含"为确认而新取整年"由用户裁定）。
+- **2026-10-24 S4 就绪性只读审计（零 GPU、零 test 读取、不改任何冻结物）**：为了让「是否进 S4」
+  这个决定建立在实测而非推测上，逐项核了 FY candidate 的 S4 输入是否在当前 HEAD 下仍然自洽：
+  - **代码身份仍然吻合**：当前 HEAD 实测 `model_code_sha256 = 60de3b2d…`、
+    `training_code_sha256 = a03f9ba6…`，与 FY 轮冻结值**逐字相同** ⇒ 三份候选 checkpoint 在当前代码下
+    可加载，**不需要重迁移**（对比 H-A 轮那次 `model/*.py` 改动导致迁移父失效的失败）。
+  - **气候态分母在位**：`outputs/r7_s3_fy_annual_d2_20261021_attempt01/reference.json` 存在，实测
+    SHA256 `4c89c70937cd848682fdfefd216fd77e1d648cfb0292c416e87e2d5d3aeb2135`，与协议登记值**相同**
+    （48 桶、train-only 2017–2021、`n_selected_steps` 7304、t2m RMSE 6/12/24/48/72 h =
+    3.887854/3.888748/3.890695/3.894692/3.897079 K）。
+  - **候选 checkpoint 在位且逐位吻合**：seed41/42/43 的 treatment checkpoint 均存在，实测 SHA256
+    **与各自 receipt 的 `checkpoint_sha256` 相同**。
+  - **清单在位**：`store/manifests_control_h72/train.jsonl` 2,140、`manifests_treatment/train.jsonl`
+    7,302、两臂 `val.jsonl` 各 1,458、两臂 `test.jsonl` 各 **472**；协议 `test_read: false`。
+  - **D4 统计机器已存在**：`training/r7_simultaneous_stats.py` 的文件头自述就是
+    「Simultaneous paired time-block bootstrap for the **S4 confirmation family**」，实现了移动块重采样、
+    块不跨 split/年/季边界、max-statistic bootstrap-t 同时临界值、以及块数不足时判
+    `insufficient-evidence`（而非通过）；另有 `training/r7_paired_comparison.py` 与
+    `scripts/analyze_r7_67_paired_blocks.py`（day-block 配对重采样 + full/interior/boundary 分层）。
+  - **缺口**：**没有把上述部件串起来的 S4 确认驱动**（`scripts/` 与 `tools/` 下都没有 confirmation/S4
+    驱动），它要负责：对三个 treatment seed 在冻结 test 上评分、按 D4 组成
+    （总集/各年/四季组 × 17 变量 × 5 lead × full/interior/edge）算**同时**区间、执行 `alpha_1 = 0.025`
+    的 r 消耗登记，并报 u10/v10/mslp 相对同数据 incumbent 的同组同 lead 变化。该驱动属于 S4 本体，
+    **本轮不做**（不预先越过冻结出口）。
+  - **结构性缺口（决定性的）**：即使驱动建好，**当前 test 也过不了最终正门**——test 是
+    `2023-01/04/07/10` 四个 30 天块各 118 窗，不满足协议第 111 行「至少覆盖一个完整未见年份和全部四季」。
+  ⇒ 结论：**选项 ①「现在进 S4」在工程上是可执行的（输入全部在位、身份自洽），但科学上只能得四季块
+  确认**；选项 ② 是唯一能达成最终正门的路径，需具名授权取一个完整未见年份。
 - **为何停 + 恢复第一条命令**：停的原因是**两个被授权分支都已走完，且第三个（新 S3 假设）经一手检索
-  确认不存在**：S4 需用户具名确认（FY 轮冻结出口「不自动进 S4」是**冻结停止**，执行者不得自行跨越）；
-  新假设经检索为负；补数据需保留授权。这不是「有阻塞等决定」的空转——本轮把该分支要求的一手检索
-  做完了并留下可核对结论。恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`。
+  确认不存在**：S4 需用户具名确认（FY 轮冻结出口「全真 → 只提请独立复核/验收，不自动进 S4」是
+  **冻结停止**，执行者不得自行跨越）；新假设经检索为负；补数据需保留授权。这不是「有阻塞等决定」的
+  空转——本轮把该分支要求的一手检索做完，并把 S4 就绪性审计到「只差一个驱动、且结构上过不了最终正门」
+  的可核对程度。恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`；
+  解阻需用户三选一：**① 现在进 S4**（用冻结实例对 2023 test 首次评分，r=1、`alpha_1 = 0.05/2 = 0.025`，
+  须接受只能得四季块确认且消耗 r=1 曝光）；**② 先授权取一个完整未见年份再进 S4**（本机完整年份仅
+  2000–2022 且已全部用作 train/val，须多年度/新数据下载的具名授权，属 D3 暂缓范围）；
+  **③ 授权一条不在已关闭轴（容量深度/宽度、架构 H-A..H-D、训练信号族、月份轴、年份轴）上的新可证伪
+  假设**（我已说明为何一手检索没能找到——需你给出一个不在上述轴上的方向）。
