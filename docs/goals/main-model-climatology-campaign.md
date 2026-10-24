@@ -2195,6 +2195,25 @@ test 未读、r=0、S4 未启动不变。
     S4 只需**评估**（参照同规模 reading 阶段的量级，分钟级）。同数据 incumbent 亦已存在且同样未见 2016。
   ⇒ **结论：选项 ② 不是「大工程」，而是「一个小 store + 一个新协议 + 一次评估」，唯一缺的是你对
   （a）启用 D3 暂缓的建 store 路径、（b）放行 S4 评分（消耗 r=1）这两点的确认。**
+- **2026-10-24 续查之三（选项 ② 会不会被身份门挡住：不会，且已实测）**：我原以为「在另一个 store 上
+  评估旧 checkpoint」会像 H-A 轮那样被身份门拒绝。实测**不会**，因为那道门比的是**同级 train 清单**：
+  `training/r7_evaluate.py:121-123` 是
+  `training_identity,_=dataset_identity(manifest.parent/'train.jsonl')`，然后
+  `if training_identity!=contract['data_identity']: raise ValueError('checkpoint training data/normalization
+  identity mismatch')`——**它读的是评测清单旁边的 `train.jsonl`，不是评测清单自己的 store**。
+  而 `dataset_identity`（`training/r7_experiment.py:89-104`）是对「清单文件哈希 + 每个 store 的 attrs/
+  `state` shape + `latitude`/`longitude`/`time_ns`/`normalization_mean`/`normalization_std` 的哈希」
+  做摘要。
+  - **逐字复现已实测**：`dataset_identity(outputs/r7_s3_fy_annual_20261021_attempt01/store/manifests_treatment/train.jsonl)`
+    = `c17494ab63d54855697567f1195a613ca61e32cfcc3db22d709a7ff00dc17422`，与协议
+    `arms.treatment.train_data_identity` **完全相同**；控制臂
+    `manifests_control_h72/train.jsonl` = `04693129781a234e662daaf2b379c3e4a53c50ca8ba016a73c4478ef12b7e3c1`，
+    与协议 `arms.control.train_data_identity` **完全相同**。
+  ⇒ **可行设计（无需重训、无需绕过身份校验）**：新建一个排他目录，放 ① 一个**只含 2016 帧**的小 store
+  （并装入 FY candidate 的 2017–2021 `normalization_mean/std`）；② **逐字节复制** FY 该臂的 `train.jsonl`
+  作为同级文件（于是 `dataset_identity` 恰好等于 checkpoint 记录的 `data_identity`，身份门放行）；
+  ③ 指向该小 store 的 `test.jsonl`（2016）。评测于是**直接对已冻结的三份候选 checkpoint 评 2016**。
+  两条臂各需自己的同级 `train.jsonl`；同数据 incumbent 同理。
 
 
 - **为何停 + 恢复第一条命令**：停的原因是**两个被授权分支都已走完，且第三个（新 S3 假设）经一手检索
