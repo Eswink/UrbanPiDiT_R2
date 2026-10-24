@@ -301,3 +301,34 @@ def test_decision_rule_is_frozen_into_the_constants():
     bridge = driver.frozen_constants()["bridge_e"]
     assert bridge["scientific"] is False
     assert bridge["record_id"] == "s3-fy-annual-coverage-result" and bridge["updates"] == 2400
+
+
+def test_the_source_is_hashed_in_prepare_and_only_compared_afterwards():
+    """W1c: the 5.49 GB source must not be re-read by each of the five later stages.
+
+    ``validate_protocol`` runs in archive, each seed and reading; re-hashing the source
+    there measured ~14.7 s per stage (attempt02 archive 20.09 s vs the same stage 6.36 s
+    once the digest came from prepare). The check now compares the digest prepare recorded
+    plus the file's own size and mtime. This guard keeps the re-hash from creeping back in,
+    and keeps the prepare-time hash that actually binds the source identity.
+    """
+    import ast
+    from pathlib import Path
+
+    source = Path(driver.__file__).read_text(encoding="utf-8")
+    functions = {node.name: node for node in ast.parse(source).body
+                 if isinstance(node, ast.FunctionDef)}
+
+    def hashes_the_source(node):
+        return any(
+            isinstance(inner, ast.Call) and isinstance(inner.func, ast.Name)
+            and inner.func.id == "sha256_file"
+            and any(isinstance(arg, ast.Name) and arg.id == "SOURCE" for arg in inner.args)
+            for inner in ast.walk(node))
+
+    assert hashes_the_source(functions["_identity"]), "prepare must hash the source"
+    assert not hashes_the_source(functions["validate_protocol"]), \
+        "later stages must not re-read the source"
+    body = ast.unparse(functions["validate_protocol"])
+    assert "source_file" in body and "st_size" in body and "st_mtime_ns" in body
+    assert driver.SOURCE_BYTES == 5492365397
