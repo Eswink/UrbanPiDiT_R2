@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime, timezone
 from functools import partial
 import hashlib
 import json
@@ -43,6 +44,27 @@ LIMITATIONS = [
     "Full source qualification, frozen root protocol, offline workers and external deadlines belong to the caller.",
     "GPU training is not bitwise reproducible; checkpoint/source/model identities remain strict.",
 ]
+#: The append-only per-update sidecar; see :func:`_append_progress`.
+PROGRESS_FILE = "progress.jsonl"
+#: One progress line every this many updates, plus the final update.
+PROGRESS_EVERY = 20
+
+
+def _append_progress(path, record, elapsed_seconds):
+    """Append one update line to the run's progress sidecar.
+
+    ``training_report.json`` is written once, at the end, and the accumulated ``losses``
+    are a local of ``_run_updates``: a run that is killed or raises leaves no loss curve at
+    all. This sidecar is appended as the run goes, so the curve up to the last logged update
+    survives a hard truncation or an exception, and a long run can be watched while it is
+    still going. It carries only per-update scalars and never replaces the report.
+    """
+    line = {"update": record["update"], "epoch": record["epoch"], "lr": record["lr"],
+            "loss": record["loss"], "l6": record["l6"], "l12": record["l12"],
+            "gradient_norm": record["gradient_norm"], "elapsed_seconds": elapsed_seconds,
+            "recorded_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    with Path(path).open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(line, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def training_code_digest():
@@ -247,6 +269,7 @@ def _run_updates(dataset, folder, model, optimizer, contract, signature, deadlin
     supervision_mask, ema = runtime if runtime is not None else (None, None)
     epoch, cursor, losses, checkpoint, ema_checkpoint = 0, 0, [], None, None
     device = next(model.parameters()).device
+    progress, started = Path(folder) / PROGRESS_FILE, time.perf_counter()
     for update in range(1, contract["total_updates"] + 1):
         if deadline is not None:
             _check_deadline(deadline)
@@ -263,6 +286,8 @@ def _run_updates(dataset, folder, model, optimizer, contract, signature, deadlin
             ema.update()
         cursor += len(indices)
         losses.append({"update": update, "epoch": epoch, "lr": rate, "samples": len(indices), **metrics})
+        if update % PROGRESS_EVERY == 0 or update == contract["total_updates"]:
+            _append_progress(progress, losses[-1], time.perf_counter() - started)
         if deadline is not None:
             _check_deadline(deadline)
         if update % contract["checkpoint_every"] == 0 or update == contract["total_updates"]:
@@ -397,7 +422,11 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
         return checkpoint, report
     except BaseException as exc:
         model.zero_grad(set_to_none=True)
+        progress = Path(folder) / PROGRESS_FILE
         _write_json(folder / "failed_attempt.json", {"status": "failed", "scientific_claim": False,
                     "limitations": LIMITATIONS, "signature": signature, "test_read": False,
-                    "failure_reason": f"{type(exc).__name__}: {exc}", "resume_permitted": False})
+                    "failure_reason": f"{type(exc).__name__}: {exc}", "resume_permitted": False,
+                    "progress_file": str(progress),
+                    "progress_updates": (len(progress.read_text(encoding="utf-8").splitlines())
+                                         if progress.is_file() else 0)})
         raise

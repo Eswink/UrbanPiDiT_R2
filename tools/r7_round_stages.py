@@ -14,6 +14,7 @@ orchestrator's job, and it is what lets an interrupted round be continued.
 from __future__ import annotations
 
 import concurrent.futures
+from datetime import datetime, timezone
 import importlib.util
 import json
 import os
@@ -67,6 +68,24 @@ WORKER_ENV_KEYS = ("PATH", "HOME", "LANG", "LC_ALL", "PYTHONPATH", "VIRTUAL_ENV"
 FROZEN_PROTOCOL = "protocol.json"
 PREPARATION_PROTOCOL = "preparation_protocol.json"
 PREPARED_PROTOCOL = "prepared_protocol.json"
+STAGE_LEDGER = "stage_ledger.jsonl"
+
+
+def _append_stage_ledger(output: Path, entry: dict[str, Any]) -> dict[str, Any]:
+    """Append one line of stage history to ``<attempt>/stage_ledger.jsonl``.
+
+    The driver's own ``run_attempt`` printed a ``phase_done`` line to its log, but the
+    per-stage path never runs that loop, so an attempt driven by ``r7_round.py stage``
+    had no stage ledger at all. This restores it as an append-only sidecar: a resumed
+    attempt keeps every earlier line, and the file lives under ``tools/`` so it costs no
+    execution identity. It records what the orchestrator did, including skips and
+    refusals, not just the stages that ran.
+    """
+    body = {"ledger": "r7-stage-v1",
+            "recorded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), **entry}
+    with (Path(output) / STAGE_LEDGER).open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(body, ensure_ascii=False, sort_keys=True) + "\n")
+    return entry
 
 
 def current_attempt_dir(stem: str, outputs: Path | None = None) -> Path:
@@ -262,10 +281,10 @@ def run_stage(
     output = Path(output)
     plan = stage_plan(output, phase, seed, driver_rel=driver_rel)
     if plan["skip"]:
-        return {**plan, "status": "skipped", "passed": True}
+        return _append_stage_ledger(output, {**plan, "status": "skipped", "passed": True})
     if plan["already_running"]:
-        return {**plan, "status": "already-running", "passed": False,
-                "reason": "a worker for this stage is still running; wait for its receipt"}
+        return _append_stage_ledger(output, {**plan, "status": "already-running", "passed": False,
+                "reason": "a worker for this stage is still running; wait for its receipt"})
     promote_prepared_protocol(output)
     body = stage_protocol(output, phase)
     deadline = float(body["deadline_perf_counter"])
@@ -301,7 +320,8 @@ def run_stage(
                     runner=runner,
                 )
         if not observed_gate["passed"]:
-            return {**plan, "status": "headroom-blocked", "passed": False, "gate": observed_gate}
+            return _append_stage_ledger(output, {**plan, "status": "headroom-blocked", "passed": False,
+                                                "gate": observed_gate})
         # A scheduler that probes several cards hands back the card that cleared the gate.
         if device is not None and observed_gate.get("uuid"):
             device = observed_gate["uuid"]
@@ -336,7 +356,7 @@ def run_stage(
     process_path = output / f"{tag}_process.json"
     if not process_path.exists():
         process_path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
-    return record
+    return _append_stage_ledger(output, record)
 
 
 def run_seeds(

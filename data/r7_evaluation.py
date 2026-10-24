@@ -10,51 +10,91 @@ from .r7_store import (HOUR_NS, init_time_fields, validate_store, normalization,
     split_time_labels, history_offsets_hours_from_ns)
 
 
-class ZarrRolloutDataset(Dataset):
-    def __init__(self,store_path,*,split='test',lead_hours=(6,12,24,48,72),history_steps=2,step_hours=6):
+class RolloutStoreScan:
+    """Read-only store facts that do not depend on the requested horizons.
+
+    ``ZarrRolloutDataset`` derives all of this inside its constructor, so a sweep that
+    evaluates one lead at a time re-read and re-scanned the entire store once per lead.
+    The scan holds exactly the values the window derivation needs and nothing that
+    depends on the horizons, so a caller may build it once and hand it to several
+    datasets. Every field is a plain array/dict/tuple: the scan pickles like the
+    dataset it feeds.
+    """
+
+    def __init__(self, store_path, *, split='test', history_steps=2, step_hours=6):
         import zarr
-        if split not in ('val','test'):
+        if split not in ('val', 'test'):
             raise ValueError('rollout evaluation requires a held-out split')
-        self.path=str(Path(store_path).resolve())
-        root=zarr.open_group(self.path,mode='r')
-        raw=validate_store(root)
-        self.lead_hours=validate_horizons(lead_hours)
-        for value in (history_steps,step_hours):
-            if isinstance(value,bool) or not isinstance(value,int) or value<1:
+        self.path = str(Path(store_path).resolve())
+        root = zarr.open_group(self.path, mode='r')
+        raw = validate_store(root)
+        for value in (history_steps, step_hours):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError('positive integer history/step required')
-        if any(h%step_hours for h in self.lead_hours):
+        self.split = split
+        self.history_steps, self.step_hours = history_steps, step_hours
+        self.names = tuple(root.attrs['channels'])
+        self.units = tuple(root.attrs.get('units', ['unknown'] * len(self.names)))
+        self.mean, self.std = normalization(root, count=len(self.names))
+        self.latitude = np.asarray(root['latitude'][:], dtype=np.float32)
+        self.longitude = np.asarray(root['longitude'][:], dtype=np.float32)
+        self.raw = np.asarray(raw)
+        self.times = pd.DatetimeIndex(raw.astype('datetime64[ns]'))
+        self.index = {int(t): i for i, t in enumerate(raw)}
+        self.labels = split_time_labels(root)
+        self.allowed_years = (None if self.labels is not None
+                              else frozenset(root.attrs['split_years'][split]))
+
+    def permits(self, position):
+        """Whether the store timestep at ``position`` belongs to this held-out split."""
+        if self.labels is None:
+            return self.times[position].year in self.allowed_years
+        return self.labels[position] == self.split
+
+    def windows(self, lead_hours):
+        """The complete held-out windows at exactly these horizons, in store order."""
+        lead_hours = validate_horizons(lead_hours)
+        if any(h % self.step_hours for h in lead_hours):
             raise ValueError('horizons must be multiples of the transition step')
-        self.history_steps,self.step_hours=history_steps,step_hours
-        self.split=split
-        self.names=tuple(root.attrs['channels'])
-        self.units=tuple(root.attrs.get('units',['unknown']*len(self.names)))
-        self.mean,self.std=normalization(root,count=len(self.names))
-        self.latitude=np.asarray(root['latitude'][:],dtype=np.float32)
-        self.longitude=np.asarray(root['longitude'][:],dtype=np.float32)
-        self.times=pd.DatetimeIndex(raw.astype('datetime64[ns]'))
-        index={int(t):i for i,t in enumerate(raw)}
-        labels=split_time_labels(root)
-        if labels is None:
-            allowed=set(root.attrs['split_years'][split])
-            def permitted(position):
-                return self.times[position].year in allowed
-        else:
-            def permitted(position):
-                return labels[position] == split
-        self.windows=[]
-        delta=step_hours*HOUR_NS
-        for i,stamp in enumerate(raw):
-            if not permitted(i) or int(stamp)%delta:
+        delta = self.step_hours * HOUR_NS
+        windows = []
+        for i, stamp in enumerate(self.raw):
+            if not self.permits(i) or int(stamp) % delta:
                 continue
-            required=[int(stamp)+k*delta for k in range(-(history_steps-1),max(self.lead_hours)//step_hours+1)]
-            if any(t not in index or not permitted(index[t]) for t in required):
+            required = [int(stamp) + k * delta for k in
+                        range(-(self.history_steps - 1), max(lead_hours) // self.step_hours + 1)]
+            if any(t not in self.index or not self.permits(self.index[t]) for t in required):
                 continue
-            history=[index[int(stamp)-delta*k] for k in reversed(range(history_steps))]
-            targets=[index[int(stamp)+h*HOUR_NS] for h in self.lead_hours]
-            self.windows.append((history,targets))
-        if not self.windows:
+            history = [self.index[int(stamp) - delta * k] for k in reversed(range(self.history_steps))]
+            targets = [self.index[int(stamp) + h * HOUR_NS] for h in lead_hours]
+            windows.append((history, targets))
+        if not windows:
             raise ValueError('no complete held-out rollout windows at requested horizons')
-        self._root=None
+        return windows
+
+
+class ZarrRolloutDataset(Dataset):
+    def __init__(self, store_path, *, split='test', lead_hours=(6, 12, 24, 48, 72), history_steps=2,
+                 step_hours=6, scan=None):
+        if scan is None:
+            scan = RolloutStoreScan(store_path, split=split, history_steps=history_steps,
+                                    step_hours=step_hours)
+        elif (scan.split != split or scan.history_steps != history_steps
+              or scan.step_hours != step_hours):
+            raise ValueError('the shared store scan does not match this dataset request')
+        self.path = scan.path
+        self.history_steps, self.step_hours = scan.history_steps, scan.step_hours
+        self.split = scan.split
+        self.names = scan.names
+        self.units = scan.units
+        self.mean, self.std = scan.mean, scan.std
+        self.latitude, self.longitude = scan.latitude, scan.longitude
+        self.times = scan.times
+        self.lead_hours = validate_horizons(lead_hours)
+        if any(h % self.step_hours for h in self.lead_hours):
+            raise ValueError('horizons must be multiples of the transition step')
+        self.windows = scan.windows(self.lead_hours)
+        self._root = None
 
     def __len__(self):
         return len(self.windows)

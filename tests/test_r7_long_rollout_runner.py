@@ -92,6 +92,48 @@ def test_actual_training_error_keeps_failure_receipt(tmp_path, monkeypatch):
     assert not (tmp_path / "failed/training_report.json").exists()
 
 
+def test_progress_sidecar_logs_every_update_without_touching_the_report(tmp_path, monkeypatch):
+    """The append-only curve must exist while the run is going, not only at the end."""
+    paths, options = _options(tmp_path)
+    monkeypatch.setattr(runner, "PROGRESS_EVERY", 1)
+    checkpoint, report = runner.fine_tune_long_rollout(paths["train"], tmp_path / "run", **options)
+    folder = Path(checkpoint).parent
+    lines = [json.loads(line) for line
+             in (folder / "progress.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [line["update"] for line in lines] == [row["update"] for row in report["losses"]]
+    assert lines[-1]["loss"] == report["losses"][-1]["loss"]
+    assert lines[-1]["gradient_norm"] == report["losses"][-1]["gradient_norm"]
+    assert set(lines[-1]) == {"update", "epoch", "lr", "loss", "l6", "l12", "gradient_norm",
+                              "elapsed_seconds", "recorded_at"}
+    assert all(line["elapsed_seconds"] >= 0.0 for line in lines)
+    # The report is still the single frozen-endpoint snapshot, written once.
+    assert (folder / "training_report.json").is_file()
+
+
+def test_progress_sidecar_is_the_only_surviving_curve_on_failure(tmp_path, monkeypatch):
+    """A mid-run failure used to lose every accumulated loss; the sidecar keeps them."""
+    paths, options = _options(tmp_path)
+    monkeypatch.setattr(runner, "PROGRESS_EVERY", 1)
+    real_update, calls = runner._update, {"n": 0}
+
+    def fail_after_one(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise RuntimeError("injected failure after one logged update")
+        return real_update(*args, **kwargs)
+
+    monkeypatch.setattr(runner, "_update", fail_after_one)
+    with pytest.raises(RuntimeError, match="injected failure"):
+        runner.fine_tune_long_rollout(paths["train"], tmp_path / "failed", **options)
+    folder = tmp_path / "failed"
+    failure = json.loads((folder / "failed_attempt.json").read_text(encoding="utf-8"))
+    assert not (folder / "training_report.json").exists()
+    kept = (folder / "progress.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(kept) == 1 and json.loads(kept[0])["update"] == 1
+    assert failure["progress_file"] == str(folder / "progress.jsonl")
+    assert failure["progress_updates"] == 1
+
+
 def _fake_round(tmp_path, monkeypatch, mode, *, known_peak=123, gate_calls=None):
     monkeypatch.setattr(study, "PER_SEED_SECONDS", .5)
     monkeypatch.setattr(study, "PLANNED_SECONDS", 10.)

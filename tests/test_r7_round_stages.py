@@ -111,6 +111,25 @@ def test_run_stage_counterproof_a_done_stage_never_spawns(support, tmp_path):
     assert record["status"] == "skipped"
     assert calls == []
 
+def test_stage_ledger_records_every_outcome_and_appends(support, tmp_path):
+    """The per-stage path had no stage ledger at all; it must now keep one, append-only."""
+    (tmp_path / "prepared_protocol.json").write_text("{}", encoding="utf-8")
+    skipped = support.run_stage(tmp_path, "scripts/study_fake.py", "prepare", runner=lambda *a: _ok())
+    ledger = tmp_path / support.STAGE_LEDGER
+    rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 1 and rows[0]["status"] == "skipped" and rows[0]["ledger"] == "r7-stage-v1"
+    assert rows[0]["recorded_at"] and rows[0]["phase"] == "prepare"
+    # A second stage appends rather than truncating the earlier history.
+    (tmp_path / "prepared_protocol.json").unlink()
+    _protocol_file(tmp_path)
+    record = support.run_stage(tmp_path, "scripts/study_fake.py", "prepare", runner=lambda *a: _ok(),
+                               clock=lambda: 1000.0)
+    assert record["status"] == "success"
+    rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+    assert [row["status"] for row in rows] == ["skipped", "success"]
+    assert rows[1]["exit_code"] == 0 and rows[1]["passed"] is True
+    assert skipped["status"] == "skipped"
+
 def test_run_stage_spawns_the_driver_worker_with_the_frozen_deadline(support, tmp_path):
     _protocol_file(tmp_path)
     seen = {}

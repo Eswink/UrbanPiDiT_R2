@@ -1,22 +1,17 @@
 """S3 FY training-year coverage: 5 years vs 22 years of training data, months fixed.
 
-The architecture, capacity, training-signal and month-coverage families are closed. The FY
-annual-coverage round (decision 0050) closed all four of its predeclared exits true while
-declaring its own limitation: at a fixed 2,400-update budget the treatment saw about one
-third of an epoch, so the positive result priced data diversity at that budget. Decision
-0050 consequence 4 pre-declared "more years" as a later independent factor and forbade
-folding 2000-2016 into the month round. This round is that factor and nothing else: the
-store already on disk covers 2000-2022 on the native 65x65 grid, so one multi-year store
-is derived from it and a single question is asked -- with the months fixed at all twelve,
-does training on 2000-2021 beat training on 2017-2021?
-
-Both arms share the store, the 2000-2021 train-only normalization, the model spec, the migrated
-v3-BD parent, the seeds, the 2022 full-year val split and the 48-bucket train-only climatology.
+Decision 0050 closed the FY annual-coverage round while declaring that at a fixed
+2,400-update budget the treatment saw about one third of an epoch, so its positive result
+priced data diversity at that budget; its consequence 4 pre-declared "more years" as a
+later independent factor and forbade folding 2000-2016 into the month round. This round is
+that factor and nothing else -- with the months fixed at all twelve, does training on
+2000-2021 beat training on 2017-2021? Both arms share the store, the 2000-2021 train-only
+normalization, the model spec, the migrated v3-BD parent, the seeds, the 2022 full-year val
+split and the 48-bucket train-only climatology.
 """
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import math
 from pathlib import Path
@@ -31,6 +26,9 @@ from scripts import r7_s3_fy_annual_parent as parent_pins
 from scripts import study_r7_s3_wide_interior_dose as dose
 from scripts import study_r7_s3_wide_single_factor as wide
 from scripts import study_r7_s3_v3_rollout_ft as recipe
+from scripts.r7_s3_fy_year_coverage_climatology import (
+    CLIMATOLOGY_BUCKETS, CLIMATOLOGY_STEPS, CLIMATOLOGY_T2M_RMSE, CLIMATOLOGY_YEARS, D2_FORMAT,
+    D2_REFERENCE, EVALUATION_LEADS, VAL_COHORTS, climatology_reference)
 from training import r7_device_selection as devices
 
 FORMAT = "r7-s3-fy-year-coverage-protocol-v1"
@@ -44,14 +42,6 @@ ARMS = ((CONTROL, INSTANCE / "store/manifests_control"),
         (TREATMENT, INSTANCE / "store/manifests_treatment"))
 TRAIN_COUNTS = {CONTROL: 7291, TREATMENT: 32142}
 VAL_COUNT, TEST_COUNT = 1458, 472
-VAL_COHORTS = {"6": 1458, "12": 1457, "24": 1455, "48": 1451, "72": 1447}
-CLIMATOLOGY_T2M_RMSE = {
-    "6": 3.9188406572176904, "12": 3.9196037113045894, "24": 3.921682294513083,
-    "48": 3.9253820690090073, "72": 3.926891361747067,
-}
-CLIMATOLOGY_YEARS, CLIMATOLOGY_BUCKETS, CLIMATOLOGY_STEPS = list(range(2000, 2022)), 48, 32144
-D2_REFERENCE = ROOT / "outputs/r7_s3_fy_year_coverage_d2_20261023_attempt01/reference.json"
-D2_FORMAT = "r7-s3-fy-year-coverage-d2-reference-v1"
 BRIDGE_RECORD, BRIDGE_UPDATES = "s3-fy-annual-coverage-result", 2400
 BRIDGE_VALUES = {
     "6": [2.274617729966317, 2.330257857646797, 2.2541542668765637],
@@ -63,12 +53,13 @@ BRIDGE_VALUES = {
 UPDATES, STEPS, LR, WARMUP = 2400, wide.STEPS, wide.LR, wide.WARMUP
 WEIGHT_DECAY, BATCH_SIZE, CLIP = wide.WEIGHT_DECAY, wide.BATCH_SIZE, wide.CLIP
 CHECKPOINT_EVERY, BF16, PHYSICAL_WEIGHTS = wide.CHECKPOINT_EVERY, wide.BF16, wide.PHYSICAL_WEIGHTS
-EVALUATION_LEADS, REASONING_STEPS, SEEDS = wide.EVALUATION_LEADS, wide.REASONING_STEPS, wide.SEEDS
+REASONING_STEPS, SEEDS = wide.REASONING_STEPS, wide.SEEDS
 BOUNDARY_MARGINS, REGION, FULL_GRID_POINTS, DEVICE_MODE = (1,), "full", 4225, "dual"
 # Corrected after this round's own first use (0055): 32,142 windows make per-arm manifest validation cost hours.
 PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 43200., 86400., 172800.
 ESTIMATED_PEAK_BYTES, HEADROOM_MARGIN_BYTES = 4096 * 2**20, 512 * 2**20
 ENTRY_FILES = ("scripts/r7_s3_fy_annual_parent.py", "scripts/study_r7_s3_fy_year_coverage.py",
+               "scripts/r7_s3_fy_year_coverage_climatology.py",
                "scripts/build_r7_s3_fy_year_manifests.py",
                "scripts/build_r7_s3_fy_multiyear_source.py", *wide.execution_files())
 
@@ -222,46 +213,16 @@ def _model_spec():
     return spec
 
 
-def climatology_reference():
-    """Load and byte-verify the D2 climatology reference this round divides by."""
-    from training.r7_arm_harness import sha256_file
-    if not D2_REFERENCE.is_file():
-        raise FileNotFoundError(f"the year-coverage climatology reference is missing: {D2_REFERENCE}")
-    reference = json.loads(D2_REFERENCE.read_text(encoding="utf-8"))
-    if reference.get("format") != D2_FORMAT or reference.get("scientific_claim") is not False:
-        raise RuntimeError("the climatology reference is not the frozen D2 artifact")
-    leads = {}
-    for lead in EVALUATION_LEADS:
-        record = reference["leads"][str(lead)]
-        if record["n_evaluated"] != record["n_available_windows"] \
-                or record["n_evaluated"] != VAL_COHORTS[str(lead)]:
-            raise RuntimeError(f"D2 lead {lead} does not cover the frozen val cohort")
-        if len(record["bucket_counts"]) != CLIMATOLOGY_BUCKETS:
-            raise RuntimeError(f"D2 lead {lead} does not carry the 48 buckets")
-        csv_path = Path(record["boundary_rmse_csv"])
-        if sha256_file(csv_path) != record["boundary_rmse_sha256"]:
-            raise RuntimeError(f"D2 lead {lead} boundary table drifted from its digest")
-        with (csv_path.parent / "rmse.csv").open(encoding="utf-8") as handle:
-            t2m = next(row for row in csv.DictReader(handle) if row["variable"] == "t2m")
-        value, unit = float(t2m["rmse"]), t2m["unit"]
-        if unit != "K" or abs(value - CLIMATOLOGY_T2M_RMSE[str(lead)]) > 1e-12:
-            raise RuntimeError(f"D2 lead {lead} t2m RMSE differs from the frozen constant")
-        leads[str(lead)] = {"t2m_rmse": value, "unit": unit,
-                            "n_evaluated": record["n_evaluated"],
-                            "boundary_rmse_sha256": record["boundary_rmse_sha256"]}
-    return {"path": str(D2_REFERENCE), "sha256": sha256_file(D2_REFERENCE),
-            "format": D2_FORMAT, "bucket_count": CLIMATOLOGY_BUCKETS,
-            "training_years": CLIMATOLOGY_YEARS, "n_selected_steps": CLIMATOLOGY_STEPS,
-            "leads": leads}
-
-
 def _identity():
     from training.r7_arm_harness import sha256_file
     from training.r7_experiment import canonical_digest, dataset_identity, model_code_digest
     from training.r7_long_rollout_runner import training_code_digest
     from data.r7_long_rollout_dataset import preflight_long_rollout_windows
     check_model_revision(model_code_digest())
-    if sha256_file(SOURCE) != SOURCE_SHA256:
+    # Hash the 5.49 GB source once, here; later stages compare this digest plus the file's
+    # size and mtime instead of re-reading it in each of the five stages.
+    source_stat, source_digest = SOURCE.stat(), sha256_file(SOURCE)
+    if source_digest != SOURCE_SHA256:
         raise RuntimeError("the merged multi-year source drifted from its frozen SHA256")
     spec = _model_spec()
     arms, manifest_sha, val_identity = {}, {}, None
@@ -279,6 +240,8 @@ def _identity():
             canonical_digest=canonical_digest)
     require_single_factor(arms[CONTROL], arms[TREATMENT])
     body = {"instance": str(INSTANCE), "store": str(STORE), "source_sha256": SOURCE_SHA256,
+            "source_file": {"path": str(SOURCE), "sha256": source_digest,
+                            "bytes": source_stat.st_size, "mtime_ns": source_stat.st_mtime_ns},
             "model_code_sha256": model_code_digest(),
             "training_code_sha256": training_code_digest(),
             "execution_files_sha256": {name: sha256_file(ROOT / name) for name in execution_files()},
@@ -338,11 +301,20 @@ def validate_protocol(output):
     if body["model_code_sha256"] != model_code_digest() \
             or body["training_code_sha256"] != training_code_digest():
         raise RuntimeError("model/training source identity changed")
-    if sha256_file(SOURCE) != body["source_sha256"]:
+    # The source is hashed once in prepare and that digest is bound into this protocol;
+    # re-hashing 5.49 GB per stage buys nothing the frozen digest plus the file's own
+    # size/mtime does not. A same-size, same-mtime replacement is the one mutation this
+    # no longer catches, and it would have to be deliberate.
+    recorded_source = body.get("source_file") or {}
+    observed_source = SOURCE.stat()
+    if (recorded_source.get("path") != str(SOURCE) or recorded_source.get("sha256") != SOURCE_SHA256
+            or recorded_source.get("sha256") != body["source_sha256"]
+            or observed_source.st_size != recorded_source.get("bytes")
+            or observed_source.st_mtime_ns != recorded_source.get("mtime_ns")):
         raise RuntimeError("the merged multi-year source identity changed")
     # The full dataset identity is computed once in prepare; repeating it here would validate
-    # every record against the store on every stage. The manifest bytes and source hash are
-    # checked cheaply, and the protocol digest binds the recorded dataset identity to this body.
+    # every record against the store on every stage. The manifest bytes are checked cheaply,
+    # and the protocol digest binds the recorded dataset identity to this body.
     observed = {name: {"train": sha256_file(manifest_path(name, "train")),
                        "val": sha256_file(manifest_path(name, "val"))} for name, _ in ARMS}
     if body["manifest_sha256"] != observed:
@@ -438,10 +410,11 @@ def _check_provenance(provenance, seed, name, lead):
 
 def _train_arm(output, body, seed, name, deadline):
     from training.r7_long_rollout_runner import fine_tune_long_rollout
-    from training.r7_evaluate import evaluate_local
+    from training.r7_evaluate import EvaluationPreparation, evaluate_local
     from training.r7_arm_harness import sha256_file
     model, state, parent, parent_sha = _parent_model(body, seed)
     folder = output / f"seed{seed}/training/{name}"
+    print(f"[seed {seed}] arm {name}: training {UPDATES} updates from the migrated parent", flush=True)
     checkpoint, report = fine_tune_long_rollout(
         body["arms"][name]["train_manifest"], folder, model=model,
         contract=_arm_contract(body, name, parent, parent_sha), parent_weights=state,
@@ -459,12 +432,19 @@ def _train_arm(output, body, seed, name, deadline):
                "reasoning_steps": STEPS, "train_data_identity": report["data_identity"],
                "train_windows_sha256": body["arms"][name]["train_windows"]["window_sha256"],
                "evaluations": {}}
+    print(f"[seed {seed}] arm {name}: trained in {report['elapsed_seconds']:.0f}s; "
+          "building the shared evaluation inputs", flush=True)
+    # One manifest reader, one store scan and one training climatology for all five leads:
+    # none of them depends on the lead, and rebuilding them per lead dominated the arm.
+    prepared = EvaluationPreparation(manifest_path(name, "val"), deadline=deadline)
     for lead in EVALUATION_LEADS:
         destination = output / f"seed{seed}/evaluation/{name}/lead_{lead:03d}h"
+        print(f"[seed {seed}] arm {name}: evaluating lead {lead}h", flush=True)
         provenance = evaluate_local(
             str(manifest_path(name, "val")), output_dir=destination, checkpoint=checkpoint,
             lead_hours=(lead,), max_samples=10**9, device_name="cuda:0",
-            reasoning_steps=REASONING_STEPS, boundary_margins=BOUNDARY_MARGINS, deadline=deadline)
+            reasoning_steps=REASONING_STEPS, boundary_margins=BOUNDARY_MARGINS, deadline=deadline,
+            prepared=prepared)
         _check_provenance(provenance, seed, name, lead)
         receipt["evaluations"][str(lead)] = {
             "dir": str(destination), "n_evaluated": provenance["n_evaluated"],
@@ -474,6 +454,8 @@ def _train_arm(output, body, seed, name, deadline):
             "boundary_rmse_csv_sha256": sha256_file(destination / "boundary_rmse.csv"),
             "skill_csv_sha256": sha256_file(destination / "climatology_skill.csv"),
             "provenance_sha256": sha256_file(destination / "provenance.json")}
+        print(f"[seed {seed}] arm {name}: lead {lead}h done in "
+              f"{provenance['elapsed_seconds']:.0f}s over {provenance['n_evaluated']} cases", flush=True)
     return receipt
 
 
@@ -481,10 +463,12 @@ def _seed(output, body, seed, deadline):
     import torch
     receipts = {}
     for name, _ in ARMS:
+        print(f"[seed {seed}] arm {name}: start", flush=True)
         receipt = _train_arm(output, body, seed, name, deadline)
         receipt["owned_cuda_reserved_peak_bytes"] = int(torch.cuda.max_memory_reserved())
         wide.write_exclusive(output / f"seed{seed}_{name}_receipt.json", receipt)
         receipts[name] = receipt
+        print(f"[seed {seed}] arm {name}: done", flush=True)
     if receipts[CONTROL]["train_data_identity"] == receipts[TREATMENT]["train_data_identity"]:
         raise RuntimeError(f"seed {seed}: the arms trained on the same manifest identity")
 
@@ -567,10 +551,15 @@ def worker(output, phase, seed, deadline):
     from scripts.r7_m3_offline import deny_network
     deny_network()
     output = Path(output)
+    print(f"[worker] phase={phase} seed={seed} out={output}", flush=True)
     if phase == "prepare":
-        return _prepared_protocol(output)
+        body = _prepared_protocol(output)
+        print(f"[worker] prepare done: protocol {body['protocol_sha256'][:12]}", flush=True)
+        return body
     if phase == "archive":
-        return dose.interior._archive(output, validate_protocol(output))
+        body = dose.interior._archive(output, validate_protocol(output))
+        print("[worker] archive done", flush=True)
+        return body
     body = validate_protocol(output)
     if (deadline is None or not math.isfinite(deadline)
             or deadline > body["deadline_perf_counter"] or deadline <= time.perf_counter()):
@@ -578,10 +567,12 @@ def worker(output, phase, seed, deadline):
     recipe._shared().pin_declared_gpu(devices.assigned_uuid(body))
     if phase == "reading":
         wide.write_exclusive(output / "readings.json", _readings(output, body))
+        print("[worker] reading done", flush=True)
         return
     if seed not in SEEDS or deadline - time.perf_counter() > PER_SEED_SECONDS:
         raise RuntimeError("seed/deadline differs from freeze")
     _seed(output, body, seed, deadline)
+    print(f"[worker] seed {seed} done", flush=True)
 
 
 def main(argv=None):

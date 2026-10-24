@@ -5,6 +5,19 @@
 本项目的实现风格已经相当统一：0 处 logging、0 处裸 except、93 个文件用 pathlib、0 处硬编码宿主路径。
 以下规则把这个现状固定下来。
 
+**2026-10-24 补充（长跑的进度输出）**：原先「0 处 logging」在实践中同时意味着**长跑没有任何进度输出**——
+训练年份覆盖轮的 `prepare.log` / `archive.log` / `seed*.log` 实测都是 **0 字节**，一次 8 小时级的 seed
+中途无法判断进行到哪一步。现在补两处结构化旁路，**仍然是 0 处 `logging`**（E-133 继续成立）：
+
+- `training/r7_long_rollout_runner.py` 每 20 个 update 往训练目录**追加**一行 `progress.jsonl`
+  （`update` / `epoch` / `lr` / `loss` / `l6` / `l12` / `gradient_norm` + 时间戳 + 已用秒）；
+  `training_report.json` 的结构与写时机**不变**——它是训练结束时的快照，改它会改审计契约。
+- 轮驱动 `scripts/study_r7_s3_fy_year_coverage.py` 在阶段边界与每臂/每 lead 起止 `print(..., flush=True)`，
+  输出由 `tools/r7_round_stages.py` 收进 `<stage>.log`。
+
+理由不只是可观测性：旁路 jsonl 顺带修掉一个真缺陷——失败路径此前只往 `failed_attempt.json` 写一行原因，
+而**已累积的 `losses` 是 `_run_updates` 的局部变量**，随异常一起丢失，于是硬截断或异常时整条曲线全丢。
+
 ## R-013 文本 IO 必须显式 encoding
 
 - **级别**：必须

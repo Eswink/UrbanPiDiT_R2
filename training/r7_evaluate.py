@@ -9,7 +9,8 @@ import torch
 from torch import nn
 from data.r7_zarr_dataset import ZarrAtmosWindowDataset
 from data.r7_store import validate_record
-from data.r7_evaluation import ZarrRolloutDataset,fit_training_climatology,normalized_climatology
+from data.r7_evaluation import (RolloutStoreScan,ZarrRolloutDataset,fit_training_climatology,
+                                normalized_climatology)
 from model.r7_rollout import autoregressive_rollout,rollout_model_input
 from .r7_experiment import make_model,load_checkpoint,dataset_identity,select_device
 from .r7_rollout_metrics import RolloutRMSEAccumulator
@@ -21,6 +22,63 @@ class Persistence(nn.Module):
     def forward(self,batch):
         from types import SimpleNamespace
         return SimpleNamespace(forecast=batch['coarse_history'][:,-1].clone())
+
+
+class EvaluationPreparation:
+    """Per-arm evaluation inputs that do not depend on the requested lead.
+
+    ``evaluate_local`` rebuilt every one of these inside each call, so a sweep that scores
+    one lead at a time re-validated the whole held-out manifest against the store and
+    re-read the store's entire training climatology once per lead -- both large next to
+    the rollout loop, and neither a function of the lead. A driver with several leads
+    builds this once per arm and hands the same object to each lead. It changes nothing
+    about what is computed: the reader, the store scan and the climatology are the same
+    objects ``evaluate_local`` would have built for itself.
+    """
+
+    def __init__(self, manifest, *, step_hours=6, deadline=None):
+        self.manifest = Path(manifest)
+        self.step_hours = step_hours
+        if deadline is not None:
+            _check_deadline(deadline)
+        self.reader = ZarrAtmosWindowDataset(self.manifest)
+        self.splits = {record['split'] for record in self.reader.records}
+        stores = {record['store_path'] for record in self.reader.records}
+        if len(self.splits) != 1 or len(stores) != 1 or next(iter(self.splits)) not in ('val', 'test'):
+            raise ValueError('one held-out split and one store per evaluation')
+        self.root = self.reader._store(self.reader.records[0])
+        for record in self.reader.records:
+            validate_record(self.root, record)
+        store = Path(next(iter(stores)))
+        self.store = store if store.is_absolute() else (self.manifest.parent / store).resolve()
+        self.history_steps = len(self.reader.records[0]['history_indices'])
+        self.scan = RolloutStoreScan(self.store, split=next(iter(self.splits)),
+                                     history_steps=self.history_steps, step_hours=step_hours)
+        self._climatology = None
+
+    def climatology(self, deadline=None):
+        """The train-only climatology, fitted once and then reused by every lead.
+
+        Fitted lazily rather than in the constructor so the deadline contract is unchanged:
+        no heavy setup may run after the deadline has passed, and this fit is the heavy part.
+        The check therefore stays exactly where it always was, immediately before the fit.
+        """
+        if self._climatology is None:
+            if deadline is not None:
+                _check_deadline(deadline)
+            self._climatology = fit_training_climatology(self.store)
+        return self._climatology
+
+    def matches(self, manifest, step_hours):
+        """Whether this preparation was built for exactly this manifest and step."""
+        return Path(manifest) == self.manifest and step_hours == self.step_hours
+
+    def dataset(self, lead_hours):
+        """The rollout dataset for exactly these horizons, over the shared store scan."""
+        return ZarrRolloutDataset(self.store, split=next(iter(self.splits)), lead_hours=lead_hours,
+                                  history_steps=self.history_steps, step_hours=self.step_hours,
+                                  scan=self.scan)
+
 
 
 def _check_deadline(deadline):
@@ -64,7 +122,7 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
                    step_hours=6,max_samples=32,device_name='cpu',normalized=False,reasoning_steps=None,
                    controller_checkpoint=None,min_reasoning_steps=1,force_full_depth=False,
                    policy_selection=None,validation_thresholds=None,boundary_margins=None,
-                   baseline=None,deadline=None,process_scale_sidecar=None):
+                   baseline=None,deadline=None,process_scale_sidecar=None,prepared=None):
     if isinstance(max_samples,bool) or not isinstance(max_samples,int) or max_samples<1:
         raise ValueError('max_samples must be a positive explicit cap')
     if baseline not in (None,'persistence','climatology'):
@@ -83,22 +141,18 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         raise ValueError('frozen selected policy cannot be overridden')
     if deadline is not None:
         _check_deadline(deadline)
-    manifest=Path(manifest)
-    reader=ZarrAtmosWindowDataset(manifest)
-    splits={r['split'] for r in reader.records}
-    stores={r['store_path'] for r in reader.records}
-    if len(splits)!=1 or len(stores)!=1 or next(iter(splits)) not in ('val','test'):
-        raise ValueError('one held-out split and one store per evaluation')
+    if prepared is not None and not prepared.matches(manifest,step_hours):
+        raise ValueError('the prepared evaluation belongs to a different manifest or step')
+    prep=prepared if prepared is not None else EvaluationPreparation(manifest,step_hours=step_hours,
+                                                                    deadline=deadline)
+    manifest=prep.manifest
+    reader=prep.reader
+    splits=prep.splits
+    root=prep.root
+    store=prep.store
     if validation_thresholds is not None and splits!={'val'}:
         raise ValueError('threshold overrides are validation-only; freeze a selection before test')
-    root=reader._store(reader.records[0])
-    for r in reader.records:
-        validate_record(root,r)
-    store=Path(next(iter(stores)))
-    if not store.is_absolute():
-        store=(manifest.parent/store).resolve()
-    ds=ZarrRolloutDataset(store,split=next(iter(splits)),lead_hours=lead_hours,
-        history_steps=len(reader.records[0]['history_indices']),step_hours=step_hours)
+    ds=prep.dataset(lead_hours)
     allowed={r['init_time'] for r in reader.records}
     ds.windows=[w for w in ds.windows if ds.times[w[0][-1]].isoformat() in allowed]
     if not ds.windows:
@@ -162,12 +216,12 @@ def evaluate_local(manifest,*,output_dir,checkpoint=None,lead_hours=(6,12,24,48,
         checkpoint_hash=hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
         if deadline is not None:
             _check_deadline(deadline)
-        clim=fit_training_climatology(store)
+        clim=prep.climatology(deadline)
         model=model.to(device).eval()
     else:
         if deadline is not None:
             _check_deadline(deadline)
-        clim=fit_training_climatology(store)
+        clim=prep.climatology(deadline)
         model=None if baseline=='climatology' else Persistence().to(device).eval()
     rmse=RolloutRMSEAccumulator(ds.lead_hours,ds.names,
         training_std=None if normalized else ds.std,units=None if normalized else ds.units)

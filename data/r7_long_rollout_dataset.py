@@ -59,8 +59,6 @@ def _discover_long_windows(reader, physical_steps):
                                  "required_target_time": target_time, "reason": reason}
                 continue
             target = dict(record, target_index=target_index, target_time=target_time, lead_time_hours=lead)
-            # Validate every available train target, even after an earlier gap.
-            validate_record(root, target)
             targets.append(target)
         if exclusion is not None:
             exclusions.append(exclusion)

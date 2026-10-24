@@ -2,6 +2,22 @@
 
 每次引导或规则修订追加一条。不静默改写历史；被取代的规则标为 superseded 并保留引用。
 
+## 2026-10-24 — 长跑进度输出成为约定（计划 0025 的 W2）；R-051 迫使驱动拆出 `*_climatology.py`
+
+计划 `docs/plans/0025-training-speed-observability-axis-reeval.md` 的 W1/W2 落地。本页只记**规则侧**变化：
+
+- **进度输出**：`docs/rules/python-implementation.md` 的「0 处 logging」补充为「仍然 0 处 `logging`，
+  但长跑必须留下结构化进度」。训练侧每 20 个 update 追加一行 `progress.jsonl`；驱动侧在阶段边界与
+  每臂/每 lead 起止 `print(..., flush=True)`。此前 `prepare.log` / `archive.log` / `seed*.log`
+  在训练年份覆盖轮**实测 0 字节**。E-133（活跃区无 `import logging`）**仍然成立**，未新增 `logging`。
+  顺带修掉一个真缺陷：失败路径此前把已累积的 `losses`（`_run_updates` 的局部变量）随异常一起丢掉。
+- **R-051 拆文件**：`scripts/study_r7_s3_fy_year_coverage.py` 落地时**正好卡在 600 行硬限上**，
+  而 W2b 要求往它里面加 `print`。按既有先例（`*_support.py` / `*_text.py`）拆出
+  `scripts/r7_s3_fy_year_coverage_climatology.py`（D2 气候态参考 + 它描述的那五个 lead 的常量），
+  驱动 600 → 591 行；被拆走的常量由驱动 import 回来，`driver.<name>` 的既有引用（含测试）不变。
+  新模块已加入该轮的 `ENTRY_FILES`，因此 `execution_files_sha256` 覆盖它。
+  **未改阈值、未新增或放宽冻结例外清单。**
+
 ## 2026-10-13 — 修 `test_cli_ledger_plan_prints_arithmetic` 的浮点相等断言（登记提交 CI 红→绿）
 
 `09fbe66`（index74 登记提交）的 `R7 CPU CI` **失败**在第 9 步「Run unit, integration and installed-wheel
