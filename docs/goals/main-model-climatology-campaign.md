@@ -2049,9 +2049,12 @@ test 未读、r=0、S4 未启动不变。
   经并发组取消，**不算通过**）、`14fb768`（success，**冻结用的 code commit**，包含 `1b236dd` 全部内容）、
   `223e7a0`（success，独立复核低项修复 + 控制臂过滤反证测试）。其后 `1c34b46`（归档 plan 0025）、
   `2dfff95`（证据页）与 `d909f2b`（登记四件套）**一起推送**（远端 `223e7a0` → `d909f2b`），
-  GitHub 只给推送 tip 建运行 ⇒ 前两个**没有各自的 CI 运行**（API 实测均无），覆盖它们的绿运行是
-  `d909f2b` 的 **R7 CPU CI `40047879417` completed/success**（pytest job 12 步全 success）；
-  随后 `4768405`（证据页补 CI 披露）与登记提交的 run id 见证据页 §9。
+  GitHub 的 push 事件只给**推送的 tip** 建运行 ⇒ 前两个**没有各自的 CI 运行**（API 实测均无），
+  覆盖它们的绿运行是 `d909f2b` 的 **R7 CPU CI `40047879417` completed/success**（pytest job 12 步全
+  success、无非 success 步）；最后 `4768405`（证据页补 CI 披露）与 `3e56b71`（按刷新后的证据 digest
+  重绑 record、并补本行）同样**一起推送**（`d909f2b` → `3e56b71`），`4768405` 亦无各自的运行，
+  覆盖两者的绿运行是 `3e56b71` 的 **R7 CPU CI `40050078054` completed/success**。
+  另 17 条标签实验 workflow `skipped` 是设计行为、非实验 PASS。
 - **下一动作（S3）**：**年份覆盖支已按预声明关闭；本轮无后续 GPU 动作**。S3 内**尚有一个悬挂的用户
   决定**：FY 全年覆盖轮的 candidate（`record:s3-fy-annual-coverage-result`，
   `docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md`）**仍在等用户验收「是否进入 S4」**；本轮结果
