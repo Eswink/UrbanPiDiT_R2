@@ -2047,8 +2047,11 @@ test 未读、r=0、S4 未启动不变。
 - **CI 如实**：本轮共 6 个提交——`b868a6a`（CI `39888911424` **failure**：尺寸标记漂移）、
   `dce3133`（success）、`64248e5`（success）、`1b236dd`（CI `39907497192` **cancelled**，被下一条推送
   经并发组取消，**不算通过**）、`14fb768`（success，**冻结用的 code commit**，包含 `1b236dd` 全部内容）、
-  `223e7a0`（success，独立复核低项修复 + 控制臂过滤反证测试）；证据页提交与登记提交的 run id 在
-  证据页 §9 与本块登记后补记。
+  `223e7a0`（success，独立复核低项修复 + 控制臂过滤反证测试）。其后 `1c34b46`（归档 plan 0025）、
+  `2dfff95`（证据页）与 `d909f2b`（登记四件套）**一起推送**（远端 `223e7a0` → `d909f2b`），
+  GitHub 只给推送 tip 建运行 ⇒ 前两个**没有各自的 CI 运行**（API 实测均无），覆盖它们的绿运行是
+  `d909f2b` 的 **R7 CPU CI `40047879417` completed/success**（pytest job 12 步全 success）；
+  随后 `4768405`（证据页补 CI 披露）与登记提交的 run id 见证据页 §9。
 - **下一动作（S3）**：**年份覆盖支已按预声明关闭；本轮无后续 GPU 动作**。S3 内**尚有一个悬挂的用户
   决定**：FY 全年覆盖轮的 candidate（`record:s3-fy-annual-coverage-result`，
   `docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md`）**仍在等用户验收「是否进入 S4」**；本轮结果
