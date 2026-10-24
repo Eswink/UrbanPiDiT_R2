@@ -1,7 +1,7 @@
 # 0025 — 训练提速、可观测性修复与已关闭轴的重估
 
 - **日期**：2026-10-23
-- **状态**：计划已定稿并归档；**代码改动尚未执行**（按 §6 的顺序在另一窗口执行）
+- **状态**：计划已定稿并归档；**W1/W2 已落地并逐项验证、§5 探针已实测、W3 队列经决策 0056 判定不开轮**（2026-10-24，见文末「实际结果」）
 - **范围**：S3 节点内的工程提速 + 可观测性修复 + 已关闭单因素轴的重估队列
 - **依据**：本轮实测（`outputs/r7_s3_fy_year_coverage_20261023_attempt02` 的逐阶段回执）；
   决策 0048/0050/0054/0055；`docs/goals/s3-year-coverage.md`；`AGENTS.md` 的硬约束与七 gate
@@ -348,13 +348,117 @@ depth / width）不在队列内：它们是方向明确的负结果，不是 nul
 
 ## 实际结果
 
-- **完成情况**：本次交付的两件产物均已完成——本计划文件（`docs/plans/0025-*.md`）与 §10 的改写提示词。
-  **计划内的代码改动（W1/W2/W3）与 §5 探针均未执行**：它们按 §6 排在 `attempt02` 收尾之后，
-  由用户在另一窗口执行。
-- **与计划的差异**：无（本文件即计划定稿；执行尚未开始）。
-- **验证**：本次只做了只读探查（三路 Explore + 关键文件复核），未跑任何训练或评估；
-  所有引用数字均标注来源文件与行号，实测与估计已分开标注。
-- **遗留**：① `attempt02` 收尾前不得编辑 `training/**`、`model/**`、`data/**`、
-  `scripts/study_r7_s3_*.py`（见 §1）；② W1 的预期收益（约 −47% 墙钟）是估计，
-  须由落地后的实测替换；③ W3 的每一条轴都需要新 ADR 论证"不是同一族"，
-  论证不成立则不得开轮（见 §4.4）。
+**执行时间**：2026-10-24（分支 `r7/weather-reasoning`）。**代码 commit**：`b613f8e`（W1/W2 实现）、
+`ee54be0`（W3 的 ADR 0056）、`b902c94`（W1c 回归守卫测试）。**本节所有数字均为实测**，
+估计与实测分开标注；未跑的一律写「未做」。
+
+### W1 提速 —— 四项都落地，逐项有验收证据
+
+| 项 | 改动 | 验收证据 | 结果 |
+| --- | --- | --- | --- |
+| W1a | 删 `data/r7_long_rollout_dataset.py:63` 被丢弃的 `validate_record`（`:37` 保留） | 对**现有** manifest 重跑 discovery，与 `attempt02/protocol.json` 冻结值逐字段比对 | **PASS**：两臂的 `window_sha256` / `usable_windows` / `excluded_sample_ids` / `windows` pins **全部逐字节相同**（控制 `b778893f…`、治疗 `e8f22c30…`） |
+| W1b | `RolloutStoreScan` + `EvaluationPreparation`：reader / store 扫描 / 训练气候态每臂一次、5 lead 复用 | ① 数据集层：新路径与原 `__init__` 的窗口推导逐 lead 比对；② 端到端：同 checkpoint（`c80ccba5…`）同 val 重评 5 lead，与 `attempt02` 回执里的 CSV 哈希比对 | **PASS**：① 五个 lead 的 `windows` 逐字节相同且 cohort = 冻结 `VAL_COHORTS`（1458/1457/1455/1451/1447）；② 5 lead × 3 张 CSV（`rmse` / `boundary_rmse` / `climatology_skill`）**15/15 逐字节相同** |
+| W1c | 5.49 GB `source.nc` 只在 prepare 哈希一次；后续阶段比对记录值 + size/mtime | 归档阶段耗时对比；AST 回归守卫（`tests/test_r7_s3_fy_year_coverage.py`） | **PASS**：archive 阶段 **20.09 s → 6.36 s**（≈ 一次热哈希 14.7 s）；守卫断言 prepare 仍哈希、后续阶段不再读 |
+| W1d | **未做**（按计划「先测后定」） | W1a 后实测 discovery：控制 **113 s**、治疗 **464 s**（合计 577 s，W1a 前约 6,664 s） | 实测已降至原 ~8.7%；本轮**未**引入 seed 阶段缓存 |
+
+### W2 可观测性 —— 四项都落地并在真实轮次上验证
+
+| 项 | 改动 | 证据 |
+| --- | --- | --- |
+| W2a | `_run_updates` 每 20 个 update 追加一行 `progress.jsonl`；`training_report.json` 结构与写时机**未动**；失败路径记 `progress_file` / `progress_updates` | 真实轮次 `attempt03/seed41|42/training/*/progress.jsonl` 存在且字段齐全；新增 2 个测试（含「失败时曲线只剩 sidecar 且可追溯」） |
+| W2b | 驱动 `worker()/_seed/_train_arm` 加 `print(..., flush=True)` | `prepare.log` **0 → 156 B**、`archive.log` **0 → 133 B**、`seed42.log` **0 → 1,605 B**（含每臂/每 lead 起止） |
+| W2c | `tools/r7_round_stages.py` 的 `run_stage` 补写 `stage_ledger.jsonl`（零身份代价） | `attempt03/stage_ledger.jsonl` 逐阶段一行，含 `device` 与 `elapsed_seconds`；新增 1 个测试（含「追加而非截断」） |
+| W2d | `docs/rules/python-implementation.md` 记「仍然 0 处 `logging`，但长跑必须留结构化进度」；`CHANGELOG.md` 记本轮规则侧变化 | E-133 继续成立（未新增 `logging`） |
+
+### 回归与纪律
+
+- `pytest tests/`：**5,155 passed / 3 skipped / 0 failed**（3 个 skip 是既有的「干净检出无真实数据 fixture」，
+  非本轮引入）。`tools/check_conventions.py`：**37 条阻断规则 0 失败**。`tools/r7_round.py verify`：**passed**。
+- 一次真实的行为回归被既有测试抓住并**修好而不是放宽**：`test_evaluator_deadline_checks_before_setup_climatology_and_samples`
+  断言「气候态拟合之前必须有一次 deadline 检查」。W1b 初版把拟合移进构造函数，破坏了这条契约；
+  改为**惰性拟合**（`EvaluationPreparation.climatology(deadline)`）后该测试原样通过，契约未被放宽。
+
+### 基线重跑（`attempt03`，同轮同 store 同 seed）
+
+| 阶段 | `attempt02` | `attempt03` | 变化 |
+| --- | ---: | ---: | ---: |
+| prepare | 7,421.6 s | **601.2 s** | **−91.9%** |
+| archive | 20.1 s | **6.4 s** | **−68.3%** |
+| seed 41 | 29,583 s (8.22 h) | **18,026 s (5.01 h)** | **−39.1%** |
+| seed 42 | 30,243 s (8.40 h) | **17,503 s (4.86 h)** | **−42.1%** |
+| seed 43 | 29,801 s (8.28 h) | 见下 | 见下 |
+
+- **新 `training_code_sha256`**：`a03f9ba653cdf205…`（`attempt02`）→ **`96a68d6eb29767f2…`**（`attempt03`）。
+  `model_code_sha256` 保持 `60de3b2dc5de2871…`（未改 `model/**`）；`execution_files_sha256` 由 193 项 → 194 项
+  （新增 `scripts/r7_s3_fy_year_coverage_climatology.py`）。
+- **新协议 `protocol_sha256`**：`d8739550e0c86ac4…`（`attempt02` 为 `fdfb56aa3b9a0bc5…`）。
+- **身份逐字不变**：两臂 `train_data_identity`、两臂 `window_sha256`、`climatology_reference`、
+  `model_code_sha256` 与 `attempt02` **完全相同** ⇒ W1a/W1b/W1c 没有改动任何被冻结的数据身份。
+- **不变的量本身也是证据**：回执里 `report["elapsed_seconds"]`（纯更新循环）与逐 lead 的
+  `elapsed_seconds`（纯评分循环）前后几乎相同（控制训练 4,472 → 4,551 s、评分循环 2,669 → 2,733 s），
+  说明省下的时间**全部**来自原先不可见的 setup，而不是把计算变少。
+- **`attempt03` 的 reading 阶段故意未跑**：该支已按预声明出口永久关闭，本轮只为测墙钟与记录新代码身份，
+  **不重算 (a)–(d) 出口、不登记新证据记录**。
+
+### §5 batch / 显存探针（实测，非估计）
+
+`outputs/r7_s3_batch_probe_20261024_attempt01/`（`batch_probe.json` 原始读数 +
+`batch_probe_margins.json` 的余量算术）。当前 store + 当前 spec（K=4/depth=4/dim=192/12 步 BPTT），
+每档 25 个 update、丢弃前 5 个预热后取稳态：
+
+| batch | seconds_per_update | 相对 batch=1 | peak_reserved | 门槛要求 | 余量（对探针开始时实测空闲 24,087 MiB） |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | **1.839** | 1.000× | 2,322 MiB | 10,752 MiB | **+13,335 MiB（过）** |
+| 2 | 2.351 | 1.278× | 4,528 MiB | 11,184 MiB | **+12,903 MiB（过）** |
+| 4 | 3.360 | 1.828× | 8,950 MiB | 15,606 MiB | **+8,481 MiB（过）** |
+| 8 | 5.620 | 3.057× | 18,092 MiB | 24,748 MiB | **−661 MiB（不过）** |
+
+门槛口径照轮次冻结值：`required = max(estimated_peak 4096 MiB, measured_peak) + margin 512 MiB + 邻居预留 6 GiB`。
+**吞吐**（样本/秒）随 batch 上升但次线性：0.544 / 0.851 / 1.190 / 1.423 ⇒ batch 8 只有 batch 1 的 2.6 倍吞吐
+却要 7.8 倍显存。**batch 取值由用户决定，执行者不自行拍板**；探针只写实测值。
+（探针自报的 `gate_margin_mib` 用的是**运行后**的空闲内存、当时仍持有本次预留，故不是共驻余量；
+`batch_probe_margins.json` 已按**运行前**实测空闲重算并标注这一更正。）
+
+### W3 轴重估 —— 队列未开轮，理由是计划自己写的准入论证按实测不成立
+
+**决策 0056**（`docs/decisions/0056-closed-axis-reevaluation-admission.md`）记录了完整论证，要点：
+
+- §4.3 把使能制度写成「**数据 × 匹配算力**」，§4.4 要求新 ADR 论证「在 exposure-matched（每臂 ≥1 epoch）
+  的新制度下，该假设与已关闭的旧臂**不是同一族**」，并明写「**论证不成立则不得开轮**」。
+- **「匹配算力」不是差别**：实测六条已关闭臂的冻结 `protocol.json`——`input_windows=2360`、
+  `usable_windows=2140`、`updates=2400`、`batch_size=1` ⇒ **每臂 1.12 个 epoch**，且 `region`
+  （129×129、`interior_32` 4,225 格、`mask_sha256 4a2a576b…`）逐字相同。它们**本来就在 exposure-matched 制度下跑过**。
+- **「更多数据」在这些臂的实例上不存在**：多年数据只有 **65×65**（`[34084,17,65,65]`）；
+  wide 实例实测 `(3360,17,129,129)`，**没有 129×129 多年源**（§8 亦禁新下载）。要「加数据」只能换到 65×65，
+  那**同时**改网格（129→65）与监督域（`interior_32`→`full_grid`）⇒ 与已关闭臂**不可直接比较**，
+  属 §4.4 第 5 条禁止的「换名重开」形态。
+- ⇒ **四条队列（气候态锚异常反馈 / H-C / H-B / 训练信号族）本轮都不开轮，0 GPU-h**；
+  §4.2 的排除项（SAM / zero-base decoder / plain EMA / 长 lead 权重 / rollout 剂量 / depth / width）继续排除。
+  **未写新 brief、未冻新 protocol.json、未跑、未登记**——因为开轮的前置条件（ADR 论证）不成立。
+- **留给用户的决定**（属总体研究方向，决策 0030）：若要在 65×65 多年实例上重问这些机制，
+  必须**按新假设立项**（新 ADR 论证它是**不同**的假设），并如实接受「与已关闭臂不可比较」这一代价。
+
+### 与计划的差异
+
+1. **W1d 未做**（计划本就默认不做）：W1a 后 discovery 已降到 577 s，未引入 seed 阶段缓存。
+2. **R-051 迫使一次拆分**：`scripts/study_r7_s3_fy_year_coverage.py` 落地时**正好卡在 600 行硬限**上，
+   而 W2b 要求往里加 `print`。按既有先例拆出 `scripts/r7_s3_fy_year_coverage_climatology.py`
+   （D2 气候态参考 + 其五个 lead 常量），驱动 600 → 591 行；被拆走的常量由驱动 import 回来，
+   `driver.<name>` 的既有引用（含测试）不变；新模块已加入该轮 `ENTRY_FILES`。
+   **未改阈值、未新增或放宽冻结例外清单**（`docs/rules/CHANGELOG.md` 留痕）。
+3. **W1b 的实现与计划描述有一处不同**：计划说把三样都「提到每臂一次」。实测三者代价差三个数量级——
+   训练气候态 **~730 s**、`validate_record` 循环 **~19 s**、store 扫描 **~2 s**——因此**气候态改为惰性拟合**
+   （为保住 deadline 契约），另两样在 `EvaluationPreparation.__init__` 里一次建好。
+4. **§5 探针的余量口径更正**：探针自报的 `gate_margin_mib` 用运行后空闲内存，会把自己的预留算进去；
+   已按运行前实测空闲重算并存为 `batch_probe_margins.json`（原始读数不动）。
+5. **重跑用了新的 code archive**：轮次 round-spec 里 `code_archive` 指向 `attempt02` 的归档
+   （ZIP comment 是旧 commit `14fb768`），归档阶段会拒绝 commit 不匹配的包，而覆盖它会毁掉
+   `attempt02` 的可重放归档。故新建 `outputs/r7_s3_fy_year_coverage_code_w1w2_20261024.zip`
+   （1,586 条目、comment `b613f8e…`），**未动任何既有产物**；该 zip 的构建脚本与其余验证脚本
+   一并留存在 `outputs/r7_w1w2_verification_20261024_attempt01/`。
+
+### 遗留
+
+- ① `attempt03` 的 seed 43 墙钟在本文写作时仍在跑，收尾后补入上表；
+  ② W3 的四条轴**未**开轮（决策 0056），是否另立新假设由用户决定；
+  ③ `attempt03` 的 reading 阶段故意未跑，故 `attempt03` 不是一个「完成」的轮次，只是一次工程计时重跑。
