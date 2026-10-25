@@ -256,14 +256,60 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
 
 3. **本窗口没有跑任何 GPU 轮、没有读 test、没有提交任何登记。**
 
-- **未做**：Track 0 的实例清单/协议/评分（D1–D3）；Track 1 五轮（ADR / brief / 驱动 / 协议 / 运行）；
-  预算决策（决策 0055 先例）与 R1 的 override ADR；四件套登记 —— **均未执行**。
+### 2026-10-26 — Track 0 D1'/D2 完成、D3 已启动（同一窗口）
+
+- **D1'（实例，决策 0059）**：不新建 store；2016 目标帧取自已冻结多年 store
+  `outputs/r7_s3_fy_multiyear_20261023_attempt01/store/cache.zarr`（`[34084,17,65,65]`，
+  `source.nc` sha256 `1db839554cce30cd…`），由**显式 case 集合**钉住。
+  **实测**：2016 = 1,464 帧、`2016-01-01 00:00 → 2016-12-31 18:00`、6 h 步长；
+  可用初值 6/12/24/48/72 h = **1,462 / 1,461 / 1,459 / 1,455 / 1,451**
+  （长文 §1 原先记的 1,461/1,460/1,458/1,454/1,450 每个 lead 少 1，**以实测为准**）。
+- **D2（协议先冻）**：`outputs/r7_s4_fy_2016_20261026_attempt01/protocol.json`，
+  `protocol_sha256 = 0dd100dcb4436a848bcd1b4fa91fdd8709f2a99a03e686b750b765572be2db1c`；
+  人读版 `docs/R7_S4_FY_2016_CONFIRMATION_PROTOCOL.md`。
+  **r = 1、`alpha_1` = 0.025 已登记**（§4.1 第 4 条：先登记后评分）；
+  「气候态分母期 2017–2021 与 test 目标期 2016 **不同代**」写进 `limitations`。
+  归一化按 sha256 钉住（mean `e15c3f26…`、std `afc998a3…`）；
+  气候态 = FY 的 48 桶 train-only（`reference.json` sha256 `4c89c709…`），
+  **实测该文件不含 48 桶均值表** ⇒ 驱动从 FY store 的声明 train 年份重拟合并核对
+  `kind`/`training_years`/`n_selected_steps`（7,304）。六份 checkpoint 的 sha256 与
+  `data_identity` 全部入协议。
+- **D3（评分）已启动**：驱动 `scripts/study_r7_s4_fy_2016_confirmation.py`
+  （402 行，R-051/R-052 通过；CI-safe 测试 `tests/test_r7_s4_fy_2016_confirmation.py`
+  **14 项全过**，不依赖 `outputs/`），40 例 smoke 端到端跑通、`non_finite_paths` 为 0。
+  全量评分已在后台启动（`outputs/r7_s4_fy_2016_20261026_attempt01/reading01/`），
+  预计 3.5–5.5 h（6 份 checkpoint × 1,451 例 × 5 lead）。
+- **D4 family 的表达力（实测限制，已写进协议与读数）**：
+  `training/r7_simultaneous_stats.simultaneous_paired_interval` 要求同一 family 的
+  **所有 cell 共享同一组 case key**，而四季组是对 2016 病例的**划分** ⇒
+  「总集 + 各年 + 四季组同处一个 family」**不可表达**；family 因此按**分组**实现
+  （每组 5 个 lead），并在读数里逐字记录。
+- **本窗口仍未做**：Track 1 五轮（ADR / brief / 驱动 / 协议 / 运行）、预算决策、
+  R1 的 override ADR、四件套登记 —— 均未执行。
+
+- **Track 1 的两个前置决策已写好**（本窗口，供 R1 直接引用，**不要再重复写**）：
+  - **决策 0060**（`docs/decisions/0060-matched-exposure-budget-correction.md`）：预算更正，
+    `per_seed 129,600 s / planned 259,200 / hard 518,400`（1:2:4），只改时间不动科学门，
+    执行时按 R1 首次实测重定（另立更正决策，不在运行中改硬限）。
+  - **决策 0061**（`docs/decisions/0061-r1-year-coverage-override.md`）：R1 的 override ADR，
+    按决策 0057 成文定义如实写「只改算力不满足不是同一族」⇒ 用户具名授权推翻
+    `docs/goals/s3-year-coverage.md` 的「不调 2400 updates」；负面后果与先例范围限定都在里面。
+  - ⇒ R1 的 brief 只需**引用** 0060/0061，不必再各写一份；`round-spec` 的
+    `planned_seconds`/`hard_cap_seconds` 取 0060 的值。
+- **未做**：Track 1 五轮的 brief / 驱动 / 协议 / 运行 / 四件套登记；R1 的 brief 与驱动 —— 均未执行。
 - **下一动作（可执行的第一条命令）**：
-  `.venv/bin/python tools/r7_round.py state`，
-  随后按 **决策 0059** 的机制派生 Track 0 的实例清单与评分驱动
-  （2016 init-time 集合 + 多年 store 只读复用 + FY 归一化/气候态按 sha256 钉住 + 显式身份断言）。
+  `.venv/bin/python tools/r7_round.py state`；
+  若 Track 0 的评分已跑完（`outputs/r7_s4_fy_2016_20261026_attempt01/reading01/readings.json`
+  存在），按读数写证据页并登记；否则用同一条命令重启评分：
+
+  ```bash
+  .venv/bin/python scripts/study_r7_s4_fy_2016_confirmation.py \
+    --protocol outputs/r7_s4_fy_2016_20261026_attempt01/protocol.json \
+    --out outputs/r7_s4_fy_2016_20261026_attempt01/reading01 --device cuda
+  ```
+
+  之后进 Track 1：写预算决策（0055 先例）与 R1 override ADR，用
+  `.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`（`maxRounds=5`、`dryRun=false`）编排。
 - **为何停 + 恢复**：本窗口停下是因为**本轮预算用尽**，不是触到保留授权边界、也不是达科学停止条件；
-  剩余工作（Track 0 评分驱动、Track 1 五轮）全部**可安全独立推进**，只是没做完。
-  恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`；
-  若要直接推进 Track 1，用 `.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`
-  （`maxRounds=5`、`dryRun=false`）编排，或先 `dryRun=true` 验一轮。
+  剩余工作全部**可安全独立推进**，只是没做完。
+  恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`。
