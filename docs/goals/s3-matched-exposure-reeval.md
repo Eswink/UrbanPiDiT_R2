@@ -1,0 +1,220 @@
+# 目标：S3 匹配算力重估（含训练年份覆盖轴重开）与 S4 就绪
+
+本文件是 goal 模式的目标长文源。objective 见 §0；交付物见 §2；判据见 §3；
+实施顺序（含 workflow 编排）见 §4；预算与停止见 §5；进度块见 §8。
+
+**状态：active（2026-10-25 起）。** 设计依据是 `docs/plans/0026-matched-exposure-reeval-and-s4.md`
+（计划是不可变记录，本长文是它的活文档执行源）；**本长文对交付形状做了一处更正，见 §6**。
+`scientific_claim: false`、`test_read: false`（Track 0 的评分按 §4.1 单独预声明后例外）。
+
+---
+
+## 0. objective（可直接粘贴，单段，实测 2572 字符）
+
+> 在/data/esw/UrbanPiDiT_R2的r7/weather-reasoning执行目标长文docs/goals/s3-matched-exposure-reeval.md（先完整读它，细节与判据以它为准）。继承状态：S3节点、index90、账本累计247.356641GPU-h、2023test未评分r0、S4未启动；从tools/r7_round.py state的下一动作恢复，不重复已登记轮次；cap/remaining仅会计、无总GPU-h上限。本轮用workflow编排：先加载dynamic-workflows技能（未加载时CreateWorkflow拒跑），从.zcode/workflow-drafts/r7-campaign-round.dwf.ts派生.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts，maxRounds硬上限5、stage超时从34200000ms抬到约129600000ms（36h）、world.run命令名保持编译期字面量且运行值落盘（文件即参数）、自跑tools/r7_round.py commit-guard（提交前）与verify（登记后）不依赖hook兜底、只推工作分支r7/weather-reasoning（禁main/force/merge/关issue）；它是有界、可恢复的批量编排器而不是守护进程，被打断按ResumeWorkflowRun续；已知边界（实测）：后台workflow仍在跑时轮末goal完成校验可能不触发（是defer不是失败，因此没有校验器读数）、卡片可见性只从运行API观测、探针未覆盖GPU轮/freeze/commit/登记。两条轨：Track0先补2016再进S4——2016是唯一预声明的完整未见年份（1464帧，可用初值6/12/24/48/72h=1461/1460/1458/1454/1450），新建排他目录放只含2016帧的小store（装入FY candidate的2017–2021 normalization_mean/std）+逐字节复制FY该臂train.jsonl作同级文件（身份门才放行）+指向小store的test.jsonl，两臂各一份，不声明多个年份；然后冻S4评分协议（r=1、alpha_1=0.025）对FY candidate三份已冻结checkpoint评分，按D4组成（总集/各年/四季组×17变量×5lead×full/interior/edge）报读数与u10/v10/mslp相对同数据incumbent的变化，声明"气候态分母期与test期不同代"这一代价，若test覆盖仍不满足docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md:111则如实记录停在门前、不放宽判据。Track1按序跑匹配算力重估队列5轮（R1训练年份覆盖5y→22y、R2气候态锚异常反馈、R3全局混合、R4位置保留、R5训练信号族），新制度=65×65多年store（2000–2021train/2022val）×full_grid（4225点）×每臂≥1epoch，batch=2、updates×batch≥32142⇒updates=16071；每轮=新ADR（四段齐全、Consequences含负面后果）+新brief（§0–§8、预声明出口(a)–(d)+桥(e)、任一假即永久关闭该支）+过七gate+冻protocol.json+跑+四件套登记（§8进度块含下一动作第一条命令、账本行、index record、campaign-state）；只读复用store/两套清单/48桶气候态/迁移父，不重建store、不新增下载。R1的override ADR必须如实写：按决策0057的成文定义只改算力不满足"不是同一族"（store/网格/监督域/数据跨度四项全不变），因此是"用户具名授权推翻冻结条款"、取代docs/goals/s3-year-coverage.md:74的"不调2400updates"；写明负面后果（削弱"预声明出口不可翻案"纪律、为按算力重测开先例）并把先例范围限定在该轴、不授权重开depth/width/SAM/zero-base/EMA/长lead权重/rollout剂量；科学依据写成可证伪预测（该轮(a)(b)(c)已全真、(d)只栽在6/12/24h短lead，而短lead正是0.075epoch最吃亏处）。预算：用户已显式授权不够就自主加——现行per-seed43200s对≥1epoch必然不足（每seed约22.7h≈81900s），按决策0055先例另立预算决策（只改时间、不动科学门、用本轮首次实测支撑、不在运行中改硬限），名义起点per-seed129600/planned259200/hard518400秒（1:2:4），执行时按实测重定；注意per_seed_seconds在复用白名单内⇒改预算后旧attempt的seed不能复用必须重跑。授权：用户下放方向内实验设计、架构/方法、训练信号/优化、数据源/区域/年份/变量、GPU训练评估、seed/更新/规模、时长预算、普通决策/排障、下一实验与节点推进权；时长/GPU-h自主增加并简报。禁止：改冻结门、伪造PASS、删弱测试、绕身份、事后放宽已冻结判据、换名重开已关轴、不动data/raw|interim|processed与归档快照、不合成数据、不读test（除Track0冻结评分）、不main合并/force/关issue/删已有产物、GPU默认共驻按R-054只读核余量且不对邻居进程发任何信号、不paid/rental/exclusive、不cron/守护/会话外续跑。只在三种情况停：触保留授权边界、达已冻结科学停止条件、确无可安全独立推进的工作；停时必须在§8写"为何停+恢复第一条命令"。每步给可核查证据（命令+输出+digest），估计值不得写成实测值；结束按AGENTS.md汇报改动/验证/接口/数据影响/兼容性/依赖/未做/下一项。不要自行宣布目标完成。
+
+---
+
+## 1. 现状与前置
+
+- **节点**：S3。`current_round_goal` 原为 `docs/goals/s3-year-coverage.md`（该轮已按预声明出口
+  `mixed`/`not-candidate`、`(d)` 假 ⇒ 永久关闭年份覆盖支）。本长文是**新制度下**的后续目标。
+- **为什么要有"匹配算力"这个新制度**：`docs/R7_S3_FY_YEAR_COVERAGE_RESULT.md:117-119` 自己写
+  「固定 2,400 updates 时候选臂只看到约 **7%** 的 epoch（32,131 窗）、控制臂约 33%」，
+  因此「一个**负**结果**不能**区分『多出的 17 年没有额外价值』与『updates 太少、用不上多出的年份』」。
+  决策 0057 据此把使能制度定为「**数据 × 匹配算力**」的合取。
+- **新制度**：65×65 多年 store（`outputs/r7_s3_fy_multiyear_20261023_attempt01/store/cache.zarr`，
+  `[34084,17,65,65]`，train 2000–2021 / val 2022）× `full_grid`（4,225 点）× **每臂 ≥1 epoch**。
+- **batch = 2**（用户已定）。实测依据：`docs/plans/0025-*.md:416-421` 的
+  `seconds_per_update` = 1.839/2.351/3.360/5.620、`peak_reserved` = 2,322/4,528/8,950/18,092 MiB
+  （batch 1/2/4/8）；**batch 8 不过共驻门槛（−661 MiB）**。`updates × batch ≥ 32,142`
+  ⇒ batch 2 时 **updates = 16,071**。
+- **年份轴重开的程序冲突**（详见 §4.2）：按决策 0057 `:26-28` 的成文定义，
+  "不是同一族"的实质内容是"换 store / 网格 / 监督域 / 数据跨度"四项，而年份轴**只改算力**，
+  四项全不变 ⇒ 必须走**用户具名授权推翻冻结条款**的 ADR。
+- **Track 0 的数据前提已实测**：多年 store 的 `time_ns` 含 2016 完整年份（1,464 帧，可用初值
+  1,461/1,460/1,458/1,454/1,450）；FY candidate 从未见过 2000–2016（train 2017–2021 / val 2022 /
+  归一化 2017–2021）。**不需要下载**。
+- **workflow 链路已实测可行**：`docs/goals/workflow-in-goal-probe.md` 与
+  `docs/R7_WORKFLOW_IN_GOAL_PROBE.md`（2026-10-11，run id
+  `dwfrun-8b989f84-1043-408e-bd07-4690677135fc`、终态 `completed`、用时 1m07s，六环全通）。
+
+---
+
+## 2. 交付物清单
+
+| # | 交付物 | 证据形态 |
+| --- | --- | --- |
+| D1 | Track 0 的 2016 小 store 与同级 `train.jsonl`（两臂各一份） | 排他 `outputs/` 路径 + `BUILD_COMPLETE` + 两臂 `dataset_identity` 实测等于 checkpoint 记录的 `data_identity` |
+| D2 | 2016 的 S4 评分协议（先冻结） | `protocol.json` 的 `protocol_sha256` + r=1 / `alpha_1 = 0.025` 登记 + "分母期与 test 期不同代"写进 `limitations` |
+| D3 | S4 首次评分读数 | 按 D4 组成的逐组读数（总集 / 各年 / 四季组 × 17 变量 × 5 lead × full/interior/edge）+ u10/v10/mslp 相对同数据 incumbent 的同组同 lead 变化 |
+| D4 | Track 1 五轮各自的 ADR | `docs/decisions/NNNN-*.md`，四段齐全、**Consequences 含负面后果**（R-033）+ `docs/decisions/README.md` 索引行 |
+| D5 | Track 1 五轮各自的 round brief | `docs/goals/<slug>.md`，过 `check_goal_brief.py --brief`，带预声明出口 (a)–(d) + 桥 (e) |
+| D6 | 五轮各自的冻结协议与逐 seed 回执 | `protocol.json` digest + `seed<N>_receipt.json` + `window_sha256` 与协议逐字节一致 |
+| D7 | 五轮各自的读数与判决 | 证据页（`docs/R7_*.md`）+ 出口逐条数字 + `outcome_class`（candidate / negative / null / mixed） |
+| D8 | 每轮的交接四件套 | 主计划 §8 进度块（含下一动作第一条命令）+ §7 账本行 + `docs/R7_EVIDENCE_INDEX.jsonl` record + `<!-- campaign-state: ... -->` |
+| D9 | workflow 运行产物 | run id + 终态 + 每轮相位记录；被打断时写明 `ResumeWorkflowRun` 的恢复命令 |
+| D10 | 本长文的 §8 进度块 | 状态机：已完成 / 未做 / 下一动作 |
+
+---
+
+## 3. 判据与证据来源
+
+- **科学门**只引用 `docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md` 与各轮 brief 自己冻结的出口；
+  **不新增阈值、不放宽任何已冻结判据**。
+- **年份轴重开的正当性**：`docs/decisions/0057-supersede-0056-queue-is-executable.md`、
+  `docs/decisions/0058-anchor-anomaly-feedback-reeval-admission.md`、
+  `docs/R7_S3_FY_YEAR_COVERAGE_RESULT.md`（关闭读数与它的 limitation）、
+  `docs/goals/s3-year-coverage.md:68-74`（被取代的关闭条款）。
+- **Track 0 的数据与身份**：`docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md:111`
+  （"至少覆盖一个完整未见年份和全部四季"）、`docs/R7_S3_FY_ANNUAL_COVERAGE_RESULT.md`
+  （FY candidate 的冻结身份与读数）。
+- **workflow 的边界**：`docs/R7_WORKFLOW_IN_GOAL_PROBE.md` §1（四条边界）、
+  `docs/decisions/0044-workflow-as-round-executor.md`（自跑闸门 / 只推工作分支 / 每轮一臂 /
+  有界不自宣）、`docs/plans/0020-campaign-driver-workflow.md`（驱动形态与成本）。
+- **机械门**：`python tools/check_conventions.py`（37 条阻断）、
+  `python tools/check_goal_brief.py --brief <每轮 brief>`、`python tools/check_campaign_state.py`、
+  `python tools/verify_r7_evidence_index.py`。
+- **不算通过的**：skip / cancelled / queued / 被硬上限截断的 attempt；`report()` 与 CI 绿都不是科学结论。
+
+---
+
+## 4. 实施顺序（依赖，不跳步）
+
+### 4.0 workflow 编排（本长文的执行载体）
+
+按 `docs/decisions/0044` 与 `.agents/skills/parallel-research-workflow/SKILL.md` 的
+「campaign 驱动 workflow」节：
+
+- **先加载 `dynamic-workflows` 技能**（未加载时 `CreateWorkflow` 拒跑）；
+- 从 `.zcode/workflow-drafts/r7-campaign-round.dwf.ts` 派生
+  `.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`（草稿，git-ignored）；
+- **`maxRounds` 硬上限 5**；**stage 超时从 `34,200,000 ms` 抬到约 `129,600,000 ms`（36 h）**
+  —— 现行模板的 9.5 h 装不下 22.7 h 的 seed 阶段；
+- 一轮 = 侦察 → 提可证伪假设 → 派生单因素驱动 → 独立复核（≤3）→ 冻结并等 CI → 逐 stage GPU
+  → 读数 → 四件套登记 → 交接；
+- `world.run` 的**命令名保持编译期字面量**，运行值落盘（`<!-- round-spec: {...} -->`，文件即参数）；
+- **自跑确定性闸门**：提交前 `tools/r7_round.py commit-guard <paths>`，登记后 `verify`；
+  **不依赖 hook 兜底**（子会话很可能不跑本仓 hook，E-187 推测）；
+- **只推 `r7/weather-reasoning`**；禁 main / force / merge / 关 issue；
+- **有界、可恢复，不是守护进程**：进程退出即 `interrupted`，按 `ResumeWorkflowRun`
+  或 `args.resumeFromRound` 续；状态在 §8 与账本里，不在 workflow 里；
+- **四条已知边界**（`docs/R7_WORKFLOW_IN_GOAL_PROBE.md` §1）：① 后台 workflow 仍在跑时
+  **轮末 goal 完成校验可能不触发**（是 `defer`，**不是失败、也不等于通过**）；
+  ② 卡片"可见"只从运行 API 观测，UI 渲染未核；③ 探针**未覆盖** GPU 轮编排 / freeze / commit /
+  四件套登记 —— 所以本长文必须自跑闸门；④ 探针不验证无人值守多轮驱动。
+
+### 4.1 Track 0 —— 先补 2016 再进 S4（0 GPU-h 训练，最高优先级）
+
+1. 新建排他目录，放三样：① 只含 2016 帧的小 store（约 0.42 GB raw），
+   **装入 FY candidate 的 2017–2021 `normalization_mean/std`**
+   （`data/r7_store.py:113-120` 从 store 读、无外部覆盖参数 ⇒ 只能由 store 携带）；
+   ② **逐字节复制** FY 该臂的 `train.jsonl` 作同级文件 —— 身份门
+   （`training/r7_evaluate.py:121-123`）比的是**同级 `train.jsonl`** 的 `dataset_identity`，
+   逐字节复制才恰好等于 checkpoint 记录的 `data_identity`（已实测：treatment `c17494ab…`、
+   control `0469312978…`）；③ 指向小 store 的 `test.jsonl`（2016）。**两臂各一份。**
+2. **预声明恰好一个年份（2016）**：D4 用 max-statistic 同时区间，cell 越多临界值越宽
+   ⇒ 1 年 = 30 primary cell，17 年 = 110。2016 是紧邻训练窗之前的完整年份，代差最小。
+3. 把"**气候态分母期（2017–2021）与 test 目标期（2016）不同代**"冻进协议并写进 `limitations`。
+4. 冻 S4 评分协议（**r = 1、`alpha_1` = 0.025**），对 FY candidate 三份已冻结 checkpoint 评分，
+   按 D4 组成报读数。**评分消耗 r=1 曝光、不可逆**，执行前把 r/alpha 登记做全。
+5. 若 test 覆盖仍不满足 `docs/R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md:111`，
+   **如实记录并停在门前，不放宽判据**。
+6. 这是 D3 暂缓的"重建 store"路径，**用户已显式授权启用**；不做任何下载。
+
+### 4.2 Track 1 —— 匹配算力重估队列（5 轮，每轮一个臂）
+
+| 轮 | 轴 | 依据 | 为什么现在能问 |
+| --- | --- | --- | --- |
+| **R1** | 训练年份覆盖 5y → 22y | **新 override ADR（见下）** | (a)(b)(c) 已全真、(d) 只栽在 6/12/24h 短 lead；短 lead 正是 0.075 epoch 最吃亏处 |
+| **R2** | 气候态锚异常反馈 | 决策 0058 已准入；brief `docs/goals/s3-anchor-anomaly-feedback-reeval.md` 已在；锚表已发布 `outputs/r7_s3_fy_anchor_table_20261025_attempt01/`（`table_sha256 18448ae3df2b260e…`） | 五 lead 3/3 seed 配对全改善（72h −0.321 K），只栽绝对门 2/3 |
+| **R3** | 全局混合 | 决策 0057 队列 | null，页内明写"更强操纵/更多数据下未测"；吃算力不吃显存（实测 8.955 GiB） |
+| **R4** | 位置保留 | 决策 0057 队列 | null 来自**弱操纵**：`position_query` 模长 0.0074–0.0125 vs 同层投影 ~8.02，差 3 个数量级 |
+| **R5** | 训练信号族（空间梯度 / dense 12 步 / final-only / tendency） | 决策 0057 队列 | mixed（有配对改善但绝对门未过）、模型零改动 |
+
+**每轮的程序（硬约束）**：新 ADR（四段齐全、Consequences 含负面后果）→ 新 brief（§0–§8、
+预声明出口 (a)–(d) + 桥 (e)、任一假即永久关闭该支）→ 过七 gate（`AGENTS.md:26`）→
+**只读复用** store / 两套清单（`manifests_control` 7,291、`manifests_treatment` 32,142）/
+48 桶气候态 `reference.json` / 迁移父（**不重建 store、不新增下载**）→ 冻 `protocol.json`（R-006）
+→ 跑（每轮一个臂、GPU 由统一父调度按共驻余量**串行**、**不对邻居进程发任何信号**）→ 四件套登记。
+
+**R1 的 override ADR 必须写明**：
+
+- 如实写：按决策 0057 的成文定义，只改算力**不满足**"不是同一族"
+  （store / 网格 / 监督域 / 数据跨度四项全不变），因此走的是**"用户具名授权推翻冻结条款"**，
+  取代 `docs/goals/s3-year-coverage.md:74` 的"不调 2400 updates"；
+- 写明**负面后果**：削弱"预声明出口不可翻案"的纪律；为按算力重测开先例；
+- 把先例范围**限定在年份覆盖这一条轴**，明确**不授权**重开 depth / width / SAM / zero-base
+  decoder / plain EMA / 长 lead 权重 / rollout 剂量；
+- 科学依据写成**可证伪预测**：该轮 (a)(b)(c) 已全真、(d) 只栽在 6/12/24h 短 lead，
+  而短 lead 正是 0.075 epoch 最吃亏处 ⇒ 预期补上 ≥1 epoch 后 (d) 翻转。
+
+**队列外**（方向明确的负结果，不因"更多数据"翻案）：SAM（15/15 一致更差）、
+zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂量、depth、width。
+
+---
+
+## 5. 预算与停止条件
+
+- **预算必须重定**：现行 per-seed 43,200 s 是按"两臂 × 2,400 updates"标定的；
+  ≥1 epoch 下每臂训练约 10.49 h + 评分约 0.88 h ⇒ **每 seed 约 22.7 h ≈ 81,900 s**。
+  按决策 0055 的先例**另立预算决策**（只改时间、不动科学门、用本轮首次实测支撑、
+  **不在运行中改硬限**）。名义起点：**per-seed 129,600 s（36 h）/ planned 259,200 s（72 h）/
+  hard 518,400 s（144 h）**，比例 1:2:4；**执行时按实测重定**。
+- **两个机制点**：① `per_seed_seconds` 在 `REUSE_PROTOCOL_FIELDS` 白名单内
+  （`tools/r7_round_support.py:74`）⇒ 改预算后**旧 attempt 的 seed 不能复用、必须重跑**；
+  ② workflow 的 stage 超时必须抬到 36 h（见 §4.0）。
+- **时长口径**：软预算超了继续并记 `soft_overrun_seconds`；**只有硬上限因时长截断**，
+  记 `budget_limited` / `failed` 并全额记账，**不算科学通过**。无总 GPU-h 上限，账本只记账。
+- **成本量级（外推，须以实测替换）**：batch 2 下 6 臂（2 臂 × 3 seed）**68.2 GPU-h**（下界；
+  按 `attempt03` 实测的 2.265 s/update 约 **84 GPU-h**）；双卡两并发 + 一随后 ⇒ 墙钟约 34–45 h。
+- **停止条件（仅三种，决策 0043）**：触保留授权边界（付费 / 租卡 / 独占 / 方向改变 /
+  main 合并 / 破坏性 / 无法安全克服的外部硬依赖）；达已冻结的科学停止条件；
+  确无可安全独立推进的工作。**停下必须在 §8 写「为何停 + 恢复第一条命令」。**
+
+---
+
+## 6. 与计划 0026 的差异（形状更正）
+
+`docs/plans/0026-matched-exposure-reeval-and-s4.md` 把 goal 与 workflow 写成**两件交付物**
+（新 goal 长文 + 让另一窗口"派生 workflow"的说明），并把提示词拆成 Part A / Part B。
+**这个形状是错的**：仓库早已把 workflow 安排在 goal 内 ——
+`docs/goals/main-model-climatology-campaign.md:12` 的 objective 里就写着
+「**用workflow**：先加载 dynamic-workflows 技能（未加载时 CreateWorkflow 拒跑）…
+**多轮编排用 `.zcode/workflow-drafts/r7-campaign-round.dwf.ts`**…脚本自设轮数硬上限、
+自跑 commit-guard/verify 不依赖 hook、只推工作分支」，而
+`docs/goals/workflow-in-goal-probe.md` + `docs/R7_WORKFLOW_IN_GOAL_PROBE.md`（2026-10-11）
+已经**实测过这条链路可行**（run id 真实、终态 `completed`）。
+
+**更正**：workflow 编排写进**本长文的 §0 objective（内联）与 §4.0**，不再外挂一份说明；
+最终提示词就是 §0 那段 objective。
+
+**0026 的其余内容全部保留有效**：§1 的程序冲突、§2 Track 0、§3 队列、§4 预算、§5 每轮程序、
+§8 明确不做、§9 风险，本长文逐条沿用。0026 作为计划**保持不动**（计划是不可变记录）。
+
+---
+
+## 7. 明确不做
+
+- 不动 `data/raw|interim|processed` 与归档快照；不读 test 除非进入 §4.1 的冻结评分。
+- 不 main 合并 / force / 关 issue / 删已有产物；不合成数据。
+- 不跳过或弱化测试与断言；**禁止事后放宽已冻结判据**；**禁止换名重开已关轴**。
+- GPU 默认共驻、只读核余量、**不对邻居进程发任何信号**。
+- 不重开 depth / width / SAM / zero-base decoder / plain EMA / 长 lead 权重 / rollout 剂量。
+- 不 paid / rental / exclusive；不 cron / 守护 / 会话外续跑。
+- 不自行宣布科学通过、不称泛化 / SOTA、不自行宣布最终 goal 完成。
+
+---
+
+## 8. 进度块（状态机）
+
+- **状态**：active（2026-10-25 建立）。最终 goal 状态不由本文件宣布。
+- **已完成**：
+  - 本长文建立（§0 objective 实测 2572 字符，过 `check_goal_brief.py --brief` 的 G-01..G-08）。
+  - 前置核实（只读）：workflow-in-goal 链路已实测可行（2026-10-11 探针）；
+    2016 在多年 store 内在位；batch 1/2/4/8 的实测速率与显存已在案；年份轴 override 的程序冲突已写明。
+- **未做**：Track 0（2016 小 store、S4 协议与评分）、Track 1 五轮（ADR / brief / 驱动 / 协议 / 运行）、
+  workflow 脚本派生、预算决策、四件套登记 —— **全部未执行**。
+- **下一动作（可执行的第一条命令）**：
+  `.venv/bin/python tools/r7_round.py state`，随后按 §4.1 建 2016 小 store。
+- **为何停 + 恢复**：尚未停下；若停下按 §5 的封闭三条处理，并在本块写「为何停 + 恢复第一条命令」。
