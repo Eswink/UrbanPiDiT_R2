@@ -81,4 +81,5 @@
 | [0053](0053-fy-annual-coverage-budget-correction.md) | 全年覆盖轮预算更正：按首次真实使用实测把每 seed 9,000 s → 21,600 s（planned 43,200 / hard 86,400），并修 `default_runner` 超时逃逸导致 `stage-seeds` 整轮崩溃的工具缺陷；`attempt02` 保留为失败 attempt | accepted | 2026-10-22 |
 | [0054](0054-fy-year-coverage-round.md) | 训练年份覆盖单因素轮：5 → 22 年、月份固定 12 个月、65×65；一手检索确认该轴在神经网络天气预测中无受控消融；预声明 (a)–(d) 出口与非科学桥 (e)；不新增下载、不改模型代码 | accepted | 2026-10-23 |
 | [0055](0055-fy-year-coverage-budget-correction.md) | 年份覆盖轮预算更正：按本轮 `attempt01` 的 prepare 实测（与两臂同一条逐记录校验路径，>95 min）把每 seed 21,600 s → 43,200 s（planned 86,400 / hard 172,800）；`attempt01` 无 seed、0 GPU-h，保留为失败 attempt | accepted | 2026-10-23 |
-| [0056](0056-closed-axis-reevaluation-admission.md) | 计划 0025 §4.2 的「已关闭轴重估」队列：实测六条已关闭臂本来就在同一 regime 且每臂 1.12 epoch（匹配算力不是差别），而 129×129 多年源不存在（加数据只能换 65×65，同时改网格与监督域）⇒ §4.4 要求的「不是同一族」论证按实测不成立，四条都不开轮；另立新假设须用户决定 | accepted | 2026-10-24 |
+| [0056](0056-closed-axis-reevaluation-admission.md) | 计划 0025 §4.2 的「已关闭轴重估」队列：实测六条已关闭臂本来就在同一 regime 且每臂 1.12 epoch（匹配算力不是差别），而 129×129 多年源不存在（加数据只能换 65×65，同时改网格与监督域）⇒ §4.4 要求的「不是同一族」论证按实测不成立，四条都不开轮；另立新假设须用户决定 | superseded by 0057 | 2026-10-24 |
+| [0057](0057-supersede-0056-queue-is-executable.md) | 取代 0056：§4.3 的使能制度是「数据 × 匹配算力」的**合取**，0056 只核了算力一半（旧臂 1.12 epoch 属实，但数据一半未满足）⇒ §4.2 队列按序可执行；每条 ADR 须写明新制度、禁写「旧臂欠训练」动机、如实声明与旧臂不可直接比较 | accepted | 2026-10-25 |
