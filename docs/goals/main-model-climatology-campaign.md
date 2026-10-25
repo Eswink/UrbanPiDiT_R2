@@ -2262,8 +2262,12 @@ test 未读、r=0、S4 未启动不变。
   **旧臂的关闭判据（72h 绝对门）是实例性质**——新实例上**无锚**的 FY 两臂 72h t2m skill 已 3/3 为正
   （treatment +0.047693/+0.050579/+0.092226、control +0.025785/+0.047884/+0.076949），而旧实例同位置
   对照为 −0.174635/−0.277247/−0.156169；锚表改 **48 桶**（12 月），预声明出口 (a)–(d) + 恒等桥 (e)。
-  brief：`docs/goals/s3-anchor-anomaly-feedback-reeval.md`。**尚未派生锚表/驱动/测试、未冻协议、0 GPU-h**；
-  成本外推 batch 1/2/4 = **103.8 / 68.2 / 50.3 GPU-h**（下界）。**batch 取值仍由用户定**（计划 §5）。
+  brief：`docs/goals/s3-anchor-anomaly-feedback-reeval.md`。**D2 锚表已派生并发布**
+  （`outputs/r7_s3_fy_anchor_table_20261025_attempt01/`，`[48,17,65,65]`、
+  `table_sha256 18448ae3df2b260e…`、48 桶全部有帧、合计 32,144 步、`train_data_identity 81307008…`；
+  工具 `scripts/r7_s3_fy_anchor_table_build.py` + 5 项测试）。
+  **驱动/测试尚未派生、未冻协议、0 GPU-h**；成本外推 batch 1/2/4 = **103.8 / 68.2 / 50.3 GPU-h**（下界）。
+  **batch 取值仍由用户定**（计划 §5）。
 
 **成本口径**：`attempt03` process 合计 **54,570.1 s = 15.158375 GPU-h**
 （`attempt02` 为 26.970475，**−43.8%**）；墙钟 **35,939 s = 9.98 h**（`attempt02` 16.61 h，**−39.9%**）；

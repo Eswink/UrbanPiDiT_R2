@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-anchor-anomaly-feedback-65x65", "driver": "scripts/study_r7_s3_anchor_feedback_65x65.py", "output_stem": "r7_s3_anchor_feedback_65x65_20261025", "control_record": "s3-fy-annual-coverage-result", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_anchor_feedback_65x65.py"], "commit_paths": ["scripts/study_r7_s3_anchor_feedback_65x65.py", "scripts/r7_s3_anchor_feedback_support.py", "scripts/r7_s3_fy_anchor_table_build.py", "scripts/r7_s3_fy_annual_parent.py", "tests/test_r7_s3_anchor_feedback_65x65.py", "docs/goals/s3-anchor-anomaly-feedback-reeval.md", "docs/decisions/0058-anchor-anomaly-feedback-reeval-admission.md", "docs/decisions/README.md", "docs/goals/main-model-climatology-campaign.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): implement the 65x65 climatology-anchor anomaly-feedback reevaluation round", "register_paths": ["docs/R7_S3_ANCHOR_FEEDBACK_65X65_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the 65x65 anchor anomaly-feedback reevaluation run as a new evidence record", "code_archive": "outputs/r7_s3_anchor_feedback_65x65_code.zip"} -->
+<!-- round-spec: {"arm": "s3-anchor-anomaly-feedback-65x65", "driver": "scripts/study_r7_s3_anchor_feedback_65x65.py", "output_stem": "r7_s3_anchor_feedback_65x65_20261025", "control_record": "s3-fy-annual-coverage-result", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_anchor_feedback_65x65.py"], "commit_paths": ["scripts/study_r7_s3_anchor_feedback_65x65.py", "scripts/r7_s3_anchor_feedback_support.py", "scripts/r7_s3_fy_anchor_table_build.py", "scripts/r7_s3_fy_annual_parent.py", "tests/test_r7_s3_anchor_feedback_65x65.py", "tests/test_r7_s3_fy_anchor_table_build.py", "docs/goals/s3-anchor-anomaly-feedback-reeval.md", "docs/decisions/0058-anchor-anomaly-feedback-reeval-admission.md", "docs/decisions/README.md", "docs/goals/main-model-climatology-campaign.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): implement the 65x65 climatology-anchor anomaly-feedback reevaluation round", "register_paths": ["docs/R7_S3_ANCHOR_FEEDBACK_65X65_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md"], "register_message": "feat(r7): register the 65x65 anchor anomaly-feedback reevaluation run as a new evidence record", "code_archive": "outputs/r7_s3_anchor_feedback_65x65_code.zip"} -->
 
 状态 **准入已定（决策 0058）、设计已冻结在本文档；锚表/驱动/测试尚未派生、协议未冻、GPU 未开跑**（2026-10-25）。
 唯一主计划 `docs/goals/main-model-climatology-campaign.md`；承接 **决策 0057**（计划 0025 §4.2 队列可执行）
@@ -46,7 +46,7 @@
 | 编号 | 交付物 | 可核查证据 |
 | --- | --- | --- |
 | D1 | 本轮目标与冻结设计决定 | 本文件 §3、决策 0058 |
-| D2 | **65×65、48 桶 train-only 气候态锚表**（新派生数据集，身份齐全） | `outputs/r7_s3_fy_anchor_table_<date>/`：`anchor_spec.json`（`r7-train-climatology-anchor-v1`）＋`anchor_table.pt`＋`build_receipt.json`＋`BUILD_COMPLETE.json`＋只读 preflight 报告 |
+| D2 | **65×65、48 桶 train-only 气候态锚表**（新派生数据集，身份齐全） | `outputs/r7_s3_fy_anchor_table_20261025_attempt01/`：`anchor_spec.json`（`r7-train-climatology-anchor-v1`）＋`anchor_table.pt`＋`build_receipt.json`＋`BUILD_COMPLETE.json`；只读 preflight 报告与工具 `scripts/r7_s3_fy_anchor_table_build.py`、测试 `tests/test_r7_s3_fy_anchor_table_build.py` |
 | D3 | 新协议/新输出/新 code.zip | `preparation_protocol.json`、`prepared_protocol.json`、`code.zip` + `archive_receipt.json` |
 | D4 | **两臂**三 seed 真实训练与评分 | `seed{41,42,43}_{control,candidate}_receipt.json`、每 seed 每臂五 lead 的 `boundary_rmse.csv` |
 | D5 | 配对读数与预声明判定 | `readings.json`（F−N、`full` 区域 skill、桥 (e)、出口 (a)–(d)） |
@@ -147,10 +147,19 @@ spatial-gradient/zero-base decoder/gradient-surgery/tendency-input/SAM/全年覆
 
 - **已完成（2026-10-25）**：① 决策 0057（取代 0056，队列可执行）；② 决策 0058（本条准入论证：
   新制度逐字定义、「不是同一族」三条论证、48 桶锚表、预声明出口与恒等桥、batch 1/2/4 成本表、
-  禁写「旧臂欠训练」动机）；③ 本 brief；④ 只读核对 FY store 身份（`[34084,17,65,65]`、
-  train 2000–2021、48 桶气候态 `n_selected_steps` 32,144）；⑤ 只读核对桥 (e) 的可实现性：
-  `attempt02` 与 `attempt03` 的 treatment 臂 update-1 `loss` **逐位相同**
-  （seed41 `1.2447926998`、seed42 `2.0360622406`、seed43 `0.6930788159`）。
+  禁写「旧臂欠训练」动机）；③ 本 brief 与 §3.1 七 gate；④ 只读核对 FY store 身份
+  （`[34084,17,65,65]`、train 2000–2021、48 桶气候态 `n_selected_steps` 32,144）；⑤ 只读核对桥 (e)
+  的可实现性：`attempt02` 与 `attempt03` 的 treatment 臂 update-1 `loss` **逐位相同**
+  （seed41 `1.2447926998`、seed42 `2.0360622406`、seed43 `0.6930788159`）；
+  ⑥ **D2 锚表已派生并发布**（`scripts/r7_s3_fy_anchor_table_build.py`，只读 preflight 后 `--write` 到
+  全新排他路径）：`table_shape [48,17,65,65]`、`table_sha256
+  18448ae3df2b260ef184a23e3cb6468a49c747f301aebc1fed31e66d84769f02`、
+  `climatology_mean_identity_sha256 8332762d62558766abc01b20a5457f3b3228664b87473f649da00bbd07dc626b`、
+  48 个桶全部有帧（每桶 622–682 帧，合计 32,144）、`training_years` 2000–2021、
+  `train_data_identity 81307008b572e3ff…`（= FY treatment 清单）、
+  `source_sha256 1db839554cce30cd…`（= 该 store 的源）；自检（`install` 后查询 1 个桶）通过；
+  文件 SHA256 `8e9fe84706e6a50dc405189cbdcf05e6cc7ec682309b2242116a5397add2e6c5`、
+  `BUILD_COMPLETE.json` 与 receipt 一致；测试 `tests/test_r7_s3_fy_anchor_table_build.py` **5 passed**。
 - **待做（顺序固定）**：
   1. **用户定 batch**（计划 §5 决策点；`updates × batch ≥ 32,142` 把二者绑死）；
   2. 按 batch 定预算常数并**另立预算决策**（照 0053/0055 先例）；
