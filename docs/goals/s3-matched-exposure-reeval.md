@@ -113,6 +113,22 @@
    （`training/r7_evaluate.py:121-123`）比的是**同级 `train.jsonl`** 的 `dataset_identity`，
    逐字节复制才恰好等于 checkpoint 记录的 `data_identity`（已实测：treatment `c17494ab…`、
    control `0469312978…`）；③ 指向小 store 的 `test.jsonl`（2016）。**两臂各一份。**
+
+   > **⚠ 2026-10-26 更正（执行时实测，见决策 0059）：上面第 1 条的字面机制不可实现。**
+   > ① `dataset_identity`（`training/r7_experiment.py:89-103`）除清单字节外还绑 **store 的
+   > `state` 形状与 `time_ns` / 归一化数组** ⇒ 换 store 后逐字节复制 `train.jsonl` **不足以**
+   > 让身份门放行；② `validate_store`（`data/r7_store.py:145-146`）强制
+   > `normalization_years == split_years['train']`，而 `chronological_splits`
+   > （`data/preprocess/contracts.py:63-64`）要求 train < val < test ⇒
+   > **「2016 目标帧 + 2017–2021 归一化」在同一份 store attrs 里不可同时为真**；
+   > ③ 标准构建器（`data/preprocess/r7_era5_zarr.py:166-167`）还要求 train/val/test
+   > 各自非空 ⇒ 只含 2016 帧的 store **也造不出来**。
+   > **改用决策 0059 的机制**：不新建 store；2016 帧取自已冻结的**多年 store**
+   > （`outputs/r7_s3_fy_multiyear_20261023_attempt01/store/cache.zarr`），由**显式 init-time 集合**钉住；
+   > 驱动**显式**断言 checkpoint 的 `data_identity` 等于 `dataset_identity(FY 该臂 train.jsonl)`
+   > （真校验，不绕过）；评分时**显式**施加 FY 的 2017–2021 归一化数组（从 FY store 读、按 sha256 钉住）；
+   > 窗口选择按显式 init-time 集合做，**只**跳过 `validate_record` 里那条无法表达的
+   > 「跨 split 年份」子句（`data/r7_store.py:179-183`），并在协议里逐字声明。
 2. **预声明恰好一个年份（2016）**：D4 用 max-statistic 同时区间，cell 越多临界值越宽
    ⇒ 1 年 = 30 primary cell，17 年 = 110。2016 是紧邻训练窗之前的完整年份，代差最小。
 3. 把"**气候态分母期（2017–2021）与 test 目标期（2016）不同代**"冻进协议并写进 `limitations`。
@@ -213,8 +229,41 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
   - 本长文建立（§0 objective 实测 2572 字符，过 `check_goal_brief.py --brief` 的 G-01..G-08）。
   - 前置核实（只读）：workflow-in-goal 链路已实测可行（2026-10-11 探针）；
     2016 在多年 store 内在位；batch 1/2/4/8 的实测速率与显存已在案；年份轴 override 的程序冲突已写明。
-- **未做**：Track 0（2016 小 store、S4 协议与评分）、Track 1 五轮（ADR / brief / 驱动 / 协议 / 运行）、
-  workflow 脚本派生、预算决策、四件套登记 —— **全部未执行**。
+
+### 2026-10-26 — 开工轮：§4.1 机制更正 + workflow 脚本派生（本窗口）
+
+**做了什么（全部只读 + 派生一个草稿脚本 + 两份文档）**：
+
+1. **§4.1 的字面机制实测不可实现，已更正并留痕。** 见上文 §4.1 的 ⚠ 更正框与
+   **决策 0059**（`docs/decisions/0059-s4-2016-instance-store-contract.md`，含 R-033/R-036 通过）。
+   三条实测证据（读码，`file:line` 见决策）：
+   - `dataset_identity`（`training/r7_experiment.py:89-103`）除清单字节外还绑 store 的
+     `state` 形状 + `time_ns` + 归一化数组 ⇒ 逐字节复制 `train.jsonl` **不足以**过身份门；
+   - `validate_store`（`data/r7_store.py:145-146`）+ `chronological_splits`
+     （`data/preprocess/contracts.py:63-64`）⇒「2016 目标帧 + 2017–2021 归一化」**不可同时为真**；
+   - 标准构建器（`data/preprocess/r7_era5_zarr.py:166-167`）要求三 split 各非空 ⇒
+     只含 2016 帧的 store **造不出来**。
+   **更正后的机制**：不新建 store；2016 帧取自已冻结多年 store，显式 init-time 集合钉住；
+   驱动显式断言 checkpoint 身份、显式施加 FY 归一化、只跳过无法表达的年份归属子句。
+
+2. **workflow 脚本已派生**：`.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`
+   （从 `r7-campaign-round.dwf.ts` 派生，草稿、git-ignored）。按 §4.0 冻结的两处形状差异：
+   `maxRounds` 硬上限 **5**；stage 超时 `34,200,000 → 129,600,000 ms`（36 h）。
+   `world.run` 命令名保持编译期字面量、运行值落盘（文件即参数）。
+   **commit-guard 语义由 `round-guard` 覆盖**（它内部就对 round-spec 的 `commit_paths` 跑
+   `check_conventions.py --quiet --paths ...`）；`commit-guard` 子命令要求把路径写在 argv 里、
+   与「argv 必须是编译期字面量」冲突，故不直接调用它。登记后照跑 `verify`。只推工作分支。
+
+3. **本窗口没有跑任何 GPU 轮、没有读 test、没有提交任何登记。**
+
+- **未做**：Track 0 的实例清单/协议/评分（D1–D3）；Track 1 五轮（ADR / brief / 驱动 / 协议 / 运行）；
+  预算决策（决策 0055 先例）与 R1 的 override ADR；四件套登记 —— **均未执行**。
 - **下一动作（可执行的第一条命令）**：
-  `.venv/bin/python tools/r7_round.py state`，随后按 §4.1 建 2016 小 store。
-- **为何停 + 恢复**：尚未停下；若停下按 §5 的封闭三条处理，并在本块写「为何停 + 恢复第一条命令」。
+  `.venv/bin/python tools/r7_round.py state`，
+  随后按 **决策 0059** 的机制派生 Track 0 的实例清单与评分驱动
+  （2016 init-time 集合 + 多年 store 只读复用 + FY 归一化/气候态按 sha256 钉住 + 显式身份断言）。
+- **为何停 + 恢复**：本窗口停下是因为**本轮预算用尽**，不是触到保留授权边界、也不是达科学停止条件；
+  剩余工作（Track 0 评分驱动、Track 1 五轮）全部**可安全独立推进**，只是没做完。
+  恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`；
+  若要直接推进 Track 1，用 `.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`
+  （`maxRounds=5`、`dryRun=false`）编排，或先 `dryRun=true` 验一轮。
