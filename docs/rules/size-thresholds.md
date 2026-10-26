@@ -7,7 +7,24 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=1 R-019b=1121 R-020=66 R-021=125 R-022=67 R-023=47 -->
+<!-- measured: R-019=1 R-019b=1131 R-020=66 R-021=128 R-022=67 R-023=47 -->
+
+**2026-10-26 R1（匹配算力年份覆盖重估轮）复算（提交集合实测）**：R-021 **126→128**、
+R-019b **1121→1131**；R-019=1、R-020=66、R-022=67、R-023=47 保持。
+本轮新增两个 >400 目标、≤600 硬限的文件：
+`scripts/study_r7_s3_fy_year_coverage_matched.py`（**578** 行，R-051 通过）与
+`tests/test_r7_s3_fy_year_coverage_matched.py`（**516** 行，R-051 通过）；另一个新文件
+`scripts/r7_s3_fy_year_coverage_matched_support.py`（58 行）远在目标带内，
+它的 10 处 R-019b 命中里最长的一条 213 字符**已按硬上限拆成两段相邻字面量**（值不变），
+因此 R-019 保持 1；R-019b 的 10 处增长分布在驱动与 support 两个文件里。
+**更正上一窗口的漂移**：本页原先记的 R-021=125 在**提交集合**上已经是 **126**
+（上一窗口新增的 `scripts/study_r7_s4_fy_2016_confirmation.py` 使计数 +1，但标记未同步）⇒
+`tests.test_check_conventions::test_size_report_counts_match_the_checker` 在本轮开工时**已经是红的**，
+本轮按提交集合一并更正。
+**注意**：登记提交会新增证据页 `docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md`；
+本页只统计 `.py` 文件（`iter_py` 只走 `.py`），故 .md 证据页不影响本页数字，
+但若登记轮再新增 `.py` 文件，标记必须在那次提交里复算。
+**未改规则级别、阈值或冻结例外清单。**
 
 **2026-10-23 训练年份覆盖轮复算（提交集合实测）**：R-021 **124→125**、R-019b **1113→1121**；
 R-019=1、R-020=66、R-022=67、R-023=47 保持。

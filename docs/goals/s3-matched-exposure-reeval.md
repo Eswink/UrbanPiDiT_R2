@@ -1,7 +1,14 @@
 # 目标：S3 匹配算力重估（含训练年份覆盖轴重开）与 S4 就绪
 
+<!-- round-node: S3 -->
+
+<!-- round-spec: {"arm": "s3-fy-year-coverage-matched", "driver": "scripts/study_r7_s3_fy_year_coverage_matched.py", "output_stem": "r7_s3_fy_year_coverage_matched_20261026", "control_record": "s3-fy-annual-coverage-result", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_fy_year_coverage_matched.py"], "planned_seconds": 259200.0, "hard_cap_seconds": 518400.0, "code_archive": "outputs/r7_s3_fy_year_coverage_matched_code.zip", "commit_paths": ["scripts/study_r7_s3_fy_year_coverage_matched.py", "scripts/r7_s3_fy_year_coverage_matched_support.py", "tests/test_r7_s3_fy_year_coverage_matched.py", "docs/goals/s3-year-coverage-matched-reeval.md", "docs/goals/s3-matched-exposure-reeval.md", "docs/goals/main-model-climatology-campaign.md", "docs/decisions/0062-r1-year-coverage-matched-compute-round.md", "docs/decisions/README.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): implement the R1 matched-compute year-coverage re-run (updates 2400->16071, batch 2)", "register_paths": ["docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-matched-exposure-reeval.md"], "register_message": "docs(r7): register the R1 matched-compute year-coverage reading as an evidence record"} -->
+
 本文件是 goal 模式的目标长文源。objective 见 §0；交付物见 §2；判据见 §3；
 实施顺序（含 workflow 编排）见 §4；预算与停止见 §5；进度块见 §8。
+**本轮（R1，Track 1 第 1 轮）的机器可读 spec 就是本文件顶部的 `round-spec` 块**，
+`campaign-state.current_round_goal` 指向本文件；R1 的人读 brief 是
+`docs/goals/s3-year-coverage-matched-reeval.md`（只引用决策 0060/0061，不重写 ADR）。
 
 **状态：active（2026-10-25 起）。** 设计依据是 `docs/plans/0026-matched-exposure-reeval-and-s4.md`
 （计划是不可变记录，本长文是它的活文档执行源）；**本长文对交付形状做了一处更正，见 §6**。
@@ -93,7 +100,8 @@
   —— 现行模板的 9.5 h 装不下 22.7 h 的 seed 阶段；
 - 一轮 = 侦察 → 提可证伪假设 → 派生单因素驱动 → 独立复核（≤3）→ 冻结并等 CI → 逐 stage GPU
   → 读数 → 四件套登记 → 交接；
-- `world.run` 的**命令名保持编译期字面量**，运行值落盘（`<!-- round-spec: {...} -->`，文件即参数）；
+- `world.run` 的**命令名保持编译期字面量**，运行值落盘（顶部那行 `round-spec` 注释块，文件即参数；
+  正文里不得再出现第二个 `round-spec` 注释块，否则 `round_spec()` 会拒绝该文件）；
 - **自跑确定性闸门**：提交前 `tools/r7_round.py commit-guard <paths>`，登记后 `verify`；
   **不依赖 hook 兜底**（子会话很可能不跑本仓 hook，E-187 推测）；
 - **只推 `r7/weather-reasoning`**；禁 main / force / merge / 关 issue；
@@ -318,3 +326,29 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
 - **为何停 + 恢复**：本窗口停下是因为**本轮预算用尽**，不是触到保留授权边界、也不是达科学停止条件；
   剩余工作全部**可安全独立推进**，只是没做完。
   恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`。
+
+### 2026-10-26 — R1（Track 1 第 1 轮）实现完成、GPU 未开跑
+
+- **本轮 spec 落在本文件顶部**：`round-node: S3` + 一行 `round-spec`；
+  `campaign-state.current_round_goal` 已指向本文件。**R1 的人读 brief** 是
+  `docs/goals/s3-year-coverage-matched-reeval.md`（只引用 0060/0061，不重写 ADR）。
+- **顺带修掉两处会让本轮无法开工的既有缺陷**（如实记录，不是本轮的科学内容）：
+  ① `campaign-state` 块被上一窗口写成了**多行 JSON**，而 `tools/r7_round_support.campaign_state()`
+  的正则**不带 `re.S`** ⇒ `r7_round.py state / round-guard / freeze` 全部报
+  「expected exactly one campaign-state block, found 0」（`tools/check_campaign_state.py` 带 `re.S`，
+  所以 `verify` 当时是绿的、掩盖了这个不一致）；已改回单行。
+  ② 本文件 §4.0 正文里那处把注释语法写成**字面示例**的地方，会被
+  `ROUND_SPEC_RE` 当成第二个 spec 块（`round_spec()` 拒绝多块）⇒ 已改成不含注释语法的措辞。
+- **交付（CPU）**：驱动 `scripts/study_r7_s3_fy_year_coverage_matched.py`（578 行，R-051 通过）
+  + 纯数据 support 模块 `scripts/r7_s3_fy_year_coverage_matched_support.py`（56 行）
+  + CI-safe 测试 `tests/test_r7_s3_fy_year_coverage_matched.py`（34 项全过，不依赖 `outputs/`，
+  含 batch-2 的 CPU smoke 与反证）+ 本轮 ADR **决策 0062**（不重新授权，只写执行设计）。
+- **唯一改动因子**：年份 5 → 22（月份固定 12）；相对已关闭那一轮**只改算力**
+  （updates 2,400 → 16,071、batch 1 → 2）。出口 (a)–(d) 逐字沿用 `docs/goals/s3-year-coverage.md:68-79`。
+- **未做**：`freeze` / `stage prepare` / `stage archive` / `stage-seeds` / `reading` / 四件套登记 —— 全部未执行；
+  **本轮 0 GPU-h、未读 test、无科学结论**。
+- **下一动作（可执行的第一条命令）**：
+  `.venv/bin/python tools/r7_round.py round-guard` → 重建 code zip →
+  `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/stage-seeds/reading`。
+  登记提交前必须复算 `docs/rules/size-thresholds.md` 的 `<!-- measured: ... -->` 标记
+  （`test_size_report_counts_match_the_checker` 按提交集合核对）。

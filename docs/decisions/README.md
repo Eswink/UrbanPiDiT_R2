@@ -87,3 +87,4 @@
 | [0059](0059-s4-2016-instance-store-contract.md) | S4 首次确认的 2016 实例：store 契约无法同时表达「2016 目标帧」与「2017–2021 归一化」⇒ 不改契约/不伪造属性，改用排他派生评估容器 + 驱动内显式身份断言（身份门照真校验）、窗口选择不经 split 归属并逐字点名被跳过的唯一子句 | accepted | 2026-10-26 |
 | [0060](0060-matched-exposure-budget-correction.md) | 匹配算力重估队列的预算更正：每 seed 43,200 → 129,600 s（planned 259,200 / hard 518,400，1:2:4），只改时间不动科学门；`per_seed_seconds` 在复用白名单内 ⇒ 旧 attempt 的 seed 不可复用 | accepted | 2026-10-26 |
 | [0061](0061-r1-year-coverage-override.md) | R1（年份覆盖 5y→22y）的 override：按决策 0057 成文定义，只改算力**不满足**「不是同一族」（store/网格/监督域/跨度四项全不变）⇒ 用户具名授权推翻 `docs/goals/s3-year-coverage.md` 的「不调 2400 updates」；负面后果＝削弱预声明不可翻案纪律、为按算力重测开先例，先例范围限定在该轴 | accepted | 2026-10-26 |
+| [0062](0062-r1-year-coverage-matched-compute-round.md) | R1 的执行设计（不重新授权，授权见 0061）：spec 落在目标长文顶部并由 `current_round_goal` 指向、两个提交路径列表分开；配对控制臂**本轮内重跑**（旧臂归一化/气候态/算力三者都不同，且 0045 白名单使旧 seed 不可复用）；驱动自包含 + 纯数据拆 support 模块；出口 (a)–(d) 逐字沿用 | accepted | 2026-10-26 |
