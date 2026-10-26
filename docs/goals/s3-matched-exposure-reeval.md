@@ -274,11 +274,17 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
   **实测该文件不含 48 桶均值表** ⇒ 驱动从 FY store 的声明 train 年份重拟合并核对
   `kind`/`training_years`/`n_selected_steps`（7,304）。六份 checkpoint 的 sha256 与
   `data_identity` 全部入协议。
-- **D3（评分）已启动**：驱动 `scripts/study_r7_s4_fy_2016_confirmation.py`
-  （402 行，R-051/R-052 通过；CI-safe 测试 `tests/test_r7_s4_fy_2016_confirmation.py`
-  **14 项全过**，不依赖 `outputs/`），40 例 smoke 端到端跑通、`non_finite_paths` 为 0。
-  全量评分已在后台启动（`outputs/r7_s4_fy_2016_20261026_attempt01/reading01/`），
-  预计 3.5–5.5 h（6 份 checkpoint × 1,451 例 × 5 lead）。
+- **D3（评分）已完成（本窗口）**：`outputs/r7_s4_fy_2016_20261026_attempt01/reading01/readings.json`
+  （sha256 见证据页），1,451 例、全部 5 lead 共享同一病例集、四季齐全、`non_finite_paths = 0`。
+  证据页 `docs/R7_S4_FY_2016_CONFIRMATION_RESULT.md`，index record
+  `s4-fy-2016-first-confirmation`（`outcome_class = unresolved`、`candidate_state = not-candidate`），
+  账本行 2.0572 GPU-h（累计 **249.413841**），master §8 已加进度块，campaign-state 已更新。
+  **读数**：t2m 相对同数据 incumbent 的 MSE 变化 **−1.6%/−1.5%/−2.7%/−4.3%/−6.4%**（candidate 全部更优）；
+  candidate 的 t2m skill 0.703/0.533/0.551/0.233/0.038（全 >0），incumbent 72 h 为 **−0.027**。
+  **判决未宣**（如实记录、不放宽）：① primary 的估计量歧义（协议写「分组均值之比」、冻结工具算
+  「per-case 均值」，48/72 h 符号相反）需先预注册；② 守门按字面未达（同时区间上界 ≤0 只有 6/15）。
+  驱动 `scripts/study_r7_s4_fy_2016_confirmation.py`（CI-safe 测试 14 项全过）；`r7_round.py verify` 三校验器全过。
+- **Track 1 的编排已启动**：`.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`
 - **D4 family 的表达力（实测限制，已写进协议与读数）**：
   `training/r7_simultaneous_stats.simultaneous_paired_interval` 要求同一 family 的
   **所有 cell 共享同一组 case key**，而四季组是对 2016 病例的**划分** ⇒
@@ -305,17 +311,10 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
 - **未做**：Track 1 五轮的 brief / 驱动 / 协议 / 运行 / 四件套登记；R1 的 brief 与驱动 —— 均未执行。
 - **下一动作（可执行的第一条命令）**：
   `.venv/bin/python tools/r7_round.py state`；
-  若 Track 0 的评分已跑完（`outputs/r7_s4_fy_2016_20261026_attempt01/reading01/readings.json`
-  存在），按读数写证据页并登记；否则用同一条命令重启评分：
-
-  ```bash
-  .venv/bin/python scripts/study_r7_s4_fy_2016_confirmation.py \
-    --protocol outputs/r7_s4_fy_2016_20261026_attempt01/protocol.json \
-    --out outputs/r7_s4_fy_2016_20261026_attempt01/reading01 --device cuda
-  ```
-
-  之后进 Track 1：写预算决策（0055 先例）与 R1 override ADR，用
-  `.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`（`maxRounds=5`、`dryRun=false`）编排。
+  随后**先预注册 S4 primary 的估计量**（「分组均值之比」还是「per-case 均值」）与守门的读法
+  （守门字面未达是否算未过），再决定 S4 是否宣布判决；**不**在没有预注册的情况下挑一个估计量报通过。
+  Track 1 的 R1–R5 已由 `.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`
+  （`maxRounds=5`、`dryRun=false`）编排，预算/override 已由决策 0060/0061 给出。
 - **为何停 + 恢复**：本窗口停下是因为**本轮预算用尽**，不是触到保留授权边界、也不是达科学停止条件；
   剩余工作全部**可安全独立推进**，只是没做完。
   恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`。
