@@ -296,6 +296,12 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
     `docs/goals/s3-year-coverage.md` 的「不调 2400 updates」；负面后果与先例范围限定都在里面。
   - ⇒ R1 的 brief 只需**引用** 0060/0061，不必再各写一份；`round-spec` 的
     `planned_seconds`/`hard_cap_seconds` 取 0060 的值。
+- **Track 1 的编排已启动**：`.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`
+  编译干净并已在后台运行，run id **`dwfrun-442a17eb-ba11-4af9-9b56-6460f32a1e0b`**
+  （`maxRounds=5`、`dryRun=false`、`resumeFromRound=0`）。它是**有界、可恢复的批量编排器**，
+  不是守护进程：进程退出即 `interrupted`，按 `ResumeWorkflowRun` 续；
+  已知边界见 §4.0 四条（后台运行时轮末 goal 校验可能不触发＝`defer` 不是失败；
+  卡片可见性只从运行 API 观测；探针未覆盖 GPU 轮/freeze/commit/登记）。
 - **未做**：Track 1 五轮的 brief / 驱动 / 协议 / 运行 / 四件套登记；R1 的 brief 与驱动 —— 均未执行。
 - **下一动作（可执行的第一条命令）**：
   `.venv/bin/python tools/r7_round.py state`；
