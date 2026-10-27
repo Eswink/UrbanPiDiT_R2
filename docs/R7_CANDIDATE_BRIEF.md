@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 91; human-review candidates: 2
+Records: 92; human-review candidates: 2
 
 ## s3-anchor-isolation-result
 
@@ -1736,6 +1736,27 @@ Records: 91; human-review candidates: 2
   - No recursive versus non-recursive conclusion is in scope.
 - Excluded from runnable candidates: Mixed and seed-inconsistent; the report only preserves a short protocol summary, so no immediate runnable candidate is justified.
 - Recorded metrics (not recomputed): capacity_multiple_vs_b2=6.48, gpu_hours=0.547, seed_consistent_gain=false, seeds=2, test_read=false
+
+## s3-urban-static-covariates-acquisition
+
+- Outcome class: `engineering-positive`; candidate state: `not-candidate`
+- Human triage priority: `55` (not a scientific score)
+- Evidence: `docs/R7_URBAN_STATIC_COVARIATES.md` (SHA256 `679dc10b282f00da72dc60a424c474211625a575e375b4695e4a2ff55bdc3f48`)
+- Evidence commit: `7065f19654a36f78b1e87a36452794003d175648`; experiment commit: `7065f19654a36f78b1e87a36452794003d175648`
+- Protocol SHA256: `8cc3c673aa98d69fc9baaa8dd10d539233c738118ceeaeef63851e40a8e54904`; data identity: `not recorded`
+- Reason: Named urban static covariates (decision 0063 / plan 0027): ESA WorldCover v100(2020)/v200(2021) and GHSL R2023A GHS-BUILT-S / GHS-BUILT-H(ANBH 2018) / GHS-POP at 4326_3ss were fetched over the R7 frozen ROI and area-weighted-coarsened to the 65x65 / 0.25 deg grid, then published as an independent artefact with its own static_identity. LandScan was dropped (registration-gated).
+- Limitations:
+  - scientific_claim: false; this is a data-preparation round with 0 GPU-h, no model was trained or scored, 2023 test was not read and r stays 0
+  - LandScan was dropped as failed-no-fallback because ORNL gates it behind an applicant account; no other layer was substituted for it, so the population cross-check is missing
+  - terrain (Copernicus DEM) is not fetched: the anonymous AWS mirror was measured reachable, but a DEM layer is not in decision 0063's named list
+  - ESA WorldCover publishes no all-ocean 3 deg tile, so N27E123 (27-30N / 123-126E, East China Sea) is absent; 13 target cells are covered only to 0.5 and land_cover_coverage_frac_* exposes that, nothing was synthesised
+  - the published land-cover variables are the five classes of docs/DATA_SPEC.md L2 (built/tree/crop/water/bare); the other WorldCover classes are not published, so those five shares do not sum to 1 (mean mapped share 0.7395)
+  - the aggregate is a derived statistic of real observations, spatial_resampling=area_weighted_coarsen on the WGS84 authalic sphere by cell edges; it is not interpolation and must not be used as an observational truth field
+  - GHS-BUILT-S and GHS-POP are five-year-interval, cross-sensor-generation syntheses, not annual observations
+  - the frozen protocol digest changed after the download because two bookkeeping keys (epoch/year) were added for the aggregator; the acquisition-relevant fields are unchanged and both digests are recorded in aggregate_receipt.json
+  - the campaign-state current_round_goal pointer was not repointed: R1's workflow was still running and r7_round.py resolves the round from that pointer, so changing it would have broken R1's remaining seeds
+- Excluded from runnable candidates: Not a candidate: this is a data-preparation round, not a model or scientific result. It fetches the named anonymous urban static covariates and publishes them as derived statistics on the frozen 0.25 deg grid; no model was trained or scored, 2023 test was not read and r stays 0. It is recorded as engineering-positive because every in-scope layer was reachable and the sampling re-derivation matched.
+- Recorded metrics (not recomputed): cells_below_full_land_cover_coverage=13, download_bytes=14484496452, download_files=195, fields_arrays=36, ghsl_tiles_per_epoch_product=9, gpu_hours=0.0, layers_dropped=2, layers_reachable=13, min_land_cover_coverage=0.5, network_bytes=14484496452, recheck_max_relative_delta=5.1535351518462713e-08, recheck_tolerance=1e-05, wall_clock_seconds=9550, worldcover_absent_tiles_per_year=1, worldcover_tiles_per_year=48
 
 ## c2-feedback-negative
 
