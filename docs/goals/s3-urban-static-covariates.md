@@ -180,6 +180,13 @@
     `dwfrun-1f67679b-dd53-43a2-9fa8-14b468dbfb1c`，2026-10-27T09:55:11Z 起，completed，926431 tokens；
     止于「实现与独立复核」，未提交/未下载/未发布）。其登记步会改 `campaign-state`
     （同上会打断 R1），因此本轮由执行者直接跑驱动的六个子命令；**`dryRun: false` 从未运行**。
+- **编排的非 dryRun 部件已用 workflow 测试台核对（2026-10-27）**：加载 `dynamic-workflows` 技能后，
+  用 `EvalWorkflowSnippet`（同一编译器/沙箱/`world.run` 路径，**不落盘、不产生 run**）对**真实仓库状态**
+  核了三件事，全部通过：①草稿的六个 stage 字面量（`runStage("…")`）与驱动的 `COMMANDS` 键
+  **逐个相等**（`stageMismatch: []`）；②草稿 `IMPLEMENT_PATHS`/`REGISTER_PATHS` 声明的**每个路径都存在**
+  （`missingPaths: []`——`git add` 一个不存在的路径会让整次提交失败，这是编排的非 dryRun 提交步最容易踩的坑）；
+  ③本长文带 `<!-- round-node: S3 -->`（`goalBriefHasRoundNode: true`）。
+  这**不等于**「非 dryRun 路径已跑」——提交/stage/登记三步仍未执行，且必须等 R1 退出。
 - **已修的隐患（2026-10-27 实测发现）**：本长文原先**没有** `<!-- round-node: S3 -->` 标记。
   `check_campaign_state.py` 的 C-05 要求**当前轮** brief 带该标记且节点与 master 的
   `current_node` 一致，而该脚本在 CI 中运行（`.github/workflows/ci.yml`）——因此**只改指针**
