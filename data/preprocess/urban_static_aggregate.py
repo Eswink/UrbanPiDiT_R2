@@ -29,7 +29,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import rasterio
 
 from data.download.urban_static_sources import (
     EDGE_EAST,
@@ -136,9 +135,24 @@ def _overlapping(dataset) -> tuple[list[int], list[int]]:
     return list(range(first_row, last_row + 1)), list(range(first_col, last_col + 1))
 
 
+def _rasterio():
+    """Import rasterio lazily.
+
+    It is an optional data dependency (``requirements-data.txt``) that CI does not
+    install, so importing this module must not require it: the pure geometry
+    helpers below stay importable everywhere, and only the raster readers pull it in.
+    """
+    import rasterio
+    return rasterio
+
+
+def _open(path):
+    return _rasterio().open(path)
+
+
 def _read(dataset, rows: slice, cols: slice) -> np.ndarray:
-    window = rasterio.windows.Window(cols.start, rows.start,
-                                     cols.stop - cols.start, rows.stop - rows.start)
+    from rasterio.windows import Window
+    window = Window(cols.start, rows.start, cols.stop - cols.start, rows.stop - rows.start)
     return dataset.read(1, window=window)
 
 
@@ -235,7 +249,7 @@ def aggregate_land_cover(paths, *, classes=(10, 40, 50, 60, 80)) -> dict:
     counts = np.zeros((GRID_HEIGHT, GRID_WIDTH, len(classes)), dtype=np.float64)
     cols_per_cell = None
     for path in paths:
-        with rasterio.open(path) as dataset:
+        with _open(path) as dataset:
             if cols_per_cell is None:
                 cols_per_cell = int(round(GRID_SPACING_DEG / dataset.transform.a))
             target_rows, weights = _native_row_weights(dataset)
@@ -257,7 +271,7 @@ def aggregate_built_surface(paths) -> dict:
     """Sum of built m^2 divided by the target cell area in m^2."""
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
     for path in paths:
-        with rasterio.open(path) as dataset:
+        with _open(path) as dataset:
             target_rows, weights = _native_row_weights(dataset)
             totals += _accumulate_sums(dataset, _native_col_targets(dataset),
                                        target_rows, weights, weight_by_area=False)
@@ -271,7 +285,7 @@ def aggregate_building_height(paths) -> dict:
     """Area-weighted mean of ANBH over native cells carrying a value."""
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
     for path in paths:
-        with rasterio.open(path) as dataset:
+        with _open(path) as dataset:
             target_rows, weights = _native_row_weights(dataset)
             nodata = dataset.nodata
             if nodata is None:
@@ -292,7 +306,7 @@ def aggregate_population(paths) -> dict:
     """Sum of population counts divided by the cell area in km^2."""
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
     for path in paths:
-        with rasterio.open(path) as dataset:
+        with _open(path) as dataset:
             target_rows, weights = _native_row_weights(dataset)
             nodata = dataset.nodata
             valid = None if nodata is None else (

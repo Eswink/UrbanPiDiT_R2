@@ -124,6 +124,7 @@ def _synthetic_raster(path: Path, *, value, lat_south, lat_north, lon_west, lon_
 
 
 def test_built_surface_fraction_is_a_plain_sum_over_cell_area(tmp_path):
+    pytest.importorskip("rasterio")  # optional data dependency; CI does not install it
     # A constant built-surface raster of 1 m^2 per native cell over one whole
     # target cell must give fraction = (native cells) / (cell area in m^2).
     row, col = 30, 30
@@ -139,6 +140,7 @@ def test_built_surface_fraction_is_a_plain_sum_over_cell_area(tmp_path):
 
 
 def test_land_cover_fraction_is_area_weighted_within_a_cell(tmp_path):
+    pytest.importorskip("rasterio")  # optional data dependency; CI does not install it
     import rasterio
     from rasterio.transform import from_bounds
 
@@ -166,6 +168,7 @@ def test_land_cover_fraction_is_area_weighted_within_a_cell(tmp_path):
 
 
 def test_building_height_is_an_area_weighted_mean(tmp_path):
+    pytest.importorskip("rasterio")  # optional data dependency; CI does not install it
     import rasterio
     from rasterio.transform import from_bounds
 

@@ -173,6 +173,13 @@ source/version/licence/预期字节/聚合规则/输出布局、磁盘峰值与�
 - **0.25° 偏粗**：建成区在格内是"占比"，不含城市内结构；原生分辨率瓦片已保留供延后的 1 km 轮。
 - **协议 digest 在下载后因记账字段变更**（见 §2），两个 digest 都已登记。
 - **许可页一次瞬时 403**（见 §1），已复测 200。
+- **CI 不装 rasterio**：CI 安装的依赖集是 `requirements-r7-data.txt`，其中**没有** rasterio
+  （只有 `requirements-data.txt` 列它，而按仓库既有约定 CI 不装该文件）。因此
+  `tests/test_r7_urban_static_round.py` 里 3 个**需要栅格**的用例在 CI 上 **`skip`**——
+  **skip 不算通过**：CI 实跑 **8 passed / 3 skipped**（无失败），聚合器与驱动改为
+  **惰性** `import rasterio`，所以 CI 仍能导入并跑纯几何/失败语义用例。
+  聚合代码本身的覆盖来自**本机** 11 passed，以及**真实轮**的独立再派生核对
+  （§5，最大相对偏差 5.15e-08）。
 - **`scientific_claim: false`**：这是数据准备读数，不是科学结论；本轮 0 GPU-h，
   2023 test 未读，r 仍为 0。
 
