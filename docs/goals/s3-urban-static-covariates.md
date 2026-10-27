@@ -150,17 +150,32 @@
 
 ## 7. 进度块（状态机）
 
-- **状态**：prepared（2026-10-27 建立，**未启动**）。最终 goal 状态不由本文件宣布。
-- **已完成**：本长文建立；授权（决策 0063）、计划（`docs/plans/0027-…`）、L2 契约
-  （`docs/DATA_SPEC.md`）、技能扩围（`.agents/skills/real-data-acquisition/SKILL.md`）、
-  workflow 草稿（`.zcode/workflow-drafts/r7-urban-static-round.dwf.ts`）已备。
-  **草稿的实测边界（如实记）**：`node --experimental-strip-types` 语法通过、桩 facade 下
-  dryRun 控制流跑通（侦察→实现→快门→复核→dryRun 停→report→markdown）；
-  **未做**：按 workflow 门面类型检查、非 dryRun 路径、真实 `CreateWorkflow` 编译。
-  **本轮 0 GPU-h、未下载、未改 `campaign-state`。**
-- **未做**：端点核对、协议冻结、下载、聚合、再派生核对、发布、四件套登记 —— 全部未执行；
-  `round-node` / `round-spec` 块、驱动与测试也**留到启动那一刻**由执行窗口补齐
-  （本轮刻意不预先占用 `campaign-state`，因为 R1 正在跑）。
-- **下一动作（可执行的第一条命令）**：等 R1 跑完后，
-  `.venv/bin/python tools/r7_round.py state`；
-  然后按 §4.1 相位 1 起做端点核对。
+- **状态**：**数据相位已执行并登记**（2026-10-27；`scientific_claim: false`、0 GPU-h）。
+  最终 goal 状态不由本文件宣布。**唯一未做的一步是 `campaign-state` 指针**（见下）。
+- **已完成（本轮实测）**：
+  - **相位 1（第一道硬闸门）**：13 个具名层逐 tile `HEAD`（经 `http_public`），
+    `endpoint_report.json`；LandScan 需注册 ⇒ `failed-no-fallback` 丢层；
+    GHSL 分辨率冲突解为"3 arcsec 与 30 arcsec 都发布"；Copernicus DEM 的 AWS 镜像实测匿名
+    （不在具名清单，不取）。
+  - **相位 2**：`protocol.json` 在下载前冻结；digest 见证据页 §2。
+  - **相位 3**：195 文件 / 14,484,496,452 B（与冻结预期**逐字节相等**），
+    逐文件 sha256；网络面只在 `data/download/urban_static_sources.py`。
+  - **相位 4**：从零写的面积加权聚合（WGS84 等积球、逐原生行权重、按格界），
+    `spatial_resampling = area_weighted_coarsen`；36 个数组的 `static_fields.npz`。
+  - **相位 5**：抽样格独立再派生，最大相对偏差 **5.15e-08**（float32 存储精度内）。
+  - **相位 6**：`contracts.fresh_outputs` 独占发布 + `BUILD_COMPLETE.json`；
+    `static_identity = 8671ed7c…`。
+  - **证据页**：`docs/R7_URBAN_STATIC_COVARIATES.md`。
+- **未做**：
+  - **`campaign-state.current_round_goal` 未改**：R1 的 workflow 仍在跑，而
+    `tools/r7_round.py` 的每个子命令都从 `campaign-state.current_round_goal` 解析当前轮；
+    此刻改指针会让 R1 的 seed 42/43 `stage` 与登记 `round-guard`/`ledger-plan` 解析到本长文
+    （无 round-spec 块）而失败。**推迟到 R1 的 workflow 退出之后**，命令见证据页 §9。
+  - 模型侧接线（把 `static_identity` 绑进 `protocol_sha256`）是**下一轮**，需自己的 ADR 与
+    预声明出口；本轮**不改** `model/**`、**不重建** store、**不加** state 通道。
+  - **workflow 未运行**：`.zcode/workflow-drafts/r7-urban-static-round.dwf.ts` 的登记步会改
+    `campaign-state`（同上会打断 R1），因此本轮由执行者直接跑驱动的六个子命令，
+    **未** `CreateWorkflow`；草稿的编译仍未做。
+- **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，
+  把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
+  `docs/goals/s3-urban-static-covariates.md`；然后 `.venv/bin/python tools/r7_round.py state`。
