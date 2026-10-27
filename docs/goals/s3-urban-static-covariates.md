@@ -221,9 +221,15 @@
   有内容才真提交。登记提交**不**做同样处理——那一步之前登记员必然写了证据页与 master，
   真有内容可提交；若登记员什么都没写，`commit` 非 0 正是应有的「登记没做成」信号。
   （`git` 已在草稿的命令集里，故 `git diff` 不新增命令面。）
-- **已知未修（如实记）**：`publish` 用 `contracts.fresh_outputs`，**独占**语义决定它拒绝已存在的
-  `published/fields` 与 `published/manifest` ⇒ 若侦察员判 not-blocked 并真的重跑整轮，`publish` 这一步会失败。
-  本轮不为此改驱动（改驱动会动它的 digest），也不为此改草稿的判据；这一条留给 R1 退出后按当时的侦察结论处置。
+- **更正（2026-10-27 实测，撤掉一条我先前的误记）**：先前记「重跑时 `publish` 会因
+  `fresh_outputs` 独占而失败」——**实测不成立，已撤回**。`verify_endpoints()` 走 `new_attempt()`，
+  编号是 `max(existing)+1`；现有只有 `attempt01`，故重跑会新建 **`attempt02`**（实测
+  `next attempt would be: attempt02`）。`freeze`/`download`/`aggregate`/`recheck`/`publish` 各自用
+  `latest_attempt(<marker>)` 解析，`attempt02` 一旦落盘对应 marker 就排在 `attempt01` 之后 ⇒
+  **整轮都在 `attempt02` 里跑**，`attempt02/published/` 是全新的，`fresh_outputs` **不会**拒绝。
+  **已发布的 `attempt01` 因此不被触碰**（其 `protocol.json`、`static_identity`、manifest 全部原样）。
+  重跑的真实代价是**一次全量重下载（≈14.5 GiB）＋第二份产物与第二条登记**，不是破坏。
+  （先前那条错在把「`published/` 独占」当成跨 attempt 的全局约束——它其实在 attempt 目录内。）
 - **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，按序执行——
   1. 把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
      `docs/goals/s3-urban-static-covariates.md`；
