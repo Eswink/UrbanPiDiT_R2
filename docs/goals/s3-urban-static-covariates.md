@@ -230,6 +230,13 @@
   **已发布的 `attempt01` 因此不被触碰**（其 `protocol.json`、`static_identity`、manifest 全部原样）。
   重跑的真实代价是**一次全量重下载（≈14.5 GiB）＋第二份产物与第二条登记**，不是破坏。
   （先前那条错在把「`published/` 独占」当成跨 attempt 的全局约束——它其实在 attempt 目录内。）
+- **已修的第三个草稿缺陷（2026-10-27）**：目标要求「自跑 `tools/r7_round.py commit-guard`（提交前）
+  ……不依赖 hook 兜底」，但草稿原本只跑 `check_conventions.py` + `pytest`，**没有那个字面调用**。
+  两者的实质重叠（`commit_guard(paths)` 就是按路径跑阻断规则，草稿跑的是全仓 `check_conventions`），
+  但要求写的是这条命令。已在实现提交前加一次
+  `tools/r7_round.py commit-guard <IMPLEMENT_PATHS...>`，非 0 即停、不提交。
+  **登记提交前不加**：那一步提交的是证据页与 master 等文档，`commit-guard` 的阻断规则面向代码；
+  且登记后已有 `tools/r7_round.py verify` 作为收尾校验。
 - **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，按序执行——
   1. 把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
      `docs/goals/s3-urban-static-covariates.md`；
