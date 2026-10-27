@@ -187,6 +187,13 @@
   `FAIL C-05 docs/goals/s3-urban-static-covariates.md carries no <!-- round-node: X --> marker`）。
   已在标题下补 `<!-- round-node: S3 -->`；补后用一份**临时** master 副本重测，
   `campaign_state node=S3 failures=0`（原为 1），live 指针与 R1 的 round-spec 均未受影响。
+- **预算更正已入档（2026-10-27）**：决策 `docs/decisions/0064-urban-static-covariate-budget-correction.md`
+  ——按首次实测（整轮 `wall_clock_seconds = 9550`、网络 13.49 GiB、磁盘消耗 27 GiB，三者**均未触门**）
+  核对名义刻度 ⇒ `planned 21,600` / `hard 86,400` 与网络/磁盘预算**维持不变**；只涉时间、不动科学门。
+- **如实记的缺口**：phase ② 要求的「磁盘峰值与余量门」里，冻结的 `protocol.json` **只有余量门**
+  `disk_headroom_bytes`，**峰值只有实测值**（`native/` 20 GiB + `published/` 0.7 MB，`/data` 269→242 GiB）。
+  已发布的 `protocol.json` **不追改**（会改 `protocol_sha256` 与 `static_identity`、断身份链），
+  改由证据页 §2 如实标注，`estimated_peak_bytes` 记在下一轮协议里（见决策 0064）。
 - **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，按序执行——
   1. 把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
      `docs/goals/s3-urban-static-covariates.md`；
