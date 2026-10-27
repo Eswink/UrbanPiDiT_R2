@@ -62,7 +62,7 @@ LandScan 因**需注册**如实丢层（R-008，未用任何层顶替）。抽�
 ## 2. 相位 2：冻结协议（R-006）
 
 `protocol.json` 冻结于**任何下载之前**：ROI 精确格界、目标网格、逐层
-source/version/licence/预期字节/聚合规则/输出布局、磁盘峰值与余量门、网络字节上限、
+source/version/licence/预期字节/聚合规则/输出布局、磁盘**余量门**、网络字节上限、
 软/硬墙钟。
 
 - **冻结时 digest**（下载 receipt 记录的）：`protocol_sha256 = c402867022c5dee3876fb597dfb0af3de26ecf167ec367d617aec6bb83708cef`
@@ -73,6 +73,13 @@ source/version/licence/预期字节/聚合规则/输出布局、磁盘峰值与�
   （`protocol_sha256_at_download` / `protocol_sha256`）。
 - 预算：`gpu_hours: 0.0`、`planned_seconds: 21600`、`hard_cap_seconds: 86400`、
   `network_bytes_cap: 40 GiB`、`disk_headroom_bytes: 60 GiB`、`single_tile_bytes_cap: 512 MiB`。
+- **磁盘峰值未进冻结协议（如实记）**：phase ② 要求的「磁盘峰值与余量门」里，`protocol.json`
+  冻结的只有**余量门** `disk_headroom_bytes`；**峰值只有实测值**（§8：`native/` 20 GiB +
+  `published/` 0.7 MB，`/data` 余量 269 → 242 GiB），不是冻结字段。本轮**不**追改已发布的
+  `protocol.json`（改它会改 `protocol_sha256` 与 `static_identity`、断身份链）；
+  `estimated_peak_bytes` 记在下一轮协议里，见决策 0064。
+- **预算更正**：按首次实测（整轮 9550 s、网络 13.49 GiB、磁盘消耗 27 GiB，三者均未触门）
+  核对名义刻度 ⇒ planned / hard / 网络 / 磁盘预算**维持不变**，见决策 0064。
 
 ## 3. 相位 3：下载
 
