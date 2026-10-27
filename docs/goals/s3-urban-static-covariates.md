@@ -187,6 +187,17 @@
   （`missingPaths: []`——`git add` 一个不存在的路径会让整次提交失败，这是编排的非 dryRun 提交步最容易踩的坑）；
   ③本长文带 `<!-- round-node: S3 -->`（`goalBriefHasRoundNode: true`）。
   这**不等于**「非 dryRun 路径已跑」——提交/stage/登记三步仍未执行，且必须等 R1 退出。
+- **当前草稿的字节已用 `CreateWorkflow` 编译通过（2026-10-27）**：`dwfrun-1f67679b` 那次 dryRun
+  跑在**三处草稿修复之前**——实测该 run 结束于 `2026-10-27T09:58:45Z`，而草稿文件最后修改于
+  `2026-10-27T13:42:10Z`（`ls --time-style=full-iso`），所以它**不能**证明当前字节可编译。
+  加载 `dynamic-workflows` 技能后对**当前字节**重编译一次：**编译干净**，run
+  `dwfrun-87bbd520-01a9-4ada-894f-122db5230455`（参数用声明默认值 `dryRun=true` / `maxRounds=1`，
+  completed）。该 run 的侦察员在它自己的 ask 内独立复核了本节的停止判定（`blocked=true`，理由与
+  §7 一致），并实测确认：发布目录 `outputs/r7_urban_static_covariates_attempt01/`、
+  `BUILD_COMPLETE.json` 存在、实现提交 `7065f19`、登记提交 `58e3a18`、证据页 14,824 B，
+  以及 R1 仍在跑（PID 777767 `tools/r7_round.py stage seed 42` 与其子进程 777788）。
+  该 run **未提交、未下载、未聚合、未发布**，跑完工作树仍干净（`git status --porcelain` 空，
+  HEAD 仍是 `1d2eb09`）。**消掉的是「用前仍须编译一次」这条风险；`dryRun: false` 仍未运行。**
 - **已修的隐患（2026-10-27 实测发现）**：本长文原先**没有** `<!-- round-node: S3 -->` 标记。
   `check_campaign_state.py` 的 C-05 要求**当前轮** brief 带该标记且节点与 master 的
   `current_node` 一致，而该脚本在 CI 中运行（`.github/workflows/ci.yml`）——因此**只改指针**
