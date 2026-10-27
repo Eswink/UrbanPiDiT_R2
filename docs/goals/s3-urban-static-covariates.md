@@ -201,6 +201,11 @@
   `disk_headroom_bytes`，**峰值只有实测值**（`native/` 20 GiB + `published/` 0.7 MB，`/data` 269→242 GiB）。
   已发布的 `protocol.json` **不追改**（会改 `protocol_sha256` 与 `static_identity`、断身份链），
   改由证据页 §2 如实标注，`estimated_peak_bytes` 记在下一轮协议里（见决策 0064）。
+- **R1 退出后指针的初值（已核实）**：R1 的登记指令第 3 条要求把
+  `campaign-state.current_round_goal` 写回 **R1 自己的长文**
+  （`.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts:218`：`把 campaign-state.current_round_goal 改成 " + plan.goalPath`，
+  R1 的 `plan.goalPath` = `docs/goals/s3-matched-exposure-reeval.md`）。所以 R1 退出后指针会停在
+  **R1 的长文**上，下面第 1 步是一次**真实改动**，`before = docs/goals/s3-matched-exposure-reeval.md`。
 - **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，按序执行——
   1. 把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
      `docs/goals/s3-urban-static-covariates.md`；
