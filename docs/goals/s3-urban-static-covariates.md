@@ -214,6 +214,16 @@
   追加**运行期**的 `plan.evidencePath`（证据页路径由侦察员在运行期给出，故不能写进静态清单——
   写死一个可能不存在的路径会让 `git add` 整条失败）。参照 R1 的 `register_paths` 形状
   （证据页 + 索引 + brief + master + 本轮长文）。
+- **已修的第二个草稿缺陷（2026-10-27）**：实现提交把「`git commit` 非 0」一律当致命错。但**本轮已经实现并提交过**
+  ——重跑时 `git add IMPLEMENT_PATHS` 什么都不会暂存，`git commit` 于是以 **"nothing to commit"（exit 1）** 退出，
+  草稿会在**任何 stage 之前**就 `break` 并报「实现提交失败」。已在 `git add` 之后加一次
+  `git diff --cached --quiet`（exit 0 = 无暂存内容、exit 1 = 有）来分流：无内容时按「已在历史里」记成功，
+  有内容才真提交。登记提交**不**做同样处理——那一步之前登记员必然写了证据页与 master，
+  真有内容可提交；若登记员什么都没写，`commit` 非 0 正是应有的「登记没做成」信号。
+  （`git` 已在草稿的命令集里，故 `git diff` 不新增命令面。）
+- **已知未修（如实记）**：`publish` 用 `contracts.fresh_outputs`，**独占**语义决定它拒绝已存在的
+  `published/fields` 与 `published/manifest` ⇒ 若侦察员判 not-blocked 并真的重跑整轮，`publish` 这一步会失败。
+  本轮不为此改驱动（改驱动会动它的 digest），也不为此改草稿的判据；这一条留给 R1 退出后按当时的侦察结论处置。
 - **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，按序执行——
   1. 把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
      `docs/goals/s3-urban-static-covariates.md`；
