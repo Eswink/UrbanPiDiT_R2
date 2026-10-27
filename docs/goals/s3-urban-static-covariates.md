@@ -206,6 +206,14 @@
   （`.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts:218`：`把 campaign-state.current_round_goal 改成 " + plan.goalPath`，
   R1 的 `plan.goalPath` = `docs/goals/s3-matched-exposure-reeval.md`）。所以 R1 退出后指针会停在
   **R1 的长文**上，下面第 1 步是一次**真实改动**，`before = docs/goals/s3-matched-exposure-reeval.md`。
+- **已修的草稿缺陷（2026-10-27 实测发现）**：草稿的 `REGISTER_PATHS` 原本只有
+  `docs/R7_EVIDENCE_INDEX.jsonl`、`docs/R7_CANDIDATE_BRIEF.md`、`GOAL_PATH` 三项，**漏了证据页与 master 长文**
+  ——而 `REGISTER_ASK` 明确要求登记员写证据页、追加 master §7 账本行与 §8 进度块、并更新
+  `<!-- campaign-state: ... -->`。登记步的 `git add ...REGISTER_PATHS` 因此会**静默漏掉这两份材料**，
+  连 `campaign-state` 的指针改动都进不了提交。已补 master 长文进静态清单，并在 `git add` 的 args 里
+  追加**运行期**的 `plan.evidencePath`（证据页路径由侦察员在运行期给出，故不能写进静态清单——
+  写死一个可能不存在的路径会让 `git add` 整条失败）。参照 R1 的 `register_paths` 形状
+  （证据页 + 索引 + brief + master + 本轮长文）。
 - **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，按序执行——
   1. 把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
      `docs/goals/s3-urban-static-covariates.md`；
