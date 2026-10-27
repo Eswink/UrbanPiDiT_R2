@@ -1,5 +1,7 @@
 # 目标：S3 城市静态协变量获取与发布（L2 城市证据落地）
 
+<!-- round-node: S3 -->
+
 本文件是 goal 模式的目标长文源。objective 见 §0；交付物见 §2；判据见 §3；
 实施顺序（含 workflow 编排）见 §4；预算与停止见 §5；明确不做见 §6；进度块见 §7。
 
@@ -173,9 +175,22 @@
     （无 round-spec 块）而失败。**推迟到 R1 的 workflow 退出之后**，命令见证据页 §9。
   - 模型侧接线（把 `static_identity` 绑进 `protocol_sha256`）是**下一轮**，需自己的 ADR 与
     预声明出口；本轮**不改** `model/**`、**不重建** store、**不加** state 通道。
-  - **workflow 未运行**：`.zcode/workflow-drafts/r7-urban-static-round.dwf.ts` 的登记步会改
-    `campaign-state`（同上会打断 R1），因此本轮由执行者直接跑驱动的六个子命令，
-    **未** `CreateWorkflow`；草稿的编译仍未做。
-- **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，
-  把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
-  `docs/goals/s3-urban-static-covariates.md`；然后 `.venv/bin/python tools/r7_round.py state`。
+  - **非 dryRun 的编排未跑**：`.zcode/workflow-drafts/r7-urban-static-round.dwf.ts` 已用
+    `CreateWorkflow` 编译并跑过一次**有界 dryRun**（run
+    `dwfrun-1f67679b-dd53-43a2-9fa8-14b468dbfb1c`，2026-10-27T09:55:11Z 起，completed，926431 tokens；
+    止于「实现与独立复核」，未提交/未下载/未发布）。其登记步会改 `campaign-state`
+    （同上会打断 R1），因此本轮由执行者直接跑驱动的六个子命令；**`dryRun: false` 从未运行**。
+- **已修的隐患（2026-10-27 实测发现）**：本长文原先**没有** `<!-- round-node: S3 -->` 标记。
+  `check_campaign_state.py` 的 C-05 要求**当前轮** brief 带该标记且节点与 master 的
+  `current_node` 一致，而该脚本在 CI 中运行（`.github/workflows/ci.yml`）——因此**只改指针**
+  会让 CI 变红（实测：把指针指向本长文后报
+  `FAIL C-05 docs/goals/s3-urban-static-covariates.md carries no <!-- round-node: X --> marker`）。
+  已在标题下补 `<!-- round-node: S3 -->`；补后用一份**临时** master 副本重测，
+  `campaign_state node=S3 failures=0`（原为 1），live 指针与 R1 的 round-spec 均未受影响。
+- **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，按序执行——
+  1. 把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
+     `docs/goals/s3-urban-static-covariates.md`；
+  2. `.venv/bin/python tools/r7_round.py state`（核对指向）；
+  3. `.venv/bin/python tools/check_campaign_state.py --quiet`（应 `failures=0`）；
+  4. 用 `CreateWorkflow` 以 `dryRun: false` 编译并运行
+     `.zcode/workflow-drafts/r7-urban-static-round.dwf.ts`。
