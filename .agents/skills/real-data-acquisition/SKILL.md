@@ -1,6 +1,6 @@
 ---
 name: real-data-acquisition
-description: 当要引入新的真实数据源、下载器或重建派生数据集时使用；覆盖授权范围核对、分批预算、只读 preflight 审阅、显式写入和发布审计，决策0038范围内允许执行者自主审阅后新路径发布。
+description: 当要引入新的真实数据源、下载器或重建派生数据集时使用；覆盖授权范围核对、分批预算、只读 preflight 审阅、显式写入和发布审计，决策0038范围内允许执行者自主审阅后新路径发布，决策0063范围内另含匿名城市静态协变量（WorldCover/GHSL/LandScan）的获取与聚合。
 ---
 
 # 获取与发布真实数据
@@ -96,5 +96,41 @@ description: 当要引入新的真实数据源、下载器或重建派生数据�
   （`docs/R7_REAL_DATA_PREFLIGHT.md:27-30`）；
 - 不覆盖 ERA5 的"原生 0.25°"命名争议——文档已明确该措辞指"模型直接在提供的
   0.25° 分布网格上学习"，不指 ERA5 原始分析是原生 0.25° 数值模拟；
-- 不覆盖城市形态（WorldCover/建筑/DEM）数据的获取；
-- 不覆盖精细分辨率动态真值（那是被阻塞的研究关卡 #9，需要真实共址数据）。
+- ~~不覆盖城市形态（WorldCover/建筑/DEM）数据的获取~~ —— **2026-10-27 起，在决策 0063 的
+  具名范围内解除**（见下节「静态栅格获取」）；具名范围外（DEM、建筑 footprint、LCZ、CNBH、
+  ECOSTRESS LST、GlobalBuildingAtlas）仍不覆盖；
+- 不覆盖精细分辨率**动态**真值（那是被阻塞的研究关卡 #9，需要真实共址数据）。
+
+## 静态栅格获取（决策 0063 的具名范围）
+
+用于把**匿名可下载**的城市静态协变量取回并聚合到 R7 冻结网格。与上面的 ERA5 流程**不同**：
+静态层**没有时间轴**，所以 `inspect_era5` / `prepare_local` / `prepare_r7_local.py` /
+`chronological_splits` / `utc_time_index` **一概不适用**，必须另写 inspect/聚合实现。
+
+**具名层清单（可缩小不可扩大）**：ESA WorldCover（10 m，CC-BY-4.0）、GHSL GHS-BUILT-S /
+GHS-BUILT-H / GHS-POP（100 m 级）、LandScan（~1 km，CC BY 4.0，仅交叉核对）。
+ROI = `data/download/read_plan_frozen.py:34-36` 的 R7 冻结 ROI；目标网格 65×65 / 0.25°；
+契约见 `docs/DATA_SPEC.md` §L2。
+
+**步骤**
+
+1. **只读端点核对（第一道硬闸门）**。逐源 HEAD / range GET，记 HTTP 码、`content-length`、
+   许可页 URL、访问日期。**不可达 ⇒ 留 `failed-no-fallback`、丢该层、禁止合成顶替**（R-008）。
+   检索摘要**不是**可达性证据（R-050）——必须实测。
+2. **冻协议**。格界、目标网格、逐层 source/version/license/预期字节/聚合规则/输出布局、
+   磁盘峰值与余量门、网络字节上限、软硬墙钟。
+3. **下载**。下载器只放 `data/download/**`（R-016），走 `http_public.open_public` /
+   `http_pinned`（SSRF + 重定向校验 + timeout）。
+   **不要照抄 `data/download/worldcover_cog.py`**：它用 `rasterio.open(url)` 直连、绕过守卫，
+   多 tile ROI 直接 `raise`，且 `audit/real_data_download_status.json` 记它 `blocked_or_failed`。
+4. **聚合**。原生栅格**先投影到等面积 metric CRS**，再对每格界做**面积加权**统计。
+   `spatial_resampling` 记 `area_weighted_coarsen`，**不是** `interpolation`。
+   这是对真实观测求的**派生统计量**，证据页必须写明它**不得**被当作观测真值使用。
+5. **独立再派生核对**。抽样格从原始瓦片重算、精确比对（不复用聚合中间量）。
+6. **发布**。用 `data/preprocess/contracts.py` 的 `fresh_outputs`（独占输出 +
+   `BUILD_COMPLETE.json`）；产物带自己的 `static_identity`（源指纹 + 聚合规范 + 输出字节），
+   将来接线时绑进 `protocol_sha256`（**不是** `data_identity`）。
+   **原生分辨率瓦片一并保留**（供延后的 1 km 轮用），不删。
+
+**明确不做**：需注册/账号的源（Copernicus DEM 官方门户、ALOS AW3D30、SRTM、MODIS MCD12Q1、
+GPWv4、ERA5-Land、CLDAS、CMFD）；付费源；全球全集；km 级动态真值（#9 继续 BLOCKED）。

@@ -72,4 +72,9 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 | [`n2a-m3-validation-complement.md`](n2a-m3-validation-complement.md) | N2a独立23项val补测与跨attempt来源/全额成本汇总 | **N2a规定交付完成，科学paused**；尺度/三时刻/反证及23新val/30总覆盖、D6/index18/账本齐，B/C精确CI九步成功；negative/mixed如实验收，原失败/归档与any-unresolved暂停不改；全权授权接续与验收见计划0013 |
 | [`v2-l6-confirmation-current.md`](v2-l6-confirmation-current.md) | V2 阶段 C（节点 N4 / #75）：actual C 三臂确认 + M1 补全 + UTC 统计的实证窗口 | **实证完成（2026-10-04）**：C 144/144 独立接受、M1 24/24 verify、precision 独立接受、两侧 UTC 链完成；E-245–E-247 |
 | [`v2-remaining-stages-exploration.md`](v2-remaining-stages-exploration.md) | 0032独立autoregressive-exposure主线，接续B/C/D/E与必要主线探索 | **已收尾（2026-10-04）**；M3辅助监督终结且保留原paused出口；六 issue 已按 N5/决策 0037 关闭（负面/未决读数不改） |
+| [`s3-urban-static-covariates.md`](s3-urban-static-covariates.md) | S3 城市静态协变量获取与发布（L2 城市证据落地） | **prepared（2026-10-27 建立，未启动）**；授权见决策 0063、计划 0027；workflow 编排内联在 §0 与 §4.0；0 GPU-h、未下载；启动时执行窗口才把 `campaign-state.current_round_goal` 指向它 |
 | `docs/R7_GPU_BRINGUP_BRIEF.md` | （已迁移） | R-034 登记为早于约定的例外；现仅为指向本目录的指针，不再维护第二份定义 |
+
+> **本索引尚不完整**：S3 系列（`s3-year-coverage`、`s3-matched-exposure-reeval`、
+> `s3-anchor-*`、`s3-capacity-*`、`s3-fy-*` 等）的多份长文未逐条登记在本表里，
+> 是既有漂移、不是本轮引入的。上表按需回填，不以推测的日期补行。
