@@ -736,3 +736,55 @@ R1 的 `reading` 与四件套登记、R2–R5。
   ```
   .venv/bin/python tools/r7_archived_replay.py run -- .venv/bin/python tools/r7_round.py stage reading
   ```
+
+### 2026-10-28（续 12）— 决策 0067 机械化；本窗口收尾（停在 GPU 上，非停工）
+
+**背景**：任务 2/3 全部阻塞在 seed43 的两份 receipt 上（还需约 18–22 h）。这段时间里
+本窗口只做**不再触及 GPU 且不改变任何冻结物**的预备工作，全部有实测。
+
+**① 决策 0067 从"只能靠人读"变成可运行实现。** 新增
+`tools/r7_explicit_inventory.py`（179 行）+ `tests/test_r7_explicit_inventory.py`（161 行、12 项全过）。
+实测（真实 R1 驱动）：
+
+| 口径 | 文件数 | 说明 |
+| --- | --- | --- |
+| R1 冻结的 glob 清单 | **182**（来自 training/model/data）+ 13 具名 = 195 | 正是事故来源 |
+| 本工具算出的 import 闭包 | **89** | 不泄漏 `tools/`、`tests/`、归档 |
+| 运行时实际导入的仓内模块 | **15** | 与闭包交叉核对：**0 遗漏** |
+
+**反证（决策 0067 第 5 条明确要求的那一条）**：在同一棵树上新增一个无关
+`data/*.py` ⇒ 闭包 **不变**；同一棵树上跑 R1 的 glob 形状 ⇒ **184 → 185**。
+两半都实测，因此"缺陷是真的"与"修复有效"都被证明，而不是只断言一半。
+另有反向反证：新增一条真实传递 import **必须**让清单变化（否则检查是瞎的）。
+两个故障方向都覆盖：漏写闭包模块（身份缺口，危险方向）与多写不可达模块。
+**未做**：接进 `check_conventions.py` 作阻断规则——要先定强制点，故决策仍是 proposed。
+
+**② 本次会话所有新增都在活清单之外。** `execution_files()` 只扫
+`training/`、`model/`、`data/`；本窗口新增的 `tools/r7_archived_replay.py`、
+`tools/r7_explicit_inventory.py`、`scripts/read_r1_seed_rows.py` 与三个测试文件
+**都不在其中**（实测：真实工作树仍是 197，与本窗口开始时相同）⇒ **seed43 的校验不会被本窗口的提交打断**。
+相反，`scripts/read_r1_seed_rows.py` 落在 `scripts/`——若它是**被 glob 覆盖**的目录就会打崩 seed43，
+这正是决策 0067 要消灭的脆弱性。
+
+**③ seed43 的存活与时限（实测）**：
+
+- pid 3557334 存活（`Sl`），属 **`setsid` 独立 session**（SID 3557323）⇒ 会话结束**不会**杀掉它。
+- 进度 **4140 / 16071** control，2.354 s/update（已用 9748.9 s）。
+- **worker deadline 尚余 33.4 h**，round deadline 尚余 **83.6 h**；按两个已完成 seed 的
+  实测均值（89,941 s/seed）估计，seed43 还需 **约 22.1 h** ⇒ 余量充足。
+
+**本窗口改动汇总**（6 个提交，全部只推 `r7/weather-reasoning`）：
+重放工具固化、`round-guard` 红测试修复（含反证）、17×5 读取器、登记清单、
+闭包清单机械化、决策 0065/0067 补记。
+
+**为何停在这里**：不是遇到障碍，而是**任务 2 的唯一输入（seed43 的两份 receipt）在物理上
+还要约 18–22 h 才能生成**。继续"推进"只能是伪造读数或提前宣布结果，两者都被明令禁止；
+提前切 `current_round_goal` 到静态协变量轮也会**破坏** `r7_round.py` 对当前轮的解析，
+使待办的 `reading` 与登记无法执行。
+
+- **恢复的第一条命令**（≈22 h 后；先确认 receipt 已落盘且无存活 worker）：
+  ```
+  cd /data/esw/UrbanPiDiT_R2 && ls -la outputs/r7_s3_fy_year_coverage_matched_20261026_attempt01/seed43_*_receipt.json && .venv/bin/python tools/r7_round.py stage-plan seed 43
+  ```
+  预期 `"already_done": true`、`"already_running": false`；随后按
+  `docs/R1_REGISTRATION_CHECKLIST.md` 逐步执行（第 1 步即重放内的 `stage reading`）。
