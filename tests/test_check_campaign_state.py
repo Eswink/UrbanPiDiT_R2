@@ -406,3 +406,31 @@ def test_campaign_symlink_escape_is_rejected_before_reading(
     assert any("resolves outside the repository" in finding for finding in failures(report, "C-01"))
     assert checker.main(["--root", str(repo), "--campaign", NEW_CAMPAIGN]) == 1
     assert "symlink escape" in capsys.readouterr().out
+
+
+def test_a_ledger_row_citing_an_unregistered_record_fails(checker, tmp_path):
+    """C-03 order: the evidence record must be in the index before the ledger cites it.
+
+    Measured while rehearsing the R1 registration: inserting the ledger row first made the
+    checker report "cites unknown record", so the register commit has to add the index
+    record before (or with) the row. This pins that ordering rather than leaving it to
+    whoever runs the registration next.
+    """
+    ledger = LEDGER + "| round three | 2.0 | 3.5 | `docs/R7_ONE.md` + 索引记录 `record:absent` |\n"
+    report = checker.check(build_repo(tmp_path, ledger=ledger,
+                                      state=_state(used_gpu_h=3.5, remaining_gpu_h=20.5)))
+    assert failures(report, "C-03"), report
+    assert any("absent" in finding for finding in failures(report, "C-03"))
+
+
+def test_a_ledger_row_disagreeing_with_its_record_fails(checker, tmp_path):
+    """C-03 value coupling: metrics.gpu_hours must equal the row's GPU-h (tol 1e-4).
+
+    The R1 registration rehearsal showed the number has to live in the record's metrics,
+    not only in prose, or the row cannot be machine-checked against it.
+    """
+    ledger = LEDGER + "| round three | 2.0 | 3.5 | `docs/R7_ONE.md` + 索引记录 `record:one` |\n"
+    report = checker.check(build_repo(tmp_path, ledger=ledger,
+                                      state=_state(used_gpu_h=3.5, remaining_gpu_h=20.5)))
+    assert any("says 2" in finding and "record" in finding
+               for finding in failures(report, "C-03")), report

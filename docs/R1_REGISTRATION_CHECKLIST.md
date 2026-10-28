@@ -121,7 +121,7 @@ treatment train_data_identity = 81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea
 两臂**只**在 `('train_data_identity', 'train_manifest', 'train_windows')` 上不同，
 其余 18 个受控项共享 ⇒ 这是"唯一改变的是训练清单"的直接证据，可写进 `reason`。
 
-### 4b. 账本行（先算，再写）
+### 4b. 账本行（**必须 4a 之后**，顺序不可换）
 
 ```bash
 .venv/bin/python tools/r7_round.py ledger-plan <新的 GPU-h>
@@ -129,6 +129,24 @@ treatment train_data_identity = 81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea
 
 写入 `docs/goals/main-model-climatology-campaign.md` §8 的账本表。累计与 `used_gpu_h` 必须同时
 更新，否则 `check_campaign_state.py` 的 C-02 会失败。
+
+**⚠ 两条硬约束，已在 master plan 的临时副本上用真实校验器预演过（实测，非推测）**：
+
+1. **index record 必须先于账本行存在。** 预演时账本行引用了一个尚未入索引的
+   `record:<id>`，`check_campaign_state.py` 立刻报
+   `FAIL C-03 ledger row '...' cites unknown record 'r1-dryrun-probe'`。
+   所以顺序是 **4a → 4b**，反过来会红。
+2. **记录的 `metrics.gpu_hours` 必须等于账本行的 GPU-h**（容差 **1e-4**，
+   `check_campaign_state.py:127-133` 的 `record_gpu_hours` 只读
+   `metrics.gpu_hours` 或顶层 `gpu_hours`）。**账本行的数字因此必须写进记录本身**，
+   而不能只写在 `reason` 文字里。
+
+**C-02 算术在预演中自动成立**：新累计 = 上一累计 + 新 GPU-h、`used_gpu_h` 同步、
+`remaining_gpu_h = cap − used`，三者一致即可，无需手工校验其他字段。
+（预演只报了上面那一条 C-03 失败，其余 8 条 note 都是既有行的历史豁免。）
+
+**账本行的 GPU-h 只能用 `stage_ledger.jsonl` 的实测秒数换算，不得把 estimate 写成实测。**
+seed43 未完成前，整轮成本**不可**填入账本行。
 
 已实测的**当前**成本（截至 seed42，不含 seed43）：
 
