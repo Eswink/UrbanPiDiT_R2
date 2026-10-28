@@ -290,7 +290,11 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
   **读数**：t2m 相对同数据 incumbent 的 MSE 变化 **−1.6%/−1.5%/−2.7%/−4.3%/−6.4%**（candidate 全部更优）；
   candidate 的 t2m skill 0.703/0.533/0.551/0.233/0.038（全 >0），incumbent 72 h 为 **−0.027**。
   **判决未宣**（如实记录、不放宽）：① primary 的估计量歧义（协议写「分组均值之比」、冻结工具算
-  「per-case 均值」，48/72 h 符号相反）需先预注册；② 守门按字面未达（同时区间上界 ≤0 只有 6/15）。
+  「per-case 均值」，48/72 h 符号相反）需先预注册；② 守门按字面**未达**，且**比初版记录更差**：
+  全 6 族 90 格中点估计只有 78/90 ≤0（**12 个 >0**，集中在 DJF/JJA/SON 的 u10/v10）、
+  区间上界只有 25/90 ≤0；另「per seed ≤ 0」子句因读数只存 seed 平均序列而**未测**。
+  **2026-10-28 更正**：初版只统计了 total set 一族（15 格）却写成"全部"、且计数笔误，
+  已在证据页 §5.1 留档（`readings.json` 未变，只是对它的读法写错）。
   驱动 `scripts/study_r7_s4_fy_2016_confirmation.py`（CI-safe 测试 14 项全过）；`r7_round.py verify` 三校验器全过。
 - **Track 1 的编排已启动**：`.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`
 - **D4 family 的表达力（实测限制，已写进协议与读数）**：
