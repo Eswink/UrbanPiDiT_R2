@@ -597,3 +597,24 @@ skill 实测是三 seed **−0.018861 / −0.001317 / +0.021495**（见
 - **本段 0 GPU-h、未读 test、无判决**。seed43 实测 update **2,740 / 16,071**、
   **2.354 s/update**、进程存活（pid 3557334，经历过一次 `Dl` 磁盘等待后恢复为 `Rl`），
   两臂约 **17.5 h**。
+
+### 2026-10-28（续 7）— 登记用的成本算术（先算好，登记时直接用）
+
+**已实测的 GPU 时间**（`stage_ledger.jsonl` 逐条秒数，只算 seed 阶段）：
+
+| 阶段 | 秒 | 折算 |
+| --- | --- | --- |
+| seed41（success） | 89,519.564216 | 24.866546 GPU-h |
+| seed42（success） | 88,362.383506 | 24.545107 GPU-h |
+| seed43（**failed** exit 1） | 20.757882 | 0.005766 GPU-h |
+| **小计（已发生）** | **177,902.705604** | **49.417418 GPU-h** |
+
+- prepare 632.015875 s + archive 5.818272 s = 637.834147 s = **0.177176 h**，是 **CPU**
+  （prepare 自己声明"metadata prepared in bounded CPU worker"），**不计入 GPU-h**，
+  但在成本表里单列。
+- **待落盘**：seed43 重放的两臂（control + treatment）。**不得**用估计值预填账本行；
+  等 receipt 到齐后按同一条 `stage_ledger.jsonl` 的真实 `elapsed_seconds` 相加。
+- **登记时的算式**（`ledger-plan` 已实测可用）：
+  `new_gpu_h = 49.417418 + seed43_replay 的实测小时`；
+  当前账本 `previous_total_gpu_h = 249.413841`（73 行）、`cap_gpu_h = 20.0`、
+  `remaining_gpu_h = −229.413841`（**cap/remaining 仅会计，无总上限**）。
