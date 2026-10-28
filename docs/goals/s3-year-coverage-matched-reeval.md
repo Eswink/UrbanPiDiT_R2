@@ -106,12 +106,40 @@ ordering / anchor / rollout-dose / 月份轴）组合；**不换名重开**；
 
 - **已完成（CPU，2026-10-26）**：驱动 + support 模块 + CI-safe 测试 + 本轮 ADR + 本 brief；
   `round-spec` 写入目标长文顶部、`campaign-state.current_round_goal` 指向它。
-- **未做**：`round-guard` 之后的 `freeze` / `stage prepare` / `stage archive` / `stage-seeds` / `reading`
-  与四件套登记 —— 均未执行；**本轮没有任何 GPU 读数、没有读 test、没有科学结论**。
+- **已完成（GPU，2026-10-26…28）**：`round-guard` → code zip → `freeze` → `stage prepare` →
+  `stage archive` → `stage seed 41` → `stage seed 42`。实测：
+  seed41 `success` **89,519.6 s**、seed42 `success` **88,362.4 s**；两 seed 的四份 receipt
+  均记录 `updates = 16,071`、`batch_size = 2`，且 `train_data_identity` 分别为
+  control `71bb33e01a9d…` / treatment `81307008b572…`，与冻结协议逐字节一致。
+- **seed43 失败过一次并已按决策 0065 重放补跑**：首次以 **20.76 s** exit 1，
+  `RuntimeError: incomplete execution source inventory`。根因**不是**源码漂移：`execution_files()`
+  对 `training/`、`model/`、`data/` 做**活体 `rglob("*.py")`**，而另一条研究线的 commit `7065f19`
+  新增了 2 个模块（195 → 197）；195 个冻结条目**逐位未变、无删改**。补跑方式 = 用归档
+  `code.zip` 在**冻结的绝对路径**下重放（不改比对逻辑、不重新冻结），实测重放下
+  `validate_protocol` 以**同一 digest** `15a92e3230c5…` 通过。
+- **未做**：`stage seed 43` 的 receipt（重放中）、`stage reading`、四件套登记
+  （证据页 / index record / 账本行 / campaign-state）。
 - **登记提交前必须复算** `docs/rules/size-thresholds.md` 的 `<!-- measured: ... -->` 标记
   （`tests/test_check_conventions.py::test_size_report_counts_match_the_checker` 按**提交集合**核对，
   新证据页与四件套一旦进入跟踪集合就会改变计数）。
-- **第一条命令**：`.venv/bin/python tools/r7_round.py round-guard` →
-  重建 code zip → `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/stage-seeds/reading`。
-- **下一动作**：`freeze` 之后按 `stage-plan` 逐阶段跑；读数出来后按预声明出口 (a)–(d) 判定，
-  任一假即按关闭条款登记 `not-candidate`，不换名重开。
+
+## §7 为什么这一轮仍然不是科学结论
+
+- 三个 seed 的一致性证据**无显著性**；`scientific_claim: false`、`test_read: false`（`test.jsonl` 从未读取）。
+- 本轮的价格（决策 0061 已写明）是**削弱「预声明出口不可翻案」的纪律**并**为按算力重测开先例**；
+  先例范围限定在**年份覆盖**这一条轴，不授权重开 depth/width/SAM/zero-base/EMA/长 lead 权重/rollout 剂量。
+- 若 (d) 仍假，买到的只是一个**更强的负结果**（算力已匹配），届时按关闭条款登记 `not-candidate`。
+- seed43 是**在归档重放下完成**的（决策 0065），证据页必须照此写明，不得写成"无异常完成"。
+
+## §8 下一动作（第一条命令）
+
+```
+.venv/bin/python tools/r7_round.py state
+```
+
+随后：确认 `outputs/r7_s3_fy_year_coverage_matched_20261026_attempt01/seed43_receipt.json` 已落盘 ⇒
+`.venv/bin/python tools/r7_round.py stage reading` ⇒ 按预声明出口 (a)–(d) 逐条判数字 ⇒
+`.venv/bin/python tools/r7_round.py verify` ⇒ 四件套登记（证据页 / index record / 账本行 /
+campaign-state）。
+**任何 seed43 的重跑都必须在决策 0065 的 namespace 重放内执行** —— 真实工作树里那 2 个无关模块
+会让 `validate_protocol` 再次失败；且任何新 commit 往 `training/ model/ data/` 加 `.py` 也会。
