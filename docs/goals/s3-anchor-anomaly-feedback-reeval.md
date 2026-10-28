@@ -160,25 +160,53 @@ spatial-gradient/zero-base decoder/gradient-surgery/tendency-input/SAM/全年覆
   `source_sha256 1db839554cce30cd…`（= 该 store 的源）；自检（`install` 后查询 1 个桶）通过；
   文件 SHA256 `8e9fe84706e6a50dc405189cbdcf05e6cc7ec682309b2242116a5397add2e6c5`、
   `BUILD_COMPLETE.json` 与 receipt 一致；测试 `tests/test_r7_s3_fy_anchor_table_build.py` **5 passed**。
-- **待做（顺序固定）**：
-  1. **用户定 batch**（计划 §5 决策点；`updates × batch ≥ 32,142` 把二者绑死）；
-  2. 按 batch 定预算常数并**另立预算决策**（照 0053/0055 先例）；
-  3. 派生并合格化 **65×65、48 桶**锚表（D2，只读 preflight 后 `--write` 到全新排他路径）；
-  4. 派生驱动（**R-051 600 行硬限**：FY 轮的 store/manifest/气候态/出口/登记管路 +
-     旧臂的 `arm_spec`/`anchor_block`/`expand_parent_state` 机制，超出上限的部分拆到
-     `scripts/r7_s3_anchor_feedback_support.py`）与 `tests/test_r7_s3_anchor_feedback_65x65.py`；
-  5. 独立复核、`round-guard`/`commit-guard`、提交推工作分支并等 CI 绿；
-  6. `freeze` → `stage prepare/archive/stage-seeds/reading` → 四件套登记。
+- **待做（顺序固定；①②③ 已结清，见下）**：
+  1. ~~**用户定 batch**~~ → **已定：batch = 2**（本轮目标长文冻结，
+     `updates × batch = 16,071 × 2 = 32,142` ≥ 候选清单 32,142 窗 ⇒ 每臂 ≥1 epoch）。
+  2. ~~按 batch 定预算常数并另立预算决策~~ → **已由决策 0060 给出**：per-seed 129,600 /
+     planned 259,200 / hard 518,400 秒（只改时间、不动科学门）。
+  3. ~~派生并合格化 65×65、48 桶锚表~~ → **已完成**（见上 ⑥）。
+  4. **派生驱动** + `tests/test_r7_s3_anchor_feedback_65x65.py`（未做）；
+  5. 独立复核、`round-guard`/`commit-guard`、提交推工作分支并等 CI 绿（未做）；
+  6. `freeze` → `stage prepare/archive/stage-seeds/reading` → 四件套登记（未做）。
+- **驱动不可复用旧 helper 的两处硬编码（实测，2026-10-28）**：
+  `scripts/r7_s3_anchor_isolation_parent.py` 的 `ANCHOR_TABLE_RUN` 指向**旧的 16 桶表**
+  （`r7_s3_anchor_table_20261015_attempt02`）、`MIGRATED_PARENT_RUN` 指向**旧父**；
+  本轮必须用自己的 48 桶表（`r7_s3_fy_anchor_table_20261025_attempt01`）与 FY 父。
+  可取用的是它的**机制**：`expand_parent_state` 与 `positive_control`。
+- **已实测通过的前置（2026-10-28，只读、0 GPU-h）**：
+  ① 48 桶表三方一致（`BUILD_COMPLETE` / `anchor_spec.json` / 张量原始字节重算 sha256
+  均得 `18448ae3…`），`_validate_spec` PASS；
+  ② **会烧 GPU 的坑已解**：加锚后模型多两个 buffer、父里没有 ⇒ R1 式
+  `load_state_dict(strict=True)` **实测失败**（`climatology load requires both table and
+  ready buffers`）；改用 `expand_parent_state`（先 `install` 表、再补两个新 buffer）后，
+  用 R2 的 48 桶表 + seed43 父实测：缺失键**恰好**等于 `ANCHOR_KEYS`、父无多余键、
+  `strict=True` **PASS**；
+  ③ 四条恒等反证实测全过：`bit_identical_outside_anchor=true`（127 个共享键）、
+  `unanchored_max_abs=0.0`、`feedback_is_read=true`（4.07e-4）、`zeroed_table_delta_max_abs=0.0`。
 - **CI 安全**：测试**不得**依赖 `outputs/`；纯函数在 tmp 路径上构造，`sha256_file`/`dataset_identity`
   用 stub；在干净 worktree（无 `outputs/`）里实跑确认。
-- **第一条命令（用户定 batch 之后）**：`.venv/bin/python tools/r7_round.py round-guard` →
-  重建 code zip → `.venv/bin/python tools/r7_round.py freeze` →
-  `stage prepare/archive/stage-seeds/reading`。
 - **本轮尚未开跑**：0 GPU-h；无读数、无结论。
 
-## §7 下一动作（S3）
+## §7 为什么这一轮仍然不是科学结论
 
-- **当前唯一阻塞项**：**batch 取值**（用户决定）。其余 CPU 前置（锚表、驱动、测试）可随后进行。
-- 与 S4 的关系：本轮**不推进到 S4**；FY 轮的 candidate 仍等用户验收。
-- 预声明出口见 §3：**(a)–(d) 全真 → 提请独立复核；任一假 → 永久关闭「气候态锚异常反馈」支**。
-- `test` 未读、r=0；不宣布科学通过、不称泛化/SOTA、不自宣最终 goal 完成。
+- 一次三 seed 的一致性证据**无显著性**；`test.jsonl` 从不读取，`test_read=false`、
+  `scientific_claim=false`。
+- 输出先验与 proposal 先验**仍无法彼此分离**（仓库规则把二者与「锚存在」耦死），
+  本轮延续「两个都关」的处置；故不能把 package 的 48/72 h 增益归因到这两个先验，也不能分离二者。
+- 既然新实例上**无锚臂的 72 h 绝对门已 3/3 过**，本轮若仍不过 (a)，**不能**再用
+  「实例的绝对门太严」解释 —— 判据更可归因，也更不可退让。
+- 任一 (a)–(d) 假即**永久关闭**这一支：不扫表粒度、不减锚、不加 seed、不调 updates、
+  不与已关轴组合、**不换名重开**。
+
+## §8 下一动作（第一条命令）
+
+**前置**：R1 必须先把读数登记完（§4.2「按序跑」）。之后把
+`campaign-state.current_round_goal` 指向本 brief 所在轮的 spec 文件，再：
+
+```
+.venv/bin/python tools/r7_round.py round-guard
+```
+
+随后按 §6 第 4–6 步：写驱动 + 测试 → 独立复核 → `commit-guard` → 推工作分支并等 CI 绿 →
+`freeze` → `stage prepare/archive/stage-seeds/reading` → 四件套登记。
