@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import copy
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -390,13 +391,28 @@ def test_the_round_spec_names_this_driver_test_and_the_matched_compute():
 
 
 def test_the_round_spec_splits_the_two_commits():
-    """The evidence page cannot be staged by the implementation commit: it does not exist yet."""
+    """The two commits own disjoint path sets: the implementation commit cannot stage the page.
+
+    This used to assert the evidence page did not exist in the working tree. That is a
+    snapshot, not an invariant, and it inverts at exactly the wrong moment: the registration
+    commit creates the page, so the round's own suite would go red on the one commit whose
+    job is to register it. The durable claim is set disjointness -- the page lives in
+    ``register_paths`` alone -- which holds both before and after registration. The
+    historical half is checked too, when the implementation commit is reachable: that
+    commit must not have contained the page.
+    """
     spec = _round_spec()
     commit, register = set(spec["commit_paths"]), set(spec["register_paths"])
     assert commit and register
+    # The living campaign and goal docs legitimately appear in both commits, so the
+    # invariant is not full disjointness: it is that each registration-only artifact
+    # -- the page, the index, the brief -- belongs to the register commit alone.
+    register_only = ("docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md",
+                     "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md")
+    for path in register_only:
+        assert path in register, f"{path} must be registered"
+        assert path not in commit, f"{path} must not be staged by the implementation commit"
     assert "docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md" in register
-    assert "docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md" not in commit
-    assert not (ROOT / "docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md").exists()
     for path in (spec["driver"], spec["test_path"][0], GOAL,
                  "docs/goals/s3-year-coverage-matched-reeval.md"):
         assert path in commit, f"{path} must be part of the implementation commit"
@@ -405,6 +421,20 @@ def test_the_round_spec_splits_the_two_commits():
                  "docs/goals/main-model-climatology-campaign.md"):
         assert path in register
     assert spec["commit_message"] != spec["register_message"]
+
+    found = subprocess.run(
+        ["git", "-C", str(ROOT), "log", "--format=%H", "--fixed-strings",
+         "--grep", spec["commit_message"]],
+        capture_output=True, text=True, check=False,
+    )
+    if found.returncode == 0 and found.stdout.strip():
+        sha = found.stdout.split()[0]
+        listed = subprocess.run(
+            ["git", "-C", str(ROOT), "show", "--pretty=format:", "--name-only", sha],
+            capture_output=True, text=True, check=False,
+        )
+        if listed.returncode == 0:
+            assert "docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md" not in listed.stdout.split()
 
 
 def test_the_round_spec_paths_all_exist_and_the_driver_matches_its_module():
