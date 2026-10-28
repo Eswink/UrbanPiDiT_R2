@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sys
 from pathlib import Path
 
@@ -34,6 +36,67 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 CHECKPOINT_GLOB = "update_*.pt"
+PT_PATH_RE = re.compile(r"/[^\s\"'\\,\]]*\.pt")
+
+
+def referenced_checkpoints(root: Path, *, limit_bytes: int = 30_000_000) -> set[Path]:
+    """Every ``.pt`` path that some JSON under ``root`` names, resolved.
+
+    Decision 0068: an earlier prune of this same kind removed 92 checkpoints that
+    historical audit records still pointed at, because the pre-flight check only looked
+    at a few dependency keys (``parent_checkpoint``, ``selected_checkpoint``). Audit
+    manifests and acceptance receipts cite mid-training checkpoints in ordinary prose
+    and manifest fields, so the cheap key scan was blind to them. This walks every JSON
+    and collects any absolute ``.pt`` path it mentions, whatever the key.
+    """
+    found: set[Path] = set()
+    for dirpath, _, filenames in os.walk(root):
+        for name in filenames:
+            if not name.endswith(".json") or name == "checkpoint_prune_receipt.json":
+                continue
+            path = Path(dirpath) / name
+            try:
+                if path.stat().st_size > limit_bytes:
+                    continue
+                text = path.read_text(errors="ignore")
+            except OSError:
+                continue
+            if ".pt" not in text:
+                continue
+            for match in PT_PATH_RE.findall(text):
+                found.add(Path(match).resolve())
+    return found
+
+
+def external_references(remove, *, root: Path | None = None) -> dict[Path, list[str]]:
+    """Which of ``remove`` are still cited by some surviving JSON, and by whom.
+
+    A non-empty result means deleting them would turn a written audit reference into a
+    dangling one, so the caller must refuse (decision 0068 clause 5).
+    """
+    base = Path(root or ROOT)
+    doomed = {Path(path).resolve() for path in remove}
+    if not doomed:
+        return {}
+    hits: dict[Path, list[str]] = {}
+    for dirpath, _, filenames in os.walk(base):
+        for name in filenames:
+            if not name.endswith(".json") or name == "checkpoint_prune_receipt.json":
+                continue
+            path = Path(dirpath) / name
+            try:
+                if path.stat().st_size > 30_000_000:
+                    continue
+                text = path.read_text(errors="ignore")
+            except OSError:
+                continue
+            if ".pt" not in text:
+                continue
+            for match in set(PT_PATH_RE.findall(text)):
+                resolved = Path(match).resolve()
+                if resolved in doomed:
+                    hits.setdefault(resolved, []).append(str(path.relative_to(base)))
+    return hits
 
 
 def plan_prune(run: Path):
@@ -72,6 +135,12 @@ def main():
                         help="actually delete; without it this is a dry run")
     parser.add_argument("--receipt", default=None,
                         help="receipt path (default: <run>/checkpoint_prune_receipt.json)")
+    parser.add_argument("--allow-referenced", action="store_true",
+                        help="override the decision-0068 refusal to delete checkpoints that "
+                             "surviving JSON still cites; only with a recorded reason")
+    parser.add_argument("--scan-root", default=None,
+                        help="tree searched for JSON that cites a checkpoint "
+                             "(default: the repository root)")
     args = parser.parse_args()
 
     run = Path(args.run)
@@ -85,6 +154,18 @@ def main():
         print(f"    - {path.relative_to(run)} ({path.stat().st_size/2**20:.1f} MiB)")
     if len(remove) > 5:
         print(f"    ... and {len(remove) - 5} more")
+
+    hits = external_references(remove, root=Path(args.scan_root) if args.scan_root else None)
+    if hits:
+        print(f"  REFUSING: {len(hits)} checkpoint(s) are still cited by surviving JSON",
+              file=sys.stderr)
+        for path, referrers in list(hits.items())[:10]:
+            print(f"    {path}  <- {referrers[:2]}", file=sys.stderr)
+        if not args.allow_referenced:
+            print("decision 0068: deleting these would make a written audit reference "
+                  "dangling. Nothing removed.", file=sys.stderr)
+            raise SystemExit(3)
+        print("  --allow-referenced given: proceeding anyway (record why)", file=sys.stderr)
 
     if not args.apply:
         print("dry run: nothing removed (pass --apply to delete)")

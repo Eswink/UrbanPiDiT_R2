@@ -104,7 +104,7 @@ def test_apply_removes_only_the_unselected_and_writes_a_receipt(tmp_path):
     run = tmp_path / "run"
     _arm(run, "seed41", "generic", 200)
     argv = sys.argv
-    sys.argv = ["prune", "--run", str(run), "--apply"]
+    sys.argv = ["prune", "--run", str(run), "--apply", "--scan-root", str(tmp_path)]
     try:
         main()
     finally:
@@ -132,7 +132,7 @@ def test_apply_preserves_every_non_checkpoint_artifact(tmp_path):
     (run / "protocol.json").write_text("{}", encoding="utf-8")
     (run / "ablation_result.json").write_text("{}", encoding="utf-8")
     argv = sys.argv
-    sys.argv = ["prune", "--run", str(run), "--apply"]
+    sys.argv = ["prune", "--run", str(run), "--apply", "--scan-root", str(tmp_path)]
     try:
         main()
     finally:
@@ -141,3 +141,75 @@ def test_apply_preserves_every_non_checkpoint_artifact(tmp_path):
     assert (run / "protocol.json").is_file()
     assert (run / "ablation_result.json").is_file()
     assert (arm_dir / "training_report.json").is_file()
+
+
+def test_a_cited_checkpoint_is_refused_and_survives(tmp_path):
+    """Decision 0068: the counter-proof for the audit-reference gate.
+
+    A prune that removed checkpoints still cited by a surviving JSON left 92 dangling
+    references, because the pre-flight check only looked at dependency keys. The gate must
+    refuse, and must refuse *before* deleting anything, whatever the citing document calls
+    the field -- an audit manifest mentions checkpoints in ordinary prose.
+    """
+    from tools.prune_r7_run_checkpoints import main
+
+    run = tmp_path / "run"
+    arm_dir = _arm(run, "seed41", "generic", 200)
+    keep = arm_dir / "update_0000200.pt"          # the selected endpoint
+    doomed = arm_dir / "update_0000100.pt"
+    assert keep.is_file() and doomed.is_file()
+
+    audit = tmp_path / "audit_receipt.json"
+    audit.write_text(json.dumps({"note": "verified the mid-training point",
+                                 "inspected": str(doomed)}), encoding="utf-8")
+
+    argv = sys.argv
+    sys.argv = ["prune", "--run", str(run), "--apply", "--scan-root", str(tmp_path)]
+    try:
+        with pytest.raises(SystemExit) as excinfo:
+            main()
+    finally:
+        sys.argv = argv
+    assert excinfo.value.code == 3
+    assert doomed.is_file(), "a cited checkpoint must survive the refusal"
+    assert keep.is_file()
+    assert not (run / "checkpoint_prune_receipt.json").exists(), \
+        "a refused run must not write a receipt claiming it pruned"
+
+
+def test_an_uncited_run_prunes_normally(tmp_path):
+    """The same setup minus the citing JSON must go through, so the gate is not blanket."""
+    from tools.prune_r7_run_checkpoints import main
+
+    run = tmp_path / "run"
+    arm_dir = _arm(run, "seed41", "generic", 200)
+    argv = sys.argv
+    sys.argv = ["prune", "--run", str(run), "--apply", "--scan-root", str(tmp_path)]
+    try:
+        main()
+    finally:
+        sys.argv = argv
+    assert not (arm_dir / "update_0000100.pt").exists()
+    assert (arm_dir / "update_0000200.pt").is_file()
+    assert (run / "checkpoint_prune_receipt.json").is_file()
+
+
+def test_allow_referenced_overrides_but_still_records(tmp_path):
+    """The override exists for a deliberate, recorded choice -- it must not be silent."""
+    from tools.prune_r7_run_checkpoints import main
+
+    run = tmp_path / "run"
+    arm_dir = _arm(run, "seed41", "generic", 200)
+    doomed = arm_dir / "update_0000100.pt"
+    (tmp_path / "audit.json").write_text(json.dumps({"inspected": str(doomed)}),
+                                         encoding="utf-8")
+    argv = sys.argv
+    sys.argv = ["prune", "--run", str(run), "--apply", "--allow-referenced",
+                "--scan-root", str(tmp_path)]
+    try:
+        main()
+    finally:
+        sys.argv = argv
+    assert not doomed.exists()
+    receipt = json.loads((run / "checkpoint_prune_receipt.json").read_text())
+    assert any(item["path"].endswith("update_0000100.pt") for item in receipt["removed"])
