@@ -414,3 +414,26 @@ worker pid 3557334 存活；`training/control/update_0000020.pt` 已写出；
   campaign-state）。**seed43 的补跑必须在归档重放的 namespace 内执行**（决策 0065）——
   真实工作树里那 2 个无关模块会让 `validate_protocol` 再次失败；任何新的 commit 往
   `training/ model/ data/` 加 `.py` 也会让它再次失败，所以这条窗口有时限。
+
+### 2026-10-28 — S4 判决已定（决策 0066）+ seed43 重放中（本窗口收尾）
+
+- **S4 判决已判定**（决策 0066）：primary 估计量 = **分组均值之比**；守门是独立合取项且
+  **未达** ⇒ **「t2m 有真实获益，但未达终极 package 门」**。`outcome_class` 由 `unresolved`
+  改为 `mixed`。同时更正了证据页上**自己**的一处口径错误（只统计 total set 15 格却写成"全部"，
+  实为 90 格：上界 25/90、点估计 78/90 其中 12 个 >0），并登记「per seed ≤0」子句因只存
+  seed 平均而**未测**。`readings.json` 未变。
+- **seed43 重放中**（决策 0065）：实测 update 660/16,071、**2.357 s/update** ⇒ control 臂约
+  10.1 h、两臂约 20 h 后完成。`fine_tune_started.json` 的 `data_identity` 与协议 control 臂一致；
+  与 seed41 的 contract 逐字段 diff 仅 seed 专属字段不同。worker pid 3557334 存活。
+- **R1 的 34 项测试全过**（`pytest tests/test_r7_s3_fy_year_coverage_matched.py -q` → `34 passed`）；
+  `r7_round.py verify` 三校验器全过；`check_conventions.py` 37 条阻断规则 0 失败。
+- **本窗口 0 新增 GPU-h 的登记**：seed43 仍在跑，账本行与 index record 要等它的 receipt，
+  **不能**用估计值预填。
+
+- **为何停 + 恢复第一条命令**：停在这里**不是**触到保留授权边界、也**不是**达科学停止条件 ——
+  是本轮时长预算用尽，而**唯一的剩余前置**是 seed43 的 GPU 时间（约 20 h）。
+  它已在后台运行，**没有**可安全独立推进的并行工作（R2 的驱动会在 `training/ model/ data/`
+  之外新增文件，但那不会影响正在跑的 namespace 内副本；然而 R2 的**开轮**依赖 R1 的读数先登记，
+  按 §4.2「按序跑」不能越过）。恢复第一条命令：
+  `.venv/bin/python tools/r7_round.py state`（然后查 seed43 receipt 是否已落盘；
+  **若要补跑必须在决策 0065 的 namespace 重放内执行**）。
