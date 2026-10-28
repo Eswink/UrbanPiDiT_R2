@@ -279,6 +279,28 @@ seed41（10-26T02:45Z）与 seed42（10-27T03:36Z）通过校验都**早于**该
 （非特权 user+mount namespace；不改 `validate_protocol`、不重新冻结）。
 实测该重放下 `validate_protocol` 以**同一 digest** `15a92e3230c5…` 通过。
 
+**该重放现已可复现（不依赖一次性的 `/tmp` 命令）**：
+
+```
+.venv/bin/python tools/r7_archived_replay.py prepare --code-zip outputs/<round>/code.zip
+.venv/bin/python tools/r7_archived_replay.py verify  --out outputs/<round>
+.venv/bin/python tools/r7_archived_replay.py run -- .venv/bin/python tools/r7_round.py stage reading
+```
+
+`prepare` 拒绝覆盖**有存活进程挂载中**的重放树（读 `/proc/*/mountinfo`，实测对 seed43 的树
+返回 `[3557323, 3557331, 3557334]` 并 exit 3）；`run` 在 overlay 挂载顺序不合规时拒绝执行
+（exit 2）。从 `code.zip` 全新解出的树实测返回 `execution_files(): 195`。
+
+**冻结清单完整性复核（只读，实测 2026-10-28）**：用 `hashlib` 逐字节比对
+`protocol.json` 的 `execution_files_sha256` 全部 **195** 项与当前工作树的实际内容：
+
+```
+{"total": 195, "ok": 195, "missing": 0, "changed": 0, "missing_list": [], "changed_list": []}
+```
+
+⇒ 195 个冻结条目**一个不缺、一个未改**；漂移**只**来自清单的**集合口径**（195 vs 197），
+与任何源码内容无关。这是"本轮没有科学内容变化"的直接证据。
+
 ## 8. limitations（如实，不省略）
 
 - **65×65、约 2,400 万参数的小模型**：结论只在这个冻结实例与这个 spec 下成立，
