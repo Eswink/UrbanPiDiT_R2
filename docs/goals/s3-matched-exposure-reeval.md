@@ -687,3 +687,52 @@ R1 的 `reading` 与四件套登记、R2–R5。
 
   再 `.venv/bin/python tools/r7_round.py round-guard` 与 `verify`，然后按 `readings.json`
   的 `evaluate_exit` 输出填四个出口与 `bridge_e`，完成四件套登记。
+
+### 2026-10-28（续 10）— `round-guard` 查出一条我上一窗口写下的红测试，已修并留反证
+
+**这条失败不是 seed43 造成的，也不是本窗口改动造成的**：它自证据页创建那次提交
+（`e52ab29`）起就一直是红的，只是此前没人跑 `round-guard`。
+
+**缺陷**：`tests/test_r7_s3_fy_year_coverage_matched.py::test_the_round_spec_splits_the_two_commits`
+有一条断言 `assert not (ROOT / "docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md").exists()`
+——它要求证据页在工作树里**永远不存在**。这是**快照**，不是不变量，而且在**最不该翻面的时刻翻面**：
+登记提交的职责正是创建该页，所以这一轮的测试套件会在登记提交上必然变红。
+
+**实测**：`round-guard` 报 `"passed": false`、`1 failed, 153 passed`。
+
+**修正（未削弱）**：不变量改为「每个**仅登记**产物只属于 register 提交」——
+证据页、`R7_EVIDENCE_INDEX.jsonl`、`R7_CANDIDATE_BRIEF.md` 必须在 `register_paths` 里、
+且不得出现在 `commit_paths` 里。**不做全集合互斥**：campaign 与 goal 两份**活文档**
+本来就合法地同时出现在两次提交里（实测这两条路径的交集就来自它们）。
+历史侧也直接查：按 `commit_message` 定位实现提交，`git show --name-only` 不得列出证据页。
+
+**反证（实测）**：把证据页塞进 `commit_paths` 后断言立即失败 ⇒ 判定未被放宽。
+`tests/test_r7_s3_fy_year_coverage_matched.py` **34 passed**；`round-guard` **154 passed, passed=true**。
+
+### 2026-10-28（续 11）— 17×5 表的核对方式固化（我曾误读一次列义，已查清）
+
+**我自己的错误（如实记录）**：核对 §6 的 17 变量 × 5 lead 表时，我先把它当作
+「control/treatment 两列」去比，得到 **149 处不一致**，一度以为表是错的。
+读表头才发现 §6 **只有候选 F（treatment）臂**，第 3、4 列是 **seed 41 / seed 42**。
+按正确列义重比：**85/85 全部对上**（容差 1e-4）。⇒ **表是对的，我的核对读法错了**。
+
+**处置**：新增 `scripts/read_r1_seed_rows.py`（84 行，R-051 通过）——用仓里自己的读取函数
+（`study_r7_s3_wide_single_factor.py:186` 的 `_region_variable_rmse`）从某个 seed 的
+逐 lead `boundary_rmse.csv` 直接打印证据页该列的行，seed43 的整列**不必手抄**。
+缺 lead 或缺变量时**报错退出**（exit 2），不打印默认值 —— 未跑完的 seed 必须让该列
+**可见地缺失**，绝不能用编造的数字填满。反证在 `tests/test_read_r1_seed_rows.py`
+（5 项，含 region 过滤与两条拒绝路径，纯合成 fixture、CI 可用）。
+
+**实测**：`--seed 42 --arm treatment` 的输出与证据页第 42 列逐位一致
+（如 `t2m/6h = 2.2634`、`t2m/72h = 3.5235`）。
+
+**规模计数未变**：R-019b **1131**、R-021 **129**（与 `docs/rules/size-thresholds.md`
+的 `<!-- measured: ... -->` 标记一致）⇒ 本轮新增的 `tools/`、`tests/`、`scripts/` 文件
+都在 400 行目标带内且无 >120 字符行，**标记无需更新**。
+
+**本段 0 GPU-h、未读 test、未改任何冻结产物、未触碰在跑的 seed43。**
+
+- **下一动作（不变）**：等 `seed43_treatment_receipt.json` 落盘后
+  ```
+  .venv/bin/python tools/r7_archived_replay.py run -- .venv/bin/python tools/r7_round.py stage reading
+  ```
