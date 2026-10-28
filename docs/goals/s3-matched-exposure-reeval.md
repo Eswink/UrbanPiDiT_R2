@@ -878,3 +878,44 @@ FY **控制**臂。从已登记 index record 的 `skill_72h` 读出 FY **候选*
 **本段 0 GPU-h、未读 test、未改判据、未写真实 attempt 目录。**
 
 - **下一动作（不变）**：等 receipt → 按 `docs/R1_REGISTRATION_CHECKLIST.md` 第 0–6 步执行。
+
+### 2026-10-28（续 15）— 用真实校验器预演登记的两步机械约束（并固化为测试）
+
+seed43 在 5080/16071（2.357 s/update），receipt 仍不存在的。等待期间把**登记提交会不会红**
+这件事先用校验器本身试了一遍，而不是等人到现场再发现：
+
+**① `data_identity` 是本轮的一个判断点，不是可以照抄的字段。**
+校验器要求 `candidate_state == "candidate"` 时 `data_identity` **非空**，但本轮
+`protocol.json` 的**顶层** `data_identity` 实测是 **`None`**（两臂各带自己的清单身份，
+没有单一数据集身份）。已登记的两条 candidate 记录都来自**单臂**轮次，约定不可直接照抄。
+处置：记**候选臂**（treatment）身份 `81307008…`，两臂身份都放进 `metrics`
+（`train_data_identity_control 71bb33e0…` / `…_treatment 81307008…`）。
+
+**② 用真实校验器在 `/tmp` 探针记录上验过这条约定可过，并做了两个反证**：
+
+| 反证 | 结果 |
+| --- | --- |
+| `data_identity = null` | `ERROR: candidate requires data_identity`（拒绝）|
+| 错误的 `evidence_sha256` | `ERROR: evidence_sha256 does not match …`（拒绝）|
+| 上述约定（候选臂身份 + 双身份进 metrics）| `PASS evidence index: 93 records` |
+
+⇒ 探针能过不是校验器宽容，是它真的在查。探针索引已删除，真实索引仍是 **92** 条。
+
+**③ 账本行有两条硬约束，在 master plan 的临时副本上实测**：
+
+- **index record 必须先于账本行**。先插账本行、记录尚未入索引时，校验器立即报
+  `FAIL C-03 … cites unknown record 'r1-dryrun-probe'`。
+- **记录的 `metrics.gpu_hours` 必须等于账本行的 GPU-h**（容差 1e-4，
+  `record_gpu_hours` 只读 `metrics.gpu_hours` 或顶层 `gpu_hours`）⇒ 数字必须写进记录本身。
+- **C-02 的累计/余量算术在预演中自动成立**，不需要人工核对别的字段。
+
+两条都已固化为测试（`tests/test_check_campaign_state.py` 新增 2 项，62 项全过），
+并对第一条做了反证：**记录存在时同一账本产生 0 条 C-03 失败** ⇒ 该失败确实关于登记顺序。
+
+**④ 单因子断言实测通过**：`require_single_factor` 对冻结的两臂（未做任何剔除）通过，
+两臂**只**在 `('train_data_identity', 'train_manifest', 'train_windows')` 上不同
+⇒ "唯一改变的是训练清单"有了直接证据，可写进记录的 `reason`。
+
+**本段 0 GPU-h、未读 test、未写真实 attempt 目录、未改任何判据。**
+
+- **下一动作（不变）**：等 receipt → `docs/R1_REGISTRATION_CHECKLIST.md` 第 0–6 步。
