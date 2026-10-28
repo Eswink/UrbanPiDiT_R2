@@ -618,3 +618,72 @@ skill 实测是三 seed **−0.018861 / −0.001317 / +0.021495**（见
   `new_gpu_h = 49.417418 + seed43_replay 的实测小时`；
   当前账本 `previous_total_gpu_h = 249.413841`（73 行）、`cap_gpu_h = 20.0`、
   `remaining_gpu_h = −229.413841`（**cap/remaining 仅会计，无总上限**）。
+
+### 2026-10-28（续 8）— `stage reading` 的读前预检（只读，防止 17 h 后才发现缺件）
+
+在等 seed43 的时间里，把 `_readings()` **实际会读的每一项**都静态核了一遍，
+避免 GPU 时间花完才在 `reading` 阶段崩掉：
+
+- **`_readings` 依赖清单（逐项实测存在）**：`body['protocol_sha256']`、
+  `body['factor']['name']`、`body['climatology_reference']['leads'][lead]['t2m_rmse']`（5 个 lead）、
+  `body['bridge_e']['reference']`、`D2_REFERENCE` 文件、`SEEDS`/`ARMS`/`REGION='full'`；
+  以及每个 seed×两臂 receipt 的 `train_data_identity` 与 5 个 lead 的 `boundary_rmse.csv`。
+  ⇒ **唯一缺件是 seed43 的两份 receipt**（预期，仍在跑）。**PASS**。
+- **`evaluate_exit` 在已完成的两个 seed 上的实际输出**（用驱动自己的函数，
+  `seeds_order=(41,42)`，输入由官方 `_region_variable_rmse` 读取）：
+  `a=true, b=true, c=true, d=false`，`seed_mean_delta_6_12_24 = {6: +0.010178, 12: +0.013345, 24: −0.001712}`。
+  这三个均值与我先前独立反算的 **+0.010178 / +0.013345 / −0.001712 逐位一致**
+  ⇒ 我的读法与驱动的判据实现**同源**，不是"自己算给自己看"。
+- **`bridge_verdict` 的接线也验过**（喂 41/42 真实控制臂 RMSE）：它能正常产出
+  `control_mean / reference_mean / difference / band / passed`；它此刻显示不通过是**正常的**——
+  seed43 位置喂的是占位值，**不得**把这次调用结果当桥的结论。
+- **这两个函数在占位输入下会给出 `a=b=c=d=false` 与 `verdict=close-...`**：
+  这提醒 `reading` 之后必须确认 seed43 的 receipt 真的落盘、且三个 seed 都在，
+  再读 `exit_conditions`；**不得**在缺件状态下把 `false` 当判决。
+- **本段 0 GPU-h、未写 attempt 目录、未读 test、无判决**。
+
+### 2026-10-28（续 9）— 重放机制从会话 `/tmp` 固化为仓库工具（本窗口唯一新增代码）
+
+**发现的问题（自查）**：seed43 正在决策 0065 的 namespace 重放内训练，但那个重放是用
+**一次性的 `/tmp` 手工命令**搭起来的，没有留下可复现的脚本 —— 我这一窗口重建它时
+只能从 `/proc/3557334/mountinfo` 反向读出当时的挂载布局
+（`/tmp/k_o`、`/tmp/k_v` + 归档树 bind 到 `/data/esw/UrbanPiDiT_R2`）。
+这意味着：**干净克隆无法复现本轮的补救手段**，违反 R-035/R-037 的"新克隆是否需要它来理解/复现"判据。
+而且紧随其后的 `stage reading`（约 17 h 后）**必须在同一 overlay 内**才能通过
+`validate_protocol`，否则会在挂载布局上手写出错。
+
+**处置**：新增 `tools/r7_archived_replay.py`（220 行，R-051 通过、目标带内不增 R-019b 命中）、
+配套反证 `tests/test_r7_archived_replay.py`（117 行、9 项全过）。三个子命令：
+
+```
+.venv/bin/python tools/r7_archived_replay.py prepare --code-zip outputs/<round>/code.zip
+.venv/bin/python tools/r7_archived_replay.py verify  --out outputs/<round>
+.venv/bin/python tools/r7_archived_replay.py run -- .venv/bin/python tools/r7_round.py stage reading
+```
+
+**实测（本窗口，全部只读或全新 `/tmp` 树）**：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 端到端重放验证 | `verify --tree /tmp/r7_archived_replay/tree --out outputs/r7_s3_..._attempt01` | `execution_files(): 195` + `VALIDATE_PROTOCOL: PASS 15a92e3230c5` |
+| 拒绝覆盖在跑的树 | `prepare --tree /tmp/r7_r1_replay_probe/root` | exit **3**，报 `mounted by live pid(s) [3557323, 3557331, 3557334]` |
+| `reading` 阶段计划 | `run -- ... stage-plan reading` | `already_done: false`、`already_running: false`、`skip: false` |
+| 反证 | `pytest tests/test_r7_archived_replay.py -q` | **9 passed**（含"捕获移到 overlay 之后必须报错"） |
+| 不污染活清单 | `execution_files()` 在真实工作树 | **197**，且 `tools/`、`tests/` **不在**清单内 ⇒ 新文件不改变任何在跑轮次的身份 |
+
+**纪律**：本段**未**改 `validate_protocol`、**未**动任何冻结产物、**未**重新冻结、
+**未**触碰在跑的 seed43（pid 3557334，`tree_in_use` 的拒绝就是证据）。
+决策 0065 已补 Decision 第 6 条登记这个工具与其三个保护。
+
+**未做**：seed43 读数（实测 3240/16071、2.354 s/update，两臂尚需约 17 h）、
+R1 的 `reading` 与四件套登记、R2–R5。
+
+- **下一动作（可执行的第一条命令）**：等 `seed43_treatment_receipt.json` 落盘后
+  （约 17 h，实测 2.354 s/update），执行
+
+  ```
+  .venv/bin/python tools/r7_archived_replay.py run -- .venv/bin/python tools/r7_round.py stage reading
+  ```
+
+  再 `.venv/bin/python tools/r7_round.py round-guard` 与 `verify`，然后按 `readings.json`
+  的 `evaluate_exit` 输出填四个出口与 `bridge_e`，完成四件套登记。

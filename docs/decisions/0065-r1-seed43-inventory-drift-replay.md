@@ -93,6 +93,18 @@ frozen entries 195 / missing from zip 1 / hash mismatches 0
    是一个**过宽的身份表面**：任何无关研究线在该目录下新增模块都会让已冻结的轮次在校验处崩掉。
    R2–R5 的驱动应改为**显式文件清单**（或把 glob 收窄到本轮实际 import 的闭包），
    在各自的 ADR 里写明；**R1 的驱动保持原样**（它的协议必须保持可读）。
+6. **重放机制本身必须可复现，不能只活在一次会话的 `/tmp` 里。** 本条落地为
+   `tools/r7_archived_replay.py`（子命令 `prepare` / `verify` / `run`）：
+   `prepare` 从归档 `code.zip` 重建重放树，`verify` 在 namespace 内跑驱动自己的
+   `validate_protocol`，`run` 把任意命令放进该 overlay。三个内置保护都**实测**过：
+   ① 覆盖顺序由 `layout_faults()` 断言（真实的 `outputs/` 与 `.venv/` 必须在归档覆盖根
+   **之前**被捕获、之后再 bind 回来；顺序颠倒会 bind 到归档里那个空目录而静默丢掉全部结果）；
+   ② `prepare` 拒绝覆盖**有存活进程挂载中**的重放树（`tree_in_use()` 读
+   `/proc/*/mountinfo`，实测对 seed43 的树返回 `[3557323, 3557331, 3557334]` 并 exit 3）；
+   ③ `run` 在 overlay 布局不合规时拒绝执行（exit 2）。反证在
+   `tests/test_r7_archived_replay.py`（9 项，含「把捕获移到 overlay 之后必须报错」与
+   「被占用时必须拒绝」）。端到端实测：从 `code.zip` 全新解出的树返回
+   `execution_files(): 195` 与 `VALIDATE_PROTOCOL: PASS 15a92e3230c5`。
 
 ## Consequences
 
