@@ -437,3 +437,30 @@ worker pid 3557334 存活；`training/control/update_0000020.pt` 已写出；
   按 §4.2「按序跑」不能越过）。恢复第一条命令：
   `.venv/bin/python tools/r7_round.py state`（然后查 seed43 receipt 是否已落盘；
   **若要补跑必须在决策 0065 的 namespace 重放内执行**）。
+
+### 2026-10-28（续）— seed43 训练期间的对表审计（只读，无 GPU 新增）
+
+在等 seed43 的约 19 h 里，对**已经存在**的交付物逐条对表，全部为**只读核查**：
+
+- **R1 的 brief 已补齐到 §0–§8**（原先只有 §0–§6，且 §6 已过时 —— 它还写着
+  `freeze`/各 stage "均未执行"）。现在逐条记入实测：seed41 **89,519.6 s**、seed42
+  **88,362.4 s** 均 success；四份 receipt 的 `updates = 16,071`、`batch_size = 2`、
+  `train_data_identity` = control `71bb33e01a9d…` / treatment `81307008b572…`，与冻结协议一致。
+  `check_goal_brief.py --brief` 仍 `failures=0`。
+- **冻结协议自洽性（实测）**：`protocol_sha256` 用 `canonical_digest` **重算一致**
+  （`15a92e3230c5…`）；`code_zip_sha256` 与 `code.zip` 的实际 sha256 **逐位相同**
+  （`6a85ac39…`）。
+- **`reading` 阶段的输入齐备性（实测）**：`_readings` 需要的 3 seed × 2 臂 receipt 与
+  5 lead × 2 臂的 `boundary_rmse.csv` 中，**只缺 seed43 的两份 receipt**，其余全在。
+  `stage-plan reading` 返回 `skip: false, already_running: false`。
+- **D3 的读数组成完整性（实测）**：17 变量 × 5 lead × 3 区域 × 6 分组 × 2 臂 = **3,060 格**
+  全部存在，无缺格。
+- **`size-thresholds.md` 的 `<!-- measured: ... -->` 标记当前与 checker 一致**
+  （`test_size_report_counts_match_the_checker` → `1 passed`），登记时不会因它变红。
+- **workflow 脚本的形状要求已逐条核对**：`maxRounds` 硬上限 5（`Math.min(..., 5)`）、
+  stage 超时 **129,600,000 ms**、`push-round` 只推工作分支、登记后跑 `verify`；
+  `commit-guard` 语义由 `round-guard` 覆盖（脚本内已写明理由）。
+- **seed43 的时限核算（实测速率 2.358 s/update）**：control 臂余 **9.47 h**、两臂余 **18.93 h**，
+  而 per-seed 上限 36 h、round 剩余 **85.14 h** ⇒ **两边都够**。
+
+**本段 0 GPU-h、未读 test、无科学结论**；seed43 仍在前述 namespace 重放内运行。
