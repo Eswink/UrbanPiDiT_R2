@@ -545,3 +545,33 @@ skill 实测是三 seed **−0.018861 / −0.001317 / +0.021495**（见
 **③ epoch 混杂已精确复算（实测）**：`updates × batch = 16,071 × 2 = 32,142`；
 候选臂可用窗 **32,131** ⇒ **1.00 epoch**；控制臂可用窗 **7,291** ⇒ **4.41 epoch**。
 这正是"同一算力、不同暴露"的固有权衡，必须写进结果页的 limitations。
+
+### 2026-10-28（续 5）— 本轮收尾：停在这里的原因与恢复链路
+
+- **已完成（本窗口）**：① 按要求做的只读复核（`already_running=true` + pid、
+  195/195 逐位一致、集合差 2 新增 0 删除）；② **决策 0067**（执行文件清单缺陷，proposed）；
+  ③ 两处**前提更正**（`+0.0258` 在库中不存在；`+0.1527` 属于本轮新控制臂而非 FY 2400 控制臂）；
+  ④ 结果页 `docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md` 的**已实测部分**
+  （协议/归档 digest、stage_ledger 五条成本表、epoch 混杂 1.00 vs 4.41、bridge (e) 参考值与带宽、
+  候选 seed41 的 17 变量 × 5 lead 表）；未定格全部标 `待 seed43` / `待 readings.json`，**未填估计值**。
+- **未做（全部因同一个前置）**：`stage reading`、出口 (a)–(d) 判定、四件套登记、
+  以及任务书的第四步（切到静态协变量轮 + 把 glob 缺陷机械化）。
+  前置 = **seed43 的 receipt**，实测 update **2,500 / 16,071**、**2.353 s/update**、
+  进程存活（pid 3557334）、两臂约 **17.7 h**。
+- **为何停**：不是触保留授权边界、也不是达科学停止条件 —— 是**本轮时长用尽**，
+  而剩余工作**全部**等同一个 GPU 结果；R2 按 §4.2「按序跑」必须在 R1 登记之后才能开轮，
+  静态协变量轮同理。**没有**可安全独立推进的下一步（再做只会重复已完成的核对）。
+- **恢复链路（按序，第一条命令在最前）**：
+  1. `.venv/bin/python tools/r7_round.py state` —— 确认
+     `outputs/r7_s3_fy_year_coverage_matched_20261026_attempt01/seed43_receipt.json` 是否已落盘；
+  2. **若未落盘且无 worker 存活**：必须在**决策 0065 的 namespace 重放内**补跑
+     （真实工作树里那 2 个无关模块会让 `validate_protocol` 再次失败）；
+     查存活用 `.venv/bin/python tools/r7_round.py stage-plan seed 43`；
+  3. `.venv/bin/python tools/r7_round.py stage reading` —— 同样需在重放内；
+  4. 读 `readings.json` 的 `exit_conditions` 与 `bridge_e`，**只按它填**出口表与桥表，
+     不得手算、不得跨 attempt 混算；任一 (a)–(d) 假 ⇒ 按预声明**永久关闭**「训练年份覆盖」支；
+  5. `.venv/bin/python tools/r7_round.py round-guard` → `verify`；
+  6. 四件套：index record、账本行（先 `ledger-plan <新 GPU-h>` 算）、campaign §8、campaign-state；
+     **注意** 结果页与四件套一旦进入跟踪集合会改变
+     `docs/rules/size-thresholds.md` 的 `<!-- measured: ... -->`，登记前必须复算；
+  7. 最后才把 `campaign-state.current_round_goal` 指向静态协变量轮。
