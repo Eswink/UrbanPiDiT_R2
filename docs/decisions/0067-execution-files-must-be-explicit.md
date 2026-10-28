@@ -94,6 +94,15 @@ for directory in ("training", "model", "data"):
   这**正是想要的**，但要在证据页写清楚"身份表面已收窄"。
 - **本条是 proposed**，不是已生效的阻塞规则：它还没有进 `tools/check_conventions.py`。
   在它被机械化之前，**只能靠人读驱动来执行**。这是本条的已知弱点，如实记在这里。
+  **补记（2026-10-28，同一会话内推进）**：Decision 第 1–3 条已由
+  `tools/r7_explicit_inventory.py` 落成可运行的实现（`import_closure` /
+  `explicit_execution_files` / `inventory_faults`），第 5 条要求的反证在
+  `tests/test_r7_explicit_inventory.py`（12 项全过）。**实测**：对 R1 的真实驱动，闭包
+  **89** 个文件（对照 glob 的 **182**），不泄漏 `tools/`、`tests/`、归档快照，
+  且**覆盖运行时实际导入的全部 15 个仓内模块**（用 `sys.modules` 交叉核对，0 遗漏）；
+  在同一棵树上新增一个无关 `data/*.py`，闭包**不变**，而 R1 的 glob 形状**从 184 涨到 185**。
+  **仍未做**：把它接进 `check_conventions.py` 作为阻断规则——那要先决定强制点落在哪
+  （冻结时断言，还是提交闸门）。因此本条状态仍是 proposed，不是已生效规则。
 - 一次真实事故的教训，代价已经付出（约 49 GPU-h 的成果险些作废、两天墙钟、
   一次归档重放）；本条只负责让它**不再重演**。
 
