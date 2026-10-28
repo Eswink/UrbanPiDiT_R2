@@ -347,8 +347,66 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
   （updates 2,400 → 16,071、batch 1 → 2）。出口 (a)–(d) 逐字沿用 `docs/goals/s3-year-coverage.md:68-79`。
 - **未做**：`freeze` / `stage prepare` / `stage archive` / `stage-seeds` / `reading` / 四件套登记 —— 全部未执行；
   **本轮 0 GPU-h、未读 test、无科学结论**。
-- **下一动作（可执行的第一条命令）**：
-  `.venv/bin/python tools/r7_round.py round-guard` → 重建 code zip →
-  `.venv/bin/python tools/r7_round.py freeze` → `stage prepare/archive/stage-seeds/reading`。
+- ~~**下一动作**（已执行）~~：`round-guard` → 重建 code zip → `freeze` → `stage
+  prepare/archive/seed41/seed42/seed43` 均已在 2026-10-26…28 期间执行（见下一条进度块）。
   登记提交前必须复算 `docs/rules/size-thresholds.md` 的 `<!-- measured: ... -->` 标记
   （`test_size_report_counts_match_the_checker` 按提交集合核对）。
+
+### 2026-10-28 — R1 GPU 轮：seed41/42 完成、seed43 因清单口径漂移失败并经归档重放补跑（本窗口）
+
+**实测结果（三个 seed 的 `stage_ledger.jsonl`）**：seed41 `success` 89,519.6 s、
+seed42 `success` 88,362.4 s、seed43 `failed` **20.76 s**（`recorded_at` 2026-10-28T04:09:42+00:00）。
+
+**失败根因（机械，不是科学）**：`validate_protocol`
+（`scripts/study_r7_s3_fy_year_coverage_matched.py:275-280`）断言
+`set(execution_files_sha256) == set(execution_files())`，而 `execution_files()` 经
+`wide.execution_files()` 落到 `scripts/study_r7_s3_v3_rollout_ft_worker.py:31-37`，
+它对 `training/`、`model/`、`data/` 做**活体 `rglob("*.py")`**。冻结时 **195** 个文件，现在是 **197**：
+
+```
+frozen entries: 195 / missing: [] / content-changed: 0
+ONLY NOW: ['data/download/urban_static_sources.py', 'data/preprocess/urban_static_aggregate.py']
+ONLY FROZEN: []
+```
+
+这两个文件是**另一条研究线**（城市静态协变量轮，决策 0063/0064）在 commit `7065f19`
+（2026-10-27 14:37:32 +0800）引入的；`grep` 实测**没有任何冻结清单内的文件 import 它们**。
+时间线解释了为什么只有 seed43 撞上：seed41（2026-10-26T02:45Z）与 seed42（2026-10-27T03:36Z）
+通过校验都**早于** `7065f19` 落地（06:37Z）。⇒ **本轮没有任何科学内容变化。**
+
+**补跑方式 = 决策 0065：用归档 `code.zip` 在冻结的绝对路径下重放 seed43。**
+不改 `validate_protocol`（AGENTS.md 禁止改比对逻辑）、不重新冻结（`protocol_sha256` /
+`code_zip_sha256` 都在 0045 白名单里 ⇒ 会逼三个 seed 全重训，约 74 GPU-h）。
+实现用**非特权 user+mount namespace** 把归档树 bind 到仓库真实路径，再把真实 `outputs/` 与
+`.venv/` bind 回去（只读，不移动/删除/修改任何真实文件）。实测证据：
+
+```
+# 归档完备性
+frozen entries 195 / missing from zip 1 / hash mismatches 0
+（唯一缺的是 outputs/.../protocol.json，归档器按设计不含 outputs/）
+# 重放下 validate_protocol
+execution_files(): 195
+VALIDATE_PROTOCOL: PASS protocol 15a92e3230c5   # 与 prepare 记录的同一 digest
+```
+
+**seed43 已启动并确认在训（实测）**：`stage-plan seed 43` → `skip: false`；
+worker pid 3557334 存活；`training/control/update_0000020.pt` 已写出；
+`fine_tune_started.json` 的 `contract.data_identity = 71bb33e01a9d44024be9895c`
+**等于**协议里 control 臂的 `train_data_identity`；`batch_size = 2`；`scientific_claim: false`。
+与 seed41 的 contract 逐字段 diff，**只有 seed 专属字段不同**
+（`seed`、`initialization/parent_checkpoint`、`initial_weights_sha256`、`output_dir`）。
+速率实测 **2.554 s/update**（update 40 @ 102.2 s）⇒ 每臂约 **11.4 h**、两臂约 **22.8 h**，
+在 36 h 的 per-seed 上限内；冻结 `deadline_perf_counter` 尚余约 **86 h**。
+
+**纪律留痕**：本条**不是**"无异常完成"，而是"外部提交造成的清单口径漂移 + 归档重放补跑"，
+证据页与 index record 必须照此写明。**教训**（R2–R5 采用，R1 不改）：`execution_files()`
+对三个包目录做活体 rglob 是过宽的身份表面，后续轮应改为**显式文件清单**。
+
+**本窗口仍未做**：seed43 读数（约 23 h 后）、R1 的 `reading` 阶段与四件套登记、R2–R5。
+
+- **下一动作（可执行的第一条命令）**：等 seed43 拿到 receipt（约 23 h，实测速率 2.554 s/update），
+  然后 `.venv/bin/python tools/r7_round.py stage reading`；随后
+  `.venv/bin/python tools/r7_round.py verify` 与四件套登记（证据页 / index record / 账本行 /
+  campaign-state）。**seed43 的补跑必须在归档重放的 namespace 内执行**（决策 0065）——
+  真实工作树里那 2 个无关模块会让 `validate_protocol` 再次失败；任何新的 commit 往
+  `training/ model/ data/` 加 `.py` 也会让它再次失败，所以这条窗口有时限。
