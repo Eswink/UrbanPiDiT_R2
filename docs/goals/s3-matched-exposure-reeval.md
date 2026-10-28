@@ -491,3 +491,24 @@ seed43 仍约 19 h，`reading` 无法在本窗口执行。利用等待期把**R2
   而本轮的目标长文已把 batch 定为 **2**（`updates = 16,071`）。
 - **仍未做（且不在本窗口做）**：R2 的驱动、测试、`protocol.json` 冻结、GPU 运行与四件套登记 ——
   按 §4.2「按序跑」，R2 **必须等 R1 的读数登记之后**才开轮。
+
+### 2026-10-28（续 3）— seed43 在跑期间的只读复核（按要求逐项）
+
+- **`stage-plan seed 43`**：`already_running = true`、`running_pids = [3557334]`、
+  `already_done = false`、`skip = false` ⇒ 确认是新起的进程在跑，不是待修的失败。
+- **逐字节核对冻结清单**（`protocol.json` 的 `execution_files_sha256`，全部 195 项，
+  用 `hashlib.sha256` 读当前工作树比对）：**missing = 0、changed = 0**、
+  即 **195/195 逐位一致**。
+- **集合层面**（`execution_files()` 现算 vs 冻结）：frozen **195**、current **197**，
+  **新增 2、删除 0**，新增项为 `data/download/urban_static_sources.py` 与
+  `data/preprocess/urban_static_aggregate.py`（城市静态协变量轮 `7065f19` 引入，
+  与 R1 无关、无冻结文件 import 它们）。这正是 12:09 UTC 那次 exit 1 的**唯一**原因。
+  ⇒ 不变，但**不重启 seed43、不改冻结清单**（决策 0065：走归档重放）。
+- **`stage_ledger.jsonl` 五条（原样）**：prepare `success` 632.02 s；archive `success` 5.82 s；
+  seed41 `success` 89,519.56 s；seed42 `success` 88,362.38 s；
+  **seed43 `failed` exit 1、20.76 s @ 2026-10-28T04:09:42Z**（旧尝试，已被取代，
+  须原样写进结果页的 limitations 与成本表）。
+- **seed43 当前实测进度**：control 臂 update **2,080 / 16,071**、**2.354 s/update**、
+  进程存活（pid 3557334, 状态 `Sl`）；control 臂约 **9.1 h**、两臂约 **18.3 h**。
+- **决策 0067 已写**（proposed）：执行文件清单不得对 `training/model/data` 做活体 `rglob`。
+  依据是本轮的实测结构 —— 195 项里 **182 项（93%）来自 glob**，仅 13 项具名。
