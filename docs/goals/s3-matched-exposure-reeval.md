@@ -464,3 +464,30 @@ worker pid 3557334 存活；`training/control/update_0000020.pt` 已写出；
   而 per-seed 上限 36 h、round 剩余 **85.14 h** ⇒ **两边都够**。
 
 **本段 0 GPU-h、未读 test、无科学结论**；seed43 仍在前述 namespace 重放内运行。
+
+### 2026-10-28（续 2）— R2 的只读前置核实（为队列不空转）
+
+seed43 仍约 19 h，`reading` 无法在本窗口执行。利用等待期把**R2 的前置**逐条实测，
+全部**只读**、**0 GPU-h**、不改任何已冻结产物：
+
+- **R2 的锚表（R2 唯一要新建的产物，已存在）**：`outputs/r7_s3_fy_anchor_table_20261025_attempt01/`
+  的 `BUILD_COMPLETE`（`table_sha256 18448ae3…`）、`anchor_spec.json`（18 键，等于
+  `model/climatology_anchor_r7.py::_SPEC_KEYS`）、`anchor_table.pt` 三者**互相一致**；
+  把 `anchor_table.pt` 的**原始张量字节**重新 sha256，得到 `18448ae3…`，与声明**逐位相同**。
+  形状 `[48, 17, 65, 65]`、`n_selected_steps = 32,144`、48 个桶的计数非零。
+  `_validate_spec(spec)` **PASS**（说明模型加载器会接受它）。
+- **发现并解掉一个会烧掉 GPU 时间的真问题**：`model` 加了锚之后**多出两个 buffer**
+  （`backbone.climatology_anchor.table` / `.ready`），而**父检查点没有这两个键** ⇒
+  照 R1 的 `load_state_dict(..., strict=True)` 直接加载**必然失败**（实测报
+  `climatology load requires both table and ready buffers`）。
+  仓库里已有正确解法：`scripts/r7_s3_anchor_isolation_parent.py::expand_parent_state`
+  —— 先 `install(表)` 再把两个新 buffer 补进 state。**用 R2 的 48 桶表 + 种子 43 的父**实测：
+  缺失键**恰好**等于 `ANCHOR_KEYS`、父里**没有多余键**、补齐后 `strict=True` **PASS**。
+- **四条恒等反证（R2 的正/负控制）实测全过**：`bit_identical_outside_anchor = true`
+  （127 个共享键逐位相同）、`unanchored_max_abs = 0.0`、`feedback_is_read = true`
+  （`feedback_delta_max_abs = 4.07e-4` ≠ 0）、`zeroed_table_delta_max_abs = 0.0`。
+  这正是 R2 brief §3 要求的 ①②③④，说明「只差一个布尔」这条单因子前提在实现上成立。
+- **R2 的 batch 阻塞项已不再阻塞**：decision 0058 §7 把「batch 取值」列为唯一待定项，
+  而本轮的目标长文已把 batch 定为 **2**（`updates = 16,071`）。
+- **仍未做（且不在本窗口做）**：R2 的驱动、测试、`protocol.json` 冻结、GPU 运行与四件套登记 ——
+  按 §4.2「按序跑」，R2 **必须等 R1 的读数登记之后**才开轮。
