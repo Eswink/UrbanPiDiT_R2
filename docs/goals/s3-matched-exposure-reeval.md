@@ -289,7 +289,7 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
   账本行 2.0572 GPU-h（累计 **249.413841**），master §8 已加进度块，campaign-state 已更新。
   **读数**：t2m 相对同数据 incumbent 的 MSE 变化 **−1.6%/−1.5%/−2.7%/−4.3%/−6.4%**（candidate 全部更优）；
   candidate 的 t2m skill 0.703/0.533/0.551/0.233/0.038（全 >0），incumbent 72 h 为 **−0.027**。
-  **判决未宣**（如实记录、不放宽）：① primary 的估计量歧义（协议写「分组均值之比」、冻结工具算
+  **判决（决策 0066，2026-10-28）**：① primary 的估计量裁定为**分组均值之比**（协议写的就是它、
   「per-case 均值」，48/72 h 符号相反）需先预注册；② 守门按字面**未达**，且**比初版记录更差**：
   全 6 族 90 格中点估计只有 78/90 ≤0（**12 个 >0**，集中在 DJF/JJA/SON 的 u10/v10）、
   区间上界只有 25/90 ≤0；另「per seed ≤ 0」子句因读数只存 seed 平均序列而**未测**。
@@ -321,12 +321,12 @@ zero-base decoder（72h +1.37 K）、plain EMA、长 lead 权重、rollout 剂�
   已知边界见 §4.0 四条（后台运行时轮末 goal 校验可能不触发＝`defer` 不是失败；
   卡片可见性只从运行 API 观测；探针未覆盖 GPU 轮/freeze/commit/登记）。
 - **未做**：Track 1 五轮的 brief / 驱动 / 协议 / 运行 / 四件套登记；R1 的 brief 与驱动 —— 均未执行。
-- **下一动作（可执行的第一条命令）**：
-  `.venv/bin/python tools/r7_round.py state`；
-  随后**先预注册 S4 primary 的估计量**（「分组均值之比」还是「per-case 均值」）与守门的读法
-  （守门字面未达是否算未过），再决定 S4 是否宣布判决；**不**在没有预注册的情况下挑一个估计量报通过。
-  Track 1 的 R1–R5 已由 `.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts`
-  （`maxRounds=5`、`dryRun=false`）编排，预算/override 已由决策 0060/0061 给出。
+- ~~**下一动作**（已执行，2026-10-28）~~：S4 的估计量与守门读法**已由决策 0066 预注册并裁定** ——
+  primary = **分组均值之比**（`training/r7_climatology_skill.py:120-126`），守门是**独立合取项**且
+  按协议字面**未达** ⇒ 依 `R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md:71` 记为
+  「t2m 有获益但**未达终极 package 门**」。不再以"估计量歧义"为由悬置；**不**重算 primary。
+  Track 1 的 R1–R5 由 `.zcode/workflow-drafts/r7-matched-exposure-round.dwf.ts` 编排，
+  预算/override 由决策 0060/0061 给出，seed43 的补跑方式由决策 0065 给出。
 - **为何停 + 恢复**：本窗口停下是因为**本轮预算用尽**，不是触到保留授权边界、也不是达科学停止条件；
   剩余工作全部**可安全独立推进**，只是没做完。
   恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`。

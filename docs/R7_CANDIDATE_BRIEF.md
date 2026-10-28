@@ -1704,21 +1704,22 @@ Records: 92; human-review candidates: 2
 
 ## s4-fy-2016-first-confirmation
 
-- Outcome class: `unresolved`; candidate state: `not-candidate`
+- Outcome class: `mixed`; candidate state: `not-candidate`
 - Human triage priority: `60` (not a scientific score)
-- Evidence: `docs/R7_S4_FY_2016_CONFIRMATION_RESULT.md` (SHA256 `ae034c6d310a99852063140257385e4bffdf8d549111cb9902192fcd190b1a3b`)
+- Evidence: `docs/R7_S4_FY_2016_CONFIRMATION_RESULT.md` (SHA256 `92021dca5fbfd72a1668e00218798a237c52d3dbb0765a0e2cd112116e8194c0`)
 - Evidence commit: `035e4c4a8600f6174b304bfea2acef01e2a2032d`; experiment commit: `035e4c4a8600f6174b304bfea2acef01e2a2032d`
 - Protocol SHA256: `0dd100dcb4436a848bcd1b4fa91fdd8709f2a99a03e686b750b765572be2db1c`; data identity: `c17494ab63d54855697567f1195a613ca61e32cfcc3db22d709a7ff00dc17422`
 - Reason: First S4 confirmation readout of the frozen FY candidate on the complete unseen year 2016 (1451 shared cases, all five leads, full grid, FY 2017-2021 normalization and 48-bucket climatology). The candidate is better than the same-data incumbent at every lead on t2m (relative MSE -1.6%/-1.5%/-2.7%/-4.3%/-6.4%) and its group-level t2m skill is positive at every lead (0.703/0.533/0.551/0.233/0.038), while the incumbent is negative at 72 h (-0.027). No pass/fail verdict is declared: the protocol states the primary criterion on the group-level ratio skill while the frozen simultaneous-interval helper computes intervals on the per-case series, and the two disagree in sign at 48/72 h; the estimator must be pre-registered before a verdict. The u10/v10/mslp guard point estimates are all <= 0 but only 6/15 simultaneous upper bounds are <= 0, so the guard as written is not met.
 - Limitations:
+  - verdict (decision 0066): t2m gains are real (ratio-of-group-means skill > 0 at all five leads, and better than the same-data incumbent at every lead) but the key-variable guard is not met, so the ultimate package gate is NOT reached, per R7_MAIN_MODEL_CLIMATOLOGY_PROTOCOL.md:71; this must not be read as the candidate being rejected on 2016
   - the climatology denominator is fitted on 2017-2021 while the target period is 2016: denominator period and test period are different eras (ERA5 has a trend), so t2m skill here is not the same quantity the FY round measured; the u10/v10/mslp comparison is against the same-data incumbent and is not affected
   - per decision 0059 the store split-year ownership clause of validate_record is the only validation clause skipped; all other integrity clauses (index bounds, timestamp identity, init_time, lead, cadence) are kept
   - the 2016 frames come from the pinned multiyear store, not a purpose-built 2016 store
   - scientific_claim: false; this is a first confirmation readout, not a publication-grade claim
-  - no pass/fail verdict is declared: the primary estimator (ratio of group means vs mean of per-case skills) is unresolved
   - the u10/v10/mslp guard is not met as written: across all 6 declared groups (90 cells) only 78/90 point estimates are <= 0 (12 are positive, all DJF/JJA/SON u10/v10) and only 25/90 simultaneous upper bounds are <= 0; the earlier registered wording counted the total-set family only (15 cells) and is corrected in the result page section 5.1
   - the simultaneous family is realised per group because the frozen helper requires one shared case-key set per family
   - the guard's 'per seed <= 0' clause is untested: readings.json stores only the seed-averaged per-case series, so no per-seed guard value exists
+  - the primary estimator is registered as the ratio of group means (decision 0066, per training/r7_climatology_skill.py:120-126); the protocol's interval_series line naming per-case skill means is a defect in that hint, not a criterion change, and the primary gate therefore has no simultaneous interval this round
 - Excluded from runnable candidates: Not a candidate: no pass verdict is claimed. (i) the primary estimator is ambiguous between the protocol's ratio-of-means skill and the frozen helper's per-case-mean skill, and they disagree at 48/72 h; (ii) the u10/v10/mslp guard as written (simultaneous upper bound <= 0) holds for only 6/15 cells. Both are recorded rather than relaxed; the instance itself does meet the coverage gate (one complete unseen year with all four seasons).
 - Recorded metrics (not recomputed): alpha_1=0.025, cases=1451, gpu_hours=2.0572, guard_cells=15, guard_upper_bound_le_zero_cells=6, r=1, t2m_rel_mse_vs_incumbent={"12": -0.01513, "24": -0.02665, "48": -0.04349, "6": -0.0164, "72": -0.06376}, t2m_rmse_treatment={"12": 2.6752, "24": 2.6227, "48": 3.4201, "6": 2.1347, "72": 3.8223}, t2m_skill_control={"12": 0.5259, "24": 0.5385, "48": 0.1981, "6": 0.6978, "72": -0.0271}, t2m_skill_treatment={"12": 0.533, "24": 0.5508, "48": 0.233, "6": 0.7028, "72": 0.0384}, wall_seconds=7406
 
