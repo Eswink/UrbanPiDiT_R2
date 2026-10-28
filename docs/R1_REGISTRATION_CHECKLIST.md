@@ -100,6 +100,27 @@ PY
 
 ⚠ `evidence_sha256` 必须在**证据页文字最终定稿之后**计算，否则登记提交会自相矛盾。
 
+**⚠ `data_identity` 在本轮是个需要判断的字段（先查清，别照抄 FY 记录）。**
+校验器要求 `candidate_state == "candidate"` 时 `data_identity` **非空**，而本轮
+`protocol.json` 的**顶层** `data_identity` 是 **`None`**（实测），因为本轮是**两臂单因子**轮次：
+两臂各有自己的清单身份，没有单一"数据集身份"。实测值：
+
+```
+control   train_data_identity = 71bb33e01a9d44024be9895c8e7728f712e0cad61ee026a111688b0c0416ab44
+treatment train_data_identity = 81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0
+```
+
+已登记的两条 candidate 记录（`s3-fy-annual-coverage-result`、`b2-multiseed-negative`）
+都是**单臂**轮次，它们的 `data_identity` 就等于那一臂的身份，因此**不能**直接照抄该约定。
+本轮按"记录的是**候选臂**（treatment）的数据身份"写，并把**两臂**身份都放进 `metrics`
+（`train_data_identity_control` / `train_data_identity_treatment`）以便审计；
+`reason` 里必须写明"本轮是两臂单因子，`data_identity` 记的是候选臂，
+控制臂身份见 metrics"。**这需要在登记时确认校验器与 `C-03` 的数值核对都通过**。
+
+**单因子断言已实测通过**（`require_single_factor` 对冻结的两臂，未做任何剔除）：
+两臂**只**在 `('train_data_identity', 'train_manifest', 'train_windows')` 上不同，
+其余 18 个受控项共享 ⇒ 这是"唯一改变的是训练清单"的直接证据，可写进 `reason`。
+
 ### 4b. 账本行（先算，再写）
 
 ```bash
