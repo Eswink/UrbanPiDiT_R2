@@ -930,3 +930,43 @@ seed43 在 5080/16071（2.357 s/update），receipt 仍不存在的。等待期�
 > `FAIL C-04 ... next action does not name the master plan's current node S3`。
 > ⇒ 本行补上 **S3**。这不是为过门而改文字：登记之后的下一步**本来就**是在 S3 节点内
 > 启动静态协变量轮，写出来是如实的。
+
+### 2026-10-28（续 16）— 找到并修掉一个「登记那一刻就会红」的门（C-04），并查清本会话未加害任何冻结轮次
+
+seed43 在 5400/16071。等待期间做了两项审计，一项查出了真问题。
+
+**① C-04 会在登记提交上必然变红（已修，实测）。** 在**临时 master 副本**上模拟登记后的
+状态（`previous_round_goal` 指向本文件、`current_round_goal` 切到静态协变量轮），
+校验器立刻报：
+
+```
+FAIL C-04 s3-matched-exposure-reeval.md's next action does not name the master plan's current node S3
+```
+
+原因：本轮 brief 结尾写的是「等 receipt → 清单第 0–6 步」，**不含 `S3`**；而 C-04 要求
+**上一轮** brief 最后那个「下一动作」里出现 master 的 `current_node`。
+**已修正**：该行改为如实写出"登记后在**节点 S3** 内启动静态协变量轮"——
+这不是为过门而改文字，登记之后的下一步本来就是它。重测后除**预期的** C-06
+（证据尚未入索引，4a 之后消失）外**无 FAIL**。
+清单 §4c 已记录该门，并写明 C-06 在 4a 之前"不要去修"。
+
+**② 本会话没有加害任何冻结轮次（实测）。** 对 `outputs/*/protocol.json` 里全部
+**41** 份带执行清单的冻结协议做逐字节核对：**38 份与当前工作树漂移** ——
+但这是**历史常态**（旧轮次按决策 0065 用各自归档 `code.zip` 重放），漂移集中在
+`data/r7_evaluation.py`、`data/r7_long_rollout_dataset.py`、`training/r7_evaluate.py`、
+`training/r7_long_rollout_runner.py`（各 38 份）等 **25 个共享文件**。
+**关键核对**：本会话改动的 **21** 个文件与**任何**冻结协议的执行清单**零重叠**（实测）。
+⇒ 本会话的提交不会让任何一个历史轮次额外失效，**包括正在跑的 R1**。
+
+**③ 已知的同类缺陷还剩一处（不在本轮修）**：`training/r7_experiment.py:35` 对
+`model/*.py` 做活体 `rglob` 来算 `model_code_digest()` —— 与决策 0067 的
+`execution_files()` 是同一类过宽身份面，只是作用于 `model/`。本会话新增文件都在
+`tools/`、`tests/`、`scripts/`、`docs/`，**不在** `model/` 内 ⇒ 未触发。
+应并入决策 0067 的机械化范围（R2–R5 时一并处理），**本轮不改**（改它会让在跑轮次的
+`model_code_sha256` 变化）。
+
+**本段 0 GPU-h、未读 test、未改任何判据、未触碰在跑的 seed43。**
+
+- **下一动作**：等 `seed43_treatment_receipt.json` 落盘 → 按
+  `docs/R1_REGISTRATION_CHECKLIST.md` 第 0–6 步（4a→4b）登记；随后把
+  `current_round_goal` 切到静态协变量轮，在 **节点 S3** 内推进。
