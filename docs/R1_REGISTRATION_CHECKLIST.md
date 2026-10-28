@@ -167,6 +167,22 @@ seed43 完成后**必须**用 `stage_ledger.jsonl` 的实测秒数替换估计�
 `docs/goals/s3-urban-static-covariates.md`。
 `used_gpu_h` / `remaining_gpu_h` 与本轮账本行同步。
 
+**⚠ 4d 有一个必做的前置，已在临时 master 副本上实测（`FAIL C-04`）**：
+`check_campaign_state.py` 要求**上一轮** brief 的最后那个「下一动作」里**出现**
+master plan 的 `current_node`。把 `previous_round_goal` 指向本轮的 brief、并把
+`current_round_goal` 切到静态协变量轮之后，若本轮 brief 的尾部只写
+「等 receipt → 清单第 0–6 步」，校验器会报：
+
+```
+FAIL C-04 s3-matched-exposure-reeval.md's next action does not name the master plan's current node S3
+```
+
+该措辞**已于 2026-10-28 修正**（`docs/goals/s3-matched-exposure-reeval.md` 末尾补上 `S3`），
+重测后不再触发。**登记时若改动了那一段尾部文字，必须重新确认它仍含 `current_node`。**
+
+同时注册器还会报 `FAIL C-06 previous round evidence ... is not registered`——这条是**预期的**，
+在 4a 把记录写进索引后自动消失（不要在 4a 之前试图"修"它）。
+
 ## 5. 收尾验证（四项都要绿）
 
 ```bash

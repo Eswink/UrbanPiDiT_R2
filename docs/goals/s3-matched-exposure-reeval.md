@@ -918,4 +918,15 @@ seed43 在 5080/16071（2.357 s/update），receipt 仍不存在的。等待期�
 
 **本段 0 GPU-h、未读 test、未写真实 attempt 目录、未改任何判据。**
 
-- **下一动作（不变）**：等 receipt → `docs/R1_REGISTRATION_CHECKLIST.md` 第 0–6 步。
+- **下一动作**：等 `seed43_treatment_receipt.json` 落盘 → 按
+  `docs/R1_REGISTRATION_CHECKLIST.md` 第 0–6 步（4a→4b 顺序）完成四件套登记；
+  登记完成后，把 `campaign-state.current_round_goal` 切到
+  `docs/goals/s3-urban-static-covariates.md`，在 **节点 S3** 内推进静态协变量接线轮。
+
+> **本行措辞受 C-04 约束（2026-10-28 实测）**：`check_campaign_state.py` 要求
+> **上一轮** brief 最后那个「下一动作」里出现 master plan 的 `current_node`。
+> 在临时 master 副本上把 `previous_round_goal` 指向本文件、`current_node=S3` 后，
+> 原措辞「等 receipt → 清单第 0–6 步」**不含 `S3`**，校验器立刻报
+> `FAIL C-04 ... next action does not name the master plan's current node S3`。
+> ⇒ 本行补上 **S3**。这不是为过门而改文字：登记之后的下一步**本来就**是在 S3 节点内
+> 启动静态协变量轮，写出来是如实的。
