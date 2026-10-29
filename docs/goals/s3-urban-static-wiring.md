@@ -173,7 +173,7 @@ record `s3-urban-static-covariates-acquisition`）。`scientific_claim: false`�
   - **没有**用时变静态场（多期数组留在产物里）；**没有**引入可学习静态编码器
     （会引入容量混杂，需要自己的 ADR）。
   - **没有**读 2023 test；`r` 仍为 0。
-- **下一动作（可执行的第一条命令）**：
+- **下一动作（节点 S3；可执行的第一条命令）**：
   `.venv/bin/python tools/r7_round.py state`
   —— 核对指针；随后是 **R2–R5 的父迁移解阻塞**（见主计划 §8 2026-10-29 块）：
   `.venv/bin/python scripts/migrate_r7_parent_state.py --export-root outputs/r7_s3_rollout_dose_parent_export_20261009_attempt02 --out outputs/r7_s3_parent_migrated_20261029_attempt01`
