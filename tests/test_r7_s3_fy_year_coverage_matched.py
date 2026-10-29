@@ -371,10 +371,16 @@ def test_the_budget_is_decision_0060s_matched_compute_scale():
 
 
 def _round_spec():
-    from tools.r7_round_support import campaign_state, round_spec
-    goal = campaign_state()["current_round_goal"]
-    assert goal == GOAL, "campaign-state must point at this round's spec source"
-    return round_spec(ROOT / goal)
+    """R1's spec, read from its own brief.
+
+    It used to go through ``campaign_state()["current_round_goal"]`` and assert that pointer
+    equals ``GOAL``. That is a snapshot, not an invariant: the campaign pointer has to move
+    on when R1 is registered, so the assertion goes red on the very commit that closes the
+    round. The durable claim is that R1's brief still carries exactly one spec naming this
+    driver - true during and after the round, and what a reader replaying R1 needs.
+    """
+    from tools.r7_round_support import round_spec
+    return round_spec(ROOT / GOAL)
 
 
 def test_the_round_spec_names_this_driver_test_and_the_matched_compute():

@@ -36,8 +36,12 @@ class NativeAtmosForecaster(nn.Module):
                  spacetime_field_mode:str='fields',known_context_inputs:bool=False,
                  change_scale_mode:str='identity',change_scale_ratio=None,
                  climatology_anchor_spec=None,anchor_output_prior:bool=True,
-                 decoder_base_mode:str='persistence',tendency_input:bool=False):
+                 decoder_base_mode:str='persistence',tendency_input:bool=False,
+                 static_conditioning:bool=False):
         super().__init__()
+        if type(static_conditioning) is not bool:
+            raise ValueError('static_conditioning must be boolean')
+        self.static_conditioning=static_conditioning
         if type(known_context_inputs) is not bool:
             raise ValueError('known_context_inputs must be boolean')
         if known_context_inputs and not spacetime_inputs:
@@ -105,6 +109,16 @@ class NativeAtmosForecaster(nn.Module):
                 self.known_context=KnownContextConditioning(
                     dim,self.history_steps,patch_size,periodic_width=periodic_width,
                     field_mode=self.spacetime_field_mode)
+        # Decision 0069: time-invariant urban static term. Built last, after every existing
+        # weight, and it registers no trained parameter at all (the field and the fixed
+        # projection are buffers), so turning it on cannot shift any pre-existing weight.
+        self.static_conditioning_pathway=None
+        if self.static_conditioning:
+            from .static_conditioning_r7 import StaticConditioning, load_static_fields
+            field,variables=load_static_fields()
+            self.static_conditioning_pathway=StaticConditioning(
+                field,dim=dim,patch_size=patch_size,periodic_width=periodic_width,
+                variables=variables)
         # Fixed zero buffers, constructed after every existing weight; no RNG draw.
         self.climatology_anchor=None
         if climatology_anchor_spec is not None:
@@ -132,6 +146,11 @@ class NativeAtmosForecaster(nn.Module):
         if self.known_context_inputs:
             context=context+self.known_context(
                 batch,history=history,token_hw=token_hw).to(tokens.dtype)
+        if self.static_conditioning_pathway is not None:
+            # Time-invariant by construction: the same term at every lead and every reasoning
+            # step. The off path above is unchanged operation for operation.
+            context=context+self.static_conditioning_pathway(
+                token_hw=token_hw).to(tokens.dtype)
         base=batch.get('atmos_baseline')
         if base is None:
             base=history[:,-1,:self.out_channels]

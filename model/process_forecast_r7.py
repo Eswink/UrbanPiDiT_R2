@@ -40,7 +40,7 @@ def _validate_switches(*, spatial_solver_feedback, spacetime_inputs,
                        draft_query_feedback, source_position_markers,
                        known_context_inputs, use_forecast_feedback,
                        position_encoding_mode, climatology_anchor_spec,
-                       anomaly_feedback):
+                       anomaly_feedback, static_conditioning=False):
     """Reject switch combinations nothing reads; one definition for every arm.
 
     Extracted from the constructor so the constructor stays inside R-052 while
@@ -59,7 +59,8 @@ def _validate_switches(*, spatial_solver_feedback, spacetime_inputs,
                        (draft_query_feedback,'draft_query_feedback'),
                        (source_position_markers,'source_position_markers'),
                        (known_context_inputs,'known_context_inputs'),
-                       (anomaly_feedback,'anomaly_feedback')):
+                       (anomaly_feedback,'anomaly_feedback'),
+                       (static_conditioning,'static_conditioning')):
         if type(value) is not bool:
             raise ValueError(f"{name} must be boolean")
     if anomaly_feedback and climatology_anchor_spec is None:
@@ -101,6 +102,22 @@ def _validate_switches(*, spatial_solver_feedback, spacetime_inputs,
             raise ValueError(
                 f"{name}=False only exists inside local_solver_state; turning it off "
                 "with local_solver_state=False would be a silently ignored switch")
+
+
+def require_read_field_mode(mode, *, spacetime_inputs):
+    """The field mode, and the combination rule that makes a control mode rejectable.
+
+    Extracted from the constructor for R-052, next to ``_validate_switches`` and for the same
+    reason: the rule stays written once. The capacity-control arms of the round-three study
+    keep the space-time module and change only what it is shown; a control mode with the
+    pathway off would add nothing and say nothing, so it is rejected.
+    """
+    mode = require_field_mode(mode)
+    if not spacetime_inputs and mode != 'fields':
+        raise ValueError(
+            f"spacetime_field_mode={mode!r} needs spacetime_inputs=True; with the pathway "
+            "off it would be silently ignored")
+    return mode
 
 
 class ProcessForecastCoReasoner(nn.Module):
@@ -206,6 +223,7 @@ class ProcessForecastCoReasoner(nn.Module):
         global_mixing_mode:Optional[str]=None, global_mixing=None,
         anchor_output_prior:bool=True,
         decoder_base_mode:str='persistence',tendency_input:bool=False,
+        static_conditioning:bool=False,
     ):
         super().__init__()
         _validate_switches(
@@ -222,21 +240,17 @@ class ProcessForecastCoReasoner(nn.Module):
             known_context_inputs=known_context_inputs,
             use_forecast_feedback=use_forecast_feedback,
             position_encoding_mode=position_encoding_mode,
-            climatology_anchor_spec=climatology_anchor_spec, anomaly_feedback=anomaly_feedback)
+            climatology_anchor_spec=climatology_anchor_spec, anomaly_feedback=anomaly_feedback,
+            static_conditioning=static_conditioning)
         self.anomaly_feedback=anomaly_feedback
+        self.static_conditioning=static_conditioning
         self.process_init_conditioning=process_init_conditioning
         self.spatial_solver_feedback=spatial_solver_feedback
         self.source_position_markers=source_position_markers
         self.known_context_inputs=known_context_inputs
         self.spacetime_inputs=spacetime_inputs
-        # The capacity-control arms of the round-three study keep the space-time
-        # module and change only what it is shown; a control mode with the pathway
-        # off would add nothing and say nothing, so it is rejected.
-        self.spacetime_field_mode=require_field_mode(spacetime_field_mode)
-        if not self.spacetime_inputs and self.spacetime_field_mode!='fields':
-            raise ValueError(
-                f"spacetime_field_mode={self.spacetime_field_mode!r} needs "
-                "spacetime_inputs=True; with the pathway off it would be silently ignored")
+        self.spacetime_field_mode=require_read_field_mode(spacetime_field_mode,
+                                                          spacetime_inputs=spacetime_inputs)
         self.positional_process_readout=positional_process_readout
         self.position_encoding_mode=position_encoding_mode
         self.pooled_readout_query=pooled_readout_query
@@ -289,7 +303,7 @@ class ProcessForecastCoReasoner(nn.Module):
             change_scale_mode=change_scale_mode,
             change_scale_ratio=change_scale_ratio,
             anchor_output_prior=anchor_output_prior,decoder_base_mode=decoder_base_mode,
-            tendency_input=tendency_input,
+            tendency_input=tendency_input,static_conditioning=static_conditioning,
         )
         self.process_queries=nn.Parameter(
             torch.randn(1,self.num_process_tokens,dim)*0.02

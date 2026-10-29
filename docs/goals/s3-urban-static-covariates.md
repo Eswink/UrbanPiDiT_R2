@@ -250,8 +250,15 @@
   且登记后已有 `tools/r7_round.py verify` 作为收尾校验。
 - **下一动作（可执行的第一条命令）**：R1 的 workflow 退出后，按序执行——
   1. 把 master 的 `<!-- campaign-state: ... -->` 的 `current_round_goal` 改成
-     `docs/goals/s3-urban-static-covariates.md`；
+     **`docs/goals/s3-urban-static-wiring.md`**，把本文件写进 `previous_round_goal`、
+     把 `docs/R7_URBAN_STATIC_COVARIATES.md` 写进 `previous_round_evidence`
+     （下一步是节点 **S3** 内的模型侧接线轮，ADR 为决策 0069）；
   2. `.venv/bin/python tools/r7_round.py state`（核对指向）；
   3. `.venv/bin/python tools/check_campaign_state.py --quiet`（应 `failures=0`）；
-  4. 用 `CreateWorkflow` 以 `dryRun: false` 编译并运行
-     `.zcode/workflow-drafts/r7-urban-static-round.dwf.ts`。
+  4. 进入节点 **S3** 的接线轮：按 `docs/goals/s3-urban-static-wiring.md` 与
+     `docs/decisions/0069-static-covariate-wiring.md` 执行。
+
+  **本轮的编排（`dryRun: false` 跑 `.zcode/workflow-drafts/r7-urban-static-round.dwf.ts`）
+  已不是下一步**：数据相位的六个子命令已由执行者直接跑完并发布（`attempt01`、
+  `BUILD_COMPLETE.json` 在），重跑会新建 `attempt02` 并重下 14.5 GiB，**不增加证据**。
+  该草稿保留为历史执行载体，其三个缺陷与编译核对记录见上。
