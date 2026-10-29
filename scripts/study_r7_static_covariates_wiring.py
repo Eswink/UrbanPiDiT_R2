@@ -350,38 +350,47 @@ def field_probe(body):
         raw = [[[float(value) for value in row] for row in
                 np.asarray(archive[name], dtype=np.float64)] for name in variables]
     token_hw = (33, 33)
-    loop = support.independent_patch_mean(raw, token_hw=token_hw, patch_size=2)
-    vector = static.static_features(fields, token_hw=token_hw, patch_size=2,
-                                    variables=variables)
-    loop_tensor = torch.tensor(loop, dtype=torch.float64)
-    # Compare the *patch average* the loop produces with the vectorised patch average re-derived
-    # here, then separately confirm the module's own features are a pure function of it.
+    # The loop re-derivation takes the *declared* scales so it averages the same quantity the
+    # module does; applying them afterwards would be mathematically equal and numerically
+    # different, which defeats the point of an exact cross-check.
+    scales = [static.STATIC_SCALES.get(name, 1.) for name in variables]
+    loop = torch.tensor(support.independent_patch_mean(
+        raw, token_hw=token_hw, patch_size=2, scales=scales), dtype=torch.float64)
+    features = static.static_features(fields, token_hw=token_hw, patch_size=2,
+                                      variables=variables)
     from model.layers.patch_grid import pad_patch_grid
-    scales = torch.tensor([static.STATIC_SCALES.get(name, 1.) for name in variables],
-                          dtype=torch.float64).reshape(-1, 1, 1)
-    padded = pad_patch_grid((fields.double() / scales).unsqueeze(0), 2)
+    factor = torch.tensor(scales, dtype=torch.float64).reshape(-1, 1, 1)
+    padded = pad_patch_grid((fields.double() / factor).unsqueeze(0), 2)
     cells = padded.reshape(1, len(variables), 33, 2, 33, 2).mean(dim=(3, 5))
     vector_cells = cells.reshape(len(variables), -1).transpose(0, 1)
-    raw_cells = loop_tensor
-    scaled_loop = loop_tensor / scales.reshape(-1).double()
-    discrepancy = float((scaled_loop - vector_cells).abs().max())
-    centre = vector_cells.mean(dim=0, keepdim=True)
-    half = (vector_cells.amax(dim=0, keepdim=True)
-            - vector_cells.amin(dim=0, keepdim=True)).clamp(min=1e-6)
-    rebuilt = ((vector_cells - centre) / (0.5 * half)).clamp(-3., 3.)
-    expected = torch.cat([rebuilt, rebuilt.square()], dim=1)
-    module_equal = torch.equal(vector.double(), expected)
+    discrepancy = float((loop - vector_cells).abs().max())
     within_bound = discrepancy <= support.REDUCTION_ORDER_TOLERANCE
+    # The expansion is rebuilt with the module's own float32 arithmetic, operation for
+    # operation. Mixing precisions would produce a rounding gap that says nothing about
+    # content - measured: a float64 rebuild differs from the float32 result by 7.15e-07 on
+    # values around 3.6, which is one float32 ulp, while the same-dtype rebuild is bitwise
+    # equal. The *independent* check is the float64 loop above, judged at its own bound.
+    factor32 = torch.tensor(scales, dtype=torch.float32).reshape(-1, 1, 1)
+    padded32 = pad_patch_grid((fields / factor32).unsqueeze(0), 2)
+    cells32 = padded32.reshape(1, len(variables), 33, 2, 33, 2).mean(dim=(3, 5))
+    in_module_dtype = cells32.reshape(len(variables), -1).transpose(0, 1)
+    centre = in_module_dtype.mean(dim=0, keepdim=True)
+    half = (in_module_dtype.amax(dim=0, keepdim=True)
+            - in_module_dtype.amin(dim=0, keepdim=True)).clamp(min=1e-6)
+    rebuilt = ((in_module_dtype - centre) / (0.5 * half)).clamp(-3., 3.)
+    expected = torch.cat([rebuilt, rebuilt.square()], dim=1)
+    module_equal = torch.equal(features, expected)
     return {"passed": bool(buffer_equal and module_equal and within_bound),
             "buffer_bitwise_equal": bool(buffer_equal),
             "independent_patch_mean_max_abs_difference": discrepancy,
             "independent_patch_mean_tolerance": support.REDUCTION_ORDER_TOLERANCE,
             "independent_patch_mean_within_bound": bool(within_bound),
-            "module_features_equal_expansion": bool(module_equal),
+            "module_features_bitwise_equal_expansion": bool(module_equal),
             "variables": loaded, "token_grid": list(token_hw),
-            "note": ("the buffer is bitwise the published npz; the loop re-derivation shares no "
-                     "code with the vectorised path and is judged at the float64 reduction-order "
-                     "bound, because a sequential sum and a batched mean accumulate differently")}
+            "note": ("the exit claim is the buffer against the published npz, bit for bit; the "
+                     "loop re-derivation shares no code with the vectorised path and is judged at "
+                     "the float64 reduction-order bound; the expansion rebuild uses the module's "
+                     "own dtype and is bitwise")}
 
 
 def _arm_contract(body, name):
