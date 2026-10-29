@@ -198,12 +198,49 @@ source/version/licence/预期字节/聚合规则/输出布局、磁盘**余量�
 
 第一条命令：`.venv/bin/python tools/r7_round.py state`
 
-## 9. 待办：`campaign-state` 指针（未做，原因如实记）
+## 9. `campaign-state` 指针：已按序完成（含一次已被后续轮次超越的推迟）
 
-`docs/goals/main-model-climatology-campaign.md` 的 `<!-- campaign-state: ... -->` 里
-`current_round_goal` **本轮未改**：R1（`outputs/r7_s3_fy_year_coverage_matched_20261026_attempt01/`）
-的 workflow **仍在跑**，而 `tools/r7_round.py` 的每个子命令都从
-`campaign-state.current_round_goal` 解析当前轮；此刻改指针会让 R1 的 seed 42/43
-`stage` 与登记 `round-guard`/`ledger-plan` 解析到本长文（无 round-spec 块）而**失败**。
-因此指针更新**推迟到 R1 的 workflow 退出之后**，命令：
-把该行的 `current_round_goal` 改成 `docs/goals/s3-urban-static-covariates.md`。
+**本轮执行期间未改指针（当时的正确做法）**：R1
+（`outputs/r7_s3_fy_year_coverage_matched_20261026_attempt01/`）的 workflow 仍在跑，而
+`tools/r7_round.py` 的每个子命令都从 `campaign-state.current_round_goal` 解析当前轮；
+此刻改指针会让 R1 的 seed 42/43 `stage` 与登记 `round-guard`/`ledger-plan` 解析到本长文
+（无 round-spec 块）而失败。因此指针更新**推迟到 R1 退出之后**。
+
+**推迟条件已满足，且指针已按序推进两次**（实测，`git log -S` 核对）：
+- R1 的 workflow `dwfrun-442a17eb-ba11-4af9-9b56-6460f32a1e0b` 于 `2026-10-28T04:09:42Z`
+  settled `completed`；PID 777767/777788 已不存在。其末个 seed 失败（`seed43` exit 1）
+  是 R1 自己的科学读数（已登记为 mixed/not-candidate），与本轮无关。
+- 提交 `5e4adf9` 把 `current_round_goal` 指向本长文
+  `docs/goals/s3-urban-static-covariates.md`；提交 `896eabf` 起再推进到
+  `docs/goals/s3-urban-static-wiring.md`（接线轮，决策 0069）。
+- 当前 `30dc58a` 的指针：`current_round_goal = docs/goals/s3-urban-static-wiring.md`、
+  `previous_round_goal = docs/goals/s3-urban-static-covariates.md`、
+  `previous_round_evidence = docs/R7_URBAN_STATIC_COVARIATES.md`。
+  **此刻不得把它改回本长文**——那会回退一个已登记的轮次。
+
+登记后校验器读数（实测）：`tools/r7_round.py verify` → `passed: true`，三条
+（`check_conventions.py` 37 条阻断规则 `failing=0`、`check_campaign_state.py`
+`failures=0 notes=8`、`verify_r7_evidence_index.py` `PASS ... 94 records`）退出码均为 0。
+
+## 10. 编排路线：`dryRun: false` **未执行**，六相位由驱动直跑完成
+
+目标长文要求「用 workflow 编排」，而本条要求**只完成到编译侧**：
+
+- **已做**：加载 `dynamic-workflows` 技能后，用 `CreateWorkflow` 对草稿
+  `.zcode/workflow-drafts/r7-urban-static-round.dwf.ts` 的**当前字节**编译两次通过
+  （`dwfrun-1f67679b-dd53-43a2-9fa8-14b468dbfb1c`、`dwfrun-87bbd520-01a9-4ada-894f-122db5230455`），
+  两次都是 `dryRun` 默认值 `true`。
+- **未做（如实记）**：`CreateWorkflow` 以 `dryRun: false` 的**运行从未发生**。本轮六个相位
+  （`verify-endpoints`/`freeze`/`download`/`aggregate`/`recheck`/`publish`）是**直接调用**
+  `scripts/r7_urban_static_round.py` 逐个子命令跑完的，产物与登记全部为真（见 §1–§6），
+  但**不是**经由 workflow 的 phase 编排路径。
+- **现在不能按字面补跑的理由**：`campaign-state.current_round_goal` 已推进到
+  `docs/goals/s3-urban-static-wiring.md`，`previous_round_goal` 才是本长文。非 dryRun 的
+  草稿会重跑整条采集轮——那是对一个**已登记轮次**的重复推进（与 campaign 的
+  「不重复已登记轮次」相冲突），且草稿的 `commit-guard`/`verify` 依赖的当前指针不是本长文。
+  因此该缺口**保留为未做**，不以回退指针来补。
+- **这条缺口对产物无影响**：产物、身份、digest、重算比对、独立发布与四件套登记都不经过
+  workflow 编排；受影响的是「本轮是否由一个可恢复的编排器驱动」这一工程属性。
+  证据页与账本行都已标 `scientific_claim: false`。
+- **若要补**：需要一个自己的 ADR 与预声明出口，在**指针重新指向本长文**的独立 attempt
+  里跑 `dryRun: false`，并接受它会重跑六相位（产物须落在新的排他 `outputs/` 路径）。
