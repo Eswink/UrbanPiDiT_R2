@@ -262,3 +262,48 @@
   已不是下一步**：数据相位的六个子命令已由执行者直接跑完并发布（`attempt01`、
   `BUILD_COMPLETE.json` 在），重跑会新建 `attempt02` 并重下 14.5 GiB，**不增加证据**。
   该草稿保留为历史执行载体，其三个缺陷与编译核对记录见上。
+
+### 2026-10-30 — 登记完成 + 编排路线如实记（已提交并推送）
+
+**登记后校验器读数（实跑，不是估计）**：`.venv/bin/python tools/r7_round.py verify`
+→ `passed: true`，三条子校验退出码全 0：`check_conventions.py --quiet`
+（`blocking rules=37 failing=0 report-only hits=0`）、`check_campaign_state.py`
+（`campaign_state node=S3 failures=0 notes=8`）、`verify_r7_evidence_index.py
+--check-brief`（`PASS evidence index and brief: 94 records`）。
+
+**指针已按序推进两次（实测，`git log -S` 核对，不是推测）**：
+- R1 的 workflow `dwfrun-442a17eb-ba11-4af9-9b56-6460f32a1e0b` 于
+  `2026-10-28T04:09:42Z` settled `completed`，PID 777767/777788 已不存在；其末个
+  seed 失败（`seed43` exit 1）是 R1 自己的科学读数（登记为 mixed/not-candidate），
+  与本轮无关。
+- 提交 `5e4adf9` 把 `current_round_goal` 指向本长文；`896eabf` 起再推进到
+  `docs/goals/s3-urban-static-wiring.md`（接线轮，决策 0069）。
+- 当前 `d80dfd3` 指针：`current_round_goal = docs/goals/s3-urban-static-wiring.md`、
+  `previous_round_goal = docs/goals/s3-urban-static-covariates.md`、
+  `previous_round_evidence = docs/R7_URBAN_STATIC_COVARIATES.md`。
+  **不得改回本长文**——那会回退一个已登记轮次。
+
+**编排路线：`dryRun: false` 未执行（如实记，不补跑）**：
+- 已做：加载 `dynamic-workflows` 后，`CreateWorkflow` 对草稿**当前字节**编译两次通过
+  （`dwfrun-1f67679b…`、`dwfrun-87bbd520…`），两次参数都是默认 `dryRun=true`。
+- 未做：**`dryRun: false` 的运行从未发生**。本文件要求的六个相位
+  （`verify-endpoints`/`freeze`/`download`/`aggregate`/`recheck`/`publish`）是
+  **直接调用** `scripts/r7_urban_static_round.py` 逐个子命令跑完的；产物、身份、
+  digest、独立重算、`BUILD_COMPLETE` 与四件套登记全部为真（见证据页 §1–§6），
+  但**不是**经由 workflow 的 phase 编排路径。
+- 不按字面补跑的理由：指针已推进到接线轮，非 dryRun 草稿会重跑整条采集轮
+  （新建 `attempt02`、重下 14.5 GiB），那是对**已登记轮次**的重复推进，与 campaign
+  的「不重复已登记轮次」冲突；且草稿的 `commit-guard`/`verify` 依赖的当前指针不是本长文。
+  因此该缺口**保留为未做**，不以回退指针来补。
+- 对产物的影响：无。受影响的是「本轮是否由一个可恢复的编排器驱动」这一工程属性。
+- 若日后要补：需自己的 ADR 与预声明出口，在**指针重新指向本长文**的独立 attempt 里跑
+  `dryRun: false`，并接受它重跑六相位（产物落在新的排他 `outputs/` 路径）。
+
+**证据页更新**：`docs/R7_URBAN_STATIC_COVARIATES.md` §9 改写为指针的实际完成经过，
+新增 §10 记上述替代路线；页面新 digest
+`2b111997fdae3d4dd0db9c28bc2aa1b32a93294c319112406248c365849b62e3`
+（17,763 B），账本行 `s3-urban-static-covariates-acquisition` 的 `evidence_sha256` /
+`evidence_commit` / `evidence_revisions` 已同步，候选简报由索引自带渲染器重生成。
+
+**提交**：`7732dad`（证据页与账本更正）、`d80dfd3`（evidence_commit 指向其修订），
+已推送 `30dc58a..d80dfd3` 到 `r7/weather-reasoning`。
