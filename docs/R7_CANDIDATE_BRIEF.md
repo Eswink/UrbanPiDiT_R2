@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 93; human-review candidates: 2
+Records: 94; human-review candidates: 2
 
 ## s3-anchor-isolation-result
 
@@ -1685,6 +1685,25 @@ Records: 93; human-review candidates: 2
   - No C1 by C2 full factorial was run.
 - Excluded from runnable candidates: No stable positive process effect; defaults and scope should not change from this record alone.
 - Recorded metrics (not recomputed): auxiliary_weights=[0.0, 0.01, 0.1], gpu_hours=1.08, process_win_established=false, seeds=3, test_read=false
+
+## s3-urban-static-covariates-wiring
+
+- Outcome class: `engineering-positive`; candidate state: `not-candidate`
+- Human triage priority: `63` (not a scientific score)
+- Evidence: `docs/R7_STATIC_COVARIATES_WIRING.md` (SHA256 `d0171038cc0d8bcf640ad1e2d0cb915ac75b23dbb6e08ab41a4c71df3839c36a`)
+- Evidence commit: `67ebf14420cbb5272df29044b6f179deac55e66f`; experiment commit: `896eabfe185a02bd3e910f429f5d538633d849b6`
+- Protocol SHA256: `48c09621e2fbac1d5705839d3251dd762172eb43e1f366290255d3fbbeb9bbca`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Decision 0069's four predeclared engineering exits were all true on a real run: the static identity reaches protocol_sha256 while data_identity stays put (W1); the off path reproduces the pre-edit fingerprint exactly (W2); both arms scored all five leads with equal row counts (W3); and the model's field is bitwise the published npz (W4). The pathway exists and is auditable. It proves nothing about whether urban static covariates improve forecasts.
+- Limitations:
+  - scientific_claim: false; four engineering exits say the pathway exists and is auditable, not that urban static covariates improve forecasts
+  - one seed, 120 updates (about 0.037 epoch) and ten cases per lead: the on/off t2m deltas are recorded but are not seed-consistency evidence and are not read as a mechanism or skill result
+  - the static term is a fixed projection over a fixed polynomial expansion, so parameter_delta is exactly 0; that removes the capacity confound but also means the path cannot learn which covariate matters, so an on-arm null is not evidence the covariates are uninformative
+  - this round moves model_code_sha256 from 60de3b2d... to a38be16c..., and load_checkpoint refuses a foreign implementation by design, so every registered migrated parent is unloadable under this code; R2-R5 need a fresh parent migration, which this round did not perform, and these arms are therefore not comparable with the R1-R5 parent-anchored arms
+  - the static field is a derived statistic aggregated from native WorldCover/GHSL rasters to 0.25 deg, not observational truth; LandScan was dropped as account-gated, so the population dimension has no cross-check
+  - GPU readings come from one sequential run; no repeat run bounds the variance and the numbers are not bitwise reproducible
+  - attempt01 is retained as a failed attempt: its W4 probe compared a float64 rebuild bitwise against float32 output (one ulp, 7.15e-07) and could never pass; the probe was corrected, no exit criterion was widened, and attempt01 spent 0 GPU-h
+- Excluded from runnable candidates: Not a candidate: this is a wiring round, not a scientific result. It trains 120 updates on one seed and scores ten cases per lead purely to exercise the pathway; 2023 test was never opened and r stays 0. The on/off t2m deltas (+0.0014 to +0.0043 K) are recorded and explicitly not read.
+- Recorded metrics (not recomputed): batch_size=2, boundary_rmse_rows_per_lead=51, control_t2m_rmse={"12": 6.969414, "24": 2.669372, "48": 3.051431, "6": 5.737827, "72": 3.391581}, delta_treatment_minus_control={"12": 0.002027, "24": 0.003629, "48": 0.00429, "6": 0.001404, "72": 0.003034}, execution_files=94, exit_all=true, exit_w1=true, exit_w2=true, exit_w3=true, exit_w4=true, failed_attempt_gpu_hours=0.0, failed_attempt_prepare_seconds=507.58, gpu_hours=0.902, max_samples_per_lead=10, parameter_delta=0, parameters=3286037, prepare_seconds=512.26, seed=41, seed_stage_seconds=3247.23, seeds=1, static_expansion_per_variable=2, static_variables=8, treatment_t2m_rmse={"12": 6.971441, "24": 2.673001, "48": 3.055721, "6": 5.739231, "72": 3.394615}, updates=120, w2_differences=0, w4_buffer_bitwise_equal=true, w4_independent_patch_mean_max_abs_difference=5.551115123125783e-17
 
 ## s3-fy-year-coverage-matched-result
 
