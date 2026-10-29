@@ -970,3 +970,57 @@ FAIL C-04 s3-matched-exposure-reeval.md's next action does not name the master p
 - **下一动作**：等 `seed43_treatment_receipt.json` 落盘 → 按
   `docs/R1_REGISTRATION_CHECKLIST.md` 第 0–6 步（4a→4b）登记；随后把
   `current_round_goal` 切到静态协变量轮，在 **节点 S3** 内推进。
+
+### 2026-10-29（续 17）— **R1 完成并登记**：判决 (a)(b)(c) 真、(d) 假 ⇒ 永久关闭「训练年份覆盖」支
+
+**seed43 已跑完（实测）**：两臂各 16,071 updates；control 到 16,071 @ 37,993.93 s
+（2026-10-28T22:55Z）、treatment 到 16,071 @ 41,085.12 s（2026-10-29T11:25Z）；
+`stage_ledger` 第 6 条 **success / exit 0 / 86,501.57 s**（第 5 条那次 20.76 s 失败照旧保留）。
+两份 receipt 均已落盘（`seed43_control_receipt.json` 07:52、`seed43_treatment_receipt.json` 20:21）。
+
+**注意**：`stage-plan seed 43` 报 `already_done: false`——那是**预期**的，因为本驱动的产物是
+`seed43_{control,treatment}_receipt.json` 两个文件，而不是 `seed43_receipt.json`；
+`stage-plan seed 41` 在已完成的 seed41 上也同样报 false（实测）。判断完成要看
+`stage_ledger` 的 success 行与两份 receipt，**不能**只看 `already_done`。
+
+**`stage reading` 在决策 0065 的重放内执行成功**（先 `verify` 确认 `execution_files(): 195`、
+`VALIDATE_PROTOCOL: PASS 15a92e3230c5`）：exit 0、6.65 s，`readings.json` 生成。
+
+**判决（逐字取自 `readings.json` 的 `exit_conditions`）**：
+
+```
+a=true, b=true, c=true, d=false, all=false
+verdict = "close-training-year-coverage-branch-at-matched-compute"
+seed_mean_delta_6_12_24 = {6: +0.004932466, 12: +0.006434447, 24: -0.005015979}
+```
+
+⇒ **按预声明永久关闭「训练年份覆盖」这一支**（第二次、也是算力已匹配后的最终关闭）。
+
+**这一轮回答了什么**：算力不足这个**唯一留着的替代解释已被消除**。把 updates 从 2,400
+提到 16,071（两臂各 ≥1 epoch）后，长 lead 的改善**变强**（72 h 均值 −0.065593 K，
+是上一轮 −0.026869 K 的 **2.4 倍**），但 **6/12 h 的配对劣势仍在且 12 h 更差**
+（+0.004365 → +0.006434 K）。seed43 确实在 6/12 h 翻负（−0.005559 / −0.007386），
+**幅度不够**（需 ≤ −0.020356 / −0.026689）⇒ 三 seed 均值仍为正 ⇒ (d) 假。
+
+**记 mixed 而非 negative**：方向随 lead 改变，**不得**写成"更多年份无效"。
+
+**登记（四件套，按 4a→4b→4c→4d）**：
+
+| 件 | 内容 |
+| --- | --- |
+| 4a index record | `record:s3-fy-year-coverage-matched-result`（`mixed`/`not-candidate`、priority 62、`metrics.gpu_hours=73.624654`）；索引 **93** 条，`PASS` |
+| 4b 账本行 | **73.624654 GPU-h**，累计 **249.413841 → 323.038495**（74 行，`ledger-plan` 先算） |
+| 4c campaign §8 | 本行已写入 master plan 账本表，含失败的 20.7579 s |
+| 4d campaign-state | `used_gpu_h 323.038495`；`previous_round_goal`/`_evidence` 已指向本轮；`current_round_goal` 切到 `docs/goals/s3-urban-static-covariates.md` |
+
+`R7_CANDIDATE_BRIEF.md` 已按 93 条重渲染（`render_brief` 只返字符串、不写文件，需显式写）。
+
+**校验器实测**：`check_conventions` 37 条阻断全过；`check_campaign_state` **failures=0**
+（C-02 累计、C-03 记录数值耦合、C-04 下一动作含 S3、C-06 证据已登记，全部满足）；
+`verify_r7_evidence_index` → `PASS evidence index and brief: 93 records`；
+`r7_round.py verify` → `passed: true`。
+
+**本段 73.624654 GPU-h（已全额入账）**；`scientific_claim: false`、`test_read: false`、r=0；
+**不宣布科学通过、不称泛化/SOTA、不自宣 goal 完成**。
+
+- **下一动作**：在 **节点 S3** 内推进静态协变量接线轮（`docs/goals/s3-urban-static-covariates.md`）。

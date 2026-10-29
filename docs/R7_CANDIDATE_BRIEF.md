@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 92; human-review candidates: 2
+Records: 93; human-review candidates: 2
 
 ## s3-anchor-isolation-result
 
@@ -1685,6 +1685,30 @@ Records: 92; human-review candidates: 2
   - No C1 by C2 full factorial was run.
 - Excluded from runnable candidates: No stable positive process effect; defaults and scope should not change from this record alone.
 - Recorded metrics (not recomputed): auxiliary_weights=[0.0, 0.01, 0.1], gpu_hours=1.08, process_win_established=false, seeds=3, test_read=false
+
+## s3-fy-year-coverage-matched-result
+
+- Outcome class: `mixed`; candidate state: `not-candidate`
+- Human triage priority: `62` (not a scientific score)
+- Evidence: `docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md` (SHA256 `e506fcdba5077863f53e2578cbe802d05d8b621c92073b096467685b49fd9da6`)
+- Evidence commit: `bd9e3d825e4926790b92c93ed292b1a21ae5c419`; experiment commit: `bd9e3d825e4926790b92c93ed292b1a21ae5c419`
+- Protocol SHA256: `15a92e3230c5d6a1b4409bb706278cdecac2a09e528ab51c929bcb815262ecd4`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: R1 re-ran the training-year coverage axis (2017-2021 -> 2000-2021, months held at 12) with compute matched: updates 2400 -> 16071 and batch 1 -> 2, so updates*batch = 32142 covers the 32131-window treatment manifest and each arm sees at least one epoch. This round exists because the branch was closed once under insufficient compute, leaving compute as an untested alternative explanation; the round is the named user override in decision 0061. require_single_factor passes on the two frozen arms unmodified, differing only in (train_data_identity, train_manifest, train_windows), so the training manifest is the sole changed factor. data_identity records the candidate (treatment) arm because this is a two-arm single-factor round and the protocol's top-level data_identity is null; both arm identities are in metrics. Verdict comes only from readings.json's exit_conditions, not from hand arithmetic.
+- Limitations:
+  - development screening on the 65x65 instance only (2000-2021 train / 2022 val, 17 channels); the 129x129 wide instance is not covered
+  - the FY source has no 2023: the test split is four months and stays sealed; test_read=false, r=0
+  - mixed rather than negative: the paired delta changes sign with lead (long leads improve, short leads degrade), so this is not evidence that more training years is ineffective
+  - the two arms are not exposure-matched: matching updates*batch=32142 gives the candidate 1.00 epoch and the control 4.41 epochs, so year coverage cannot be fully separated from per-sample repetition
+  - 12 h seed-mean delta is worse than the under-compute round (+0.004365 -> +0.006434 K), which rules out the hypothesis that sufficient compute alone turns short leads positive; it does not show compute made anything worse
+  - no mechanism is offered for the lead-dependent direction; any explanation would be speculation
+  - bridge (e) fails at 12/24/48/72 h (control arm 0.14-0.25 K below the registered FY arm); it is scientific:false and an identity/engineering check, so it does not enter exits (a)-(d) and cannot explain (d)'s failure
+  - seed43 was completed inside a decision-0065 namespace replay of the round's archived code.zip, not an uninterrupted first pass; the failed first attempt cost 20.76 s and is billed
+  - three seeds are consistency evidence, not a significance test
+  - GPU runs are co-resident; elapsed times include neighbour load
+  - GPU training is not bit-reproducible; reproducibility is protocol-level (protocol_sha256, code.zip SHA, per-seed receipts, readings.json, per-lead boundary_rmse.csv)
+  - closing this branch does not authorize reopening depth/width/SAM/zero-base/EMA/long-lead-weight/rollout-dose
+- Excluded from runnable candidates: Not a candidate: predeclared exit (d) is false, so the round closes the training-year coverage branch at matched compute rather than advancing. On 24/48/72 h the candidate improves on the control at 8 of 9 seed-lead cells (72 h seed mean -0.065593 K), but the 6/12/24 h seed means are +0.004932/+0.006434/-0.005016 K, so (d) '<=0 at 6/12/24 h' fails at 6 and 12 h. This is mixed, not negative: the direction depends on lead. It must not be read as 'more training years is ineffective'.
+- Recorded metrics (not recomputed): batch_size=2, bridge_passed=false, bridge_scientific=false, closed_round_updates=2400, delta_72h_seed41=-0.058419, delta_72h_seed42=-0.069908, delta_72h_seed43=-0.068453, duration_seconds_failed=20.7579, duration_seconds_success=265027.9976, epochs_candidate=1.0, epochs_control=4.41, exit_a=true, exit_all=false, exit_b=true, exit_c=true, exit_d=false, gpu_hours=73.624654, protocol_sha256=15a92e3230c5d6a1b4409bb706278cdecac2a09e528ab51c929bcb815262ecd4, readings_sha256=629d43800a3d4201195b47afef71d339ee46d29e47b8e32a5f062751338e5202, seed_mean_delta_12h=0.006434447, seed_mean_delta_24h=-0.005015979, seed_mean_delta_48h=-0.035879, seed_mean_delta_6h=0.004932466, seed_mean_delta_72h=-0.065593, skill_72h_candidate_seed_mean=0.193142, skill_72h_control_seed_mean=0.162867, skill_72h_seed41=0.179874, skill_72h_seed42=0.19492, skill_72h_seed43=0.204633, train_data_identity_control=71bb33e01a9d44024be9895c8e7728f712e0cad61ee026a111688b0c0416ab44, train_data_identity_treatment=81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0, updates=16071
 
 ## c3-depth-mixed
 
