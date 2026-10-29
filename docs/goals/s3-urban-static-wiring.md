@@ -147,14 +147,33 @@ record `s3-urban-static-covariates-acquisition`）。`scientific_claim: false`�
 
 ## 7. 进度块（状态机）
 
-- **状态**：**进行中**（2026-10-29 建；ADR 0069 已写，参照读数已落）。
-- **已完成**：
-  - 决策 `0069-static-covariate-wiring.md`（proposed）。
-  - 数据产物与身份核实（`static_identity 8671ed7c…`、`BUILD_COMPLETE.json` 在）。
-  - **W2 参照读数**：`outputs/r7_static_wiring_20261029/pre_change_reference.json`
-    （`model_code_sha256 60de3b2d…`、`loss 0.01961401104927063`、`model_dirty: false`、
-    `head 5e4adf9f6ad9`），同命令第二次 `values` 相同 ⇒ 参照本身可复现。
-- **未做**：模型向量化改动、驱动、两臂运行、W1/W3/W4 读数、证据页、四件套登记。
+- **状态**：**已执行并登记**（2026-10-29；`scientific_claim: false`、0.9020 GPU-h）。
+  最终 goal 状态不由本文件宣布。
+- **已完成（本轮实测）**：
+  - 决策 `0069-static-covariate-wiring.md`（proposed）；本长文的 `round-spec` 已解析、
+    `campaign-state` 已指向本文件、`previous_round_*` 指向数据轮与其证据页。
+  - **W2 参照读数先于改动落盘**：`outputs/r7_static_wiring_20261029/pre_change_reference.json`
+    （`model_code_sha256 60de3b2d…`、`first_update_loss 0.01961401104927063`、
+    `model_dirty: false`、`head 5e4adf9f6ad9`、`sha256 4d0dc228…`）；同命令第二次 `values`
+    完全相同 ⇒ 参照本身可复现。
+  - **实现**：`model/static_conditioning_r7.py` + 两处透传；R-052 靠**抽取**
+    `require_read_field_mode` 守住（未放宽阈值）；执行清单 **94 个具名文件**（决策 0067）。
+  - **attempt01（失败，0 GPU-h）**：prepare 507.58 s，W1/W2 通过、W4 因探针缺陷必假
+    （float64 重建 vs float32 输出，差 1 ulp＝7.15e-07）；保留 `FAILED_ATTEMPT.json`。
+  - **attempt02（成功）**：prepare 512.26 s；seed 阶段 3,247.23 s；
+    `protocol_sha256 48c09621e2fb…`；**W1/W2/W3/W4 全真**，`verdict: engineering-positive`。
+  - **证据页**：`docs/R7_STATIC_COVARIATES_WIRING.md`；index record
+    `s3-urban-static-covariates-wiring`；账本 `0.9020` GPU-h（累计 `323.940495`）。
+  - 提交：实现 `896eabf`、探针修正 `67ebf14`、登记 `3e14eec`。
+- **未做**：
+  - **没有**做 on/off 的科学比较（单 seed、120 updates、10 样例/lead）；§3 的 Δ 只记录。
+  - **没有**重跑父迁移。本轮把 `model_code_sha256` 从 `60de3b2d…` 改成 `a38be16c…`，
+    所以**所有已登记迁移父在本代码下不可加载**；R2–R5 的**前置**就是这一次迁移，
+    它不属本轮，也没有被本轮跳过而不记账——它是 §8 的下一动作。
+  - **没有**用时变静态场（多期数组留在产物里）；**没有**引入可学习静态编码器
+    （会引入容量混杂，需要自己的 ADR）。
+  - **没有**读 2023 test；`r` 仍为 0。
 - **下一动作（可执行的第一条命令）**：
-  `.venv/bin/python scripts/r7_static_wiring_reference.py --compare outputs/r7_static_wiring_20261029/pre_change_reference.json`
-  —— 在改完 `model/**` 之后跑，必须输出 `passed: true`（W2）。
+  `.venv/bin/python tools/r7_round.py state`
+  —— 核对指针；随后是 **R2–R5 的父迁移解阻塞**（见主计划 §8 2026-10-29 块）：
+  `.venv/bin/python scripts/migrate_r7_parent_state.py --export-root outputs/r7_s3_rollout_dose_parent_export_20261009_attempt02 --out outputs/r7_s3_parent_migrated_20261029_attempt01`
