@@ -36,6 +36,7 @@ if str(ROOT) not in sys.path:
 
 from data.download import urban_static_sources as sources          # noqa: E402
 from data.preprocess import urban_static_aggregate as aggregate    # noqa: E402
+from data.preprocess import urban_static_recheck as rechecker       # noqa: E402
 from data.preprocess.contracts import fresh_outputs                # noqa: E402
 
 STEM = "r7_urban_static_covariates"
@@ -406,67 +407,6 @@ def aggregate_fields() -> dict:
 
 # --- phase 5: independent re-derivation ---------------------------------------
 
-def _independent_cell(attempt: Path, layer_name: str, row: int, col: int, *,
-                      role: str, classes=(10, 40, 50, 60, 80)) -> dict:
-    """Recompute one cell from the raw tiles without the aggregation accumulator.
-
-    The native cells that belong to the target cell are selected here from the tile
-    transform directly (a native cell belongs to the cell whose edge box contains
-    its centre), and the reduction is a plain weighted loop. No intermediate of the
-    aggregation path is reused, so agreement is a real cross-check of the code, not
-    of a shared helper.
-    """
-    import rasterio
-
-    lat_south, lat_north = aggregate.target_lat_bounds(row)
-    lon_west, lon_east = aggregate.target_lon_bounds(col)
-    built = np.zeros(len(classes))
-    value_sum = 0.0
-    weight_sum = 0.0
-    cols_per_cell = None
-    for path in _tile_paths(attempt, layer_name):
-        with rasterio.open(path) as dataset:
-            if not (dataset.bounds.left < lon_east and dataset.bounds.right > lon_west
-                    and dataset.bounds.bottom < lat_north and dataset.bounds.top > lat_south):
-                continue
-            transform = dataset.transform
-            lat_centres = transform.f + transform.e * (np.arange(dataset.height) + 0.5)
-            lon_centres = transform.c + transform.a * (np.arange(dataset.width) + 0.5)
-            rows = np.flatnonzero((lat_centres >= lat_south) & (lat_centres < lat_north))
-            cols = np.flatnonzero((lon_centres >= lon_west) & (lon_centres < lon_east))
-            if rows.size == 0 or cols.size == 0:
-                continue
-            if cols_per_cell is None:
-                cols_per_cell = int(round(aggregate.GRID_SPACING_DEG / transform.a))
-            r0, r1 = int(rows[0]), int(rows[-1]) + 1
-            c0, c1 = int(cols[0]), int(cols[-1]) + 1
-            window = rasterio.windows.Window(c0, r0, c1 - c0, r1 - r0)
-            block = dataset.read(1, window=window)
-            lat_top = transform.f + transform.e * np.arange(r0, r1)
-            weights = np.abs(np.sin(np.radians(lat_top))
-                             - np.sin(np.radians(lat_top + transform.e)))
-            if role == "land_cover":
-                for position, code in enumerate(classes):
-                    built[position] += float((weights[:, None] * (block == code)).sum())
-            elif role == "building_height":
-                mask = block > 0
-                value_sum += float((weights[:, None] * np.where(mask, block, 0.0)).sum())
-                weight_sum += float((weights[:, None] * mask).sum())
-            else:
-                value_sum += float(block.astype(np.float64).sum())
-    if role == "land_cover":
-        # The denominator is the whole cell, taken from the cell geometry once: adding
-        # it per overlapping tile would multiply it by the tile count.
-        total = aggregate.sin_band(lat_south, lat_north) * cols_per_cell
-        return {"fraction": {code: built[i] / total if total else 0.0
-                             for i, code in enumerate(classes)}, "total": total}
-    if role == "building_height":
-        return {"mean": value_sum / weight_sum if weight_sum else 0.0, "weight": weight_sum}
-    if role == "built_surface":
-        return {"fraction": value_sum / aggregate.cell_area_m2(row)}
-    return {"density": value_sum / (aggregate.cell_area_m2(row) / 1e6)}
-
-
 def recheck() -> dict:
     attempt = latest_attempt("static_fields.npz")
     protocol = _read_json(attempt / "protocol.json")
@@ -486,7 +426,7 @@ def recheck() -> dict:
              fields["pop_density_km2"][-1][row, col], None),
         ]
         for layer_name, role, field, published, code in checks:
-            derived = _independent_cell(attempt, layer_name, row, col, role=role)
+            derived = rechecker.independent_cell(attempt, layer_name, row, col, role=role)
             value = derived["fraction"][code] if role == "land_cover" else (
                 derived["mean"] if role == "building_height" else
                 derived["fraction"] if role == "built_surface" else derived["density"])
