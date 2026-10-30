@@ -307,3 +307,51 @@
 
 **提交**：`7732dad`（证据页与账本更正）、`d80dfd3`（evidence_commit 指向其修订），
 已推送 `30dc58a..d80dfd3` 到 `r7/weather-reasoning`。
+
+### 2026-10-30 — 决策 0070：`dryRun: false` 编排重跑已启动（attempt02）
+
+**为什么有这一轮**：上一节记的缺口是「`dryRun: false` 从未运行」。本轮补它，
+数据交付物本身不因此改变（`attempt01` 字节不动）。
+
+**启动前做了什么（每一步都有实测证据）**：
+1. 立 ADR `docs/decisions/0070-urban-static-replay-under-workflow.md`（`accepted`）并加进
+   `docs/decisions/README.md` 索引；预声明出口 **E1–E6**（六相位全绿 / 层可达数 ≥13 且
+   LandScan 仍 `failed-no-fallback` / `static_identity` 差异**如实记录不得声称逐位相同** /
+   recheck 相对偏差 ≤1e-05 / 网络 ≤40 GiB 且磁盘余量 ≥60 GiB 且墙钟 ≤86,400 s /
+   既有 94 条 `record_id` 不重复）。
+2. **发现并修掉一个会让指针回归直接失败的机械约束**：`tools/check_campaign_state.py:216-266`
+   的 C-04 要求 `previous_round_goal` 的「下一动作」末尾含 `current_node`。接线轮长文
+   `docs/goals/s3-urban-static-wiring.md` 的「下一动作」尾部（304 字符，实测）**不含 `S3`**，
+   所以只改指针必失败。已给该行补 `（节点 S3；`——**只补节点名**，不改其任何读数/出口/结论。
+3. 指针临时回归：`current_round_goal = 本长文`、`previous_round_goal = 接线轮长文`、
+   `previous_round_evidence = docs/R7_STATIC_COVARIATES_WIRING.md`；
+   实测 `check_campaign_state.py --quiet` → `failures=0`。
+4. 提交 `6b1bb0c`（ADR + 索引 + 指针 + 接线轮补节点名），`commit-guard` `passed: true`、
+   `check_conventions.py` 37 条阻断规则 `failing=0`。
+5. **改掉草稿三处会在重跑中破坏已登记状态的缺陷**（都在 `.zcode/workflow-drafts/r7-urban-static-round.dwf.ts`）：
+   - 侦察员提示词原本默认「首次获取」，会把本轮判成 `blocked` 直接跳过全部 stage；
+     改为写明这是 0070 的重跑、`blocked` 不是正确结论。
+   - 实现者提示词原本要求**重写** `scripts/r7_urban_static_round.py` 与测试——那会让重跑
+     不再是同一实现的复现。改为**只核对不改写**，并要求证据（`file:line`）。
+   - 登记员提示词原本会改写 `docs/R7_URBAN_STATIC_COVARIATES.md`（其 sha256 被账本行 pin 住）
+     并可能写出重复 `record_id`。改为写**新证据页** `docs/R7_URBAN_STATIC_COVARIATES_REPLAY.md`
+     与**新 `record_id`**，并明确**本轮结束必须把指针恢复**到接线轮。
+   - `IMPLEMENT_PATHS` 同步收窄为「本轮真正新增的 ADR 与索引」，不再 `git add` 已登记的
+     驱动/测试/计划。
+
+**启动（实测）**：`CreateWorkflow` 编译干净，run
+`dwfrun-34a44d57-a5b5-4176-a95d-b870f1f7bcfe`，参数 `dryRun: false` / `maxRounds: 1` /
+`resumeFromRound: 0`，`2026-10-30T02:55:11Z` 起跑，`owned_by_this_session: true`。
+阶段图 5 个（侦察 → 实现与独立复核 → 提交并断言分支 → 数据轮 stage → 读数与登记）。
+
+**这一轮要补的证据**：非 dryRun 分支的首次执行——分支断言 → `commit-guard` → 实现提交 →
+六 stage（`verify-endpoints`/`freeze`/`download`/`aggregate`/`recheck`/`publish`）→
+`tools/r7_round.py verify` → 登记提交 → 推送 `r7/weather-reasoning`。
+
+**已知风险（如实记）**：
+- 将重下约 14.5 GiB、多占约 20 GiB；启动前实测 `/data` 余量约 570 GiB。
+- `static_identity` 可能因 `published_utc` 之类的时间戳而**不同**于 attempt01 的 `8671ed7c…`；
+  E3 要求如实记差异来源，**不得**声称逐位相同。
+- 指针处于临时回归态，期间其他研究线若开轮会解析到本长文；故本轮有界、跑完即恢复指针。
+- 该草稿的非 dryRun 路径此前**从未执行**，缺陷可能只有在实跑中暴露；若某阶段非 0，
+  按停止条件如实记，不重试到偶然过。
