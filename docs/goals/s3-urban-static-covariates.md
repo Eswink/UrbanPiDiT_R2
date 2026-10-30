@@ -601,3 +601,50 @@ run `dwfrun-4f208de0-0618-46ab-ac92-fba0c8224ff9`，参数 `dryRun: true` / `bas
 按 0071 第 1 条，正解是**一次运行同时完成两件事**：格界重派生（新 attempt、新冻协议）
 ＋首次真实验证 F1–F4。基线应设为 `6f21f71`（聚合器修复落地的那次提交），
 因为该提交之前聚合器是格心口径、之后是格界口径，重派生必须以后者为准。
+
+### 2026-10-30 — 决策 0071 第 1 条：recheck 改为**真正的第三套实现**；格界重派生已启动
+
+#### A. recheck 的失效根因已从结构上修掉（提交 `bb7ce2c`）
+
+改前 `scripts/r7_urban_static_round.py:433-436` 的 `_independent_cell` **重新实现了一遍
+聚合器的格心规则**（`lat_centres`/`lon_centres` 落在目标格界内即归属），
+所以它告出的 `5.15e-08` 只证明**同一规则的两次实现互相一致**——
+这正是格心/格界缺陷能溜过「独立再派生」的原因。
+
+改后：
+- 归属改为**精确球面面积重叠**（纬度用 sin 带比例、经度用线性比例）；
+- **不 import** `urban_static_aggregate` 的任何归属 helper，连目标格边界都改从
+  `urban_static_sources` 的冻结常量自行推导，使「聚合器的 bounds 有 bug 也藏不住」；
+- 抽到独立模块 `data/preprocess/urban_static_recheck.py`（126 行），
+  使隔离是**结构性**的而非约定性的；同时让驱动从 618 行降到 526 行，回到 R-051 的 600 行内
+  （此前抽取触发 `R-051 FAIL hits=1`，按规则**只许缩小**，未放宽阈值）。
+
+**双向验证（关键在第二项）**：
+| 对照 | 结果 | 含义 |
+| --- | --- | --- |
+| 新 recheck vs **已改为格界的**聚合器（3 格抽样） | 最大相对差 `0.00000000%` | 两者语义一致 |
+| 新 recheck vs **attempt01 已发布的格心值** | `0.3382%` / `0.0370%` / `0.1907%` | **能抓住**旧错误 |
+
+第二项是「橡皮图章已修复」的证据：旧 recheck 对这一差异报告的是 `5.15e-08`。
+
+`pytest tests/test_r7_urban_static_round.py` → 11 passed；
+`check_conventions.py` 37 条阻断规则 `failing=0`。
+
+#### B. 重派生已启动（`dryRun: false`，首次真实验证 F1–F4）
+
+- 指针已切回本长文（`previous_round_goal = 接线轮`），`check_campaign_state.py` `failures=0`，
+  提交 `722c2cc`。
+- **基线提交取 `722c2cc`，而不是指令里的 `6f21f71`**——原因必须写明：本轮改动了
+  `scripts/r7_urban_static_round.py`（抽出 recheck 模块）与新增
+  `data/preprocess/urban_static_recheck.py`，若仍用 `6f21f71` 作基线，F1 会**必然**判失败
+  （实现字节确实变了）。忠实性判据要问的是「**本轮运行期间**实现有没有被悄悄改动」，
+  所以基线必须是**开跑前最后一次实现提交**。这不是放宽判据，是把 F1 的语义用对。
+- F1 的比对清单同时从 4 个文件扩到 **5 个**（加入 `urban_static_recheck.py`）。
+- run `dwfrun-4dcab4e3-5446-4c04-ae05-6031a77e1cdb`，参数
+  `dryRun: false` / `baselineCommit: 722c2cc` / `maxRounds: 1`，`2026-10-30T08:0xZ` 起跑，
+  编译干净。产物将落 `outputs/r7_urban_static_covariates_attempt02/`（`attempt01` 不动）。
+- 启动前 `/data` 余量 567 GiB；预计再占约 20 GiB、网络约 14.5 GiB（0064 门：≤40 GiB）。
+
+**本轮观察点**：F1 应通过（开跑前实现已提交、运行中不改文件），F2 应在六相位都实跑后通过，
+F3 检查 `build_complete=true`，F4 检查 `verify`。若 F1 失败，说明复核者在运行中改了实现文件
+——那正是 F1 要拦的情况，必须如实记录而不是绕过。
