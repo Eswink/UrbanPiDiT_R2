@@ -467,3 +467,90 @@ attempt01/attempt02 的数值作废（但作为「格心口径」的记录保留
 证据页是否加警告横幅）；然后由**新 ADR** 决定格界语义修复——改 `aggregate.py` 的归属规则、
 新冻 protocol、在新排他路径重派生，并把 attempt01/attempt02 的数值明确标为「格心口径」保留而非删除。
 编排重跑若仍要做，闸门须先按上面那条改成「重放忠实性」判据。
+
+### 2026-10-30 — 决策 0071：**R-006 质疑被实测推翻**，格界修复与闸门改判已落地
+
+#### A. R-006 时序：**「先下载后冻结」是错的**（实测，非推测）
+
+此前复核者据 `protocol.json` 的 mtime（`2026-10-27 13:26:58 +0800` = `05:26:58Z`）
+晚于 `download_receipt.json` 的 `downloaded_utc`（`2026-10-27T05:13:48Z`），
+推断「协议冻在下载之后 ⇒ 违反 R-006」。**不成立**，两条独立证据：
+
+1. **文件 birth 早于下载 71 分钟**：
+   `stat -c '%n mtime=%y birth=%w' protocol.json` →
+   `mtime=2026-10-27 13:26:58 +0800, birth=2026-10-27 12:02:35 +0800`（= `04:02:35Z`）。
+   mtime 只反映**最后一次写入**，不是冻结时刻。
+2. **下载时那份协议可精确重建**：`_digest` 是对
+   `json.dumps(body, sort_keys=True, separators=(",",":"))` 的 sha256
+   （`scripts/r7_urban_static_round.py:89-91`）。把当前 `protocol.json` 去掉
+   `protocol_sha256` 键、各层计划去掉后加的 `epoch`/`year` 键、`frozen_utc` 置回
+   `2026-10-27T04:02:35+00:00`，重算得
+   **`c402867022c5dee3876fb597dfb0af3de26ecf167ec367d617aec6bb83708cef`**，
+   与 `download_receipt.json` 记录的 `protocol_sha256` **逐字符相同**。
+   （对照：只去掉 `epoch`/`year` 而保留现 `frozen_utc` 得 `49d12618…`，不匹配；
+   再试 `04:02:21`/`04:02:36`/`04:03:00` 等相邻秒均不匹配，故 `04:02:35` 是唯一解。）
+
+⇒ **acquisition 层面 R-006 成立**：协议先冻结，且可被读者自行复验。
+
+**但仍然存在一个真实的记录缺陷（等级低于时序违反）**：
+- 下载后为补 `epoch`/`year` 两个记账键，`freeze()` 被再次调用，`protocol.json` 被改写为
+  `8cc3c673…`；发布 `manifest` 与 `static_identity` 绑的是**改写后**的摘要，
+  而「下载时那一版」的字节**仓库内没有单独留存**（只能靠上面的重建法证明）。
+- 更关键的缺陷：`frozen_before_any_download` 是
+  **硬编码 `True` 字面量**（`scripts/r7_urban_static_round.py:210`），`freeze()` 里
+  **没有任何**与下载回执比较时间的逻辑 ⇒ 该字段是**声明**，不是**测量**。
+  它在 attempt01 恰为真（已由重建法证明），但**不能**当作任何一轮的证据。
+  修它需另立 ADR，本轮只要求标注。
+
+#### B. 格界归属修复（决策 0071 第 1 条，已落地）
+
+`data/preprocess/urban_static_aggregate.py` 的归属规则由「原生格心」改为
+**「格界面积重叠」**：新增 `_row_spans` / `_col_spans`，每个原生格按**真实球面面积比例**
+分配给**它触及的每一个**目标格（纬度用 sin 带比例、经度用线性比例，二者相乘）。
+删除了只能表达「整格归属」的 `_blocked_runs` / `_row_bands` / `_overlapping` /
+`_native_col_targets` 与 `READ_CHUNK_ROWS`。
+
+**验证（三重）**：
+1. **第三套独立实现对照**（另写一份，不用模块任何 helper，直接对原生格做窗口读取＋
+   精确重叠分数）：6 个抽样格**最大分歧 `0.000000%`**。
+2. **代数恒等**：`band × row_fraction` 恰等于精确重叠带（实测
+   `5.720810814180e-06` vs `5.720810814180e-06`）。
+3. **与旧值对照**（证明改动确实有意义）：新格界值与 attempt01 的格心值相差
+   抽样 `0.037%`–`1.242%`；`(36,2)` 新 `0.0006189815` vs 旧 `0.0006266594`（`1.2404%`）。
+4. `pytest tests/test_r7_urban_static_round.py` → **11 passed**；
+   `check_conventions.py` 37 条阻断规则 `failing=0`。
+
+**这一步改掉了已发布数值** ⇒ attempt01 的数值现为**格心口径**，保留在盘上并标注，
+必须由下一轮的**重派生**取代（新 `protocol.json`、新 `attempt` 目录、新 `static_identity`）。
+
+#### C. 编排闸门改判「重放忠实性」（决策 0071 第 2 条，已落地）
+
+`.zcode/workflow-drafts/r7-urban-static-round.dwf.ts` 的闸门由
+「复核者 `clean=true`」改为 **F1–F4**：
+- **F1** `git diff --name-only <baseline> -- <4 个实现文件>` 必须为空
+  （新增 `baselineCommit` 参数，默认 `HEAD`；这是真正拦住「实现被悄悄改动」的那条）；
+- **F2** 六相位全部实跑且退出码 0；
+- **F3** `BUILD_COMPLETE.json` 的 `build_complete` 为 `true`；
+- **F4** `tools/r7_round.py verify` 退出码 0。
+
+复核者**仍然运行并报告**，但其 `clean` **不再是开跑条件**；复核发现写进报告与证据页。
+理由已写进 ADR：0070 的 `dwfrun-34a44d57` 实测三轮 `high=1/1/2`、`clean=false` 而快门通过
+⇒ 「干净」判据与「只核对不改写」的重放轮**结构上不相容**。
+
+**放宽的边界（明写）**：这不是放弃复核，而是把「是否开跑」交给可机械判定的忠实性，
+把「发现了什么」交给复核记录。任何**新引入**的缺陷仍被 F1 拦截（字节不同即停）。
+
+#### D. 提交
+
+`6f21f71`（格界修复 + ADR 0071 + 索引），`commit-guard` `passed: true`，
+标记 `[model-digest-change]`（聚合器在 import 闭包内，改变了 `model_code_sha256` 无关的
+代码身份，但不改 `model/**`）。
+
+**为何停 + 恢复第一条命令**：
+决策 0071 授权的两项都已落地并有实测验证；**重派生本身**需要新协议的独立运行
+（重下 14.5 GiB），属下一轮的工作，本轮不启动。
+恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`。
+
+下一动作（S3）：按决策 0071 第 1 条做**格界重派生**——新 `attempt` 目录、新冻 `protocol.json`、
+`recheck` 必须用第三套实现（本轮已写出该实现，可直接复用）；完成后把 attempt01
+在证据页标为「格心口径（已由 0071 取代）」。
