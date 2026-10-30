@@ -42,10 +42,6 @@ from data.download.urban_static_sources import (
 
 AUTHALIC_RADIUS_M = 6371007.181          # WGS84 authalic sphere radius
 SPATIAL_RESAMPLING = "area_weighted_coarsen"
-# Native rows read per chunk. The area weight is applied per native row regardless,
-# so this only bounds memory; it never coarsens the weighting.
-READ_CHUNK_ROWS = 2048
-
 
 def target_lat_bounds(row: int) -> tuple[float, float]:
     """(south, north) edges of target row ``row``; row 0 is northernmost."""
@@ -103,36 +99,80 @@ def _target_col_of_lon(lon: float) -> int:
     return int(math.floor((lon - EDGE_WEST) / GRID_SPACING_DEG))
 
 
-def _native_row_weights(dataset) -> tuple[np.ndarray, np.ndarray]:
-    """(target_row per native row, sin weight per native row) for one raster."""
+def _native_row_weights(dataset) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(sin-band weight per native row, lat_top, lat_bottom) for one raster.
+
+    Row *assignment* is not decided here: a native row can straddle a target edge
+    and must contribute a proportional share to both neighbouring target rows
+    (decision 0071). Callers use ``_row_spans`` for that.
+    """
     top = dataset.bounds.top
     dy = dataset.transform.e                 # negative
     rows = np.arange(dataset.height)
     lat_top = top + rows * dy
     lat_bottom = top + (rows + 1) * dy
     weights = np.sin(np.radians(lat_top)) - np.sin(np.radians(lat_bottom))
-    centers = (lat_top + lat_bottom) / 2.0
-    target = np.floor((EDGE_NORTH - centers) / GRID_SPACING_DEG).astype(np.int64)
-    return target, weights
+    return weights, lat_top, lat_bottom
 
 
-def _native_col_targets(dataset) -> np.ndarray:
-    left = dataset.bounds.left
-    dx = dataset.transform.a                 # positive
-    cols = np.arange(dataset.width)
-    centers = left + (cols + 0.5) * dx
-    return np.floor((centers - EDGE_WEST) / GRID_SPACING_DEG).astype(np.int64)
+def _sin_band_of_row(dataset, native_row: int) -> float:
+    """Spherical sin-band weight of one native row (dimensionless)."""
+    dy = dataset.transform.e
+    top = dataset.bounds.top + native_row * dy
+    return math.sin(math.radians(top)) - math.sin(math.radians(top + dy))
 
 
-def _overlapping(dataset) -> tuple[list[int], list[int]]:
-    """Target rows and columns this raster intersects, ascending."""
-    lat_south, lat_north = sorted((dataset.bounds.bottom, dataset.bounds.top))
-    lon_west, lon_east = sorted((dataset.bounds.left, dataset.bounds.right))
-    first_row = max(0, _target_row_of_lat(lat_north - 1e-9))
-    last_row = min(GRID_HEIGHT - 1, _target_row_of_lat(lat_south + 1e-9))
-    first_col = max(0, _target_col_of_lon(lon_west + 1e-9))
-    last_col = min(GRID_WIDTH - 1, _target_col_of_lon(lon_east - 1e-9))
-    return list(range(first_row, last_row + 1)), list(range(first_col, last_col + 1))
+def _row_spans(lat_top: np.ndarray, lat_bottom: np.ndarray) -> list[tuple[int, int, float]]:
+    """(target_row, native_row, overlap_fraction) triples for every native row.
+
+    Decision 0071: assignment is by **cell-edge area overlap**, not by which target
+    cell contains the native cell's centre. A native row that straddles a target
+    edge appears twice, once per neighbour, with the fraction of its own spherical
+    band that falls inside each. This is what ``DATA_SPEC.md`` calls
+    ``area_weighted_coarsen``; the centre rule it replaces was measurably wrong
+    because the GHSL grid sits half a native cell off the target edges.
+    """
+    spans: list[tuple[int, int, float]] = []
+    for index in range(lat_top.size):
+        top = float(lat_top[index])
+        bottom = float(lat_bottom[index])
+        band = math.sin(math.radians(top)) - math.sin(math.radians(bottom))
+        if band <= 0.0:
+            continue
+        first = _target_row_of_lat(top - 1e-12)
+        last = _target_row_of_lat(bottom + 1e-12)
+        for row in range(min(first, last), max(first, last) + 1):
+            if not 0 <= row < GRID_HEIGHT:
+                continue
+            south, north = target_lat_bounds(row)
+            overlap = (math.sin(math.radians(min(top, north)))
+                       - math.sin(math.radians(max(bottom, south))))
+            if overlap <= 0.0:
+                continue
+            spans.append((row, index, overlap / band))
+    return spans
+
+
+def _col_spans(lon_left: np.ndarray, lon_right: np.ndarray) -> list[tuple[int, int, float]]:
+    """(target_col, native_col, overlap_fraction) triples, lon axis of ``_row_spans``."""
+    spans: list[tuple[int, int, float]] = []
+    for index in range(lon_left.size):
+        left = float(lon_left[index])
+        right = float(lon_right[index])
+        width = right - left
+        if width <= 0.0:
+            continue
+        first = _target_col_of_lon(left + 1e-12)
+        last = _target_col_of_lon(right - 1e-12)
+        for col in range(min(first, last), max(first, last) + 1):
+            if not 0 <= col < GRID_WIDTH:
+                continue
+            west, east = target_lon_bounds(col)
+            overlap = min(right, east) - max(left, west)
+            if overlap <= 0.0:
+                continue
+            spans.append((col, index, overlap / width))
+    return spans
 
 
 def _rasterio():
@@ -146,6 +186,14 @@ def _rasterio():
     return rasterio
 
 
+def _native_col_edges(dataset) -> tuple[np.ndarray, np.ndarray]:
+    """(lon_left, lon_right) per native column, in degrees."""
+    left = dataset.bounds.left
+    dx = dataset.transform.a                 # positive
+    cols = np.arange(dataset.width)
+    return left + cols * dx, left + (cols + 1) * dx
+
+
 def _open(path):
     return _rasterio().open(path)
 
@@ -156,57 +204,36 @@ def _read(dataset, rows: slice, cols: slice) -> np.ndarray:
     return dataset.read(1, window=window)
 
 
-def _blocked_runs(index: np.ndarray) -> list[tuple[int, int, int]]:
-    """Runs of equal value: (value, start, stop) over a 1-D integer array."""
-    if index.size == 0:
-        return []
-    change = np.flatnonzero(index[1:] != index[:-1]) + 1
-    bounds = np.concatenate(([0], change, [index.size]))
-    return [(int(index[bounds[i]]), int(bounds[i]), int(bounds[i + 1]))
-            for i in range(len(bounds) - 1)]
-
-
-def _row_bands(target_rows: np.ndarray, row: int) -> list[tuple[int, int]]:
-    """(start, stop) native-row runs whose target row is ``row``, chunked."""
-    mask = np.flatnonzero(target_rows == row)
-    if mask.size == 0:
-        return []
-    start, stop = int(mask[0]), int(mask[-1]) + 1
-    return [(band_start, min(band_start + READ_CHUNK_ROWS, stop))
-            for band_start in range(start, stop, READ_CHUNK_ROWS)]
-
-
-def _accumulate_counts(dataset, col_targets: np.ndarray, target_rows: np.ndarray,
-                       weights: np.ndarray, *, classes: tuple[int, ...]) -> np.ndarray:
+def _accumulate_counts(dataset, row_spans, col_spans, *, classes: tuple[int, ...]) -> np.ndarray:
     """Exact area-weighted per-class counts, shape (65, 65, len(classes)).
 
-    The weight is applied **per native row** (``sin(lat_top) - sin(lat_bottom)`` of
-    that row), not per read chunk: a chunk can straddle a sharp urban/rural
-    boundary, and collapsing it to one weight would bias the cell. Only the
-    requested class codes are counted, so a nodata code (WorldCover uses 0) is
-    excluded from the numerator and from the cell-area denominator alike.
+    Every native cell contributes to each target cell it overlaps, scaled by the
+    fraction of the native cell that falls inside that target cell (decision 0071).
+    The latitude fraction is a ratio of spherical sin bands, so a native row that
+    straddles a target edge is split in true area proportion rather than assigned
+    whole to whichever cell happens to contain its centre.
     """
     counts = np.zeros((GRID_HEIGHT, GRID_WIDTH, len(classes)), dtype=np.float64)
-    for row in sorted(set(int(v) for v in target_rows)):
-        if not 0 <= row < GRID_HEIGHT:
-            continue
-        for start, stop in _row_bands(target_rows, row):
-            block = _read(dataset, slice(start, stop), slice(0, dataset.width))
-            row_weights = weights[start:stop]
-            for col, c0, c1 in _blocked_runs(col_targets):
-                if not 0 <= col < GRID_WIDTH:
-                    continue
-                segment = block[:, c0:c1]
-                for position, code in enumerate(classes):
-                    per_row = (segment == code).sum(axis=1)
-                    if per_row.any():
-                        counts[row, col, position] += float((row_weights * per_row).sum())
+    block = _read(dataset, slice(0, dataset.height), slice(0, dataset.width))
+    for row, native_row, row_fraction in row_spans:
+        # ``row_fraction`` is a proportion *of this native row's sin band*, so
+        # multiplying by that band yields the exact spherical band this row
+        # contributes to the target cell. Without the band factor the count would be
+        # in pixel units and the fraction would be off by the cell area.
+        band_share = _sin_band_of_row(dataset, native_row) * row_fraction
+        line = block[native_row]
+        for col, native_col, col_fraction in col_spans:
+            value = line[native_col]
+            share = band_share * col_fraction
+            for position, code in enumerate(classes):
+                if value == code:
+                    counts[row, col, position] += share
     return counts
 
 
-def _accumulate_sums(dataset, col_targets: np.ndarray, target_rows: np.ndarray,
-                     weights: np.ndarray, *, valid=None, weight_by_area: bool) -> np.ndarray:
-    """Value sums and weight totals, shape (65, 65, 2), weighted per native row.
+def _accumulate_sums(dataset, row_spans, col_spans, *, valid=None,
+                     weight_by_area: bool) -> np.ndarray:
+    """Value sums and weight totals, shape (65, 65, 2), split by edge overlap.
 
     ``weight_by_area`` distinguishes an **intensive** quantity (a mean, which must
     be area-weighted because a native cell's area depends on its latitude) from an
@@ -215,24 +242,23 @@ def _accumulate_sums(dataset, col_targets: np.ndarray, target_rows: np.ndarray,
     exactly the bug this flag exists to prevent.
     """
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
-    for row in sorted(set(int(v) for v in target_rows)):
-        if not 0 <= row < GRID_HEIGHT:
-            continue
-        for start, stop in _row_bands(target_rows, row):
-            block = _read(dataset, slice(start, stop), slice(0, dataset.width)).astype(np.float64)
-            row_weights = weights[start:stop] if weight_by_area else np.ones(stop - start)
-            if valid is None:
-                values = block
-                carried = np.ones(block.shape, dtype=np.float64)
-            else:
-                mask = valid(block)
-                values = np.where(mask, block, 0.0)
-                carried = mask.astype(np.float64)
-            for col, c0, c1 in _blocked_runs(col_targets):
-                if not 0 <= col < GRID_WIDTH:
-                    continue
-                totals[row, col, 0] += float((row_weights * values[:, c0:c1].sum(axis=1)).sum())
-                totals[row, col, 1] += float((row_weights * carried[:, c0:c1].sum(axis=1)).sum())
+    block = _read(dataset, slice(0, dataset.height), slice(0, dataset.width)).astype(np.float64)
+    mask = None if valid is None else valid(block)
+    values = block if mask is None else np.where(mask, block, 0.0)
+    carried = np.ones(block.shape, dtype=np.float64) if mask is None else mask.astype(np.float64)
+    for row, native_row, row_fraction in row_spans:
+        if weight_by_area:
+            # The row fraction already carries the lat proportion of this native row;
+            # multiplying by its sin band converts a mean into an area-weighted mean.
+            row_weight = _sin_band_of_row(dataset, native_row)
+        else:
+            row_weight = 1.0
+        line = values[native_row]
+        line_carried = carried[native_row]
+        for col, native_col, col_fraction in col_spans:
+            share = row_weight * row_fraction * col_fraction
+            totals[row, col, 0] += share * float(line[native_col])
+            totals[row, col, 1] += share * float(line_carried[native_col])
     return totals
 
 
@@ -252,9 +278,10 @@ def aggregate_land_cover(paths, *, classes=(10, 40, 50, 60, 80)) -> dict:
         with _open(path) as dataset:
             if cols_per_cell is None:
                 cols_per_cell = int(round(GRID_SPACING_DEG / dataset.transform.a))
-            target_rows, weights = _native_row_weights(dataset)
-            counts += _accumulate_counts(dataset, _native_col_targets(dataset),
-                                         target_rows, weights, classes=classes)
+            _, lat_top, lat_bottom = _native_row_weights(dataset)
+            counts += _accumulate_counts(dataset, _row_spans(lat_top, lat_bottom),
+                                         _col_spans(*_native_col_edges(dataset)),
+                                         classes=classes)
     if cols_per_cell is None:
         raise ValueError("aggregate_land_cover needs at least one raster")
     denominator = np.array(
@@ -272,9 +299,10 @@ def aggregate_built_surface(paths) -> dict:
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
     for path in paths:
         with _open(path) as dataset:
-            target_rows, weights = _native_row_weights(dataset)
-            totals += _accumulate_sums(dataset, _native_col_targets(dataset),
-                                       target_rows, weights, weight_by_area=False)
+            _, lat_top, lat_bottom = _native_row_weights(dataset)
+            totals += _accumulate_sums(dataset, _row_spans(lat_top, lat_bottom),
+                                       _col_spans(*_native_col_edges(dataset)),
+                                       weight_by_area=False)
     area = np.array([[cell_area_m2(row) for _ in range(GRID_WIDTH)]
                      for row in range(GRID_HEIGHT)])
     fraction = np.divide(totals[:, :, 0], area, out=np.zeros_like(area), where=area > 0)
@@ -286,7 +314,7 @@ def aggregate_building_height(paths) -> dict:
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
     for path in paths:
         with _open(path) as dataset:
-            target_rows, weights = _native_row_weights(dataset)
+            _, lat_top, lat_bottom = _native_row_weights(dataset)
             nodata = dataset.nodata
             if nodata is None:
                 # The 3 arcsec product documents an empty NoData: zero means "no
@@ -294,9 +322,9 @@ def aggregate_building_height(paths) -> dict:
                 valid = lambda block: block > 0.0
             else:
                 valid = lambda block: (block != nodata) & np.isfinite(block) & (block > 0.0)
-            totals += _accumulate_sums(dataset, _native_col_targets(dataset),
-                                       target_rows, weights, valid=valid,
-                                       weight_by_area=True)
+            totals += _accumulate_sums(dataset, _row_spans(lat_top, lat_bottom),
+                                       _col_spans(*_native_col_edges(dataset)),
+                                       valid=valid, weight_by_area=True)
     weight = totals[:, :, 1]
     mean = np.divide(totals[:, :, 0], weight, out=np.zeros_like(weight), where=weight > 0)
     return {"weighted_height": totals[:, :, 0], "weight": weight, "mean": mean}
@@ -307,13 +335,13 @@ def aggregate_population(paths) -> dict:
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
     for path in paths:
         with _open(path) as dataset:
-            target_rows, weights = _native_row_weights(dataset)
+            _, lat_top, lat_bottom = _native_row_weights(dataset)
             nodata = dataset.nodata
             valid = None if nodata is None else (
                 lambda block: (block != nodata) & np.isfinite(block) & (block >= 0.0))
-            totals += _accumulate_sums(dataset, _native_col_targets(dataset),
-                                       target_rows, weights, valid=valid,
-                                       weight_by_area=False)
+            totals += _accumulate_sums(dataset, _row_spans(lat_top, lat_bottom),
+                                       _col_spans(*_native_col_edges(dataset)),
+                                       valid=valid, weight_by_area=False)
     area_km2 = np.array([[cell_area_m2(row) / 1e6 for _ in range(GRID_WIDTH)]
                          for row in range(GRID_HEIGHT)])
     density = np.divide(totals[:, :, 0], area_km2, out=np.zeros_like(area_km2),
