@@ -832,3 +832,42 @@ manifest 与证据页都能看到 `false`，但没有任何机械停止。
 ② 让 `publish` 在 `recheck_receipt["passed"]` 为 false 时**拒绝发布**（fail-closed）；
 ③ 让协议对「具名层被丢弃」强制要求非空 `reason`，否则冻结阶段就失败。
 修完后重跑重派生，把 attempt03 标为「recheck 未过、层不全，不得用于科学用途」保留。
+
+### 2026-10-31：三件事全部完成（commit `4a3f5dd`，决策 0072）
+
+上诉①②③逐条落地，另加一条实测更正：
+
+1. **band 缺陷已修**（`data/preprocess/urban_static_recheck.py`）。根因是分子为"每像素
+   份额"（整格求和实测 `9,000,000`）而分母为 `sin_band × native_cols = 9.8416`。
+   修法按 role 分开：`land_cover`/`building_height` 用**绝对球面重叠面积 m²**，
+   `built_surface`/`population` 用**重叠比例**（对后者乘面积会双计，实测偏差 `6.5e+03`–`7.5e+03`）；
+   `land_cover` 分母统一为 `cell_area_m2`。
+2. **单测已补**（`tests/test_r7_urban_static_recheck.py`，14 用例）。反证实测：
+   把修复前的模块放回去，**4 个用例失败**；换回修复后全过。
+3. **`publish` 已 fail-closed**：`recheck_receipt["passed"] is not True` 时 `SystemExit`。
+4. **丢层 `reason` 已强制非空**：`verify_endpoints()` 此前构造 dropped 记录时**不含
+   `reason` 键**；现填入观测到的 HTTP 状态，并在 `freeze`/`_publish` 入口断言。
+
+**必须先做的一步（否则可能在迁就错误结果）**：改代码前先用完全独立的暴力实现（逐原生像素、
+绝对球面面积）复算，证明**聚合器是对的**——已发布 `lc_built_frac[7,64] = 0.28414282`
+vs 独立 `0.284142837`，`5.15e-08`。修复后在真实 `attempt03` 瓦片上重跑 12 项比较：
+`max_relative_delta` **`913872.595 → 5.154e-08`**。
+
+**未做 / 未解决**：
+- `ghsl_built_s_2000/2005/2010` 在 `attempt03` 不可达（13 层 → 10 层）的原因**尚未查明**；
+  本轮只强制把它写下来，没有修可达性。
+- **没有**重跑重派生。`attempt03` 字段经独立复算为正确，但当时自身闸门未通过 ⇒
+  仍标 `scientific_claim: false`，**不得用于科学声明**。
+- 全量 `pytest`：`5313 passed / 3 skipped / 3 failed`，其中 2 个 `model_digest` 失败
+  **在 HEAD 上同样失败**（本轮不触 `model/`），第 3 个是证据页摘要漂移（已修 `R7_EVIDENCE_INDEX.jsonl`
+  第 92 行 + 重渲染 brief，diff 恰 1 行）。
+
+**下一动作（节点 S3）**：重派生一个 recheck **能通过**的 `attempt04`（新排他 `outputs/` 路径），
+先查清 `ghsl_built_s_2000/2005/2010` 的可达性退化，再决定是补下载还是如实丢层并写明理由。
+**指针仍指向 `docs/goals/s3-urban-static-wiring.md`，不得回退**（会回退已登记轮次）——
+该重派生须等接线轮登记后，或有自己的 ADR 与预声明出口。
+
+恢复第一条命令：
+```
+.venv/bin/python scripts/r7_urban_static_round.py verify-endpoints
+```
