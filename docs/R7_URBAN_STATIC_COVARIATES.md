@@ -332,3 +332,76 @@ max_relative_delta = 5.154e-08   (容差 1e-05)   ← 修复前 913872.595
 
 `attempt01`/`attempt02` 的格心口径产物与 `attempt03` 的格界口径产物**都在**，
 两者数值不同（中位 `0.139%`、最大 `1.225%`），不得混用。
+
+## 12. 决策 0073：`attempt03` 的"丢层"是误判，真缺陷是缺瓦片被写成零
+
+### 12.1 `ghsl_built_s_2000/2005/2010` 不是不可达，是超时
+
+`attempt03` 把这三层记为 `failed-no-fallback`、`reachable_tiles = 0`。但逐条读 probe：
+
+```
+http_status = None
+error = 'RuntimeError: 下载请求被拒绝或失败：The read operation timed out'
+```
+
+**没有一条 404。** 同一批探测里 `ghsl_built_s_2015` 的 9 个瓦片混着 7×200、1×timeout、
+1×`HTTP 502` —— 同层混合结果，是服务端限流。实时只读复测
+（`2026-10-31T11:01:41Z`，每瓦片最多 3 次、超时 60/90/120 s）：
+
+| 层 | 可达 / 总数 | 实测状态码 |
+| --- | --- | --- |
+| `ghsl_built_s_2000` | 9/9 | 200×9 |
+| `ghsl_built_s_2005` | 9/9 | 200×9 |
+| `ghsl_built_s_2010` | 9/9 | 200×9 |
+| `ghsl_built_s_2015` | 9/9 | 200×9 |
+| `ghsl_built_s_2020` | 9/9 | 200×9 |
+
+根因是 `probe()` 默认 `timeout=60.0` 且**不重试**：一次超时判一层死。决策 0073 第 1 条
+改为每瓦片 3 次重试，且**只有 4xx 才算"确实不存在"**；5xx/超时/DNS/TLS 一律记 `transient`，
+使该层成为 `unreliable` 而非 `dropped`，`freeze` 拒绝对它冻结。
+
+### 12.2 真缺陷：缺瓦片被静默算成零（比 12.1 严重）
+
+`aggregate_land_cover` 带 coverage 意识，但 `aggregate_built_surface` /
+`aggregate_building_height` / `aggregate_population` **完全没有**。缺一个瓦片，该区域贡献为零，
+发布出来的 `0` 与"此处确实没有建成区"完全同形。`attempt03` 实得瓦片数：
+
+| 层 | 应得 | 实得 | 缺失 |
+| --- | --- | --- | --- |
+| `ghsl_built_s_2015` | 9 | 7 | `R5_C29`（NW）、`R7_C29`（SW） |
+| `ghsl_built_h_2018` | 9 | 8 | `R7_C29`（SW） |
+| `ghsl_built_s_2020` | 9 | 9 | — |
+
+把缺瓦片覆盖的格算出来，与 `attempt01`（当时 9/9 齐全）逐块对比：
+
+| 块 | 格数 | `attempt01` 均值 | `attempt03` 均值 | `attempt03` 零值格 |
+| --- | --- | --- | --- | --- |
+| `s2015` NW | 192 | `0.003024` | `0.000000` | **192/192** |
+| `s2015` SW | 96 | `0.003765` | `0.000000` | **96/96** |
+| `h2018` SW | 96 | `3.1006` | `0.0000` | **96/96** |
+
+同期 9/9 齐全的 `built_surface_frac_2020` 在同一区域与 `attempt01` 一致
+（`0.004023` vs `0.004023`）⇒ 不是时空变化，是**数据丢失被写成了观测值**。
+
+**recheck 抓不到这个。** 抽样 3 格里 `built_surface_frac` 取的是 `[-1]`（2020，9/9 齐全），
+`lc_built_frac` 来自 WorldCover（48/48 齐全），而 `building_height_m` 的抽样格
+`(7,64)`/`(32,32)`/`(55,5)` 都不在 SW 空洞里。也就是说 coverage 空洞**正好落在抽样之外**——
+这是 recheck 抽样设计对"层内不完整"没有覆盖能力的实证。
+
+### 12.3 修法与守卫
+
+1. 三个 role 各返回 `coverage` 数组，发布为 `built_surface_coverage_frac_<epoch>` /
+   `building_height_coverage_frac` / `pop_density_coverage_frac_<epoch>`。
+2. `aggregate` 相位对任何 `< 1.0 - 1e-9` 的格 `SystemExit`。容差是必需的：9 个齐全瓦片里
+   有 65 格算出 `0.9999999999999672`（缺 `3.3e-14`，相邻瓦片边界只到浮点精度），
+   严格 `< 1.0` 会**误拒一个完好的层**。真缺瓦片是 `0.5` 级别，容差不掩盖它。
+3. 测试 17 用例（`tests/test_r7_urban_static_coverage.py`）。反证：把三个聚合函数改回原样，
+   **3 个用例失败**。
+
+### 12.4 `attempt03` 的最终处置
+
+**双重不可用**：`recheck_receipt.json` 记 `passed: false`（决策 0072，recheck 自身缺陷），
+且 288 格（192 NW + 96 SW，其中 96 格两字段重叠）是静默零值。
+不删、不改字节；`scientific_claim: false`；不得用于任何统计。
+
+`attempt04` 按决策 0073 第 3 条重派生，预声明出口 E1–E6 在开跑前冻结（见 ADR）。
