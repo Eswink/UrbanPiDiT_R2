@@ -294,6 +294,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 城市静态协变量获取与发布（决策 0063 / 计划 0027；**0 GPU-h**：匿名 WorldCover v100/v200 + GHSL BUILT-S/BUILT-H/POP 取回并面积加权聚合到 R7 冻结 65×65/0.25° 网格，独立发布 + static_identity；LandScan 需注册丢层；抽样格独立再派生最大相对偏差 5.15e-08） | 0.0000 | 249.413841 | docs/R7_URBAN_STATIC_COVARIATES.md（record:s3-urban-static-covariates-acquisition）；产物 outputs/r7_urban_static_covariates_attempt01/ |
 | S3 年份覆盖**匹配算力重估**（单因素**数据**：训练年份 2017–2021（5 年）→ 2000–2021（22 年），**月份固定 12 个月**；本轮把算力由 2,400 updates/batch1 提到 **16,071 updates/batch2**）（**两臂 × 三 seed 跑完；预声明出口 (a)(b)(c) 真、(d) 假 ⇒ 按预声明永久关闭「训练年份覆盖」支；mixed/not-candidate**；**判决逐字取自 `readings.json` 的 `exit_conditions`**：`a=true, b=true, c=true, d=false, all=false`、`verdict=close-training-year-coverage-branch-at-matched-compute`。候选 F 的 72 h t2m skill 三 seed 全正 **+0.179874/+0.194920/+0.204633**（seed 均值 +0.193142）、48 h **+0.356924/+0.361391/+0.378839**；同 seed F−N 的 72 h ΔRMSE 三 seed 全负 **−0.058419/−0.069908/−0.068453**（均值 −0.065593 K，是算力不足那一轮 −0.026869 K 的 **2.4 倍**）；48 h 均值 −0.035879 K、24 h 均值 −0.005016 K ⇒ **24/48/72 h 共 9 个 seed×lead 单元里 8 个改善**（唯一正号是 seed42 24 h +0.010720 K）；**但 6/12 h 的 seed 均值仍为正** **+0.004932 / +0.006434 K** ⇒ 出口 (d)「6/12/24 h seed 均值 ≤0」在 6 h 与 12 h 上失败。**seed43 确实在 6/12 h 翻成负值**（−0.005559 / −0.007386），但需 ≤ −0.020356 / −0.026689 才够，**幅度不足** ⇒ 这正是本轮存在的意义：算力不足这个替代解释已被消除，结论仍是 (d) 假。记 **mixed 而非 negative**——方向随 lead 改变（长 lead 稳定改善、短 lead 稳定退化），**不得**写成「更多训练年份无效」。**12 h 比算力不足那一轮更差**（+0.004365 → +0.006434 K）⇒ 排除「只要算力够短 lead 就会自动转正」；**本页不提供机制解释**，任何解释都是推测。两臂同 store、同 2000–2021 train-only 归一化、同 48 桶气候态分母、同 spec（K=4/depth=4/dim=192）、同迁移父、同 16,071 updates × batch 2、同 seed 41/42/43、同 2022 全年 val，**只差训练清单**（控制 = 2017–2021 **7,291** 窗；候选 = 2000–2021 **32,131** 可用窗）；`require_single_factor` 对冻结两臂**原样通过**，差异键恰为 `(train_data_identity, train_manifest, train_windows)`（实测）；**不改模型代码**（参数增量 0）。**暴露不对称（已声明混杂）**：匹配 `updates×batch=32,142` 使候选 1.00 epoch、控制 **4.41** epoch ⇒ 年份覆盖与每样本重复次数无法完全分离。**桥 (e) 不通过**（12/24/48/72 h 超带宽，控制臂比 FY 登记臂低 0.14–0.25 K），但它是 `scientific:false` 的工程核对、**不进入 (a)–(d)**，也不能解释 (d)。**seed43 经决策 0065 归档重放完成**（非一次跑通）：首次尝试 20.76 s exit 1 （`RuntimeError: incomplete execution source inventory`，因另一研究线提交新增 2 个 `data/*.py` 使活体清单 195→197）；195 个冻结条目逐字节核对 **ok=195 / missing=0 / changed=0**（实测），重放下 `validate_protocol` 以同一 digest `15a92e32…` 通过；**该次失败 20.7579 s 全额记账**。六条 stage 全 success（seed43 86,501.57 s、reading 6.65 s），soft/hard overrun 均 0；协议 `15a92e32…`、code.zip `6a85ac39…`、readings.json `629d4380…`；**全轮实测 265,027.9976 s success + 20.7579 s failed = 73.624654 GPU-h**；执行帧 195 项；`test_read=false`、r=0、**不宣布科学通过、不称泛化/SOTA、不自宣 goal 完成**） | 73.624654 | 323.038495 | `docs/R7_S3_FY_YEAR_COVERAGE_MATCHED_RESULT.md`（索引 `record:s3-fy-year-coverage-matched-result`，`outcome_class: mixed`、`candidate_state: not-candidate`、`metrics.gpu_hours=73.624654`）；产物 `outputs/r7_s3_fy_year_coverage_matched_20261026_attempt01/`（含失败的 `stage_ledger` 第 5 条）；决策 0060/0061/0062/**0065**/0067 |
 | S3 城市静态协变量**接线轮**（决策 0069；**工程轮，无科学判据**：把已发布静态场接进主模型，`static_identity` 绑 `protocol_sha256` 而**不是** `data_identity`；零训练参数的通路，`parameter_delta = 0` ⇒ on/off 差异不是容量差异。**四个预声明工程出口全真**：W1 身份进协议摘要（`48c09621e2fb…`→`a52465bea934…`，`data_identity` 未动、未泄漏）、W2 改 model 前后指纹`differences: []`（参照先于改动落盘，`60de3b2d…`）、W3 两臂各五 lead 行数逐行相等 51/51/51/51/51、W4 读进场与发布 `.npz` 逐位相等（独立循环再派生 5.55e-17 ≤ 1e-12）。on/off t2m Δ 记 6h +0.001404 / 12h +0.002027 / 24h +0.003629 / 48h +0.004290 / 72h +0.003034 K，**记录但不判读**（单 seed、120 updates、10 样例/lead）。`attempt01` 为**失败 attempt**（探针拿 float64 重建与 float32 输出逐位比，差 1 ulp＝7.15e-07，永不可能通过；已修、未放宽判据、0 GPU-h）。**代价已明写**：本轮把 `model_code_sha256` 从 `60de3b2d…` 改为 `a38be16c…` ⇒ `load_checkpoint` 拒绝所有已登记迁移父，**R2–R5 开轮前必须先重跑父迁移**（本轮未做）。 | 0.9020 | 323.940495 | docs/R7_STATIC_COVARIATES_WIRING.md（record:s3-urban-static-covariates-wiring）；产物 outputs/r7_s3_static_covariates_wiring_20261029_attempt02/ |
+| S3 城市静态协变量**决策 0070 编排重跑**（attempt03；**0 GPU-h**：`CreateWorkflow` 以 `dryRun: false` 驱动六阶段全实跑，run `dwfrun-47a053b8`、基线 `cb69f2a`；产物 `outputs/r7_urban_static_covariates_attempt03/`，attempt01 与超时的 attempt02 字节未动）。**预声明出口逐条记、不合并**：**E1 真**（六份产物齐、`BUILD_COMPLETE.json` `build_complete: true`）；**E2 假**——可达层 **10**（attempt01 为 13）：`ghsl_built_s` 的 2000/2005/2010 **9/9 全部读超时**（同一批 URL 在 2026-10-27 是 9/9 HTTP 200），LandScan 仍 `failed-no-fallback`、无用其他层顶替；建面历元轴因此只有 `[2015, 2020]`（attempt01 五个）；**E3 已如实记录**——`static_identity` `6f65f88a…` ≠ attempt01 `8671ed7c…`，**差异不是时间戳**（`published_utc` 不在身份五键内），四个实质键（协议、165 vs 195 文件的源指纹、33 vs 36 数组的输出字节、recheck 读数）全变，`aggregation_spec` 是唯一逐字相同的键；**E4 假**——`recheck` 最大相对偏差 **913872.595324707**，12 项中 **6 项**超冻结容差 `1e-5`，`passed: false`；**E5 真**——网络 13,727,171,047 B（12.78 GiB）、`/data` 余量 523 GiB、墙钟 9,013 s（planned 21,600 / hard 86,400 内，**soft overrun 0**）。**E4 根因已定位到 recheck 自己**：`data/preprocess/urban_static_recheck.py` 的土地覆盖分支分子漏乘原生行 sin 带而分母按 sin 带缩放（独立/发布比值 913,873/839,208/788,333 与 `9000000/(band×3000)` 同量级），建筑高度分支按面积份额而漏带权；两个 extensive 分支不带权故 6 项全过。**另写一份只换带权的探针**（`outputs/r7_urban_static_covariates_replay_probe_20261031_attempt01/probe.py`，sha `cd713088…`）把 12 项全部拉回 **5.15e-08**，证明发布值与格界+带权口径自洽到 float32，但它与 recheck **共用同一套重叠几何**，**不是**独立归属实现 ⇒ **不能**据此断言发布值语义正确，**E4 仍判假**、发布场在补齐前**不得**用于科学或下游。缺 tile 后果实测：`built_surface_frac_2015` **278 格**、`building_height_m` **96 格**（行 0–15/57–64、列 0–11）在 attempt03 为 0，**未**合成/插值。与 attempt01 逐字段：土地覆盖仅 1–2 格差 ≤4.7e-10（WorldCover 原生格边与目标格边重合，偏移 −22500.0/193500.0 整数）；GHSL 半格错位（−8259.500480/−7169.500035）故建面/人口/高度系统性差，中位 0.204%/0.209%/0.036%。`attempt02` 的 195 tile **未复用**（`reused: false` ×165），同一批字节重下；磁盘 attempt01+02+03 ≈56 GiB 保留。F1 基线核对：`git diff --name-only cb69f2a..HEAD` 只列一个文档，**五个实现文件逐字节未变** ⇒ recheck 缺陷是 `bb7ce2c` 引入的既有缺陷，不是运行中被改坏。`test_read: false`、r=0、**不宣布通过**） | 0.0000 | 323.940495 | `docs/R7_URBAN_STATIC_COVARIATES_REPLAY.md`（索引 `record:s3-urban-static-covariates-replay`，`outcome_class: engineering-positive`、`candidate_state: not-candidate`、`metrics.gpu_hours=0.0`）；产物 `outputs/r7_urban_static_covariates_attempt03/`；决策 0070/0071 |
 | **合计已用** | **247.356641** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−210.934702是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。**2026-10-08 补记 index63，修正「索引已登记而账本缺行」的漂移**；该漂移现有校检器发现不了（C-02/C-03 只校验已存在行）。**2026-10-09 记 index64（rollout-dose，三行合计 4.2765）**；**2026-10-09 记 index65（宽区 pilot，0 GPU-h，网络 3.565 GB / 保留 70.2 MB 只记会计不加 GPU 账）**；**2026-10-09 记 index66（宽区全量 + v4 store + 宽区气候态，0 GPU-h，网络 ≈101 GB / 磁盘 6.6 GiB 只记会计）**；**2026-10-09 记 index67（宽区单因素 train/val，3.5339 GPU-h，null）**；**2026-10-09 记 index68（宽输入 + 内部盒监督，3.4655 GPU-h，稀释已分离）**；**2026-10-09 记 index69（内部监督剂量 800→2400，6.6941 GPU-h 含 attempt01 中止 0.7517，48h 三 seed 转正）**。**2026-10-10 记 index70（长 lead 权重 0.5→1.0，7.0027 GPU-h，几乎无效：72h 仍三 seed 全负，宽输入支关闭）**。**2026-10-12 记 index71（推理深度 K 4→8，5.0197 GPU-h，**操作者中止、未完成**：seed 41 完成、seed 42 被 SIGKILL、seed 43/reading 未跑、无读数；单 seed Δrmse ≤0.00884 K、Δskill ≤0.00509、72h skill 仍负 −0.16954；据此与 index69/70 的三 seed 证据合并**关闭"靠训练配方解决 72h"这一支**，转模型容量/架构方向）**。**2026-10-12 记 index72（主干深度 depth 4→8，**未运行**、0 GPU-h：驱动/测试/code.zip 已就绪、commit `710612d` 已推送、CI run `38205959882` 绿、`round-guard` 通过，但操作者决定**不跑 GPU 部分**、直接登记；依据是 index71 唯一完成的 seed 41「效果基本上没变化」；**口径**＝操作者的成本/收益决定，**不是**对 depth 4→8 假设的判定（该假设未被检验、§3 预声明出口既未触发也未满足），**不**据此关闭"加大容量解决 72h"这一支；驱动/测试/code.zip 保留为可复用资产）**。科学气候态/全年/同时区间仍未过；固定病例/ordering/anchor/rollout-dose/宽区单因素/内部监督/剂量 开发负或 mixed 读数分别登记，不作泛化/clip/欠拟合/遗忘/收敛/稀释来源/剂量饱和因果证明，不无限重复同剂量或精确replay **2026-10-12 补记（capacity 轮三次尝试）**：gate 从 19 GiB 经 `9e8124f`/`8ff541b` 校准到 **9 GiB**（显存主因是 K 不是 depth：同 K=4 的剂量臂实测 8562 MiB、K=8 臂 13878 MiB，而本臂是 depth-8/K=4），并把登记提交口径由 `commit-round` 改为 `commit-register`；三次 attempt（01 prepare+archive、02 prepare、03 prepare+archive）**均未进 seed、无读数、0 GPU-h**，GPU 全程只有邻居作业；run `dwfrun-6c3847ad` 被中断（根因＝会话跨 ZCode app 实例，完成通知被丢，工作流其实仍在跑）。**合计值不变**。**2026-10-13 记 index73（主干深度 depth 4→8 **运行尝试失败**，0.5414 GPU-h：单窗口重开一轮、`freeze` 自动建 `attempt04`，独立复核 clean、code.zip/freeze/prepare/archive 全 success，但 `seed 41` 训练 1948.854226 s 后 CUDA OOM（本进程 9.18 GiB，第二邻居长大占满 24 GiB 共驻卡），`seed 42/43`/`reading` 未跑、无读数、0 科学结论；**操作者判定**该 ~9.2 GiB 足迹与「中小模型/小显存」初衷冲突、共驻下不可行 ⇒ 方向**不能这样做**，不重跑；新 record `s3-capacity-depth-run`（`blocked`），旧「未运行」record `s3-capacity-depth` 追加 `correction_record_id` 指向它；**合计 53.3064 → 53.8478**）**。 **2026-10-13 记 index74（主干深度 depth 4→8，**三 seed 跑完**，9.2141 GPU-h：`interior_32` t2m 72h skill −0.1512/−0.2545/−0.1432 三 seed 全负、均值 −0.1830 ⇒ 预声明出口正向条件未满足；相对 2400 剂量臂 24/48/72h 三 seed 全优但72h 仅 −0.0298 K（达气候态平价需约 −0.29 K，约 1/10）；**按决策 0048 关闭深度轴**（宽度是独立轴、封顶为最后一个容量臂）；三 seed 峰值实测 11.03 GiB 高于协议估计 8.5 GiB；**合计 53.8478 → 63.0619**）**。**2026-10-14 记 index75（主干容量 width dim 192→256，**三 seed 跑完**，7.9677 GPU-h：`interior_32` t2m 72h skill −0.1658/−0.2833/−0.1418 三 seed 全负、均值 −0.1970 ⇒ 预声明出口正向条件未满足；相对 2400 剂量臂 6/12/24/48h 三 seed 全差（+0.2880/+0.2751/+0.0705/+0.0419 K）、仅 72h 略好（−0.0090 K）；宽度无逐位恒等扩张（150/155 张量形状变化），本臂测「宽度 + 冻结零填充初始化」联合效应；**按决策 0048 宽度是最后一个容量臂，它也未过 ⇒ 整条容量轴（深度＋宽度）永久关闭**；三 seed 峰值实测 11.9023 GiB 高于协议估计 11.0352 GiB；实验 commit `35b1785` 的主 CI `38391291040` 第 9 步红（本臂测试文件对缺失 `outputs/` 路径取哈希，工程缺陷、非读数问题）；**合计 63.0619 → 71.0296**）**。**2026-10-14 记 index76（H-A P_0 逐样本输入条件化，**运行尝试失败**，0 GPU-h：`stage-seeds` 在**训练之前**被父身份门拒绝——本轮改了 `model/*.py` ⇒ `model_code_digest()` 由 `d3fb58db…` 变为 `223b2e5b…`，注册时迁移的父按设计不可加载；seed 41/42 失败、seed 43 未启动，无读数、无 primary/gate 判定、预声明出口既未触发也未满足；**不是**科学失败、**不是**父损坏、**不得**绕过；合法修复＝在当前代码下重跑**已提交的** `scripts/migrate_r7_parent_state.py`（身份翻译，已 success 到 `…_migrated_20261014_attempt01`），随后重新 freeze 再跑；**结构性发现**：任何 `model/*.py` 改动都会让所有迁移父失效，spec-only 改动不受影响；新 record `s3-process-init-run`（`blocked`）；**合计不变 71.0296**）**。**2026-10-14 记 index77（H-A P_0 逐样本输入条件化，**三 seed 跑完**，6.8590 GPU-h：`interior_32` t2m 72h skill −0.2437/−0.3064/−0.2171 三 seed 全负、均值 −0.2557 ⇒ 预声明出口正向条件未满足；相对 2400 剂量臂 24/48/72h 三 seed 全部更差（Δ +0.0103/+0.0605/+0.0798 K，正值=本臂更差）、仅 6/12h 略好（−0.0027/−0.0026 K，2/3 seed）⇒ 逐样本 P_0 条件化不是正向杠杆；off 路径逐位一致 + 清零正控制逐 seed 实测；**按预声明出口关闭 H-A 支**（H-A 是决策 0048 永久关闭容量轴后的第一根架构轴）；三 seed 峰值实测 8.361 GiB 低于协议估计 11.91 GiB（本轮**高估**，与容量两轮相反）；**合计 71.0296 → 77.888623**）**。**2026-10-14 记 index78（H-B 空间分辨的类型化证据 pooled→spatial，**两臂 × 三 seed 跑完**，15.443038 GPU-h：B/C 同协议内同跑、共享张量逐位一致、C 恰多 `typed_evidence.position_query`（+192 参数）；**B→C 无差异**——五个 lead seed 均值 |Δrmse|≤3.2e-6 K、72h 三 seed 不同号（−5.2e-6/+1.3e-5/+1.9e-6），C 的 72h skill −0.1827/−0.2791/−0.1596 三 seed 全负 ⇒ 预声明出口两条都未满足；**结论＝类型路由本身无效**（同信息、不同路由不改变读数），**不是**空间保留无用；相对 2400 剂量臂 6/12h 略优、24/48/72h 更差，相对窄 800 臂 12/24/48/72h 三 seed 全优；**按预声明出口关闭 H-B 支**（H-B 是决策 0048 永久关闭容量轴后的第二根架构轴）；三 seed 峰值实测 spatial 9.276/pooled 9.041 GiB 略低于协议估计 9.5 GiB（本轮**高估**）；**合计 77.888623 → 93.331638**）**。**2026-10-15 记 index79（H-C 长 lead 全局混合路径 global vs 同参数量额外局部层，**两臂 × 三 seed 跑完**，12.287980 GPU-h：G/L 同协议内同跑、参数量逐位对齐 444864、共享初始化逐位一致（`pathway_init_sha256` 两臂相等）、清零 proj+ff ⇒ 逐位退回 off、只清 proj ≠ off；**G→L 无差异**——五个 lead 三 seed 全部不同号（seed 均值 −1.9e-4/−3.0e-5/−2.2e-3/+1.9e-3/−2.5e-3 K），72 h 两臂 skill 三 seed 全负（G −0.1748/−0.2650/−0.1511、L −0.1745/−0.2709/−0.1506）⇒ 预声明出口两条都未满足；**结论＝瓶颈不是感受野**、且与「额外容量」不可分；**两臂算力不对齐**（注意力长度 68.0625×、SDPA 子成本 57.19140625×、整层 1.9129018382845497×，已声明混杂）；相对 2400 剂量臂 G 48h 3/3 优、72h 2/3 优，L 48/72h 3/3 优；**按预声明出口关闭 H-C 支**（H-C 是决策 0048 永久关闭容量轴后的第三根架构轴）；三 seed 峰值实测 G 8.955/L 8.959 GiB 略低于协议估计 9.5 GiB（本轮**高估**）；**合计 93.331638 → 105.619618**）。**2026-10-18 记 index80（H-D 气候态锚异常反馈表征，**两臂 × 三 seed 跑完**，15.156007 GPU-h：F−N 五个 lead 三 seed 全为配对改善（72h −0.321 K），但 72h skill 三 seed 未全正（+0.010101/−0.038377/+0.030003，2/3 正）⇒ **按预声明出口永久关闭气候态锚族**（不调表粒度、不减锚、不加 seed）；F−N 不是 null，故不写「异常反馈表征无效」；输出先验与 proposal 先验未分离、气候态为 4 个月季节均值；**合计 105.619618 → 120.775625**。**2026-10-18 记 index81（dense 12 步覆盖，6.454096 GPU-h：72h skill 三 seed 全负，72h 配对 Δ 均值 −0.004356 K 符号不一致，6/12/24h 三 seed 一致变差 +0.018372/+0.018395/+0.010863 K ⇒ 预声明出口未满足、coverage 支永久关闭；**合计 120.775625 → 127.229721**）**。**2026-10-19 记 index82（K 步草稿监督组织 final-only vs 注册深监督，7.052733 GPU-h：72h skill 三 seed 全负 −0.177705/−0.282612/−0.150532，72h 配对 Δ +0.004698/+0.007867/−0.008708 K 符号不一致（均值 +0.001286），24h seed 均值 +0.003828 K；6/12h 三 seed 全改善；预声明出口未满足、该支永久关闭；**合计 127.229721 → 134.282454**）**。**2026-10-19 记 index83（空间梯度损失 first-difference 惩罚，8.125398 GPU-h：72h skill 三 seed 全负 −0.171537/−0.273893/−0.152612，72h 配对 Δ 三 seed 全负 −0.004746/−0.004927/−0.005493 K（均值 −0.005056），48h skill 三 seed 全正，6/12/24h seed 均值 ≤0，桥通过；14/15 seed×lead 单元候选更优，唯一正号为 seed42 6h +0.000033 K；预声明出口 (a) 未满足、该支永久关闭；**合计 134.282454 → 142.407852**）**。**2026-10-20 记 index84（EMA 权重平均，7.215982 GPU-h：72h skill 三 seed 全负 −0.266241/−0.321691/−0.171025，72h 配对 Δ 三 seed 全正 +0.137607/+0.064690/+0.022851 K（均值 +0.075049），48h skill 非全正，24h seed 均值 +0.018023 K；6/12h 三 seed 全改善、24/48/72h 三 seed 全退化；预声明出口 (a)–(d) 全未满足、该支永久关闭；**合计 142.407852 → 149.623834**）**。**2026-10-20 记 index85（zero-base decoder，7.665787 GPU-h：72h skill 三 seed 全负 −1.366793/−1.234491/−1.236888，72h 配对 Δ 三 seed 全正 +1.508636/+1.210100/+1.394940 K（均值 +1.371225），48h skill 三 seed 全负，6/12/24h seed 均值全正；候选在全部 15 个 seed×lead 单元上差于控制；预声明出口 (a)–(d) 全未满足、该支永久关闭；**合计 149.623834 → 157.289621**）**。**2026-10-20 记 index86（short/long one-sided gradient surgery，7.723235 GPU-h：三 seed 冲突 417/445/452 次（17.4%–18.8%）、投影真实发生；48h skill 三 seed 全正，6/12h Δ 三 seed 略正、72h Δ 方向不一致且 skill 三 seed 全负（−0.174434/−0.277317/−0.155566），(a)(b)(d) 未满足、该支永久关闭；**合计 157.289621 → 165.012856**）**。**2026-10-23 记 index90（**年份覆盖**，单因素**数据**：训练年份 5 → 22 年、月份固定 12 个月，65×65 实例，28.574875 GPU-h：**24/48/72 h 三个 lead 三 seed 全为配对改善（9/9）**（72 h 均值 −0.026869 K）、**6 h 三 seed 全为退化**（均值 +0.006002 K）、12 h 2/3 退化（均值 +0.004365 K）⇒ 预声明出口 (d)「6/12/24 h 的 seed 均值 ≤0」未过、(a)(b)(c) 全真 ⇒ 按预声明**永久关闭「训练年份覆盖」支**（不扫年份子集、不调 updates、不加 seed、不与已关轴组合）；记 **mixed 而非 negative**——方向随 lead 改变，**不得**写成「更多年份无效」；本轮 skill 分母是 2000–2021 气候态（72 h 3.926891 K），与月份轮 2017–2021（3.897079 K）不同 ⇒ **跨轮 skill 不可比**；桥 (e) 五 lead 全通过；`attempt01` 预算不足被停（无 seed、无读数、0 GPU-h，决策 0055 把 per-seed 21,600 → 43,200 s），三个 seed 实测 29,583–30,243 s **全部超过**原预算 ⇒ 该更正事后被证明必要；**合计 202.359827 → 230.934702**）**。 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
@@ -338,7 +339,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-urban-static-covariates.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_STATIC_COVARIATES_WIRING.md", "previous_round_goal": "docs/goals/s3-urban-static-wiring.md", "remaining_gpu_h": -303.940495, "route_decision": "0038", "status": "active", "used_gpu_h": 323.940495} -->
+<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-urban-static-wiring.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_URBAN_STATIC_COVARIATES.md", "previous_round_goal": "docs/goals/s3-urban-static-covariates.md", "remaining_gpu_h": -303.940495, "route_decision": "0038", "status": "active", "used_gpu_h": 323.940495} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
@@ -2430,3 +2431,91 @@ R1（`dwfrun-442a17eb-…`）的 workflow **仍在跑**，而 `tools/r7_round.py
 `.venv/bin/python scripts/migrate_r7_parent_state.py --export-root outputs/r7_s3_rollout_dose_parent_export_20261009_attempt02 --out outputs/r7_s3_parent_migrated_20261029_attempt01`
 （model-only 安装，六个源 pin 与 `state_digest` 双向核对；这一步是既有已提交脚本的重跑，
 不改判据、不动科学门）。
+
+### 2026-10-31 — S3 城市静态协变量**决策 0070 编排重跑**（attempt03；0 GPU-h；E2/E4 假，未通过）
+
+**这一轮做了什么**：决策 0070 授权的 `dryRun: false` 编排重跑真的跑起来了
+（run `dwfrun-47a053b8-6d53-4686-a66c-bfcac1240a6f`、基线 `cb69f2a`、`maxRounds: 1`），
+六个 stage（`verify-endpoints`/`freeze`/`download`/`aggregate`/`recheck`/`publish`）
+**全部实跑并产出**，落在全新排他目录 `outputs/r7_urban_static_covariates_attempt03/`。
+`attempt01`（已登记）与 `attempt02`（6 h 阶段超时、195 tile 在盘、无发布）**字节未动、未删**。
+上一轮那个「`dryRun: false` 从未运行」的工程缺口，**本轮补上了**；数据交付物本身**没有**变好。
+
+**预声明出口逐条记，不合并成"通过"**：
+
+| 出口 | 实测 | 判定 |
+| --- | --- | --- |
+| E1 六相位全绿 + `build_complete` | 六份产物齐、`{"schema_version":1,"build_complete":true}` | **真** |
+| E2 可达层 ≥13 + LandScan 仍丢层 | **可达层 10**（attempt01 为 13）；LandScan 仍 `failed-no-fallback`、未顶替 | **假** |
+| E3 身份差异如实记录 | `6f65f88a…` ≠ `8671ed7c…`，差异**不是**时间戳（见下） | 已记录 |
+| E4 recheck ≤ `1e-5` | **`913872.595324707`**，12 项中 **6 项**超容差 | **假** |
+| E5 网络/磁盘/墙钟 | 12.78 GiB / 余量 523 GiB / **9,013 s**（planned 21,600 内，overrun 0） | **真** |
+
+**E2 假的具体形态**：`ghsl_built_s` 的 **2000/2005/2010 三个历元 9/9 tile 全部读超时**，
+而同一批 URL 在 2026-10-27（attempt01）是 **9/9 HTTP 200** ⇒ 这是**可达性退化**，不是层不存在。
+按 R-008 整层丢、**没有**用任何其他层或合成值顶替；建面历元轴因此只剩 `[2015, 2020]`
+（attempt01 是五个）。另有 3 个 GHSL 瓦片本轮缺（502/超时），后果是
+`built_surface_frac_2015` **278 格**、`building_height_m` **96 格**在 attempt03 为 0
+（行 0–15 与 57–64、列 0–11），**未**填充。
+
+**E3：身份确实变了，但不是时间戳。** `_publish` 只把五个键喂进 `static_identity`
+（`scripts/r7_urban_static_round.py:457-497`），`published_utc` **不在其中**，所以决策 0070
+预判的"时间戳导致不同"本轮**没有发生**。变的是四个实质键：协议（层集合 13→10）、
+源指纹（165 vs 195 文件 → `86f813d0…` vs `0115dc3c…`）、输出字节（33 vs 36 数组 →
+`ff27e5d4…` vs `1e9473f0…`）、以及 recheck 读数（差 13 个数量级）。
+`aggregation_spec` 是**唯一逐字相同**的键 —— 规则没改，输入与结果改了。
+两个身份我都**独立重算**过（`source_sha256` 从 receipt 重算、`static_identity` 从五键重算），
+与 manifest 逐字匹配。**不声称逐位相同。**
+
+**E4 假，根因在 recheck 自己（`data/preprocess/urban_static_recheck.py`）**：
+- 土地覆盖分支分子 `(block == code) * share`（`:90-93`）**漏乘**原生行 sin 带，分母却是
+  `sin 带 × native_cols`（`:108-109`）⇒ 独立值被放大。实测 `独立/发布` 比值
+  **913,873.6 / 839,207.5 / 788,333.1**，与 `9000000/(band×3000)` 的预测
+  （914,489 / 839,343 / 788,027）同量级。
+- 建筑高度分支按面积份额加权而**漏带权**（`:95-97`）⇒ 算的是"像素等权均值"，
+  与发布值差 3e-5–4e-4 相对（我另算过同一格的两种均值验证这个量级）。
+- 两个 extensive 分支（`built_surface`、`population`）不带权，**6 项全过** ——
+  这条对照说明聚合侧与核对侧在**归属几何**上是一致的，分歧只在**带权**。
+
+**我另写了一份探针把"带权"单独隔离**（`outputs/r7_urban_static_covariates_replay_probe_20261031_attempt01/probe.py`，
+sha `cd713088…`）：同一套面积重叠几何、把 sin 带放回分子/权重后，12 项**全部**回到
+**5.15e-08**（float32 存储精度量级）。这证明**发布值与"格界 + 面积加权"口径自洽**，
+也把 E4 的分歧归因到 recheck 的漏带权。但它与 recheck **共用同一套重叠公式**，
+**不是**一份独立归属实现 ⇒ **不能**据此断言发布值语义正确。**E4 仍判假**，
+发布场在补齐独立核对前**不得**用于科学或下游用途。
+
+**与 attempt01 的逐字段差（我直接比两份 npz，4225 格）**：
+土地覆盖只差 **1–2 格、≤4.7e-10** —— 因为 WorldCover 原生格边与 0.25° 目标格边**重合**
+（偏移 `−22500.0` / `193500.0`，实测为整数）；GHSL 是 **3 arcsec 半格错位**
+（`−8259.500480` / `−7169.500035`），所以建面/人口/高度系统性不同，
+中位相对差 **0.204% / 0.209% / 0.036%**（p95 1.05% / 1.41% / 0.341%）。
+这与决策 0071 抽样得到的 0.139%（建面）同量级，方向一致。
+
+**成本（实测）**：**0 GPU-h**；网络 13,727,171,047 B（12.78 GiB、165 文件、
+`reused: false` ×165 —— attempt02 的 195 tile **没有**复用，同一批字节重下了一遍）；
+磁盘 19,440,320,534 B（18.1 GiB，`published/` 仅 612,627 B）；墙钟 9,013 s
+（下载 2,260 s、聚合 6,735 s）；`soft overrun 0`、hard 未触。
+`attempt01+02+03` 合计 ≈56 GiB 仍保留在 `/data`。
+
+**F1 基线核对（实测）**：`git diff --name-only cb69f2a..HEAD` 只列出
+`docs/goals/s3-urban-static-covariates.md` 一个文档，**五个实现文件逐字节未变**
+⇒ recheck 的缺陷是 `bb7ce2c` 引入的**既有**缺陷，不是本轮运行中被改坏的。
+
+**如实记的缺口**：许可页本轮没取到（WorldCover registry 连接被重置、CC BY 页 403），
+许可信息沿用 attempt01 的来源，**不是**本轮重新确认的许可意见；
+`frozen_before_any_download` 仍是硬编码 `True`（`:211`），本轮的"冻结先于下载"结论改由产物时刻
+独立支撑（协议 `06:36:28` 早于首个瓦片 mtime `06:36:49`，21 s）；`expected_bytes` 只覆盖可达 tile，
+所以"逐字节相等"不等于产品完整；人口交叉核对（LandScan）与地形（DEM）仍缺；
+土地覆盖仍只发布 5 类（mapped 平均 0.7667/0.7395）；多历元仍是五年间隔跨代合成。
+
+**`scientific_claim: false`**、`test_read: false`、r=0；本轮 **0 GPU-h**，
+不训练、不评分、**不宣布通过**、**不宣称发布场可用于科学用途**、不自宣 goal 完成。
+本轮 GPU-h 记 **0**；网络/磁盘/墙钟按上面实测分列（网络与磁盘只记会计，不加 GPU 账）。
+
+**为何停 + 恢复第一条命令**：E4 为假，合法修复是**修 recheck 的带权口径**（自己的提交 + 自己的测试）
+后重跑 `recheck`，这属下一轮，本轮不启动、不放宽容差、不重试到偶然过。
+恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`。
+E2 的可达性退化需在下一轮重新核对端点；**不得**把本轮 attempt03 当作 attempt01 的替代品
+（缺 `built_surface_frac_2000/2005/2010`，且 `built_surface_frac_2015` 有 278 格因缺 tile 为 0）。
+
+下一动作（S3）：修 `data/preprocess/urban_static_recheck.py` 的带权口径 —— 土地覆盖分支分子补原生行 sin 带、建筑高度分支权重补 sin 带，加一条能抓住这两个错的反证测试（本轮 6/12 项超容差就是该测试的失败基线），然后重跑 `.venv/bin/python scripts/r7_urban_static_round.py recheck`；若发布值不变且 `passed: true`，E4 才成立；随后重新核对 `ghsl_built_s` 2000/2005/2010 的端点可达性（E2）。
