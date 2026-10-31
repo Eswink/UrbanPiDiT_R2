@@ -36,6 +36,7 @@ if str(ROOT) not in sys.path:
 
 from data.download import urban_static_sources as sources          # noqa: E402
 from data.preprocess import urban_static_aggregate as aggregate    # noqa: E402
+from data.preprocess import urban_static_endpoints as _endpoints    # noqa: E402
 from data.preprocess import urban_static_recheck as rechecker       # noqa: E402
 from data.preprocess.contracts import fresh_outputs                # noqa: E402
 
@@ -49,20 +50,6 @@ HARD_CAP_SECONDS = 86400
 NETWORK_BYTES_CAP = 40 * 2**30          # 40 GiB, hard stop for the whole round
 DISK_HEADROOM_BYTES = 60 * 2**30        # must stay free after the round
 SINGLE_TILE_BYTES_CAP = 512 * 2**20     # one tile can never exceed 512 MiB
-# Out-of-scope layers of decision 0063, recorded as dropped with their evidence.
-DROPPED_LAYERS = [
-    {"name": "landscan_global", "role": "population_cross_check",
-     "reason": "not anonymously downloadable: ORNL requires an applicant account",
-     "evidence": f"{sources.LANDSAN_ROOT} reachable as a website but the data "
-                 "catalogue is behind a registration wall; decision 0063 lists "
-                 "LandScan as optional and forbids account-gated sources",
-     "failed_no_fallback": True},
-    {"name": "copernicus_dem_glo30", "role": "terrain", "reason": "not a named layer",
-     "evidence": "the AWS Open Data mirror copernicus-dem-30m is anonymous "
-                 "(HTTP 200, image/tiff), but decision 0063 does not authorise a DEM "
-                 "layer this round; recorded as a finding, not fetched",
-     "failed_no_fallback": False},
-]
 
 
 def _now() -> str:
@@ -119,111 +106,17 @@ def _layer_by_name(name: str) -> dict:
 
 
 # --- phase 1: read-only endpoint verification (the hard gate) -----------------
-
-def _unreachable_reason(probes) -> str:
-    """A non-empty, measurement-backed reason for dropping a named layer (R-008).
-
-    The probe journal is the evidence; this turns it into one sentence a reader can
-    audit. Never returns an empty string: ``require_dropped_reasons`` fails closed.
-    """
-    observed = []
-    for probe in probes:
-        status = probe.get("http_status")
-        detail = probe.get("error")
-        if status is not None:
-            observed.append(f"HTTP {status}")
-        elif detail:
-            observed.append(str(detail))
-        else:
-            observed.append("no response")
-    codes = ", ".join(sorted(set(observed)))
-    return (f"no tile of the layer answered a read-only probe "
-            f"({len(probes)} probed: {codes}); dropped as failed-no-fallback, "
-            f"no synthetic substitute was written")
-
-
-def require_dropped_reasons(dropped) -> None:
-    """Fail closed unless every dropped named layer carries a non-empty reason.
-
-    R-008 requires an auditable ``failed-no-fallback`` record; a record whose
-    ``reason`` is missing or blank cannot be audited, because a reader cannot tell
-    "unreachable" from "excluded by authorisation" from "download failed". This is a
-    guard, not a convention: it raises rather than publishing an unexplained gap.
-    """
-    for entry in dropped:
-        reason = entry.get("reason")
-        if not isinstance(reason, str) or not reason.strip():
-            raise SystemExit(
-                f"refusing to continue: dropped layer {entry.get('name')!r} has no "
-                f"reason (R-008). Every dropped named layer must say why it was "
-                f"dropped, in words, before the protocol is frozen or published.")
-
+# Lives in ``data/preprocess/urban_static_endpoints.py`` since the driver crossed the
+# R-051 cap; re-exported so the command table and the tests keep one entry point.
 
 def verify_endpoints() -> dict:
-    attempt = new_attempt()
-    layers, dropped = [], []
-    for layer in sources.layer_catalog():
-        probes = [sources.probe(url) for url in layer["urls"]]
-        reachable = [p for p in probes if p["reachable"]]
-        absent = [p for p in probes if not p["reachable"]]
-        lengths = [p["content_length"] for p in reachable if p.get("content_length")]
-        # A published product may omit a tile by design (ESA WorldCover publishes no
-        # all-ocean 3 deg tile). That is a *per-tile* failed-no-fallback record: the
-        # layer is dropped only when it has no reachable tile at all, and the absent
-        # tiles are carried into the protocol so a coverage array can expose them.
-        verdict = "failed-no-fallback" if not reachable else (
-            "reachable-with-absent-tiles" if absent else "reachable")
-        record = {
-            "name": layer["name"], "role": layer["role"], "source": layer["source"],
-            "version": layer["version"], "native_resolution_m": layer["native_resolution_m"],
-            "crs": layer["crs"], "licence": layer["licence"],
-            "licence_url": layer["licence_url"], "source_page": layer["source_page"],
-            "tile_count": len(probes), "reachable_tiles": len(reachable),
-            "absent_tiles": [p["url"] for p in absent],
-            "absent_failed_no_fallback": bool(absent),
-            "total_content_length_bytes": sum(lengths) if lengths else None,
-            "reachable_urls": [p["url"] for p in reachable],
-            "probes": probes, "verdict": verdict,
-        }
-        if verdict == "failed-no-fallback":
-            # R-008: a dropped layer must carry an auditable reason. The observed probe
-            # failures are the measurement; "no tile answered" alone is not a reason.
-            record["reason"] = _unreachable_reason(probes)
-            record["failed_no_fallback"] = True
-        (dropped if verdict == "failed-no-fallback" else layers).append(record)
-    licence_pages = [sources.probe(url) for url in (
-        sources.WORLDCOVER_SOURCE_PAGE, sources.GHSL_COPYRIGHT_URL,
-        sources.LICENCE_URL_CC_BY_4)]
-    report = {
-        "schema": "r7-urban-static-endpoints-v1", "accessed_utc": _now(),
-        "roi": {"south": sources.ROI_SOUTH, "north": sources.ROI_NORTH,
-                "west": sources.ROI_WEST, "east": sources.ROI_EAST,
-                "edge_south": sources.EDGE_SOUTH, "edge_north": sources.EDGE_NORTH,
-                "edge_west": sources.EDGE_WEST, "edge_east": sources.EDGE_EAST,
-                "points": [sources.GRID_HEIGHT, sources.GRID_WIDTH],
-                "spacing_deg": sources.GRID_SPACING_DEG},
-        "gate_items": {
-            "ghsl_resolution": "resolved by directory listing: GHSL R2023A publishes "
-                               "3 arcsec (~100 m) and 30 arcsec (~1 km) variants of the "
-                               "same product; this round takes the 4326_3ss (~100 m) one",
-            "copernicus_dem_aws_mirror": "measured anonymous: copernicus-dem-30m S3 "
-                                         "returns HTTP 200 image/tiff; not a named layer, "
-                                         "so not fetched this round",
-        },
-        "layers": layers, "dropped": dropped + DROPPED_LAYERS,
-        "licence_pages": licence_pages,
-        "scientific_claim": False,
-        "limitations": [
-            "reachability is what this report measures; it is not a licence opinion",
-            "search summaries are not evidence (R-050); every status here was dialled",
-        ],
-    }
-    _write_json(attempt / "endpoint_report.json", report)
-    return {"attempt": str(attempt), "layers_reachable": [r["name"] for r in layers],
-            "layers_dropped": [r["name"] for r in report["dropped"]],
-            "layers_with_absent_tiles": {r["name"]: len(r["absent_tiles"]) for r in layers
-                                         if r["absent_tiles"]},
-            "status": "ok" if layers else "no-reachable-layer"}
+    """Phase 1 entry point; the implementation lives in the extracted module."""
+    return _endpoints.verify_endpoints(new_attempt)
+
+
+require_dropped_reasons = _endpoints.require_dropped_reasons
+require_no_unreliable_layers = _endpoints.require_no_unreliable_layers
+DROPPED_LAYERS = _endpoints.DROPPED_LAYERS
 
 
 # --- phase 2: freeze the acquisition protocol ---------------------------------
@@ -251,6 +144,7 @@ def freeze() -> dict:
     attempt = latest_attempt("endpoint_report.json")
     report = _read_json(attempt / "endpoint_report.json")
     require_dropped_reasons(report["dropped"])
+    require_no_unreliable_layers(report.get("unreliable") or [])
     body = {
         "schema": "r7-urban-static-protocol-v1", "frozen_utc": _now(),
         "frozen_before_any_download": True, "scientific_claim": False,
@@ -372,6 +266,31 @@ def _coverage(paths) -> np.ndarray:
     return aggregate.coverage_fraction(bounds).astype(np.float32)
 
 
+def require_full_coverage(name: str, coverage, *, allows_partial: bool = False) -> None:
+    """Refuse to aggregate a layer whose downloaded tiles leave cells uncovered.
+
+    Decision 0073 §②. The failure this prevents is silent and severe: with no mask,
+    a missing tile contributes zero, so a cell that was never measured is published
+    as "0 built-up area" / "0 people", indistinguishable from a cell that genuinely
+    has none. ``attempt03`` shipped 288 such cells that way (192 in the NW block and
+    96 in the SW block) while the 9/9-complete layer agreed with ``attempt01``
+    everywhere else.
+
+    Partial coverage is allowed only when the protocol says so explicitly, per layer.
+    """
+    if allows_partial:
+        return
+    short = int((np.asarray(coverage) < 1.0).sum())
+    if short:
+        worst = float(np.asarray(coverage).min())
+        raise SystemExit(
+            f"refusing to aggregate {name!r}: {short} of "
+            f"{np.asarray(coverage).size} cells are not fully covered by the "
+            f"downloaded tiles (min coverage {worst:.6f}). Missing tiles would be "
+            f"published as zeros. Re-download the layer, or record "
+            f"allows_partial_coverage with a written reason.")
+
+
 def aggregate_fields() -> dict:
     attempt = latest_attempt("protocol.json")
     protocol = _read_json(attempt / "protocol.json")
@@ -398,18 +317,31 @@ def aggregate_fields() -> dict:
         if role == "built_surface":
             result = aggregate.aggregate_built_surface(paths)
             arrays[f"built_surface_frac_{layer['epoch']}"] = result["fraction"].astype(np.float32)
+            arrays[f"built_surface_coverage_frac_{layer['epoch']}"] = \
+                result["coverage"].astype(np.float32)
             built_epochs.append(layer["epoch"])
         elif role == "building_height":
             result = aggregate.aggregate_building_height(paths)
             arrays["building_height_m"] = result["mean"].astype(np.float32)
+            arrays["building_height_coverage_frac"] = result["coverage"].astype(np.float32)
         elif role == "population":
             result = aggregate.aggregate_population(paths)
             arrays[f"pop_density_km2_{layer['epoch']}"] = result["density"].astype(np.float32)
+            arrays[f"pop_density_coverage_frac_{layer['epoch']}"] = \
+                result["coverage"].astype(np.float32)
             pop_epochs.append(layer["epoch"])
         else:
             continue
+        coverage = result["coverage"]
+        # Decision 0073 §②: a hole must never be published as a zero. A layer the
+        # caller did not explicitly bless for partial coverage must be complete, or
+        # this phase refuses to produce fields at all.
+        require_full_coverage(name, coverage,
+                              allows_partial=bool(layer.get("allows_partial_coverage")))
         receipts.append({"layer": name, "role": role, "epoch": layer.get("epoch"),
-                         "cells_with_data": int((np.asarray(list(result.values())[0]) > 0).sum())})
+                         "cells_with_data": int((np.asarray(list(result.values())[0]) > 0).sum()),
+                         "cells_below_full_coverage": int((coverage < 1.0).sum()),
+                         "min_coverage": float(coverage.min())})
 
     # Contract names of docs/DATA_SPEC.md: the primary WorldCover year is 2021 (v200)
     # and the multi-epoch GHSL layers are stacked with an explicit epoch axis. The

@@ -272,8 +272,24 @@ def aggregate_land_cover(paths, *, classes=(10, 40, 50, 60, 80)) -> dict:
             "fractions": {code: fraction[:, :, i] for i, code in enumerate(classes)}}
 
 
+def _tile_bounds(paths) -> list[tuple[float, float, float, float]]:
+    """``(west, south, east, north)`` for every raster, for the coverage mask."""
+    bounds = []
+    for path in paths:
+        with _open(path) as dataset:
+            box = dataset.bounds
+            bounds.append((box.left, box.bottom, box.right, box.top))
+    return bounds
+
+
 def aggregate_built_surface(paths) -> dict:
-    """Sum of built m^2 divided by the target cell area in m^2."""
+    """Sum of built m^2 divided by the target cell area in m^2.
+
+    ``coverage`` reports how much of each cell the downloaded tiles actually span. A
+    missing tile contributes nothing, so without this mask a hole would be published
+    as ``0`` built-up area — indistinguishable from a cell that genuinely has none
+    (decision 0073 §②). The caller must refuse to publish when coverage < 1.
+    """
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
     for path in paths:
         with _open(path) as dataset:
@@ -281,11 +297,17 @@ def aggregate_built_surface(paths) -> dict:
     area = np.array([[cell_area_m2(row) for _ in range(GRID_WIDTH)]
                      for row in range(GRID_HEIGHT)])
     fraction = np.divide(totals[:, :, 0], area, out=np.zeros_like(area), where=area > 0)
-    return {"built_m2": totals[:, :, 0], "cell_area_m2": area, "fraction": fraction}
+    return {"built_m2": totals[:, :, 0], "cell_area_m2": area, "fraction": fraction,
+            "coverage": coverage_fraction(_tile_bounds(paths))}
 
 
 def aggregate_building_height(paths) -> dict:
-    """Area-weighted mean of ANBH over native cells carrying a value."""
+    """Area-weighted mean of ANBH over native cells carrying a value.
+
+    ``coverage`` carries the same meaning as in ``aggregate_built_surface``: a tile
+    that was never downloaded leaves zero weight, which would otherwise read as
+    "no buildings here" rather than "no data here".
+    """
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
     for path in paths:
         with _open(path) as dataset:
@@ -299,11 +321,17 @@ def aggregate_building_height(paths) -> dict:
             totals += _accumulate_sums(dataset, valid=valid, weight_by_area=True)
     weight = totals[:, :, 1]
     mean = np.divide(totals[:, :, 0], weight, out=np.zeros_like(weight), where=weight > 0)
-    return {"weighted_height": totals[:, :, 0], "weight": weight, "mean": mean}
+    return {"weighted_height": totals[:, :, 0], "weight": weight, "mean": mean,
+            "coverage": coverage_fraction(_tile_bounds(paths))}
 
 
 def aggregate_population(paths) -> dict:
-    """Sum of population counts divided by the cell area in km^2."""
+    """Sum of population counts divided by the cell area in km^2.
+
+    ``coverage`` has the same meaning as the other roles (decision 0073 §②): a
+    missing tile would otherwise publish a population of zero for a cell that was
+    simply never measured.
+    """
     totals = np.zeros((GRID_HEIGHT, GRID_WIDTH, 2), dtype=np.float64)
     for path in paths:
         with _open(path) as dataset:
@@ -315,4 +343,5 @@ def aggregate_population(paths) -> dict:
                          for row in range(GRID_HEIGHT)])
     density = np.divide(totals[:, :, 0], area_km2, out=np.zeros_like(area_km2),
                         where=area_km2 > 0)
-    return {"counts": totals[:, :, 0], "cell_area_km2": area_km2, "density": density}
+    return {"counts": totals[:, :, 0], "cell_area_km2": area_km2, "density": density,
+            "coverage": coverage_fraction(_tile_bounds(paths))}

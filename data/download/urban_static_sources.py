@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -237,6 +238,59 @@ def _as_int(value):
 def _journal_failure(record: dict) -> dict:
     """Journal one failed probe and hand the same record back to the caller."""
     PROBE_FAILURES.append(record)
+    return record
+
+
+def _classify_failure(record: dict) -> str:
+    """Say whether a failed probe means *absent* or merely *transient*.
+
+    Decision 0073 §①: a transport timeout is not evidence that a tile does not
+    exist. ``attempt03`` recorded ``ghsl_built_s_2000/2005/2010`` as
+    ``failed-no-fallback`` on nothing but ``read timeout``; a live re-probe found
+    45/45 tiles answering HTTP 200. Only a 4xx (the server positively says the
+    object is not there, or not permitted) may drop a named layer. 5xx, timeouts,
+    DNS and TLS failures are transient and must be retried, not buried.
+    """
+    status = record.get("http_status")
+    if status is None:
+        return "transient"
+    if 400 <= status < 500:
+        return "absent"
+    return "transient"
+
+
+#: Timeouts for successive probe attempts. Widening them is the cheap half of the
+#: fix for 0073 §①: the JRC endpoint throttles under load, and a single 60 s
+#: timeout used to condemn a whole layer.
+PROBE_TIMEOUTS = (60.0, 90.0, 120.0)
+PROBE_RETRY_SLEEP = (2.0, 4.0)
+
+
+def probe_with_retry(url: str, *, range_bytes: int | None = None,
+                     timeouts=PROBE_TIMEOUTS, sleep=None) -> dict:
+    """Probe once per timeout in ``timeouts``; stop at the first non-transient answer.
+
+    The returned record carries ``attempts`` and ``failure_class`` of ``"none"``,
+    ``"absent"`` or ``"transient"``. Only ``absent`` is grounds for dropping a
+    layer (decision 0073 §①). A ``transient`` final result means the measurement
+    itself is unreliable, so the caller must fail closed rather than publish a
+    hole as a zero.
+    """
+    if sleep is None:
+        sleep = time.sleep
+    record: dict = {}
+    for attempt, timeout in enumerate(timeouts, 1):
+        record = probe(url, range_bytes=range_bytes, timeout=timeout)
+        record["attempts"] = attempt
+        if record["reachable"]:
+            record["failure_class"] = "none"
+            return record
+        record["failure_class"] = _classify_failure(record)
+        # A positive 4xx is an answer: retrying cannot change it.
+        if record["failure_class"] == "absent":
+            return record
+        if attempt < len(timeouts):
+            sleep(PROBE_RETRY_SLEEP[min(attempt - 1, len(PROBE_RETRY_SLEEP) - 1)])
     return record
 
 
