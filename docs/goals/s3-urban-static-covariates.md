@@ -871,3 +871,51 @@ vs 独立 `0.284142837`，`5.15e-08`。修复后在真实 `attempt03` 瓦片上�
 ```
 .venv/bin/python scripts/r7_urban_static_round.py verify-endpoints
 ```
+
+### 2026-11-01：`attempt04` 已发布，E1–E6 全部达标（决策 0073 第 3 条完成）
+
+`attempt04` 六相位全部**实跑**（`verify-endpoints`/`freeze`/`download`/`aggregate`/
+`recheck`/`publish` 退出码全 0），由 `CreateWorkflow` 以 `dryRun: false` 驱动
+（`dwfrun-831dc84f`；此前三次 `AmendWorkflow` 都继承了草稿默认的 `dryRun: true`，
+所以六相位一次都没跑——这是本轮踩到的坑，已改为用 `CreateWorkflow` 显式传 args）。
+
+**逐项实测**（不是估计）：
+
+| 出口 | 判据 | 实测 |
+| --- | --- | --- |
+| E1 | 六相位退出码 0 + `BUILD_COMPLETE.json` | 全 0；`{"schema_version":1,"build_complete":true}`；`published/fields/static_fields.npz` 存在 |
+| E2 | 每层瓦片数 = catalog 数；LandScan 仍 `failed-no-fallback` 且有 `reason` | 11 个 GHSL 层**全部 9/9**、`verdict=reachable`；WorldCover 48/48；`unreliable=[]`；LandScan `reason` 非空 |
+| E3 | GHSL `*_coverage_frac_*` 全 4225 格 = 1.0 | 11 个数组 `min == 1.0`，`cells<1e-9` 计数 **0** |
+| E4 | `max_relative_delta <= 1e-05` 且 `passed: true` | **`5.1535351323099157e-08`**、`passed: true`（余量 194 倍） |
+| E5 | 与 attempt01 差异仅来自格界 | 中位差 `lc` 0%、`height` 0.035%、`built_s` 0.204%、`pop` 0.203%；零值格 403/402（无整块归零） |
+| E6 | 新 `static_identity`、新 `record_id`、旧记录不重复 | `063fb805…`（≠ attempt01 的 `8671ed7c…`）；`s3-urban-static-covariates-attempt04`；96 条无重复；`verify` 通过 |
+
+**这修补了 `attempt03` 的两处不可用理由**：`recheck` 由 `false` 变 `true`
+（`max_relative_delta` `913872.595 → 5.15e-08`），且 `attempt03` 的 288 格静默零值在
+`attempt04` 不再出现——`s2015`/`h2018` 这次都是 9/9 瓦片，coverage 掩码逐格 1.0。
+
+**两处 E5 异常值已查清、非缺陷**（详见 `docs/R7_URBAN_STATIC_COVARIATES_ATTEMPT04.md` §7）：
+`lc_built_frac` 差 `4.66e-10` 是 float32 精度且**应该**接近零（WorldCover 原生分辨率是
+目标格的 1/3000，格心与格界只在外圈不同）；`built_surface` 的 `122.77%` 出现在
+`2.8e-07` 量级的格上、绝对差 `3.5e-07`，而零值格数 403/402 说明没有整块归零。
+
+**本轮遗留两处记账缺陷（已确证，未修，需各自的决策与测试）**：
+1. `scripts/r7_urban_static_round.py:351` 的 `cells_below_full_coverage` 用严格 `< 1.0`，
+   而闸门用 `1 − 1e-9` ⇒ 同一 receipt 里六个 GHSL 层报 65 格"未覆盖"，同时闸门判定全覆盖。
+2. `land_cover` 分支有 coverage 掩码但**没有闸门**（`:306-322`）。这是刻意的（WorldCover
+   的全海缺 tile 若 gate 会让整层无法发布），但意味着决策 0073 第 2 条的
+   「所有 role 都 fail-closed」**只在 4 个 GHSL role 上成立**，`land_cover` 只做到"带掩码"。
+
+**同时修掉一处我自己引入的破坏**：`716b2de` 给证据页加了 73 行却没重 pin 账本，
+导致 `verify` 在 HEAD 上 exit 1（`ERROR line 92: evidence_sha256 does not match`）。
+已由 `e1827a0` 重 pin 修复（只改 pin 与被 pin 的字节一致，未动比对逻辑）。
+
+**下一动作（节点 S3）**：静态协变量**接线**轮（决策 0069）仍未开始——把
+`static_identity = 063fb805…` 绑进 `protocol_sha256` 而**不是** `data_identity`，
+开关默认 off、off 路径逐位退回。指针仍指向 `docs/goals/s3-urban-static-wiring.md`，
+**不得回退**（会回退已登记轮次）。
+
+恢复第一条命令：
+```
+.venv/bin/python tools/r7_round.py state
+```
