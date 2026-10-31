@@ -7,10 +7,28 @@ cell-centre rule inside the driver, so its 5.15e-08 agreement proved only that t
 copies of one rule agreed.
 
 Attribution here is by **exact spherical area overlap**: a native cell contributes the
-fraction of its own area that falls inside the target box, with latitude as a ratio of
-sin bands and longitude as a linear ratio. The output is a derived statistic of real
+part of itself that falls inside the target box, with latitude as a ratio of sin bands
+and longitude as a linear ratio. The output is a derived statistic of real
 observations on the frozen 0.25 deg cell edges, not an interpolation and not a truth
 field.
+
+The **weight is not the same for every role**, because the native values do not carry
+the same units (decision 0072 §③):
+
+===============  ==========================  ==============================
+role             native value                overlap weight
+===============  ==========================  ==============================
+``land_cover``   a class code (indicator)    absolute overlap area, m^2
+``building_height``  ANBH, an intensive mean absolute overlap area, m^2
+``built_surface``    already m^2             overlap *fraction* (dimensionless)
+``population``       persons, already counts overlap *fraction* (dimensionless)
+===============  ==========================  ==============================
+
+The last two rows are extensive values that already contain their own area, so
+multiplying them by an absolute area counts it twice: measured at 6.5e+03-7.5e+03
+relative error. The first two need the absolute area because the indicator has no
+area of its own and a mean must be area-weighted (a native pixel's area shrinks with
+latitude). Do not "unify" this table.
 """
 
 from __future__ import annotations
@@ -29,13 +47,17 @@ def independent_cell(attempt: Path, layer_name: str, row: int, col: int, *,
     """Recompute one cell from the raw tiles, sharing no attribution rule with the aggregator.
 
     This is the third implementation decision 0071 requires. It reads each native cell
-    that touches the target box and scores it by the **exact fraction of its own
-    spherical area** that falls inside that box (latitude as a ratio of sin bands,
-    longitude as a linear ratio), then reduces. It deliberately does not call
+    that touches the target box and scores it by the **exact overlap of its own
+    spherical area** with that box (latitude as a ratio of sin bands, longitude as a
+    linear ratio), then reduces. It deliberately does not call
     ``aggregate._row_spans`` / ``aggregate._col_spans`` / ``aggregate._native_*``: the
     previous version of this function reimplemented the *same* cell-centre rule the
     aggregator used, so a 5.15e-08 agreement proved only that two copies of one rule
     agreed, not that the rule was right.
+
+    The overlap weight is chosen per role (decision 0072): an absolute area in m^2 for
+    the indicator and for the intensive mean, a dimensionless fraction for the two
+    values that already carry their own area. See the module docstring for why.
     """
     import rasterio
     from rasterio.windows import Window
@@ -55,7 +77,7 @@ def independent_cell(attempt: Path, layer_name: str, row: int, col: int, *,
 
     per_class = np.zeros(len(classes))
     value_sum = 0.0
-    area_weight = 0.0
+    weight_total = 0.0
     for path in tile_paths(attempt, layer_name):
         with rasterio.open(path) as dataset:
             bounds = dataset.bounds
@@ -80,38 +102,44 @@ def independent_cell(attempt: Path, layer_name: str, row: int, col: int, *,
             window = Window(int(cols[0]), int(rows[0]),
                             int(cols[-1] - cols[0] + 1), int(rows[-1] - rows[0] + 1))
             block = dataset.read(1, window=window).astype(np.float64)
-            # Fraction of each native cell inside the target box, as true spherical area.
+            # Dimensionless share of each native cell inside the target box.
             lat_fraction = ((np.sin(np.radians(over_top[rows]))
                              - np.sin(np.radians(over_bottom[rows])))
                             / (np.sin(np.radians(lat_top[rows]))
                                - np.sin(np.radians(lat_bottom[rows]))))
             lon_fraction = ((over_right[cols] - over_left[cols])
                             / (lon_right[cols] - lon_left[cols]))
-            share = lat_fraction[:, None] * lon_fraction[None, :]
+            # Absolute spherical area (m^2) of the overlap, for the class indicator and
+            # for the intensive mean: R^2 * overlap_lon_rad * sin-band of the overlap.
+            overlap_area_m2 = ((authalic_radius_m ** 2 * np.radians(transform.a)
+                                * lon_fraction[None, :])
+                               * (np.sin(np.radians(over_top[rows]))
+                                  - np.sin(np.radians(over_bottom[rows])))[:, None])
             if role == "land_cover":
                 for position, code in enumerate(classes):
-                    per_class[position] += float(np.nansum((block == code) * share))
+                    per_class[position] += float(np.nansum((block == code) * overlap_area_m2))
             elif role == "building_height":
                 mask = block > 0
-                value_sum += float(np.nansum(np.where(mask, block, 0.0) * share))
-                area_weight += float(np.nansum(mask * share))
+                value_sum += float(np.nansum(np.where(mask, block, 0.0) * overlap_area_m2))
+                weight_total += float(np.nansum(mask * overlap_area_m2))
             else:
+                # built_surface (m^2) and population (persons) already carry their own
+                # area; weighting them by area again would count it twice.
+                share = lat_fraction[:, None] * lon_fraction[None, :]
                 value_sum += float(np.nansum(block * share))
 
     if role == "land_cover":
-        # The denominator is the whole cell, in the same dimensionless units the shares
-        # are expressed in: the sin band of the target cell times the number of native
-        # columns spanning it.
-        if not tile_paths(attempt, layer_name):
-            return {"fraction": {code: 0.0 for code in classes}, "total": 0.0}
-        with rasterio.open(tile_paths(attempt, layer_name)[0]) as dataset:
-            native_cols = sources.GRID_SPACING_DEG / dataset.transform.a
-        total = (np.sin(np.radians(lat_north)) - np.sin(np.radians(lat_south))) * native_cols
-        return {"fraction": {code: per_class[i] / total if total else 0.0
-                             for i, code in enumerate(classes)}, "total": total}
+        # Both sides are now areas in m^2: the numerator is the built-up area inside the
+        # cell, the denominator the whole cell, so the ratio is a dimensionless share.
+        # The earlier version divided a pixel *count* by `sin_band * native_cols`, which
+        # is neither an area nor a count, inflating every land-cover fraction by ~9e5
+        # (decision 0072 §①).
+        return {"fraction": {code: per_class[i] / cell_area_m2
+                             for i, code in enumerate(classes)},
+                "total": float(cell_area_m2)}
     if role == "building_height":
-        return {"mean": value_sum / area_weight if area_weight else 0.0,
-                "weight": area_weight}
+        return {"mean": value_sum / weight_total if weight_total else 0.0,
+                "weight": weight_total}
     if role == "built_surface":
         return {"fraction": value_sum / cell_area_m2}
     return {"density": value_sum / (cell_area_m2 / 1e6)}

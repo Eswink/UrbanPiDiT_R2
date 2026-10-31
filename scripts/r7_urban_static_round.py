@@ -120,6 +120,45 @@ def _layer_by_name(name: str) -> dict:
 
 # --- phase 1: read-only endpoint verification (the hard gate) -----------------
 
+def _unreachable_reason(probes) -> str:
+    """A non-empty, measurement-backed reason for dropping a named layer (R-008).
+
+    The probe journal is the evidence; this turns it into one sentence a reader can
+    audit. Never returns an empty string: ``require_dropped_reasons`` fails closed.
+    """
+    observed = []
+    for probe in probes:
+        status = probe.get("http_status")
+        detail = probe.get("error")
+        if status is not None:
+            observed.append(f"HTTP {status}")
+        elif detail:
+            observed.append(str(detail))
+        else:
+            observed.append("no response")
+    codes = ", ".join(sorted(set(observed)))
+    return (f"no tile of the layer answered a read-only probe "
+            f"({len(probes)} probed: {codes}); dropped as failed-no-fallback, "
+            f"no synthetic substitute was written")
+
+
+def require_dropped_reasons(dropped) -> None:
+    """Fail closed unless every dropped named layer carries a non-empty reason.
+
+    R-008 requires an auditable ``failed-no-fallback`` record; a record whose
+    ``reason`` is missing or blank cannot be audited, because a reader cannot tell
+    "unreachable" from "excluded by authorisation" from "download failed". This is a
+    guard, not a convention: it raises rather than publishing an unexplained gap.
+    """
+    for entry in dropped:
+        reason = entry.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise SystemExit(
+                f"refusing to continue: dropped layer {entry.get('name')!r} has no "
+                f"reason (R-008). Every dropped named layer must say why it was "
+                f"dropped, in words, before the protocol is frozen or published.")
+
+
 def verify_endpoints() -> dict:
     attempt = new_attempt()
     layers, dropped = [], []
@@ -146,6 +185,11 @@ def verify_endpoints() -> dict:
             "reachable_urls": [p["url"] for p in reachable],
             "probes": probes, "verdict": verdict,
         }
+        if verdict == "failed-no-fallback":
+            # R-008: a dropped layer must carry an auditable reason. The observed probe
+            # failures are the measurement; "no tile answered" alone is not a reason.
+            record["reason"] = _unreachable_reason(probes)
+            record["failed_no_fallback"] = True
         (dropped if verdict == "failed-no-fallback" else layers).append(record)
     licence_pages = [sources.probe(url) for url in (
         sources.WORLDCOVER_SOURCE_PAGE, sources.GHSL_COPYRIGHT_URL,
@@ -206,6 +250,7 @@ def _layer_plan(record: dict) -> dict:
 def freeze() -> dict:
     attempt = latest_attempt("endpoint_report.json")
     report = _read_json(attempt / "endpoint_report.json")
+    require_dropped_reasons(report["dropped"])
     body = {
         "schema": "r7-urban-static-protocol-v1", "frozen_utc": _now(),
         "frozen_before_any_download": True, "scientific_claim": False,
@@ -455,6 +500,7 @@ def recheck() -> dict:
 
 @fresh_outputs("fields_dir", "manifest_dir")
 def _publish(fields_dir, manifest_dir, *, attempt, protocol, receipt, recheck_receipt):
+    require_dropped_reasons(protocol["dropped_layers"])
     fields_dir, manifest_dir = Path(fields_dir), Path(manifest_dir)
     fields_dir.mkdir(parents=True, exist_ok=True)
     manifest_dir.mkdir(parents=True, exist_ok=True)
@@ -501,6 +547,21 @@ def publish() -> dict:
     protocol = _read_json(attempt / "protocol.json")
     receipt = _read_json(attempt / "aggregate_receipt.json")
     recheck_receipt = _read_json(attempt / "recheck_receipt.json")
+    # Fail closed (decision 0072 §③). Publishing a static_identity asserts that the
+    # fields carry the identity they claim; an independent re-derivation that
+    # disagrees with them is exactly the case where that assertion is unproven.
+    # Recording `passed: false` inside the manifest is not a gate: attempt03 published
+    # at max_relative_delta 9.1e+05 that way.
+    if recheck_receipt.get("passed") is not True:
+        failed = [c for c in recheck_receipt.get("comparisons", [])
+                  if c.get("relative_delta", 0.0) > recheck_receipt.get("tolerance", 1e-5)]
+        detail = ", ".join(f"{c['field']}@({c['row']},{c['col']})="
+                           f"{c['relative_delta']:.3e}" for c in failed) or "no per-cell detail"
+        raise SystemExit(
+            f"refusing to publish {attempt.name}: the independent re-derivation did not "
+            f"pass (max_relative_delta={recheck_receipt.get('max_relative_delta')!r}, "
+            f"tolerance={recheck_receipt.get('tolerance')!r}). Failing comparisons: "
+            f"{detail}. Fix the aggregation or the recheck; do not publish.")
     manifest = _publish(fields_dir=attempt / "published" / "fields",
                         manifest_dir=attempt / "published" / "manifest",
                         attempt=attempt, protocol=protocol, receipt=receipt,

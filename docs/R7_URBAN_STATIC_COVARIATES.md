@@ -262,3 +262,73 @@ source/version/licence/预期字节/聚合规则/输出布局、磁盘**余量�
   证据页与账本行都已标 `scientific_claim: false`。
 - **若要补**：需要一个自己的 ADR 与预声明出口，在**指针重新指向本长文**的独立 attempt
   里跑 `dryRun: false`，并接受它会重跑六相位（产物须落在新的排他 `outputs/` 路径）。
+
+## 11. 格界重派生（`attempt03`）与 recheck 的量纲缺陷（决策 0072）
+
+### 11.1 `attempt03` 是什么
+
+按决策 0071 第 1 条以**格界面积重叠**重派生，用 workflow 非 dryRun 驱动
+（`dwfrun-47a053b8`，六相位全跑、忠实性闸门 F1–F4 首次全绿）。产物落全新排他路径
+`outputs/r7_urban_static_covariates_attempt03/`，`static_identity = 6f65f88a…`。
+下载 165 文件 / `13,727,171,047 B`；协议 10 层（**不是** attempt01 的 13 层，见 11.3）。
+
+### 11.2 recheck 报了 `passed: false`，那是**真缺陷**
+
+`attempt03/recheck_receipt.json`：`passed: false`、`max_relative_delta = 913872.595`、
+容差 `1e-05`。12 项比较里两个字段通过、两个失败：
+
+| 字段 | `relative_delta`（修复前） |
+| --- | --- |
+| `built_surface_frac` | `1.8e-08`–`2.4e-08` ✅ |
+| `pop_density_km2` | `8.9e-10`–`6.7e-09` ✅ |
+| `lc_built_frac` | `7.9e+05`–`9.1e+05` ❌ |
+| `building_height_m` | `2.7e-05`–`4.3e-04` ❌ |
+
+根因是 `data/preprocess/urban_static_recheck.py` 的**分子与分母不同量纲**：
+`share = lat_fraction * lon_fraction` 是"每像素落入目标框的比例"（无量纲，整格求和
+实测 `9,000,000` = 3000×3000 个像素），分母却写成 `sin_band × native_cols = 9.8416`。
+`9.0e6 / 9.8416 = 914,634`，与实测 `913,872` 同量级。`building_height` 同源——
+分子分母都用无量纲 `share`，得到未按面积加权的均值。
+
+### 11.3 先证明**聚合器是对的**，再修 recheck
+
+在改任何代码之前，用**完全独立的暴力实现**（逐瓦片、逐原生像素、绝对球面面积 `m²`）
+复算同一格：
+
+- 已发布 `lc_built_frac[7,64] = 0.28414282`
+- 独立绝对面积复算 `0.284142837`
+- 相对差 `5.15e-08`
+
+⇒ 已发布数值**正确**。缺陷只在 recheck 一侧。修好后在**真实 `attempt03` 瓦片**上重跑
+12 项比较：
+
+```
+max_relative_delta = 5.154e-08   (容差 1e-05)   ← 修复前 913872.595
+```
+
+四个 role 的正确权重**不同**，修法是分开处理（对 `built_surface`/`population` 乘绝对面积
+会双计，实测偏差跳到 `6.5e+03`–`7.5e+03`）：`land_cover`/`building_height` 用绝对球面重叠面积
+`m²`，`built_surface`/`population` 用重叠比例；`land_cover` 的分母统一为 `cell_area_m2`。
+
+### 11.4 三条 fail-closed 守卫（防复发）
+
+1. **`publish()` 对 `recheck.passed is not True` 直接 `SystemExit`**。此前只把结果写进
+   manifest，于是 `attempt03` 在 `9.1e+05` 的状态下照常发布了 `static_identity`。
+2. **被丢弃的具名层必须有非空 `reason`**（`freeze`/`_publish` 入口断言）。此前
+   `verify_endpoints()` 构造 dropped 记录时**不含 `reason` 键**，`attempt03` 实测三条
+   `reason: null`：`ghsl_built_s_2000/2005/2010`（13 层 → 10 层，无任何解释）。
+   **这是未解决的数据问题**：这三层在 attempt01/02 可达，在 attempt03 不可达，
+   原因尚未查明（本轮只保证它必须被写下来，没有修可达性）。
+3. **新增 `tests/test_r7_urban_static_recheck.py`（14 用例）**。该模块此前**没有任何测试**，
+   缺陷是靠一次真实运行的 `passed: false` 暴露的。反证已实测：把修复前的模块放回去跑
+   新测试，**4 个用例失败**；换回修复后 14 个全过。
+
+### 11.5 `attempt03` 能否用于科学：**不能**
+
+字段经独立复算是正确的，但**当时的闸门没拦住**。这两件事不能互相抵消——一个当时没通过
+自身校验、事后因"校验器有病"被追认的产物，可信度来自事后复算，不来自当时的闸门。
+按新守卫，这样的 attempt 不会再被发布。**重新派生一个 recheck 通过的 attempt 是下一动作**，
+在它落地前 `attempt03` 记 `scientific_claim: false`。
+
+`attempt01`/`attempt02` 的格心口径产物与 `attempt03` 的格界口径产物**都在**，
+两者数值不同（中位 `0.139%`、最大 `1.225%`），不得混用。
