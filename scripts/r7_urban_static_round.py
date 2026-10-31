@@ -266,6 +266,13 @@ def _coverage(paths) -> np.ndarray:
     return aggregate.coverage_fraction(bounds).astype(np.float32)
 
 
+#: Tolerance for "a cell is fully covered". Adjacent tiles whose edges agree only to
+#: floating point leave a deficit of ~3.3e-14 (measured on the 9 complete GHSL tiles),
+#: which a strict ``< 1.0`` would read as 65 uncovered cells and refuse a complete
+#: layer. A real missing tile is off by 0.5 or more, so this cannot hide one.
+COVERAGE_TOLERANCE = 1e-9
+
+
 def require_full_coverage(name: str, coverage, *, allows_partial: bool = False) -> None:
     """Refuse to aggregate a layer whose downloaded tiles leave cells uncovered.
 
@@ -280,15 +287,16 @@ def require_full_coverage(name: str, coverage, *, allows_partial: bool = False) 
     """
     if allows_partial:
         return
-    short = int((np.asarray(coverage) < 1.0).sum())
+    values = np.asarray(coverage, dtype=np.float64)
+    short_mask = values < 1.0 - COVERAGE_TOLERANCE
+    short = int(short_mask.sum())
     if short:
-        worst = float(np.asarray(coverage).min())
+        worst = float(values[short_mask].min())
         raise SystemExit(
-            f"refusing to aggregate {name!r}: {short} of "
-            f"{np.asarray(coverage).size} cells are not fully covered by the "
-            f"downloaded tiles (min coverage {worst:.6f}). Missing tiles would be "
-            f"published as zeros. Re-download the layer, or record "
-            f"allows_partial_coverage with a written reason.")
+            f"refusing to aggregate {name!r}: {short} of {values.size} cells are not "
+            f"fully covered by the downloaded tiles (min coverage {worst:.6f}). "
+            f"Missing tiles would be published as zeros. Re-download the layer, or "
+            f"record allows_partial_coverage with a written reason.")
 
 
 def aggregate_fields() -> dict:

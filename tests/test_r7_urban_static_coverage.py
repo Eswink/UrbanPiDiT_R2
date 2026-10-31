@@ -230,3 +230,26 @@ def test_partial_coverage_is_only_allowed_when_declared():
         driver.require_full_coverage("x", coverage)
     # An explicit, reason-bearing opt-out is the only way through.
     driver.require_full_coverage("x", coverage, allows_partial=True)
+
+
+def test_floating_point_edge_noise_is_not_a_coverage_hole():
+    """Complete tiles leave a ~3.3e-14 deficit; that must not refuse a good layer.
+
+    Measured on the nine complete GHSL tiles: 65 cells come out at
+    0.9999999999999672 rather than 1.0. A strict ``< 1.0`` reads those as uncovered
+    and would reject a layer that is in fact complete — the mirror image of the
+    attempt03 bug, and just as wrong.
+    """
+    driver = load_driver()
+    coverage = np.ones((aggregate.GRID_HEIGHT, aggregate.GRID_WIDTH))
+    coverage[:5, :] = 0.9999999999999672
+    driver.require_full_coverage("ghsl_built_s_2020", coverage)      # must not raise
+    assert driver.COVERAGE_TOLERANCE < 0.5, "tolerance must stay far below a real hole"
+
+
+def test_a_real_half_cell_hole_is_still_refused():
+    driver = load_driver()
+    coverage = np.ones((aggregate.GRID_HEIGHT, aggregate.GRID_WIDTH))
+    coverage[10, 10] = 0.5
+    with pytest.raises(SystemExit):
+        driver.require_full_coverage("x", coverage)
