@@ -648,3 +648,91 @@ run `dwfrun-4f208de0-0618-46ab-ac92-fba0c8224ff9`，参数 `dryRun: true` / `bas
 **本轮观察点**：F1 应通过（开跑前实现已提交、运行中不改文件），F2 应在六相位都实跑后通过，
 F3 检查 `build_complete=true`，F4 检查 `verify`。若 F1 失败，说明复核者在运行中改了实现文件
 ——那正是 F1 要拦的情况，必须如实记录而不是绕过。
+
+### 2026-10-31 — 重派生第一跑**失败于我自己引入的性能回归**（6 h 阶段超时）；已修复并重启
+
+#### A. 失败事实（实测）
+
+run `dwfrun-4dcab4e3-5446-4c04-ae05-6031a77e1cdb` 状态 `errored`：
+`world.run '.venv/bin/python' timed out after 21600000ms`（6 h 阶段上限）。
+
+时间线（全部取自 attempt02 的产物时间戳）：
+
+| 时刻（UTC） | 事件 |
+| --- | --- |
+| `13:52:02` | run 启动 |
+| `20:03:19` | `endpoint_report.json`（`accessed_utc`） |
+| `20:03:24` | `protocol.json`（`frozen_utc`） |
+| `20:40:29` | `download_receipt.json`（`downloaded_utc`）——下载用 37 min |
+| `~02:40` | 6 h 超时触发 |
+
+⇒ **前四个阶段成功**（`verify-endpoints`/`freeze`/`download` 的产物都在盘上），
+**`aggregate` 卡死**直到超时。
+
+**已落盘的 attempt02 内容**（未删除，如实保留）：
+`endpoint_report.json`（119 KB）、`protocol.json`（44 KB，`protocol_sha256 = 2dadd2b1…`）、
+`download_receipt.json`（195 文件、`14,484,496,452 B`）、`native/` 20 GiB。
+**没有** `aggregate_receipt.json`、`static_fields.npz`、`published/`——所以这一跑**没有任何产物被发布**。
+
+**复用性核对（实测）**：attempt02 的 195 个瓦片与 attempt01 的 `sha256` **逐条相同**
+（`total_bytes` 与 `files` 相同，URL 集合相同，sha 不匹配数 = 0）。
+即「重下一次得到的数据与上一次逐字节相同」——这是数据源稳定性的正面证据。
+
+#### B. 根因：我在 0071 里引入的**逐格 Python 循环**
+
+上一节记的格界修复写法是「每个原生格一个 Python 循环迭代」：
+
+```
+for row, native_row, row_fraction in row_spans:
+    for col, native_col, col_fraction in col_spans:
+```
+
+在 GHSL 的 144 M 像素瓦片上没问题（实测 **0.8 s**），但 WorldCover 是
+**36,000 × 36,000 = 12.96 亿像素**（实测 `ds.height × ds.width = 1.296e9`），
+`row_spans × col_spans` 约 **14 亿次迭代/瓦片**，48 个瓦片……远超 6 h。
+
+**这不是数据或环境问题，是我的实现问题**，必须在记录里说清楚。
+
+#### C. 修复：按原生行块向量化（提交 `cb69f2a`）
+
+改为「每个目标行 × 每个原生行块」的向量化归约，用 `np.bincount` 按目标列索引聚合。
+实测效果：
+
+| 对象 | 修复前 | 修复后 |
+| --- | --- | --- |
+| GHSL 单片（144 M px） | 0.8 s | 0.8 s |
+| GHSL `built_s` 全部 9 片 | — | **11.7 s** |
+| WorldCover 单片（1.296 G px） | **> 1 h**（推得，未跑完） | **16.1 s** |
+| WorldCover 一年 48 片 | 超 6 h 失败 | **1754.6 s（29.2 min）** |
+| 预计 `aggregate` 全程 | 超 6 h 失败 | **~1.0 h**（WorldCover 2 年 58.5 min + GHSL 2.3 min） |
+
+**正确性未退步**：5 个抽样格仍与独立第三套实现（`urban_static_recheck.py`）
+一致到 **`0.00000000%`**；`pytest` 11 passed；`check_conventions` 37 条 `failing=0`。
+
+**修复过程中被测试抓到的一个错**：向量化时先漏掉了 land-cover 分子上的 sin-band 权重，
+`test_land_cover_fraction_is_area_weighted_within_a_cell` 立刻报出
+`872513.346` vs `1.0`（放大倍数正好是格面积）——按规则修实现，**没有**放宽断言。
+
+**同时修正了半个缺陷**：原来跨格界的原生**列**仍被整体归给一个目标列；现在
+`_column_attribution` 返回两组 `(目标列, 份额, 掩码)`，跨界列**同时**计入两侧。
+这是 0071 的格界语义在经度方向上真正落地。
+
+#### D. 阶段超时抬到 8 h（不是预算变更）
+
+草稿的 `world.run` `timeoutMs` 从 6 h（`21600000`）改为 8 h（`28800000`），
+注释写明这是**超时上限**而非预算；真实成本仍按决策 0064 记账（planned 21,600 s /
+hard 86,400 s 不变）。理由：实测 aggregate ~1 h，但下载 37 min + 聚合 1 h 已有余量，
+抬限是为避免「正常长跑被误杀」，不是放宽任何科学判据。
+
+#### E. 重启
+
+- 第一次 `AmendWorkflow` **失败于参数继承**：`AmendWorkflow` 不接受 `args`，
+  修订版继承了草稿默认 `dryRun: true`，于是 0 秒内就在 dryRun 分支跳出
+  （run `dwfrun-84132bcb`，日志实测「dryRun：第 1 轮止于实现与复核」）。如实记此失误。
+- 改用 `CreateWorkflow` 显式参数重启：run
+  `dwfrun-47a053b8-6d53-4686-a66c-bfcac1240a6f`，
+  `dryRun: false` / `baselineCommit: cb69f2a` / `maxRounds: 1`，编译干净。
+- **基线用 `cb69f2a`**（聚合器向量化落地的那次提交），不是 `722c2cc`——因为本轮改了
+  `urban_static_aggregate.py`，用旧基线会让 F1 必然失败。原因同上轮：F1 问的是
+  「本轮运行期间实现有没有被悄悄改动」，基线必须是开跑前最后一次实现提交。
+- 启动前 `/data` 余量 542 GiB（attempt02 已占 20 GiB，未删）。
