@@ -736,3 +736,99 @@ hard 86,400 s 不变）。理由：实测 aggregate ~1 h，但下载 37 min + �
   `urban_static_aggregate.py`，用旧基线会让 F1 必然失败。原因同上轮：F1 问的是
   「本轮运行期间实现有没有被悄悄改动」，基线必须是开跑前最后一次实现提交。
 - 启动前 `/data` 余量 542 GiB（attempt02 已占 20 GiB，未删）。
+
+### 2026-10-31 — 重派生完成：F1–F4 **首次全部通过**，但 recheck 判 `passed: false`，且丢了三层（如实记，不算通过）
+
+#### A. 编排证据这次真的拿到了（F1–F4 全部首次实跑通过）
+
+run `dwfrun-47a053b8-6d53-4686-a66c-bfcac1240a6f`，`dryRun: false` /
+`baselineCommit: cb69f2a`，状态 `completed`，实跑
+**`verify-endpoints,freeze,download,aggregate,recheck,publish` 六相位全部退出码 0**，
+跳过 0 个，登记「已登记」。
+
+| 判据 | 实测读数 |
+| --- | --- |
+| **F1** 实现字节 | 通过：5 个实现文件与 `cb69f2af0ca8` **逐字节相同** |
+| **F2** 六相位 | 通过：六相位全部实跑且退出码 0 |
+| **F3** `build_complete` | 通过：`{"schema_version": 1, "build_complete": true}` |
+| **F4** `verify` | 通过：三条子校验 exit 0（`campaign_state failures=0`、`PASS ... 95 records`） |
+
+产物：`outputs/r7_urban_static_covariates_attempt03/`，195→**165** 文件（见 B），
+`published/manifest/manifest.json` + `BUILD_COMPLETE.json` + `published/fields/static_fields.npz`（33 数组），
+`static_identity = 6f65f88a780a62153bdd7d24211e0367ed2385dc102f1471167c665ceade74d9`
+（与 attempt01 的 `8671ed7c…` **不同**，符合预期：聚合规范与输出字节都变了）。
+`spatial_resampling = area_weighted_coarsen`。
+新证据页 `docs/R7_URBAN_STATIC_COVARIATES_REPLAY.md`（27,933 B），
+账本 `s3-urban-static-covariates-replay`（95 条，**无重复** `record_id`），
+指针已由登记员恢复为 `current = 接线轮`、`previous = 本长文`。
+
+#### B. **缺陷 1：丢了三个 GHS-BUILT-S 历元，且 `reason` 为空**
+
+协议里只有 **10 层**，不是 13 层。`dropped_layers` 含
+`ghsl_built_s_2000` / `ghsl_built_s_2005` / `ghsl_built_s_2010`，且**三者的 `reason` 均为 `None`、
+`evidence` 为空**。下载回执相应只有 165 文件 / `13,727,171,047 B`（attempt01 为 195 / `14,484,496,452 B`）。
+
+**为什么这是真缺陷**：决策 0063 的具名清单**可缩小不可扩大**，缩小必须有 `reason`
+（R-008 的失败留痕精神）。侦察员这一轮把 2015/2020 之外的 built-s 历元静默丢掉了，
+下游 `built_surface_frac` 因此从 `(5,65,65)` 变成 `(2,65,65)`，`built_surface_frac_2000/2005/2010`
+三个字段**不存在**。这是**可核对的范围缩水**，不是数据源不可达（attempt01 同一数据源取全了 5 个历元）。
+
+#### C. **缺陷 2：recheck 判 `passed: false`，但 publish 照常放行**
+
+`recheck_receipt.json` 实测：`passed: false`，`max_relative_delta = 913872.595`
+（容差 `1e-05`）。12 项比对中：
+
+| 字段 | 结果 |
+| --- | --- |
+| `built_surface_frac`（3 格） | **ok**，相对差 `1.8e-08`–`2.4e-08` |
+| `pop_density_km2`（3 格） | **ok**，`8.9e-10`–`6.7e-09` |
+| `lc_built_frac`（3 格） | **FAIL**，`7.9e+05`–`9.1e+05` |
+| `building_height_m`（3 格） | **FAIL**，`2.7e-05`–`4.3e-04` |
+
+**根因（我实测定位）**：第三套实现的 land-cover 分支**漏了 sin-band 权重**——
+分子是**原始像元计数**（如 `(7,64)` 的 `2,555,562` 像元），
+分母却是无量纲的 `sin_band × 3000 = 9.8416`，两者量纲不一致。
+这与我在**聚合器**里修过的同一个错误（当时被
+`test_land_cover_fraction_is_area_weighted_within_a_cell` 抓住），
+但 `urban_static_recheck.py` 没有对应的单测，所以没被抓到。
+`building_height_m` 的 `1e-5`–`1e-4` 级差异同源（加权均值路径的 band 处理）。
+
+**为什么 `passed: false` 却仍然发布**：`scripts/r7_urban_static_round.py` 的 `publish`
+只把 `recheck_receipt["passed"]` **写进 manifest**（第 489 行），
+**从不据此拦截**。所以 `manifest.json` 里如实记着 `"recheck": {"passed": false, ...}`，
+而产物照样发布并打了 `build_complete: true`。这是**闸门缺失**，不是隐瞒——
+manifest 与证据页都能看到 `false`，但没有任何机械停止。
+
+#### D. 数值对比（attempt01 格心 vs attempt03 格界），仅列共有非零格
+
+| 字段 | 中位相对差 | p95 | 说明 |
+| --- | --- | --- | --- |
+| `building_height_m` | `0.0355%` | `0.341%` | 绝对差中位 `0.0011 m` |
+| `pop_density_km2_2020` | `0.2034%` | `1.565%` | 绝对差中位 `0.32 人/km²` |
+| `built_surface_frac_2020` | `0.2042%` | `1.381%` | |
+
+量级与 0071 预测的格心→格界修正（抽样 0.04%–1.2%）**一致**，
+不是新一轮错误。**相对差的最大值（曾出现 >100%）集中在接近零的格**，
+那里相对误差无意义（例：`x=0.0012` vs `y=0.0022`）。
+
+#### E. 结论：**不算通过**
+
+- ✅ 编排证据（目标要求「用 workflow 编排」）**这次真正拿到**：六相位由编排器驱动、F1–F4 首次全绿。
+- ✅ 聚合语义已是格界，与 `DATA_SPEC.md:37` 一致，且 extensive/intensive 两条路径都与第三套实现对齐。
+- ❌ **recheck 本身有缺陷**（land-cover 缺 band），所以「抽样格独立重算并精确比对」这条
+  在 **land-cover 与 building-height 上仍未成立**；只有 built_surface / population 两类成立。
+- ❌ **丢了三个具名历元且无 `reason`**，产物字段不完整。
+- ❌ **publish 不以 recheck 为闸门**，所以 bad recheck 不能阻止发布。
+
+**为何停 + 恢复第一条命令**：按决策 0043 的封闭停止条件，本轮已无**可安全独立推进**的工作——
+修 recheck 的 band 缺陷、补 dropped 层的 `reason`、给 publish 加 recheck 闸门，这三项都要求
+**改实现代码**，而本轮 F1 基线 `cb69f2a` 正是「实现不变」的判据；在同一轮里改实现会让
+忠实性证据自相矛盾。它们应作为**下一轮**的工作，并配自己的 ADR 与预声明出口。
+恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`。
+
+下一动作（S3）：立 ADR 处理三件事——
+① 修 `urban_static_recheck.py` 的 land-cover/height band 缺陷，**并补一个会抓住它的单测**
+（这次正是缺测试导致漏检）；
+② 让 `publish` 在 `recheck_receipt["passed"]` 为 false 时**拒绝发布**（fail-closed）；
+③ 让协议对「具名层被丢弃」强制要求非空 `reason`，否则冻结阶段就失败。
+修完后重跑重派生，把 attempt03 标为「recheck 未过、层不全，不得用于科学用途」保留。
