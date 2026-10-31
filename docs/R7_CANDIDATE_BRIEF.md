@@ -1813,7 +1813,7 @@ Records: 95; human-review candidates: 2
 
 - Outcome class: `engineering-positive`; candidate state: `not-candidate`
 - Human triage priority: `55` (not a scientific score)
-- Evidence: `docs/R7_URBAN_STATIC_COVARIATES.md` (SHA256 `86fb6bad47cdf2124269b3b6d2187f2c42220b6df609f65cbb9b12d40180f601`)
+- Evidence: `docs/R7_URBAN_STATIC_COVARIATES.md` (SHA256 `70567d22fc6d860e50e2ad274392486466e2c80f393c42d55eac0c28e0bcf1eb`)
 - Evidence commit: `7732dadcbfa77e5877f7163937be6e1d1bda7977`; experiment commit: `7065f19654a36f78b1e87a36452794003d175648`
 - Protocol SHA256: `8cc3c673aa98d69fc9baaa8dd10d539233c738118ceeaeef63851e40a8e54904`; data identity: `not recorded`
 - Reason: Named urban static covariates (decision 0063 / plan 0027): ESA WorldCover v100(2020)/v200(2021) and GHSL R2023A GHS-BUILT-S / GHS-BUILT-H(ANBH 2018) / GHS-POP at 4326_3ss were fetched over the R7 frozen ROI and area-weighted-coarsened to the 65x65 / 0.25 deg grid, then published as an independent artefact with its own static_identity. LandScan was dropped (registration-gated).
