@@ -21,6 +21,31 @@
    - §7 账本新增一行（含实际 GPU-h / 网络 / 磁盘 / 墙钟 / overrun 口径）；
    - `docs/R7_EVIDENCE_INDEX.jsonl` 新增 record（无独立 record 时如实写明原因）；
    - `<!-- campaign-state: ... -->
+### 2026-11-01（续）— R2 GPU 已开跑（seed41+42 双卡并发），桥 (e) 按协议记 unresolved；停在等训练（本窗口）
+
+**已实跑**：`round-guard`（150 项测试 + commit-guard 全过）→ 干净树重建 code zip
+（`outputs/r7_s3_anchor_feedback_65x65_code.zip`，1669 条目，commit `c48c57f`，sha256 `8908258f…`）→
+`freeze`（协议 `4a3fe1e871ab6399…`）→ `stage prepare`（563.8 s，prepared 协议 `89832cce…`）→
+`stage archive`（6.4 s）→ `stage-seeds`：**seed41（卡0）+ seed42（卡1）并发已启动**，
+update 200 实测 **2.95 s/update** ⇒ 每 seed 约 26 h（0060 上限 36 h 内）、每臂 16,071 updates。
+本轮不改 `model/**` ⇒ `model_code_sha256 a38be16c…` 不变。
+
+**桥 (e) 的实测与诊断（如实记，未改任何冻结判据）**：R2 控制臂的 loss 轨迹与已登记 R1 treatment 臂
+**逐 update 跟随但非逐位相同**（update 20/40/60 的差在 ~5 ULP 量级）。四个便宜的位级测量把它定位为
+**训练步的浮点路径差异，不是身份错误**：① 同权重同输入下，R1 归档代码（`60de3b2d…`）与当前代码
+（`a38be16c…`）的前向 **forecast_sha256 逐位相同**（`8f87af4b…`）；② **真实 spec** 上
+控制臂（装锚、两消费者关）与无锚模型 **逐位相同**（`bc452802…`），候选臂不同（`9e531319…`）
+——锚惰性、机制被读取这两个前提都成立；③ 155 张量 `state_digest` 与 R1 的父逐位相同；
+④ 数据顺序一致（loss 轨迹逐 update 跟随）。⇒ 按冻结的桥规则记 `identity/engineering unresolved`、
+**不进入 (a)–(d)**（协议原文如此；R1 的桥也是 `passed=false` 如实登记）。出口 (a)–(d) 独立成立。
+**教训写给 R3–R5**：跨代码身份的「逐位相同 u1 loss」桥不成立，应改用「控制臂 ≡ 无锚前向逐位相同」
+这类轮内恒等见证（更便宜也更强）。
+
+**为何停 + 恢复第一条命令**：seed 阶段需约 2 天（两 seed 并发 ~26 h + seed43 ~26 h + 评分），
+本窗口不能等。恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`；seed 完成后
+`.venv/bin/python tools/r7_round.py stage-seeds`（seed43）→ `stage reading` → 四件套登记。
+
+
 
 ### 2026-11-01 — Track 1 R2（气候态锚异常反馈）恢复推进：CPU 侧完成，停在冻协议之前（本窗口）
 
