@@ -48,6 +48,14 @@ bash 祖先 `PPID=1`（systemd）、独立 PGID/会话（`nohup` 启动），故
 重跑（其对既有 folder 的处置由驱动自身守卫决定；R1 的先例是按决策 0065 归档重放或按 0045
 `reuse-plan` 换 attempt 复用已完成 seed）。
 
+**2026-11-02（续）— 唯一因子切换点已实测（本窗口）**：seed42 控制臂跑完 16,071 updates 并完成
+五 lead 评分（`seed42_control_receipt.json` 落盘），同一 worker 自动切到候选臂（update 60 起在跑）。
+**同 seed 同 update 的 loss 对照（实测）**：候选臂 − 控制臂 = **+6.793e-3 / −6.085e-2 / −9.026e-2 / −8.157e-3**
+（update 20/40/60/80），比控制臂对 R1 登记臂的 ~5 ULP（5e-7）浮点噪声**大 4–5 个数量级**。
+至此三层证据齐：① 控制臂 ≡ 无锚模型逐位相同（真实 spec、位级）；② 控制臂 loss 轨迹跟随
+R1 登记臂到浮点噪声级；③ 候选臂确实不同 ⇒ **`anomaly_feedback` 这一因子确实被读取**。
+seed41 的控制臂评分接近完成（16 CSVs）。
+
 **为何停 + 恢复第一条命令**：seed 阶段需约 2 天（两 seed 并发 ~26 h + seed43 ~26 h + 评分），
 本窗口不能等。恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`；seed 完成后
 `.venv/bin/python tools/r7_round.py stage-seeds`（seed43）→ `stage reading` → 四件套登记。
