@@ -41,6 +41,13 @@ update 200 实测 **2.95 s/update** ⇒ 每 seed 约 26 h（0060 上限 36 h 内
 **教训写给 R3–R5**：跨代码身份的「逐位相同 u1 loss」桥不成立，应改用「控制臂 ≡ 无锚前向逐位相同」
 这类轮内恒等见证（更便宜也更强）。
 
+**运维事实（实测）**：运行树**已脱离本会话**——`stage-seeds` 父进程与其两个 worker 的
+bash 祖先 `PPID=1`（systemd）、独立 PGID/会话（`nohup` 启动），故会话结束不会杀掉本轮；
+中断恢复链：`run_seeds` 重入时只排**缺 stage receipt** 的 seed（`tools/r7_round_stages.py`
+的 `pending` 判据），已完成 seed 的 receipt 在、自动跳过；被打断的 seed 无 receipt、会整 seed
+重跑（其对既有 folder 的处置由驱动自身守卫决定；R1 的先例是按决策 0065 归档重放或按 0045
+`reuse-plan` 换 attempt 复用已完成 seed）。
+
 **为何停 + 恢复第一条命令**：seed 阶段需约 2 天（两 seed 并发 ~26 h + seed43 ~26 h + 评分），
 本窗口不能等。恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`；seed 完成后
 `.venv/bin/python tools/r7_round.py stage-seeds`（seed43）→ `stage reading` → 四件套登记。
