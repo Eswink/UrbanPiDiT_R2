@@ -65,16 +65,21 @@ PER_SEED_SECONDS, PLANNED_SECONDS, HARD_CAP_SECONDS = 129600., 259200., 518400.
 # table adds 13,790,400 B. The FY round's 4 GiB estimate undershot the same measurement.
 ESTIMATED_PEAK_BYTES = 5596409024
 HEADROOM_MARGIN_BYTES = 512 * 2**20
-ENTRY_FILES = ("scripts/r7_s3_anchor_feedback_parent.py", "scripts/r7_s3_anchor_feedback_support.py",
-               "scripts/r7_s3_anchor_isolation_parent.py", "scripts/r7_s3_fy_anchor_table_build.py",
-               "scripts/study_r7_s3_anchor_feedback_65x65.py",
-               "scripts/r7_s3_fy_year_coverage_climatology.py",
-               "scripts/build_r7_s3_fy_year_manifests.py",
-               "scripts/build_r7_s3_fy_multiyear_source.py", *wide.execution_files())
+ENTRY_FILES = ("scripts/study_r7_s3_anchor_feedback_65x65.py",)
 
 
 def execution_files():
-    return sorted(set(ENTRY_FILES))
+    """Decision 0067: this round's import closure, never a glob over a package directory.
+
+    The closed rounds inherited the wide round's 194-entry list, 93% of which was "whatever
+    .py files were in the tree"; that is the defect that cost R1 two seeds. The identity
+    surface narrows from 202 entries to this closure, so a module an unrelated line adds no
+    longer fails this round's last check. The archived v2 protocol that ``recipe._shared()``
+    reads is a local ``outputs/`` artifact and is deliberately not here: the spec it provides
+    is pinned value-level by ``spec_canonical_digest``.
+    """
+    from tools.r7_explicit_inventory import explicit_execution_files
+    return explicit_execution_files(ENTRY_FILES[0])
 
 
 _CACHED_PAYLOAD = None
@@ -127,7 +132,7 @@ def frozen_constants(payload):
                    "physical_weights": list(PHYSICAL_WEIGHTS), "reasoning_steps": REASONING_STEPS,
                    "epochs_floor": "updates * batch_size = 32142 >= the manifest, so each arm sees >= 1 epoch",
                    "supervision": "full_grid (no spatial mask on the native 65x65 grid)"},
-        "climatology_anchor": {"arms": {name: anchor_block(name, feedback, anchor_payload())
+        "climatology_anchor": {"arms": {name: anchor_block(name, feedback, payload)
                                         for name, feedback in ARMS}},
         "climatology": {"kind": "train-only-month-hour-grid-mean-v1",
                         "buckets": CLIMATOLOGY_BUCKETS, "training_years": CLIMATOLOGY_YEARS,

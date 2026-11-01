@@ -140,9 +140,19 @@ spatial-gradient/zero-base decoder/gradient-surgery/tendency-input/SAM/全年覆
   `da2f28c9…` 16 桶、FY 表 `18448ae3…` 48 桶都能加载）；
   ④ 驱动 `scripts/study_r7_s3_anchor_feedback_65x65.py`（584 行，R-051 内）+ support
   `scripts/r7_s3_anchor_feedback_support.py`（154 行，冻结文本/桥钉值/单因子守卫）；
-  ⑤ `tests/test_r7_s3_anchor_feedback_65x65.py` **27 passed**（不读 `outputs/`，`frozen_constants`
+  ⑤ `tests/test_r7_s3_anchor_feedback_65x65.py` **30 passed**（不读 `outputs/`，`frozen_constants`
   把锚 payload 作为参数、合成表在测试内构造）；⑥ `frozen_constants` 用真实 48 桶表实测通过
-  （factor/closed_round/changed/recipe epochs_floor/budgets/bridge 钉值/48 桶 anchor block）。
+  （factor/closed_round/changed/recipe epochs_floor/budgets/bridge 钉值/48 桶 anchor block）；
+  ⑦ **干净检出复现 CI 并修掉两处真缺陷**（`git worktree` 到无 `outputs/` 的树）：
+  (a) `frozen_constants` 的 `climatology_anchor` 块漏改、仍走全局 `anchor_payload()`——本地有
+  `outputs/` 所以不暴露，干净树上必炸；已改为使用传入的 payload；(b) 执行清单原来**继承 wide 轮的
+  202 项 glob**，违反**决策 0067**（R2–R5 必须用具名清单），且其中一个条目
+  `outputs/r7_v2_comparison_20261004_attempt01/protocol.json` 是**未跟踪**的本地文件，干净树上不存在；
+  已改为 `tools/r7_explicit_inventory.explicit_execution_files(入口)` 的**本轮 import 闭包 91 项**，
+  归档 protocol 是本地 `outputs/` 产物、刻意不进清单（它提供的 spec 由 `spec_canonical_digest`
+  在值层面钉住）。**身份表面由 202 项收窄到 91 项，这是 0067 的目标态，不是规模回归**；
+  sys.modules 交叉核对：运行时实际导入的 18 个仓内模块 **0 遗漏**；0067 第 5 条的反证
+  （新增无关 `data/*.py` 不改变清单）已进测试。
 - **待做（顺序固定）**：`round-guard`/`commit-guard` → 提交推工作分支并等 CI 绿 →
   重建 code zip → `freeze` → `stage prepare/archive/stage-seeds/reading` → 四件套登记。
 - **CI 安全**：测试**不得**依赖 `outputs/`（已用合成锚 payload 满足）；在干净 worktree 里实跑确认。

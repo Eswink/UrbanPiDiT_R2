@@ -324,16 +324,90 @@ def test_the_round_is_pinned_to_the_multi_year_treatment_manifest():
     assert driver.ANCHOR_TABLE_RUN.name == "r7_s3_fy_anchor_table_20261025_attempt01"
 
 
-def test_the_execution_inventory_names_the_rounds_own_modules():
+def test_the_execution_inventory_is_this_rounds_import_closure():
+    """Decision 0067: a named closure, not the closed rounds' 194-entry package glob."""
+    from tools.r7_explicit_inventory import import_closure
     files = driver.execution_files()
     assert files == sorted(set(files))
+    assert files == import_closure(driver.ENTRY_FILES[0])
     for name in ("scripts/study_r7_s3_anchor_feedback_65x65.py",
                  "scripts/r7_s3_anchor_feedback_support.py",
                  "scripts/r7_s3_anchor_feedback_parent.py",
-                 "scripts/r7_s3_anchor_isolation_parent.py",
-                 "scripts/r7_s3_fy_anchor_table_build.py"):
+                 "scripts/r7_s3_anchor_isolation_parent.py"):
         assert name in files
     assert all((ROOT / name).is_file() for name in files)
+    assert not [name for name in files if name.startswith(("tools/", "tests/"))]
+    assert not [name for name in files if "legacy" in name]
+    assert not [name for name in files if name.startswith("data/download")]
+    assert not [name for name in files if "r7_v2_comparison" in name], \
+        "the archived protocol is a local outputs/ artifact, not repo source"
+
+
+def test_the_closure_is_strictly_narrower_than_the_old_package_glob():
+    """The round must not inherit the wide round's 202-entry list that cost R1 two seeds."""
+    files = set(driver.execution_files())
+    glob = {str(path.relative_to(ROOT)) for directory in ("training", "model", "data")
+            for path in (ROOT / directory).rglob("*.py")}
+    assert len(files) < len(glob)
+    extra = sorted(glob - files)
+    assert extra, "the closure should drop the modules this round never executes"
+    assert "data/download/urban_static_sources.py" in extra
+
+
+def test_adding_an_unrelated_module_does_not_move_this_rounds_inventory():
+    """The counter-proof decision 0067 requires of R2-R5: the R1 failure, made harmless."""
+    probe = ROOT / "data" / "unrelated_r2_probe.py"
+    before = driver.execution_files()
+    try:
+        probe.write_text("X = 1\n", encoding="utf-8")
+        after = driver.execution_files()
+    finally:
+        probe.unlink(missing_ok=True)
+    assert after == before
+    assert not probe.exists()
+
+
+def test_every_runtime_imported_repo_module_is_inside_the_closure():
+    """The named-list risk is omission; this is the sys.modules cross-check against it.
+
+    It runs in a subprocess because this suite also imports other rounds' drivers, and a
+    global ``sys.modules`` scan would credit them to this round (order-dependent, and it
+    would blame this round for a module it never executes).
+    """
+    import json
+    import subprocess
+    import sys
+    from tools.r7_explicit_inventory import import_closure
+    closure = set(import_closure(driver.ENTRY_FILES[0]))
+    probe = (
+        "import json, sys\n"
+        "from pathlib import Path\n"
+        "import scripts.study_r7_s3_anchor_feedback_65x65 as driver\n"
+        f"root = Path({str(ROOT)!r})\n"
+        "found = set()\n"
+        "for module in list(sys.modules.values()):\n"
+        "    path = getattr(module, '__file__', None)\n"
+        "    if not path:\n"
+        "        continue\n"
+        "    try:\n"
+        "        relative = str(Path(path).resolve().relative_to(root))\n"
+        "    except ValueError:\n"
+        "        continue\n"
+        "    if not relative.endswith('.py'):\n"
+        "        continue\n"
+        "    if relative.startswith(('tools/', 'tests/', '.venv/', 'outputs/', 'audit/')):\n"
+        "        continue\n"
+        "    if 'site-packages' in relative or not (root / relative).is_file():\n"
+        "        continue\n"
+        "    found.add(relative)\n"
+        "print(json.dumps(sorted(found)))\n"
+    )
+    finished = subprocess.run([sys.executable, "-c", probe], cwd=str(ROOT), timeout=900,
+                              capture_output=True, text=True)
+    assert finished.returncode == 0, finished.stderr[-2000:]
+    imported = set(json.loads(finished.stdout.strip().splitlines()[-1]))
+    assert imported, "importing the driver must pull in the round's modules"
+    assert imported <= closure, sorted(imported - closure)
 
 
 def test_the_support_module_carries_no_store_or_manifest_read():
