@@ -100,40 +100,44 @@ def table_digest(table):
     return hashlib.sha256(table.detach().cpu().contiguous().numpy().tobytes(order="C")).hexdigest()
 
 
-def anchor_payload():
-    """Load and verify the published train-only climatology table.
+def anchor_payload(run=None):
+    """Load and verify a published train-only climatology table.
 
-    The marker, the spec's own table digest and the bytes read here must agree; a mismatch means the
-    artifact is not the one the round froze, so it fails loudly instead of training against it.
+    ``run`` defaults to this round's own wide 129x129 table; the 65x65 multi-year rounds pass
+    their own published path. The same verification applies to either -- the marker, the spec's
+    own table digest and the bytes read here must agree, so a mismatch means the artifact is not
+    the one the round froze, and it fails loudly instead of training against it.
     """
     import torch
+    from pathlib import Path as _Path
     from training.r7_arm_harness import sha256_file
-    marker = json.loads((ANCHOR_TABLE_RUN / "BUILD_COMPLETE.json").read_text(encoding="utf-8"))
+    table_run = _Path(run) if run is not None else ANCHOR_TABLE_RUN
+    marker = json.loads((table_run / "BUILD_COMPLETE.json").read_text(encoding="utf-8"))
     if marker.get("build_complete") is not True or marker.get("schema_version") != 1:
         raise RuntimeError("climatology anchor table is not published complete")
-    spec = json.loads((ANCHOR_TABLE_RUN / "anchor_spec.json").read_text(encoding="utf-8"))
-    table = torch.load(ANCHOR_TABLE_RUN / "anchor_table.pt", map_location="cpu", weights_only=True)
+    spec = json.loads((table_run / "anchor_spec.json").read_text(encoding="utf-8"))
+    table = torch.load(table_run / "anchor_table.pt", map_location="cpu", weights_only=True)
     observed = table_digest(table)
     if observed != spec["table_sha256"] or observed != marker["table_sha256"]:
         raise RuntimeError("climatology table bytes differ from the published spec/marker digest")
     if list(table.shape) != spec["table_shape"]:
         raise RuntimeError("climatology table shape differs from its spec")
-    receipt = json.loads((ANCHOR_TABLE_RUN / "build_receipt.json").read_text(encoding="utf-8"))
+    receipt = json.loads((table_run / "build_receipt.json").read_text(encoding="utf-8"))
     canonical = hashlib.sha256(json.dumps(spec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if receipt["spec_sha256"] != canonical or marker["spec_sha256"] != canonical:
         raise RuntimeError("climatology build receipt/marker disagrees with the published spec")
     if receipt.get("table_sha256") != observed:
         raise RuntimeError("climatology build receipt's table digest differs from the published bytes")
     payload = {"spec": spec, "table": table,
-               "pins": {"run": str(ANCHOR_TABLE_RUN), "table_sha256": observed,
+               "pins": {"run": str(table_run), "table_sha256": observed,
                         "spec_sha256": marker["spec_sha256"],
-                        "table_file_sha256": sha256_file(ANCHOR_TABLE_RUN / "anchor_table.pt"),
+                        "table_file_sha256": sha256_file(table_run / "anchor_table.pt"),
                         "n_buckets": len(spec["bucket_keys"]),
                         "n_selected_steps": spec["n_selected_steps"],
                         "bucket_counts": list(spec["bucket_counts"]),
                         "source_sha256": spec["source_sha256"],
                         "train_data_identity": spec["train_data_identity"],
-                        "build_receipt_sha256": sha256_file(ANCHOR_TABLE_RUN / "build_receipt.json")}}
+                        "build_receipt_sha256": sha256_file(table_run / "build_receipt.json")}}
     return payload
 
 

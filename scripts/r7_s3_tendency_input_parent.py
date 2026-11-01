@@ -21,19 +21,22 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATED_PARENT_RUN = ROOT / "outputs/r7_s3_tendency_input_parent_migrated_20261021_attempt02"
+MIGRATED_PARENT_RUN = ROOT / "outputs/r7_s3_anchor_feedback_65x65_parent_migrated_20261101_attempt01"
 MIGRATION_RECEIPT = MIGRATED_PARENT_RUN / "migration_receipt.json"
 ANCHOR_TABLE_RUN = ROOT / "outputs/r7_s3_anchor_table_20261015_attempt02"
 ENDPOINT = 1600
 EQUIVALENCE_SEED = 1234
-#: The digest the committed migration tool recorded for the current model revision.
-CURRENT_MODEL_CODE_SHA256 = "60de3b2dc5de2871f45c7a563153ef8e1cfa688be38367c89d0c718dfc06df3e"
+#: The digest the committed migration tool recorded for the current model revision. The
+#: revision moved again after this round closed (commit 896eabf wires the urban static
+#: covariates behind an off-by-default switch), so decision 0075 re-binds this module to the
+#: migration re-run under ``a38be16c...`` -- the same v3-BD 1600 state, verified per seed.
+CURRENT_MODEL_CODE_SHA256 = "a38be16c9a04f5f1704fed6747e3d8da0f8507168464a337a85975de6b8a1a0a"
 #: SHA256 of ``migration_receipt.json`` itself; re-running into the same directory is refused.
-MIGRATION_RECEIPT_SHA256 = "73c019ddb5d1c6d2bc551bcd60cd321ca29d968dc956455b17e0262074c21112"
+MIGRATION_RECEIPT_SHA256 = "3e97d78af606ac9dfdd540f0a9cc3a8c1836eb1d64213056f67e1f35e6645550"
 MIGRATED_PARENT_SHA256 = {
-    41: "fb1e4d6522d32db1cc078a7590dd66c41f479da49ff58f2c6c525f8dfceca387",
-    42: "d97ea802a24e62d1457854aeb12cf29b83f029fdca4f9903f19117f3585f3d69",
-    43: "8aa0fac68609e0502b4c5292d0b6067e59153f74090055e28d08d2f3ac964af5",
+    41: "7cc3a4973e4acb5ed3c6aa55028bcdae2cdf391e08f2110aa346be02d66d324d",
+    42: "dde3ae094a61e0f8c10e6fbed7f0b5a41e3512f3f8f55acf000b613fff2ae082",
+    43: "bd968e5d0175d04c18ee45af7b6536d80c9ca2bc147cf6a2d2c46614718c00ba",
 }
 #: Model-state digests, invariant across model revisions because only the contract moves.
 MIGRATED_PARENT_STATE_DIGEST = {

@@ -7,7 +7,15 @@
 阈值来源：项目**没有**配置 ruff/black/mypy/flake8（见 E-080），因此没有既有数字可继承。
 下面的数值按实测分布推导，可复算：`python tools/check_conventions.py --report`。
 
-<!-- measured: R-019=1 R-019b=1131 R-020=67 R-021=130 R-022=67 R-023=47 -->
+**2026-11-01 Track 1 R2（气候态锚异常反馈，匹配算力）复算（提交集合实测）**：R-021 **130→131**、
+R-019b **1131→1132**；R-019=1、R-020=67、R-022=67、R-023=47 保持。
+本轮新增四个 `.py` 文件，只有一个越过 400 行目标带：`scripts/study_r7_s3_anchor_feedback_65x65.py`
+（**591** 行，>400 目标、**≤600 硬限 R-051 通过**，两臂只差 `anomaly_feedback` 一个布尔的驱动）；
+另三个 `tests/test_r7_s3_anchor_feedback_65x65.py`（351）、`scripts/r7_s3_anchor_feedback_parent.py`（173）、
+`scripts/r7_s3_anchor_feedback_support.py`（154）均在目标带内。R-019b 的 1 处增长在驱动的
+`frozen_constants` 长字面量里。**未改规则级别、阈值或冻结例外清单。**
+
+<!-- measured: R-019=1 R-019b=1132 R-020=67 R-021=131 R-022=67 R-023=47 -->
 
 **2026-10-27 S3 城市静态协变量轮复算（提交集合实测）**：R-021 **128→129**；
 R-019=1、R-019b=1131、R-020=66、R-022=67、R-023=47 保持。

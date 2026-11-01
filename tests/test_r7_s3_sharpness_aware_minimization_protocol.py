@@ -469,7 +469,7 @@ def test_null_or_inert_requires_an_exactly_zero_perturbation_or_exact_zero_delta
 def test_the_model_digest_is_the_current_revision_and_the_expansion_is_new():
     assert parent.CURRENT_MODEL_CODE_SHA256 == model_code_digest()
     assert parent.MIGRATION_RECEIPT_SHA256 == (
-        "73c019ddb5d1c6d2bc551bcd60cd321ca29d968dc956455b17e0262074c21112")
+        "3e97d78af606ac9dfdd540f0a9cc3a8c1836eb1d64213056f67e1f35e6645550")
     assert parent.MIGRATED_PARENT_STATE_DIGEST == {
         41: "7c416ccb4054cf7e077788a43b02917e6a2dcf2503058152a7f0ab4b0ab70707",
         42: "857d880466f76500ed74c534e757732ae9eff4c2b3f0bbc0fa74b895fcae3623",
