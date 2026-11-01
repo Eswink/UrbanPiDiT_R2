@@ -153,6 +153,13 @@ spatial-gradient/zero-base decoder/gradient-surgery/tendency-input/SAM/全年覆
   在值层面钉住）。**身份表面由 202 项收窄到 91 项，这是 0067 的目标态，不是规模回归**；
   sys.modules 交叉核对：运行时实际导入的 18 个仓内模块 **0 遗漏**；0067 第 5 条的反证
   （新增无关 `data/*.py` 不改变清单）已进测试。
+- **读前预检（2026-11-01，seed 阶段运行中）**：用临时目录 + 合成 receipt/CSV **只读预演了
+  `_readings` 全链路**（`outputs/r7_s3_anchor_fb_reading_rehearsal_20261101/`，脚本
+  `r2_reading_rehearsal.py` + `rehearsal_stdout.json`）：receipt 字段名、逐 lead 评估目录布局、
+  `boundary_rmse.csv` 的 `full,t2m` 行格式、`delta_candidate_minus_control`、`exit_conditions`、
+  `bridge_e` 全部按预期消费，无缺件。合成 RMSE 相同 ⇒ 出口读数无意义，仅证明**管线**通。
+  另实测磁盘投影：R1 的同规模 attempt 实占 **227 GiB**（4,824 个 checkpoint），
+  本轮同量级，`/data` 余 488 GiB，够。
 - **待做（顺序固定）**：`round-guard`/`commit-guard` → 提交推工作分支并等 CI 绿 →
   重建 code zip → `freeze` → `stage prepare/archive/stage-seeds/reading` → 四件套登记。
 - **CI 安全**：测试**不得**依赖 `outputs/`（已用合成锚 payload 满足）；在干净 worktree 里实跑确认。
