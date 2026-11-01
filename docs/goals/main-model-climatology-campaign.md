@@ -20,7 +20,38 @@
    - §8 追加一个进度块：本轮做了什么、证据与 digest、**下一动作（可执行的第一条命令）**；
    - §7 账本新增一行（含实际 GPU-h / 网络 / 磁盘 / 墙钟 / overrun 口径）；
    - `docs/R7_EVIDENCE_INDEX.jsonl` 新增 record（无独立 record 时如实写明原因）；
-   - `<!-- campaign-state: ... -->` 注释更新 `current_node` / `current_round_goal` / `used_gpu_h` 等字段。
+   - `<!-- campaign-state: ... -->
+
+### 2026-11-01 — Track 1 R2（气候态锚异常反馈）恢复推进：CPU 侧完成，停在冻协议之前（本窗口）
+
+**为什么是这条**：用户把城市静态协变量线（`s3-urban-static-wiring`）**暂停**，要求继续；
+计划 0026 §3 的 Track 1 队列下一条就是 R2，且 R1 已登记（年份覆盖支第二次关闭）。
+`campaign-state.current_round_goal` 由此改指 R2 的 brief；城市静态线的状态仍在它自己的 brief 里，不改写。
+
+**CPU 侧已实跑完成（0 GPU-h）**：
+- **决策 0074**（R2 执行设计）+ **决策 0075**（父钉重绑）入索引；
+  `check_conventions` 37 条阻断 0 失败；`check_goal_brief` 0 失败。
+- **父迁移在当前修订下重跑**：`outputs/r7_s3_anchor_feedback_65x65_parent_migrated_20261101_attempt01/`
+  （`current_model_code_sha256 a38be16c…`），**155 张量逐 seed `state_digest` 与 FY 钉逐位相同**
+  （41 `7c416ccb…` / 42 `857d8804…` / 43 `61fdac58…`）；`scripts/r7_s3_anchor_feedback_parent.py`
+  的 `state_equality_evidence()` 实测通过。
+- **驱动 + support + 父钉 + 27 项测试落地**：`scripts/study_r7_s3_anchor_feedback_65x65.py`（591 行，
+  R-051 内）、`scripts/r7_s3_anchor_feedback_support.py`（154）、`tests/test_r7_s3_anchor_feedback_65x65.py`
+  （27 passed，不读 `outputs/`）。真实链路 CPU 预演：两臂 `expand_parent_state` 得到**相同**的
+  `expanded_state_sha256`（`74c16382…`）与 `anchor_init_sha256`（`6e72aea7…`），四条恒等反证全过
+  （`unanchored_max_abs 0.0`、`feedback_is_read true`、`zeroed_table_is_identity true`）。
+- **分支 CI 修复（先于本会话的红）**：`896eabf` 移动模型 digest 后，tendency/SAM 两条「钉住当前修订」
+  守卫一直红；按决策 0075 重绑后全仓 **5,360 passed / 3 skipped / 0 failed**（20:19）。
+  `r7_s3_fy_annual_parent` **不**重绑（它是 R1 归档协议的回放钉）。
+- **规模复算**：R-021 130→131、R-019b 1131→1132，其余保持；未改阈值或冻结例外清单。
+
+**待做**：`round-guard` → 重建 code zip → `freeze` → `stage prepare/archive/stage-seeds/reading`
+→ 四件套登记。预算取决策 0060（per-seed 129,600 / planned 259,200 / hard 518,400）；
+R1 实测参照每 seed 88,362–89,520 s、六臂 73.624654 GPU-h。**本轮尚未开跑：0 GPU-h、无读数、无结论。**
+
+**为何停 + 恢复第一条命令**：停在冻协议之前——code zip 必须在**干净树**上构建，而本窗口的
+campaign-state 改动要先提交并等 CI 绿。恢复第一条命令＝ `.venv/bin/python tools/r7_round.py round-guard`。
+` 注释更新 `current_node` / `current_round_goal` / `used_gpu_h` 等字段。
 2. **立刻续跑**：写完四件套即进入下一轮，**不等用户触发、不等 goal 完成校验**。下一轮起点由 §8 的
    「下一动作」与 `campaign-state` 共同定义，**不重复已登记轮次**。
 3. **不等 verifier（实测依据）**：轮次结束时客户端会发起**独立非流式** goal 完成校验
@@ -340,7 +371,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-urban-static-wiring.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_URBAN_STATIC_COVARIATES.md", "previous_round_goal": "docs/goals/s3-urban-static-covariates.md", "remaining_gpu_h": -303.940495, "route_decision": "0038", "status": "active", "used_gpu_h": 323.940495} -->
+<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-anchor-anomaly-feedback-reeval.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_URBAN_STATIC_COVARIATES.md", "previous_round_goal": "docs/goals/s3-urban-static-covariates.md", "remaining_gpu_h": -303.940495, "route_decision": "0038", "status": "active", "used_gpu_h": 323.940495} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023
