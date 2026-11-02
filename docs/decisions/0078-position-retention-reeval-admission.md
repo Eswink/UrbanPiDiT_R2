@@ -89,6 +89,18 @@ H-B 的操纵**与网格无关**，故只有 H-B 值得在新制度上重问。
 **本 ADR 不拍板选哪种**——它属执行设计（照 0074 的形式另立 ADR），但**必须在 brief 里如实写明
 「本轮同时重新启用了一条非主线通路」这一事实**，否则读者会把本轮读数误读成「在主线上给位置加权」。
 
+**⑧ 实测的影响面：改 `model/**` 会让**三个** `a38be16c…` 轮次的父不可加载。**
+把 `outputs/*/protocol.json` 按 `model_code_sha256` 归并（实测）：
+`a38be16c…` 下有三轮——`r7_s3_anchor_feedback_65x65_20261101_attempt01`（**R2 本轮**）、
+`r7_s3_static_covariates_wiring_20261029_attempt01/attempt02`；
+`load_checkpoint` 在 `model_code_sha256` 不符时**直接 `raise`**（`training/r7_experiment.py:128-129`），
+故 R4 的 `scale` 一旦落地：
+- **R2 必须在改之前跑完 seed+reading**（其 91 项执行闭包含 `model/typed_evidence_r7.py`），否则协议校验会判
+  `execution source changed`；
+- 两个**已归档**的 wiring 轮不必重跑（它们的读数已登记、`code.zip` 可重放），但它们的父钉模块若要
+  在「当前修订下重新冻结」就走 0075 的重绑路径——**这是维护成本，不是读数变更**。
+其余修订（`60de3b2d…` 10 轮、`d3fb58db…` 15 轮等）都是历史归档，按各自 `code.zip` 重放，**不受影响**。
+
 **⑦ 必须如实写明的代价与不确定性。**
 - **`scale` 引入了一个新的自由常数**：它可能被质疑为「调参直到显著」。防护：常数在**跑前**由只读
   前置量出并写进冻结协议，**不扫、不改、不看读数后调**；brief 预声明该常数与量法。
