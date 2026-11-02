@@ -60,6 +60,23 @@ seed41 的控制臂评分接近完成（16 CSVs）。
 本窗口不能等。恢复第一条命令＝ `.venv/bin/python tools/r7_round.py state`；seed 完成后
 `.venv/bin/python tools/r7_round.py stage-seeds`（seed43）→ `stage reading` → 四件套登记。
 
+**2026-11-02（续）— 桥 (e) 的更正：它在已完成的两个 seed 上**通过**，而非「未解决」（本窗口实测）**。
+上文 2026-11-01 那条把桥预期记成 `identity/engineering unresolved`；**那是预测，被实测推翻**。
+冻结的 `bridge_e` 规则（`protocol.json` 原文）只要求「控制臂的**第一个 update 的 loss** 与已登记
+R1 treatment 臂**逐位相同**」，`gradient_norm` **只记录不断言**。实测（从 `training_report.json`
+的 `losses[0]` 读，不是从 `progress.jsonl`——后者只在每 N 个 update 落一行，**没有 update 1**）：
+
+| seed | R2 控制 `losses[0].loss` | R1 treatment `losses[0].loss` | 逐位相同 | `gradient_norm` 相对差（**只记录**） |
+| ---: | ---: | ---: | :---: | ---: |
+| 41 | 1.1786479949951172 | 1.1786479949951172 | **是** | +8.2e-6 % |
+| 42 | 1.4581815004348755 | 1.4581815004348755 | **是** | +1.3e-4 % |
+
+两 seed 的 `per_step_losses`（12 个物理步）也**逐位全等**。⇒ 桥 (e) 按冻结规则**成立**；
+先前「~5 ULP」的观察来自 `progress.jsonl` 的 update 20/40/60（**梯度更新之后**的那些点），
+它衡量的是训练轨道的浮点漂移，**不是**桥所定义的第 1 个 update 的 loss。两者不矛盾：
+u1 完全一致、之后的轨迹在 5e-7 量级分离。**桥仍不是科学判定**（协议明写 `scientific: false`），
+也不进入 (a)–(d)。seed 43 的两个臂跑完后按 `stage reading` 统一复算，本文不再用预测代替实测。
+
 
 
 ### 2026-11-01 — Track 1 R2（气候态锚异常反馈）恢复推进：CPU 侧完成，停在冻协议之前（本窗口）
