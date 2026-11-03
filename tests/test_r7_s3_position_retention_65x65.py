@@ -354,19 +354,23 @@ def _expansion(query_norm=0.0, init="p" * 64, scale=8000.0):
             "pathway_init_sha256": init}
 
 
-def _receipts(*, control_query=0.0, candidate_query=0.0, control_init="p" * 64,
-              candidate_init="p" * 64, control_scale=8000.0, candidate_scale=8000.0,
-              zero_query_max_abs=1.5e-08, uniform_weights_exact=True,
-              zero_query_is_pooled=True):
+_BASELINE_CONTROL = {"query": 0.0, "init": "p" * 64, "scale": 8000.0}
+_BASELINE_CANDIDATE = {"query": 0.0, "init": "p" * 64, "scale": 8000.0}
+_BASELINE_ZERO_QUERY = {"zero_query_max_abs": 1.5e-08, "zero_query_bound": 3.0e-05,
+                        "uniform_weights_exact": True, "zero_query_is_pooled": True}
+
+
+def _receipts(control=None, candidate=None, zero_query=None):
+    """One seed's two receipts; the three dicts let each test perturb one identity."""
+    control = {**_BASELINE_CONTROL, **(control or {})}
+    candidate = {**_BASELINE_CANDIDATE, **(candidate or {})}
+    zero_query = {**_BASELINE_ZERO_QUERY, **(zero_query or {})}
     return {str(seed): {
-        support.CONTROL: {"expansion": _expansion(control_query, control_init, control_scale)},
+        support.CONTROL: {"expansion": _expansion(control["query"], control["init"],
+                                                  control["scale"])},
         support.CANDIDATE: {
-            "expansion": _expansion(candidate_query, candidate_init, candidate_scale),
-            "zero_query_control": {"applicable": True,
-                                   "zero_query_max_abs": zero_query_max_abs,
-                                   "zero_query_bound": 3.0e-05,
-                                   "uniform_weights_exact": uniform_weights_exact,
-                                   "zero_query_is_pooled": zero_query_is_pooled},
+            "expansion": _expansion(candidate["query"], candidate["init"], candidate["scale"]),
+            "zero_query_control": {"applicable": True, **zero_query},
             "entropy_check": {"inside_band": True, "one_hot": False,
                               "entropy_by_norm": {"0.0074": 0.98, "0.0136": 0.93}}}}
         for seed in driver.SEEDS}
@@ -380,11 +384,11 @@ def test_the_bridge_passes_when_all_four_identities_hold():
 
 
 @pytest.mark.parametrize("perturbation", [
-    {"candidate_query": 1e-12},
-    {"control_init": "q" * 64},
-    {"candidate_scale": 9000.0},
-    {"zero_query_is_pooled": False},
-    {"uniform_weights_exact": False},
+    {"candidate": {"query": 1e-12}},
+    {"control": {"init": "q" * 64}},
+    {"candidate": {"scale": 9000.0}},
+    {"zero_query": {"zero_query_is_pooled": False}},
+    {"zero_query": {"uniform_weights_exact": False}},
 ])
 def test_any_broken_identity_fails_the_bridge(perturbation):
     verdict = driver.bridge_verdict(_receipts(**perturbation))
@@ -404,10 +408,13 @@ def test_the_bridge_names_the_four_identities_per_seed():
 
 def test_the_bridge_tolerates_a_float32_residual_but_still_requires_uniform_weights():
     """The corrected criterion: the aggregation is bounded, the weights are exact."""
-    assert driver.bridge_verdict(_receipts(zero_query_max_abs=2.9e-08))["passed"] is True
-    assert driver.bridge_verdict(_receipts(zero_query_max_abs=1e-3))["passed"] is True, \
+    assert driver.bridge_verdict(
+        _receipts(zero_query={"zero_query_max_abs": 2.9e-08}))["passed"] is True
+    assert driver.bridge_verdict(
+        _receipts(zero_query={"zero_query_max_abs": 1e-3}))["passed"] is True, \
         "max_abs is a recorded measurement, not the pass condition"
-    assert driver.bridge_verdict(_receipts(uniform_weights_exact=False))["passed"] is False
+    assert driver.bridge_verdict(
+        _receipts(zero_query={"uniform_weights_exact": False}))["passed"] is False
 
 
 def test_the_bridge_is_explicitly_not_the_closed_arms_bridge():
