@@ -91,6 +91,10 @@ def build(commit: str, destination: Path) -> dict:
             content = path.read_bytes()
             target.writestr(name, content)
             digest.update(name.encode() + b"\0" + content)
+        # The archive's own identity is the zip comment. Every round's archive stage compares
+        # it against the frozen ``code_commit`` and refuses a mismatch, so an archive without
+        # it cannot start a run at all -- the failure this builder itself hit once.
+        target.comment = resolved.encode()
 
     with zipfile.ZipFile(destination) as written:
         entries = len(written.namelist())

@@ -84,3 +84,15 @@ def test_the_content_digest_changes_with_content_and_not_with_ordering(tmp_path)
     second = builder.build(_head(), tmp_path / "b.zip")
     assert first["content_digest_sha256"] == second["content_digest_sha256"]
     assert first["code_zip_sha256"] is not None and len(first["code_zip_sha256"]) == 64
+
+
+def test_the_archive_carries_the_commit_as_its_zip_comment(tmp_path):
+    """Every round's archive stage compares the comment to the frozen code_commit.
+
+    Without it the archive is unusable: the first R4 archive stage failed with
+    "archive commit differs from freeze" because this builder wrote no comment.
+    """
+    destination = tmp_path / "code.zip"
+    result = builder.build(_head(), destination)
+    with zipfile.ZipFile(destination) as archive:
+        assert archive.comment.decode() == result["commit"] == _head()
