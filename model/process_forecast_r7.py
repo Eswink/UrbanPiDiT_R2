@@ -150,10 +150,14 @@ class ProcessForecastCoReasoner(nn.Module):
         if typed_evidence_mode not in EVIDENCE_MODES:
             raise ValueError(f"typed_evidence_mode must be one of {EVIDENCE_MODES}")
         fields = dict(typed_evidence or {})
+        # ``position_scale`` is optional so that a payload written before decision
+        # 0080 stays loadable bit for bit: absent means 1.0, which reproduces the
+        # previous scores exactly.
         expected = {'channels', 'denorm_mean', 'denorm_std', 'field_scale',
                     'field_mean', 'field_std', 'field_active'}
-        if set(fields) != expected:
-            raise ValueError(f"typed_evidence must carry exactly {sorted(expected)}")
+        if set(fields) - {'position_scale'} != expected:
+            raise ValueError(f"typed_evidence must carry exactly {sorted(expected)} "
+                             f"plus the optional 'position_scale'")
         if self.anchored_processes < 4:
             raise ValueError("typed evidence writes the first four anchored slots; "
                              "anchored_processes must be >= 4")

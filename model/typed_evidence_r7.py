@@ -44,6 +44,7 @@ dict.
 """
 from __future__ import annotations
 
+import math
 from typing import Mapping, Sequence
 
 import torch
@@ -92,7 +93,8 @@ class TypedEvidenceRouter(nn.Module):
 
     def __init__(self, dim: int, patch_size: int, *, mode: str,
                  channels: Sequence[str], denorm_mean, denorm_std,
-                 field_scale, field_mean, field_std, field_active):
+                 field_scale, field_mean, field_std, field_active,
+                 position_scale: float = 1.0):
         super().__init__()
         if mode not in self.MODES:
             raise ValueError(f"mode must be one of {self.MODES}")
@@ -112,6 +114,18 @@ class TypedEvidenceRouter(nn.Module):
         self.patch_size = patch_size
         self.mode = mode
         self.channels = names
+        # A frozen forward-sensitivity constant on the position scores. It is a
+        # declared number, not a parameter: the optimiser never sees it, so it
+        # cannot become an extra degree of freedom. Default 1.0 keeps the
+        # previous implementation bit for bit; decision 0079 measured that this
+        # constant does NOT change how large the query grows under AdamW (a
+        # uniform gradient rescale cancels), only how much a given query moves
+        # the softmax -- so it is declared as forward sensitivity, not as a
+        # learning-amplitude knob.
+        position_scale = float(position_scale)
+        if not math.isfinite(position_scale) or position_scale <= 0.0:
+            raise ValueError("position_scale must be finite and positive")
+        self.position_scale = position_scale
         active = torch.as_tensor(field_active, dtype=torch.bool)
         if active.shape != (EVIDENCE_TYPES,):
             raise ValueError(f"field_active must be {EVIDENCE_TYPES} booleans")
@@ -238,7 +252,7 @@ class TypedEvidenceRouter(nn.Module):
         aggregation up to float summation order; that is the arm's identity
         counter-proof, not a claim about trained behaviour.
         """
-        scores = (value @ self.position_query) / (self.dim ** 0.5)
+        scores = (value @ self.position_query) * self.position_scale / (self.dim ** 0.5)
         weights = torch.softmax(scores, dim=1)
         return (weights.unsqueeze(-1) * value).sum(dim=1)
 
