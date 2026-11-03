@@ -3,7 +3,30 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 97; human-review candidates: 2
+Records: 98; human-review candidates: 2
+
+## s3-anchor-feedback-65x65-result
+
+- Outcome class: `engineering-positive`; candidate state: `needs-review`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_ANCHOR_FEEDBACK_65X65_RESULT.md` (SHA256 `a6308b7805cc92922bebd8f361d580e3dae3a6d959593f46e5c0c7c1a6d32c8c`)
+- Evidence commit: `ec6aec5041f1c898a817fd62c04f597e3ca6da81`; experiment commit: `c48c57f435d35bba783510b8624060b650c20951`
+- Protocol SHA256: `89832cce5966cf6163dfb3c9e16d10a181fb6cc2edfec65d2311e5acdb92f5e9`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: S3 Track 1 R2: the climatology-anchor anomaly-feedback representation (draft vs draft - C_valid) re-asked on the 65x65 multi-year instance at matched compute. Both arms train the same treatment manifest (32142 windows, 2000-2021), share one migrated parent, install the same published 48-bucket train-only anchor table (table_sha256 18448ae3df2b260e...) and set anchor_output_prior=False with new_params=0; the only factor is the anomaly_feedback boolean. 16071 updates x batch 2 = 32142 >= the manifest, so each arm sees at least one epoch on full_grid (4225 points). All four predeclared exits are true: (a) candidate 72h full t2m skill +0.264772/+0.263564/+0.284917 > 0 on seeds 41/42/43; (b) candidate-control 72h delta RMSE -0.189089/-0.153557/-0.181455 K < 0 on all three; (c) candidate 48h skill +0.410648/+0.411903/+0.428995 > 0 on all three; (d) 6/12/24h seed-mean delta -0.116339/-0.211584/-0.068075 K <= 0. The paired delta is negative at 15/15 seed x lead cells (strongest -0.242252 K at 12h seed 41, weakest -0.052727 K at 24h seed 43). Bridge (e) passes bit for bit on all three seeds: the control arm's first-update loss equals the registered R1 treatment arm's (1.1786479949951172 / 1.4581815004348755 / 0.8535277843475342), which is an identity check at identical compute rather than the cross-compute comparison that made R1's own bridge fail four of five leads. Per the frozen decision all four true only asks for independent review: this does NOT enter S4, does not change decision 0066, and is not a scientific PASS, a generalization claim or a SOTA claim.
+- Limitations:
+  - development screening on the 65x65 multi-year instance only (2000-2021 train / 2022 val, 17 channels); the 129x129 wide instance is a different store and is not covered
+  - the FY source has no 2023: the test split is four months and stays sealed; test_read=false, r=0
+  - the output prior and the proposal prior are NOT separated from each other: the anchor's presence switches both, so this round holds both off and isolates only the feedback representation
+  - the anchor table is a 48-bucket (twelve months x four synoptic hours) mean of the store's train-year frames on this grid; the closed arm's table was 16 buckets over four months on a different grid, so the two tables are not comparable
+  - both arms train on the 2000-2021 treatment manifest, so this round's control is not the closed round's control and the closed arm's readings, including its paired delta, do not transfer here in either direction
+  - the bridge is an identity check at identical compute (this round's control arm against the registered R1 treatment arm at update 1); it cannot speak about trained behaviour, and R1's own bridge failed four of five leads precisely because it compared different compute
+  - the model revision moved after R1 froze (the urban static covariate switch, off by default); the re-run migration carries the same per-seed tensor state and a different module-tree semantics digest, which every migration in this repository records rather than fails on
+  - three seeds are consistency evidence, not a significance test; no confidence interval is extrapolated
+  - GPU runs are co-resident; latency and memory observations include neighbour load
+  - validation split only; the test split stays sealed until a later preregistered read
+  - a positive result at 72h is +0.26 skill against a 48-bucket climatology on one grid; it is not evidence of generalization or of the mechanism being proven
+- Excluded from runnable candidates: candidate_state is needs-review rather than candidate: the frozen decision says (a)-(d) all true only advances to independent review, and the final goal verdict belongs to the user/runtime, so this round does not self-declare completion. Not not-candidate either: unlike the closed wide-instance arm (record s3-anchor-isolation-result, whose exit failed because 72h absolute skill was negative on seed 42), every predeclared exit here is satisfied and the bridge is clean.
+- Recorded metrics (not recomputed): arms=2, batch_size=2, bridge_e_passed=true, bridge_update1_loss_seed41=1.1786479949951172, bridge_update1_loss_seed42=1.4581815004348755, bridge_update1_loss_seed43=0.8535277843475342, candidate_48h_skill_seed41=0.4106480861391264, candidate_48h_skill_seed42=0.41190323727642886, candidate_48h_skill_seed43=0.4289947725346738, candidate_72h_skill_seed41=0.2647721893708248, candidate_72h_skill_seed42=0.2635640464555459, candidate_72h_skill_seed43=0.2849174702669346, delta_72h_seed41=-0.1890894528128948, delta_72h_seed42=-0.15355671285612482, delta_72h_seed43=-0.18145523484711124, delta_cells_improved=15, delta_cells_total=15, evaluation_gpu_hours=4.7009, execution_closure_files=91, exit_a=true, exit_b=true, exit_c=true, exit_d=true, gpu_hours=77.4371, hard_cap_seconds=518400.0, n_anchor_buckets=48, n_selected_steps=32144, peak_reserved_gib=5.213, planned_seconds=259200.0, reading_gpu_hours=0.002183, seed_mean_delta_12h=-0.21158356896617012, seed_mean_delta_24h=-0.0680747381631921, seed_mean_delta_48h=-0.1294997838383564, seed_mean_delta_6h=-0.11633907087937893, seed_mean_delta_72h=-0.17470046683871018, seeds=3, soft_overrun_seconds=0.0, train_windows=32142, training_gpu_hours=70.4065, updates=16071, val_windows=1458, wall_clock_hours=51.1
 
 ## s3-anchor-isolation-result
 

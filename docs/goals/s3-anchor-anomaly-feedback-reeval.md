@@ -4,7 +4,7 @@
 
 <!-- round-spec: {"arm": "s3-anchor-anomaly-feedback-65x65", "driver": "scripts/study_r7_s3_anchor_feedback_65x65.py", "output_stem": "r7_s3_anchor_feedback_65x65_20261101", "control_record": "s3-fy-year-coverage-matched-result", "seeds": [41, 42, 43], "device_mode": "dual", "test_path": ["tests/test_r7_s3_anchor_feedback_65x65.py"], "planned_seconds": 259200.0, "hard_cap_seconds": 518400.0, "code_archive": "outputs/r7_s3_anchor_feedback_65x65_code.zip", "commit_paths": ["scripts/study_r7_s3_anchor_feedback_65x65.py", "scripts/r7_s3_anchor_feedback_support.py", "scripts/r7_s3_anchor_feedback_parent.py", "scripts/r7_s3_anchor_isolation_parent.py", "scripts/r7_s3_fy_anchor_table_build.py", "tests/test_r7_s3_anchor_feedback_65x65.py", "tests/test_r7_s3_fy_anchor_table_build.py", "docs/goals/s3-anchor-anomaly-feedback-reeval.md", "docs/goals/main-model-climatology-campaign.md", "docs/decisions/0074-anchor-feedback-r2-execution-design.md", "docs/decisions/README.md", "docs/rules/size-thresholds.md"], "commit_message": "feat(r7): implement the R2 anchor-feedback matched-compute round (updates 16071, batch 2)", "register_paths": ["docs/R7_S3_ANCHOR_FEEDBACK_65X65_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-matched-exposure-reeval.md"], "register_message": "docs(r7): register the R2 anchor-feedback matched-compute reading as an evidence record"} -->
 
-状态 **CPU 侧实现已完成（父迁移/驱动/support/27 项测试）、协议未冻、GPU 未开跑**（2026-11-01）。
+状态 **已完成（2026-11-03，两臂 × 三 seed 训练与评分全部跑完，`stage reading` exit 0）**；预声明 (a)–(d) 全真，只提请独立复核。
 本文件是 R2 的**人读 brief 与机器可读 `round-spec`**（`campaign-state.current_round_goal` 指向它）；
 每轮的硬约束程序来自 `docs/goals/s3-matched-exposure-reeval.md` §4.2。
 承接 **决策 0058**（准入与「不是同一族」论证）、**决策 0074**（执行设计）、**决策 0060**（预算）、
@@ -168,8 +168,20 @@ spatial-gradient/zero-base decoder/gradient-surgery/tendency-input/SAM/全年覆
 
 ## §7 下一动作（S3）
 
-- `round-guard` → `commit-guard` → 提交推工作分支等 CI 绿 → 重建 code zip → `freeze` →
-  逐 stage GPU → 四件套登记。
+**2026-11-03 更新：本轮已跑完并登记，预声明 (a)–(d) 全真，只提请独立复核。**
+证据 `docs/R7_S3_ANCHOR_FEEDBACK_65X65_RESULT.md`、索引 `record:s3-anchor-feedback-65x65-result`
+（`needs-review` / `engineering-positive`）、账本累计 401.377595 GPU-h、`campaign-state` 同步。
+实耗 77.4371 GPU-h（训练 70.4065 + 评分 4.7009 + reading 0.002183；planned 72.0 h，软超 0）。
+
+- **已完成**：`round-guard` → `commit-guard` → 推工作分支 → code zip 重建
+  （`8908258f…`、commit `c48c57f`）→ `freeze`（`4a3fe1e8…`）→ `stage prepare`（重封 `89832cce…`）→
+  `stage archive` → `stage-seeds`（三 seed 两臂）→ `stage reading`（exit 0）→ 四件套登记。
+- **本轮不推进到 S4**：全真只提请独立复核；S4 按决策 0066 已出判决，不改。
+- **下一条动作**：W3 队列的 **R4**（位置保留 H-B）执行设计——先按决策 0079 定两臂初始化路线
+  （① 迁移 H-B 已训练 query ⇒ `|q|≈0.008` 非零起点；② 新初始化 ⇒ 零起点；**不是同一道题**），
+  再立执行设计 ADR、改 `model/**` 承载冻结 `scale`（字段集是精确断言，`process_forecast_r7.py:152-157`）、
+  按 0075 重绑父钉。**R4 的 `model/**` 改动现在可以落地了**：R2 的 seed+reading 已全部结束。
+- 恢复第一条命令：`.venv/bin/python tools/r7_round.py state`。
 - 与 S4 的关系：本轮**不推进到 S4**；S4 已按决策 0066 出过判决，本轮不改它。
 - 预声明出口见 §3：**(a)–(d) 全真 → 提请独立复核；任一假 → 永久关闭「气候态锚异常反馈」支**。
 - `test` 未读、r=0；不宣布科学通过、不称泛化/SOTA、不自宣最终 goal 完成。
