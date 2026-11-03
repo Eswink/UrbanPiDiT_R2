@@ -450,7 +450,7 @@ def test_null_or_inert_requires_an_exact_zero_weight_or_exact_zero_deltas():
 def test_the_model_digest_is_the_current_revision():
     assert parent.CURRENT_MODEL_CODE_SHA256 == model_code_digest()
     assert parent.MIGRATION_RECEIPT_SHA256 == (
-        "3e97d78af606ac9dfdd540f0a9cc3a8c1836eb1d64213056f67e1f35e6645550")
+        "393766eed2f11d183fbf1cfa79ef619d548a145b31c4dd71046f32592b359372")
     assert parent.TENDENCY_PARAMETERS == 13056
     assert parent.TENDENCY_KEY == "backbone.encoder.tendency_patch.weight"
     assert parent.MIGRATED_PARENT_STATE_DIGEST == {

@@ -21,22 +21,23 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATED_PARENT_RUN = ROOT / "outputs/r7_s3_anchor_feedback_65x65_parent_migrated_20261101_attempt01"
+MIGRATED_PARENT_RUN = ROOT / "outputs/r7_s3_position_retention_parent_migrated_20261103_attempt01"
 MIGRATION_RECEIPT = MIGRATED_PARENT_RUN / "migration_receipt.json"
 ANCHOR_TABLE_RUN = ROOT / "outputs/r7_s3_anchor_table_20261015_attempt02"
 ENDPOINT = 1600
 EQUIVALENCE_SEED = 1234
 #: The digest the committed migration tool recorded for the current model revision. The
-#: revision moved again after this round closed (commit 896eabf wires the urban static
-#: covariates behind an off-by-default switch), so decision 0075 re-binds this module to the
-#: migration re-run under ``a38be16c...`` -- the same v3-BD 1600 state, verified per seed.
-CURRENT_MODEL_CODE_SHA256 = "a38be16c9a04f5f1704fed6747e3d8da0f8507168464a337a85975de6b8a1a0a"
+#: revision has moved twice since this round closed: commit 896eabf wired the urban static
+#: covariates behind an off-by-default switch (decision 0075), and decision 0080 added
+#: ``typed_evidence.position_scale``. Decision 0083 re-binds this module to the migration
+#: re-run under ``59340710...`` -- the same v3-BD 1600 state, verified per seed.
+CURRENT_MODEL_CODE_SHA256 = "59340710623ca24c7ee59ebb5711f52193ebfbaa72ed4532b41bdd987f5d9324"
 #: SHA256 of ``migration_receipt.json`` itself; re-running into the same directory is refused.
-MIGRATION_RECEIPT_SHA256 = "3e97d78af606ac9dfdd540f0a9cc3a8c1836eb1d64213056f67e1f35e6645550"
+MIGRATION_RECEIPT_SHA256 = "393766eed2f11d183fbf1cfa79ef619d548a145b31c4dd71046f32592b359372"
 MIGRATED_PARENT_SHA256 = {
-    41: "7cc3a4973e4acb5ed3c6aa55028bcdae2cdf391e08f2110aa346be02d66d324d",
-    42: "dde3ae094a61e0f8c10e6fbed7f0b5a41e3512f3f8f55acf000b613fff2ae082",
-    43: "bd968e5d0175d04c18ee45af7b6536d80c9ca2bc147cf6a2d2c46614718c00ba",
+    41: "e81e4904b65c65daf81d74215eb135e7d306277109c3f3544b979ecfefed3b98",
+    42: "7e2cd4cc0d07565e19c660dacdf5f67180ee8e5526f81904dc0b37afcdbe95f3",
+    43: "ee33f690653c625d4b041fb95276dfb239cb9a21dc140e2bb65d26754a855d0c",
 }
 #: Model-state digests, invariant across model revisions because only the contract moves.
 MIGRATED_PARENT_STATE_DIGEST = {
