@@ -134,6 +134,10 @@ R2 的 `a38be16c…` 闭包含 `model/typed_evidence_r7.py`，**而 R2 的 seed+
    - 两臂 `pathway_init_sha256` 相等（共享同一初始化）；
    - `scale` 逐字相同（两臂同值）；
    - `zero_query_is_pooled`：把 query 清零后 C 的聚合**逐位等于** B 的均值。
+     ~~**原文如此；此条已由决策 0082 更正**~~：`_position_attention` 先乘 `1/P` 再求和，
+     `mean(dim=1)` 先求和再除 `P`，两者是同一实数的两个 float32 程序，**逐位相等不可达**
+     （实测最坏 `2.98e-08`）。0082 把该条拆为「权重逐位等于 `1/P`（精确断言）」+
+     「聚合差 `≤ 2·P·eps·max|v|`」，两者都逐 seed 断言。**不改写本段原文**，只加此注。
    失败只记 `identity/engineering unresolved`，**不进入** (a)–(d)。
 5. **`scale` 的定值走 0079 §Decision 2 的实测映射**：以真实 val 批次量出的归一化熵落在
    `[0.90, 0.99]` 为准（`P=1089` 时对应 `score_std ∈ [0.374, 1.186]`）；熵 `< 0.5` 视为
