@@ -419,6 +419,9 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   第一点踩过的五个缺陷各带会失败的反证测试（`test_r7_s3_curve_points.py` 23 项），**本轮一个未复发**。
   **登记**：`docs/R7_S3_THROUGHPUT_PHYSICS_B_P1000_RESULT.md`、`record:s3-throughput-physics-b-p1000`、
   §7 账本行（累计 **407.737795**）、本块、`campaign-state`；决策 **0089**。
+  **CI 实测**：登记提交 `a4e9d96` 的 `R7 CPU CI` run **`41887734901` = completed/success**
+  （`pytest` job 全部步骤 success，无非成功步骤）；干净 worktree 整包 `pytest -q`
+  ⇒ **5,461 passed / 27 skipped / 0 failed**。
   **下一动作（S3）**：跑 Stage B 第三点（4 epoch = 32,132 updates）。**必须先按本点实测
   3.3165 GPU-h / 1.1505 s/update 重算预算**，不得沿用原估；四点跑完后才按 §3 的规则求
   `Δ = skill_72h(16e) − skill_72h(4e)` 判定饱和。恢复第一条命令＝
