@@ -170,6 +170,11 @@ def main(argv=None):
             "n_diagnostic_targets": len(PROCESS_DIAGNOSTIC_NAMES),
             "typed_local_field_count": len(TYPED_LOCAL_FIELD_NAMES),
             "typed_local_field_names": list(TYPED_LOCAL_FIELD_NAMES),
+            # Definition checks are answerable from the tracked source alone, so they run in
+            # every checkout including CI's bare one. The static product's presence is a
+            # property of *this machine*, not of the probe: it is reported separately rather
+            # than folded in, so a clean checkout cannot make the probe look broken and a
+            # broken definition cannot hide behind a missing product.
             "checks": {
                 "eight_diagnostics_declared": len(PROCESS_DIAGNOSTIC_NAMES) == 8,
                 "eight_anchored_slots_declared": ANCHORED_SLOTS == 8,
@@ -181,6 +186,9 @@ def main(argv=None):
             "limitations": [
                 "no trained checkpoint is loaded here: the P/Z relationship to a specific "
                 "trained model needs Stage D's own frozen protocol, not this definition check",
+                "the static product is an untracked outputs/ artifact, so this probe's "
+                "static_product_available flag is False in a bare checkout and True only on a "
+                "machine that has published it; the definition checks are independent of it",
                 "CPU-only and 0 GPU-h; declares no threshold and issues no pass/fail verdict "
                 "because the campaign fixes none for either relationship",
                 "the static product must be present; absence is reported, never synthesised",
@@ -188,10 +196,10 @@ def main(argv=None):
     static_ok, static_note = True, "loaded"
     try:
         fields = _static_fields()
-        body["static_covariates"] = sorted(fields) if isinstance(fields, dict) else "loaded"
+        body["static_covariates"] = fields
     except Exception as exc:                      # noqa: BLE001 - reported, never hidden
         static_ok, static_note = False, f"{type(exc).__name__}: {exc}"
-    body["checks"]["static_product_loads"] = static_ok
+    body["static_product_available"] = static_ok
     body["static_note"] = static_note
     body["all_checks"] = all(body["checks"].values())
     text = json.dumps(body, indent=2, ensure_ascii=False, allow_nan=False)

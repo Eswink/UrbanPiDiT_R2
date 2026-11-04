@@ -111,14 +111,40 @@ def test_the_probe_declares_no_scientific_claim_and_no_threshold():
 
 
 def test_the_probe_is_runnable_and_writes_exclusively(tmp_path):
-    """R-001: an existing output is never truncated."""
+    """R-001: an existing output is never truncated.
+
+    The definition checks must pass in a bare checkout too: CI has no ``outputs/``, so the
+    published static product is absent there. Folding product availability into ``all_checks``
+    made this probe exit 1 on CI while passing locally -- the exact "works only on a machine
+    with untracked artifacts" defect this repository has hit before. The product's presence is
+    therefore reported separately, and this test asserts only what is checkout-independent.
+    """
     out = tmp_path / "probe.json"
     assert probe.main(["--out", str(out)]) == 0
     body = json.loads(out.read_text(encoding="utf-8"))
     assert body["all_checks"] is True
     assert body["scientific_claim"] is False and body["gpu_hours"] == 0.0
+    assert "static_product_available" in body          # reported, never silently dropped
     with pytest.raises(FileExistsError):
         probe.main(["--out", str(out)])
+
+
+def test_a_missing_static_product_is_reported_without_failing_the_probe(tmp_path, monkeypatch):
+    """A missing published product must be reported, not turned into a probe failure.
+
+    This is the defect CI caught: ``all_checks`` included product availability, so the probe
+    exited 1 on a bare checkout. The product is a machine-local artifact; its absence says
+    nothing about whether the slot definitions agree.
+    """
+    def missing():
+        raise FileNotFoundError("published static field is missing")
+    monkeypatch.setattr(probe, "_static_fields", missing)
+    out = tmp_path / "probe.json"
+    assert probe.main(["--out", str(out)]) == 0
+    body = json.loads(out.read_text(encoding="utf-8"))
+    assert body["static_product_available"] is False
+    assert "FileNotFoundError" in body["static_note"]     # the reason is recorded verbatim
+    assert body["all_checks"] is True                      # definitions still verified
 
 
 def test_the_probe_has_a_main_guard():
