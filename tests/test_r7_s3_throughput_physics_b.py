@@ -55,7 +55,8 @@ def test_the_scored_variables_are_the_seventeen_registered_channels():
 
 def test_only_t2m_carries_a_registered_climatology_denominator():
     """Sixteen variables have no fitted denominator, so they get no invented skill number."""
-    body = {"climatology": {"leads": {"72": {"t2m_rmse": 3.926891361747067}}}}
+    body = {"climatology": {"buckets": 48},
+            "climatology_reference": {"leads": {"72": {"t2m_rmse": 3.926891361747067}}}}
     assert driver._climatology_denominator(body, 72, "t2m") == pytest.approx(3.926891361747067)
     for variable in driver.SCORED_VARIABLES:
         if variable == "t2m":
@@ -190,6 +191,41 @@ def test_main_does_not_propagate_the_worker_result():
                 if isinstance(node, ast.FunctionDef) and node.name == "main")
     returns = [node for node in ast.walk(main) if isinstance(node, ast.Return)]
     assert returns == [], "main() must not return a value: sys.exit(worker(...)) prints it"
+
+
+def test_the_runner_is_told_the_frozen_checkpoint_cadence():
+    """Decision 0087 is only applied if the call passes it; the default is 20.
+
+    Measured defect: the first attempt of this point declared 5,000 in the protocol but
+    omitted the argument, so the runner used its 20-step default and wrote 101 checkpoints
+    (5.6 GiB) where the ADR allows four. The guard is a source check, because the value is
+    only visible in the call the driver actually writes.
+    """
+    import pathlib
+    source = pathlib.Path(driver.__file__).read_text(encoding="utf-8")
+    call = source[source.index("fine_tune_long_rollout("):]
+    call = call[:call.index(")", call.index("loader="))]
+    assert "checkpoint_every=CHECKPOINT_EVERY" in call, (
+        "the driver must pass checkpoint_every explicitly; the runner's default is 20")
+
+
+def test_checkpoints_are_discovered_where_the_runner_writes_them():
+    """The retained list must glob the folder the runner uses, not a guessed subdirectory."""
+    import pathlib
+    source = pathlib.Path(driver.__file__).read_text(encoding="utf-8")
+    assert 'folder.glob("update_*.pt")' in source
+    assert 'folder / "checkpoints"' not in source
+
+
+def test_the_climatology_denominator_comes_from_the_resolved_reference():
+    """It must read the resolved reference block, not the frozen summary (which has no leads)."""
+    body = {"climatology": {"buckets": 48},
+            "climatology_reference": {"leads": {"72": {"t2m_rmse": 3.926891361747067}}}}
+    assert driver._climatology_denominator(body, 72, "t2m") == pytest.approx(3.926891361747067)
+    assert driver._climatology_denominator(body, 72, "u10") is None
+    # A reference without the lead must raise rather than silently return a number.
+    with pytest.raises(RuntimeError, match="refusing to invent"):
+        driver._climatology_denominator({"climatology_reference": {"leads": {}}}, 72, "t2m")
 
 
 def test_offline_denial_blocks_outbound_but_not_local_ipc():

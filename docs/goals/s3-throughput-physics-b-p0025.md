@@ -113,6 +113,24 @@
 
 - 2026-11-04 建立：状态 `prepared`，未冻结、未开跑，0 GPU-h。
 
+- **2026-11-04 首次 attempt01 作废（三个已修缺陷，如实登记）**。
+  `attempt01` 跑到 seed 41 完成（2,802 s、2,008 updates、loss 1.2722→0.8367、父 digest `7c416ccb…`
+  与钉值一致、五 lead 全部产出），但**读出阶段失败且违反 ADR 0087**，因此**整轮作废、不登记读数**：
+  1. **checkpoint 策略未生效**：`protocol.json` 声明 `checkpoint_every 5000`，但驱动没把该参数
+     传给 `fine_tune_long_rollout`（其默认 20）⇒ 实写 **101 个 checkpoint / 5.6 GiB**，
+     而 0087 规定本点只应保留 **1 个**（端点）。已修为显式传参 + 测试守卫。
+  2. **读数阶段 `KeyError: 'leads'`**：`_climatology_denominator` 读冻结摘要块
+     `climatology`（只有桶数与年份），而 per-lead 的 t2m 分母在 prepare 解析出的
+     `climatology_reference` 里。已改读后者，缺 key 即 `raise`（不发明分母）。
+  3. **`r7_m3_offline.deny_network()` 误杀 worker IPC**：它把**所有** `socket.connect`
+     替换成抛错，包括 `multiprocessing` 资源分享器用的 **`AF_UNIX`** 本地套接字 ⇒
+     pin-memory 线程死亡，`attempt00` 的第一个 seed 死于
+     `Pin memory thread exited unexpectedly`。已收窄为「只拒非 `AF_UNIX`」，DNS 与
+     `create_connection` 仍全拒（R-028 的意图是**出网**，不是禁本地 IPC）。
+  另修两条工程缺陷：驱动缺 `if __name__ == "__main__"` 守卫（prepare 曾 0.06 s「成功」却没产物）；
+  `main()` 返回 worker 结果导致 `sys.exit()` 把 38 MB 协议打印进日志。
+  **`attempt01` 的全部产物保留不删、不参与任何读数**；重跑落 `attempt02`。
+
 ---
 
 ## §8 下一动作

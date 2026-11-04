@@ -131,7 +131,10 @@ def _train(output, body, seed, deadline):
         TRAIN_MANIFEST, folder, model=model, contract=contract, parent_weights=state,
         physical_weights=PHYSICAL_WEIGHTS, steps=STEPS, updates=UPDATES, lr=LR, warmup=WARMUP,
         seed=seed, device_name="cuda:0", deadline=deadline, batch_size=BATCH_SIZE,
-        loader=(4, 4))
+        # Decision 0087's policy is only real if the runner is told it: this argument
+        # defaults to 20, and omitting it wrote 101 checkpoints (5.6 GiB) on the first
+        # attempt of this point while the protocol declared 5,000.
+        checkpoint_every=CHECKPOINT_EVERY, loader=(4, 4))
     if (report["updates_this_run"] != UPDATES or report["contract"]["steps"] != STEPS
             or int(report["contract"]["batch_size"]) != BATCH_SIZE
             or report["data_identity"] != body["arms"]["curve"]["train_data_identity"]
@@ -152,8 +155,8 @@ def _train(output, body, seed, deadline):
                "train_windows_sha256": body["arms"]["curve"]["train_windows"]["window_sha256"],
                "expansion": expansion,
                "checkpoint_every": CHECKPOINT_EVERY,
-               "retained_checkpoints": sorted(
-                   item.name for item in (folder / "checkpoints").glob("update_*.pt")),
+               "retained_checkpoints": sorted(item.name for item in folder.glob("update_*.pt")),
+               "retained_checkpoint_count": len(list(folder.glob("update_*.pt"))),
                "update1": {"loss": update1["loss"], "gradient_norm": update1["gradient_norm"]},
                "loss_curve": {"first": losses[0], "last": losses[-1],
                               "min": min(losses), "max": max(losses), "n": len(losses)},
@@ -233,12 +236,20 @@ def _readings(output, body):
 def _climatology_denominator(body, lead, variable):
     """The frozen climatology RMSE for this lead/variable, or None if it was never fitted.
 
-    Only t2m has a registered denominator on this instance; the other sixteen are reported as
-    raw RMSE and get no skill number rather than an invented one.
+    Read from the ``climatology_reference`` block the prepare stage resolved (the full D2
+    reference with per-lead values), NOT from the frozen ``climatology`` summary block, which
+    records only the bucket count and year span. Only t2m has a registered denominator on this
+    instance; the other sixteen are reported as raw RMSE and get no invented skill number.
     """
     if variable != "t2m":
         return None
-    return body["climatology"]["leads"][str(lead)]["t2m_rmse"]
+    reference = body.get("climatology_reference") or {}
+    leads = reference.get("leads") or {}
+    record = leads.get(str(lead))
+    if not isinstance(record, dict) or "t2m_rmse" not in record:
+        raise RuntimeError(f"the resolved climatology reference has no t2m denominator for "
+                           f"lead {lead}; refusing to invent one")
+    return record["t2m_rmse"]
 
 
 def evaluate_exit(readings):
