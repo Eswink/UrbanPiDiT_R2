@@ -94,15 +94,66 @@
 **（执行者在此追加每个 Stage 的进度块；停时必须写「为何停 + 恢复第一条命令」。）**
 
 - 2026-11-04 建立：状态 `prepared`，未启动，0 GPU-h。
+- **2026-11-04 Stage A（吞吐前置）测量完成 — 出口未达到，按计划停下报告。**
+  状态 `stage-a-measured`；GPU-h **1.657**（账本累计 401.377595 → **403.034595**）；
+  `scientific_claim: false`、`test_read: false`、`r = 0`。
+
+  **做了什么**：A1（14 帧一次跨步读、每 store 一次时间列与归一化、`validate_record` 可选整列）、
+  A2（worker 预取，索引流在主进程预物化并逐批断言未偏离）、A3（全模型有限性检查降为
+  每 100 步 + 每 checkpoint + 端点）、A4（写进 ADR 0087，只约束新 run）、A5（六组实测）、
+  A6 重扫（batch 4/6/8/10/12，每档独立进程、4 worker）。
+
+  **逐位验收通过**：`window_sha256 e8f22c303c98fc9427e629057cf7f1adf111f57a50977f3bff742ec3089e1136`、
+  `usable_windows 32131`、11 条排除集（同顺序）**逐字节不变**；6 个抽样窗口全部字段 **0 差异**；
+  60 个 batch 的 sha256 在 `workers=0` 与 `workers=4` 之间**相同**。
+
+  **读数**：建集 `493.81 → 187.66 s`（2.6×）；每样本 `0.5091 → 0.0570 s`（8.9×）；
+  **batch 4 每 update `3.3479 → 1.0848 s`（3.09×）**。
+  分段（batch 4）：数据 `0.0137` / H2D `0.0035` / **fwd+bwd `1.0977`（97.8%）** / opt `0.0079` / sync `0.0`。
+  A6 重扫峰值 `6270/9548/12910/15556/19270 MiB`、s/update `1.0145/0.9814/1.0195/1.1710/1.1429`
+  ⇒ **旧口径 5.56/6.78/7.94 作废**；显存结论不变（共驻上限仍是 batch 10）。
+
+  **为何停**：预声明出口是 **batch 4 后 `seconds_per_update < 1.0`**，
+  实测 **1.0848**（>1.0）。按目标长文「达不到即停下报告实际倍数、**不改判据**」，
+  本轮**不改判据、不把 batch 6 的 0.9814 冒充成出口**（batch 属于 Stage F 的成本选项）。
+  同时实测 **97.8% 的时间是 fwd+bwd**，I/O 只剩 1.2% ⇒ 继续改读法在数学上救不回这 8% 的差距；
+  要进 <1.0 只能改计算侧（K、bf16、activation checkpointing），每一条都改算力口径、
+  不在 Stage A「只改读法」的授权内，须各自 ADR。
+
+  **两条必须连同结论引用的实测边界**：
+  (1) 「逐位相同」只在**固定线程数**下成立——GPU 默认线程下 `workers=0` 连跑两次，
+  200 个 update 里 **119 个不同**（首个差异在 update 2，差 1 ULP）；单线程 CPU 上 40/40 逐位相同。
+  (2) 计划 0028 §0.4 的「95% 时间在 I/O」**已被本轮实测部分否定**（见上分段）。
+
+  **登记**：`docs/R7_S3_THROUGHPUT_PHYSICS_STAGE_A_RESULT.md`、
+  `record:s3-throughput-physics-stage-a`（`engineering-positive` / `not-candidate` / priority 99）、
+  campaign §7 账本行、campaign §8 进度块、`campaign-state`（`used_gpu_h 403.034595`）。
+  决策 **0084**（方向扩围）/ **0085**（读法 + worker）/ **0086**（同步守卫）/ **0087**（checkpoint）。
+  测试：`tests/test_r7_stage_a_read_path.py` 7 项新增，相关套件 **156 passed**；
+  `check_conventions.py` 37 条阻断 **0 失败**；`verify_r7_evidence_index.py` 99 条 **PASS**。
+
+  **未做（如实登记）**：未重扫 batch 14/16/32；未在 batch 8/14 上单独测 A3 的相对贡献；
+  未测 `persistent_workers` 的启动摊销对短 run 的影响；**Stage B 未启动**。
 
 ## §7 下一动作
 
-第一条命令（只读，先确认指针与起点）：
+**S3 的下一动作不是自动开 Stage B。** A 的出口未达到，Stage B 的 `~43 GPU-h` 估计基于
+0.84 s/update，按实测 **1.0848 s/update** 重算约 **55 GPU-h**（**估计值，非实测**），
+且 A6 的新口径已把「大 batch 提速」这条收益基本消掉。因此下一个动作是**一个判定点**：
 
-```
-.venv/bin/python tools/r7_round.py state
-```
+1. 先只读核对起点与指针（第一条命令）：
 
-确认 `campaign_state.current_round_goal` 已指向 `docs/goals/s3-throughput-and-physics-campaign.md`
-（若仍指向 `s3-position-retention-reeval.md`，先改指针再冻协议；R4 期间真实发生过一次冻结错轮次）。
-随后按 `docs/plans/0028-throughput-physics-campaign.md` §2 从 Stage A 开始。
+   ```
+   .venv/bin/python tools/r7_round.py state
+   ```
+
+2. 读 `docs/R7_S3_THROUGHPUT_PHYSICS_STAGE_A_RESULT.md` §3（出口判定与归因）与
+   `docs/decisions/0084-*.md` 负面后果 1（成本重算）。
+3. 二选一，**都不得改 A 的 1.0 判据**：
+   - **(a) 接受 1.0848 直接进 Stage B**，把成本表按 1.0848 s/update 重算并在 brief 冻结；
+   - **(b) 先补一个纯粹的「计算侧」前置轮**（K / bf16 / activation checkpointing 之一，单因素、
+     各自 ADR），把 batch 4 压到 <1.0 再进 Stage B。
+
+   选 (b) 会新增一个不在计划 0028 里的 Stage，需要一份新 ADR 说明为什么它属于 Stage A 的
+   出口补齐而不是新科学轴。**这属于总体研究方向内的普通方法选择**，按决策 0030 由执行者自决，
+   但**必须先落 ADR 再动代码**，且不得把它的读数写成 Stage B 的结果。

@@ -44,7 +44,13 @@ PROTOCOL = "outputs/r7_s3_fy_year_coverage_matched_20261026_attempt01/protocol.j
 ARM = "treatment"
 
 
-def _times_and_memory(batch_size, updates, steps):
+def _ordered(contract, cursor, total):
+    """The registered index draw at ``cursor``, imported rather than re-derived."""
+    from training.r7_long_rollout_runner import _ordered_indices
+    return _ordered_indices(contract, 0, cursor, total)
+
+
+def _times_and_memory(batch_size, updates, steps, workers=0):
     """Real forward/backward/step on real windows from the real store."""
     import torch
     from torch.utils.data import default_collate
@@ -80,9 +86,19 @@ def _times_and_memory(batch_size, updates, steps):
     # training step, not the manifest discovery that precedes it.
     order = list(range(batch_size))
     # Warm the store handles once: the per-update timing below must include data
-    # construction, because that is where the 1.1-1.3 s of the real update goes.
-    warm = default_collate([dataset[index] for index in order])
-    del warm
+    # construction, because that is part of the real update.
+    if workers > 0:
+        from training.r7_long_rollout_runner import _BatchLoader
+        contract = {"seed": 0, "total_updates": updates + 1, "batch_size": batch_size}
+        loader = _BatchLoader(dataset, contract, workers, 4)
+        first = loader.batch(_ordered(contract, 0, len(dataset)))
+        del first
+        step = 1
+    else:
+        loader = None
+        warm = default_collate([dataset[index] for index in order])
+        del warm
+        step = 0
 
     durations = []
     losses = []
@@ -90,7 +106,11 @@ def _times_and_memory(batch_size, updates, steps):
         started = time.perf_counter()
         # Data construction is inside the timed region on purpose: a probe that
         # times only the GPU step reports about half the real cost.
-        batch = default_collate([dataset[index] for index in order])
+        if loader is not None:
+            batch = loader.batch(_ordered(contract, step * batch_size, len(dataset)))
+            step += 1
+        else:
+            batch = default_collate([dataset[index] for index in order])
         moved = {name: value.to(device) if torch.is_tensor(value) else value
                  for name, value in batch.items()}
         optimizer.zero_grad(set_to_none=True)
@@ -107,7 +127,7 @@ def _times_and_memory(batch_size, updates, steps):
     peak_allocated = torch.cuda.max_memory_allocated(device)
     free_bytes, total_bytes = torch.cuda.mem_get_info(device)
     return {
-        "batch_size": batch_size, "updates": updates, "steps": steps,
+        "batch_size": batch_size, "updates": updates, "steps": steps, "workers": workers,
         "parameters": params,
         "peak_reserved_bytes": int(peak_reserved),
         "peak_allocated_bytes": int(peak_allocated),
@@ -128,6 +148,8 @@ def main(argv=None):
     parser.add_argument("--steps", type=int, default=4)
     parser.add_argument("--out", type=pathlib.Path, required=True)
     parser.add_argument("--device", default="0")
+    parser.add_argument("--workers", type=int, default=0,
+                        help="DataLoader workers; 0 keeps the serial per-sample path")
     args = parser.parse_args(argv)
     # Pin the card before the first CUDA call; a bare "cuda" then means this card.
     os.environ.setdefault("CUDA_VISIBLE_DEVICES", args.device)
@@ -135,7 +157,8 @@ def main(argv=None):
     record = {"batch_size": args.batch, "scientific_claim": False, "test_read": False,
               "device": args.device, "ok": False}
     try:
-        record.update(_times_and_memory(args.batch, args.updates, args.steps))
+        record.update(_times_and_memory(args.batch, args.updates, args.steps,
+                                        workers=args.workers))
         record["ok"] = True
     except Exception as exc:  # noqa: BLE001 - the whole point is to record, never raise
         import torch

@@ -21,10 +21,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 WORKER = ROOT / "scripts/r7_s3_batch_ceiling_worker.py"
 
 
-def run_one(batch, out_dir, updates, steps, device, timeout):
+def run_one(batch, out_dir, updates, steps, device, timeout, workers=0):
     target = out_dir / f"batch_{batch:03d}.json"
     argv = [sys.executable, str(WORKER), "--batch", str(batch), "--updates", str(updates),
-            "--steps", str(steps), "--device", device, "--out", str(target)]
+            "--steps", str(steps), "--device", device, "--out", str(target),
+            "--workers", str(workers)]
     try:
         done = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True, timeout=timeout)
         tail = (done.stdout + done.stderr).strip().splitlines()[-3:]
@@ -47,6 +48,7 @@ def main(argv=None):
     parser.add_argument("--updates", type=int, default=3)
     parser.add_argument("--steps", type=int, default=4)
     parser.add_argument("--device", default="0")
+    parser.add_argument("--workers", type=int, default=0)
     parser.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=False)
@@ -54,7 +56,8 @@ def main(argv=None):
     records = []
     for batch in sorted(set(args.batches), reverse=True):
         print(f"[sweep] batch {batch} ...", flush=True)
-        record = run_one(batch, args.out, args.updates, args.steps, args.device, args.timeout)
+        record = run_one(batch, args.out, args.updates, args.steps, args.device, args.timeout,
+                         args.workers)
         records.append(record)
         print(f"[sweep] batch {batch}: ok={record.get('ok')} "
               f"peak={record.get('peak_reserved_mib')} MiB "

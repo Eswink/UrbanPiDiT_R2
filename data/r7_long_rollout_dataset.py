@@ -34,7 +34,7 @@ def _discover_long_windows(reader, physical_steps):
     years = set(root.attrs["split_years"]["train"])
     windows, exclusions, pins = [], [], []
     for position, record in enumerate(reader.records):
-        indices = validate_record(root, record)
+        indices = validate_record(root, record, time_ns=raw)
         if len(record["history_indices"]) != 2 or record["lead_time_hours"] != STEP_HOURS:
             raise ValueError("two history frames and a +6 h train target are required")
         init_ns = int(raw[indices[-2]])
@@ -126,16 +126,42 @@ class ZarrLongRolloutDataset(Dataset):
     def __len__(self):
         return len(self.windows)
 
+    def _window_frames(self, root, targets, index_of_window):
+        """Read the window's frames, once when they are contiguous.
+
+        The registered long-rollout window is ``t-6, t, t+6 .. t+6N`` at an exact 6 h
+        cadence on a 6 h store, so its indices are consecutive and one call returns all
+        fourteen frames. Per-frame reads cost one zarr round trip each (plus a decode of
+        every chunk they touch) for the same bytes. Non-contiguous windows -- which the
+        store cannot produce today, but which no check here forbids -- keep the original
+        per-index path rather than being rejected.
+        """
+        warn = self.reader.aux(targets[0])
+        base = self.reader.indices(self.records[index_of_window])
+        wanted = list(base) + [int(target["target_index"]) for target in targets[1:]]
+        offsets = {index: position for position, index in enumerate(wanted)}
+        contiguous = wanted == list(range(wanted[0], wanted[-1] + 1))
+        if contiguous:
+            frames = self.reader.read_normalized(targets[0], wanted)
+        else:
+            mean, std = warn["normalization"]
+            state = root["state"]
+            frames = np.stack([(np.asarray(state[index], dtype=np.float32) - mean[:, None, None])
+                               / std[:, None, None] for index in wanted])
+        return {"history_frames": len(base), "contiguous": contiguous,
+                "extra_offsets": [offsets[int(target["target_index"])] for target in targets[1:]]}, frames
+
     def __getitem__(self, index):
         position, targets = self.windows[index]
-        sample = self.reader[position]
         root = self.reader._store(targets[0])
-        mean, std = normalization(root, count=root["state"].shape[1])
+        span, frames = self._window_frames(root, targets, index)
+        sample = self.reader.sample_from_frames(self.records[index],
+                                                frames[:span["history_frames"]])
         fields = [sample["atmos_target"]]
-        for record in targets[1:]:
-            target_index = validate_record(root, record)[-1]
-            field = np.asarray(root["state"][target_index], dtype=np.float32)
-            normalized = (field - mean[:, None, None]) / std[:, None, None]
+        # The stored frames are already normalized; only the frames past the record's
+        # own target still need it, and they come from the same single read.
+        for offset in span["extra_offsets"]:
+            normalized = frames[offset]
             if not np.isfinite(normalized).all():
                 raise ValueError("nonfinite physical atmospheric target")
             fields.append(torch.from_numpy(normalized))

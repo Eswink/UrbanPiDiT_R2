@@ -153,7 +153,15 @@ def validate_store(root):
     return raw
 
 
-def validate_record(root, record):
+def validate_record(root, record, time_ns=None):
+    """Validate one manifest record against the store.
+
+    ``time_ns`` may carry the store's already-read timestamp column. Every scalar read
+    of ``root['time_ns']`` costs a full zarr round trip (~3 ms here), so a discovery
+    loop over a whole manifest pays minutes for identical values; passing the column
+    once makes the same comparison against the same numbers. Omitting it keeps the
+    original per-index reads, so no caller is required to change.
+    """
     import pandas as pd
     h = record['history_indices']
     indices = list(h)+[record['target_index']]
@@ -163,7 +171,10 @@ def validate_record(root, record):
     if len(stamps) != len(indices):
         raise ValueError('timestamp/index count mismatch')
     times = utc_time_index(stamps)
-    actual = np.array([int(root['time_ns'][i]) for i in indices], dtype=np.int64)
+    if time_ns is None:
+        actual = np.array([int(root['time_ns'][i]) for i in indices], dtype=np.int64)
+    else:
+        actual = np.asarray(time_ns, dtype=np.int64)[np.asarray(indices, dtype=np.intp)]
     if not np.array_equal(actual,times.asi8):
         raise ValueError('record timestamps do not match store indices')
     init = pd.Timestamp(record['init_time'])

@@ -48,6 +48,8 @@ LIMITATIONS = [
 PROGRESS_FILE = "progress.jsonl"
 #: One progress line every this many updates, plus the final update.
 PROGRESS_EVERY = 20
+#: Full-state finiteness sweep cadence; every checkpoint sweep is on top of this.
+FULL_STATE_CHECK_EVERY = 100
 
 
 def _append_progress(path, record, elapsed_seconds):
@@ -210,9 +212,14 @@ def _rollout(model, moved, contract, supervision_mask):
                                      "spatial_gradient_lambda", ZERO_GRADIENT_LAMBDA))
 
 
-def _update(model, optimizer, batch, contract, device, deadline, supervision_mask=None):
+def _update(model, optimizer, batch, contract, device, deadline, supervision_mask=None,
+            full_state_check=True):
     optimizer.zero_grad(set_to_none=True)
-    moved = {name: value.to(device) if torch.is_tensor(value) else value for name, value in batch.items()}
+    # Pinned host memory never changes a value, only when the copy starts; the copy itself
+    # is still synchronous, so the update sees exactly the bytes the serial path saw.
+    non_blocking = torch.device(device).type == "cuda"
+    moved = {name: value.to(device, non_blocking=non_blocking) if torch.is_tensor(value) else value
+             for name, value in batch.items()}
     result = _rollout(model, moved, contract, supervision_mask)
     surgery_mode = require_gradient_surgery(
         contract["autoregression"].get("gradient_surgery", "off"))
@@ -243,7 +250,12 @@ def _update(model, optimizer, batch, contract, device, deadline, supervision_mas
         _check_deadline(deadline)
     optimizer.step()
     optimizer.zero_grad(set_to_none=True)
-    _finite_state(model)
+    # The whole-state sweep is a device-wide sync over 155 tensors every update; the loss
+    # and the gradient norm are already synchronised scalars on the same step. Decision
+    # 0086 keeps the full sweep periodic plus at every checkpoint, which is what the
+    # checkpoint path relies on to refuse publishing nonfinite weights.
+    if full_state_check:
+        _finite_state(model)
     metrics = {"loss": float(result.loss.detach()), "l6": float(result.l6.detach()),
                "l12": None if result.l12 is None else float(result.l12.detach()),
                "per_step_losses": result.per_step_losses.detach().cpu().tolist(),
@@ -265,23 +277,82 @@ def _publish_ema_checkpoint(folder, update_number, *, model, ema, signature, con
     return target
 
 
-def _run_updates(dataset, folder, model, optimizer, contract, signature, deadline, runtime=None):
+def _ordered_indices(contract, epoch, cursor, total):
+    """The registered per-update index draw: ``randperm(seed + epoch)[cursor:]``."""
+    order = torch.randperm(total, generator=torch.Generator().manual_seed(contract["seed"] + epoch))
+    return order[cursor:min(cursor + contract["batch_size"], total)].tolist()
+
+
+def _index_stream(contract, total):
+    """Every index this run will draw, in order, reproducing the serial epoch walk.
+
+    Materialising the stream up front is what lets a worker pool serve the batches
+    without owning the training order: the order is decided here, by the same
+    ``randperm(seed + epoch)`` and the same cursor arithmetic as the serial loop, and
+    the loader below only turns consecutive slices of it into batches. Batch boundaries
+    therefore coincide with update boundaries by construction.
+    """
+    stream, epoch, cursor = [], 0, 0
+    for _ in range(contract["total_updates"]):
+        if cursor == total:
+            epoch, cursor = epoch + 1, 0
+        indices = _ordered_indices(contract, epoch, cursor, total)
+        stream.extend(indices)
+        cursor += len(indices)
+    return stream
+
+
+class _BatchLoader:
+    """Serve the precomputed index stream from worker processes, one batch at a time."""
+
+    def __init__(self, dataset, contract, workers, prefetch, pin_memory=None):
+        from torch.utils.data import DataLoader
+        self.batch_size = contract["batch_size"]
+        self.stream = _index_stream(contract, len(dataset))
+        # Pinning is only meaningful with a CUDA consumer, and its worker-side loop shares
+        # CUDA file descriptors across the fork -- which is exactly what fails in a process
+        # that is not using the GPU (CPU tests, CI). Default to the device in use.
+        if pin_memory is None:
+            pin_memory = torch.cuda.is_available()
+        self.pin_memory = pin_memory
+        self.loader = DataLoader(dataset, batch_size=self.batch_size,
+                                 sampler=self.stream, num_workers=workers, pin_memory=pin_memory,
+                                 persistent_workers=True, prefetch_factor=prefetch)
+        self.batches = iter(self.loader)
+        self.consumed = 0
+
+    def batch(self, indices):
+        """The next batch, asserting it is exactly the one the serial path would build."""
+        expected = self.stream[self.consumed:self.consumed + len(indices)]
+        if expected != list(indices):
+            raise RuntimeError("the worker pool diverged from the registered index stream")
+        self.consumed += len(indices)
+        return next(self.batches)
+
+
+def _run_updates(dataset, folder, model, optimizer, contract, signature, deadline, runtime=None,
+                 workers=0, prefetch=4):
     supervision_mask, ema = runtime if runtime is not None else (None, None)
     epoch, cursor, losses, checkpoint, ema_checkpoint = 0, 0, [], None, None
     device = next(model.parameters()).device
     progress, started = Path(folder) / PROGRESS_FILE, time.perf_counter()
+    loader = (_BatchLoader(dataset, contract, workers, prefetch,
+                           pin_memory=device.type == "cuda")
+              if workers > 0 else None)
     for update in range(1, contract["total_updates"] + 1):
         if deadline is not None:
             _check_deadline(deadline)
         if cursor == len(dataset):
             epoch, cursor = epoch + 1, 0
-        order = torch.randperm(len(dataset), generator=torch.Generator().manual_seed(contract["seed"] + epoch))
-        indices = order[cursor:min(cursor + contract["batch_size"], len(dataset))].tolist()
-        batch = default_collate([dataset[index] for index in indices])
+        indices = _ordered_indices(contract, epoch, cursor, len(dataset))
+        batch = loader.batch(indices) if loader is not None else \
+            default_collate([dataset[index] for index in indices])
         rate = contract["lr"] * warmup_cosine_factor(update, total_updates=contract["total_updates"],
                                                    warmup_updates=contract["warmup_updates"], minimum_ratio=.1)
         optimizer.param_groups[0]["lr"] = rate
-        metrics = _update(model, optimizer, batch, contract, device, deadline, supervision_mask)
+        metrics = _update(model, optimizer, batch, contract, device, deadline, supervision_mask,
+                          full_state_check=(update % FULL_STATE_CHECK_EVERY == 0
+                                            or update == contract["total_updates"]))
         if ema is not None:
             ema.update()
         cursor += len(indices)
@@ -336,7 +407,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                           deadline=None, checkpoint_every=20, device_name="cpu", batch_size=1, clip=1.,
                           supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP,
                           gradient_lambda=ZERO_GRADIENT_LAMBDA, ema_decay=None,
-                          gradient_surgery="off", sam_rho=None):
+                          gradient_surgery="off", sam_rho=None, num_workers=0, prefetch=4):
     weights = validate_physical_weights(physical_weights)
     if draft_supervision not in DRAFT_SUPERVISION_MODES:
         raise ValueError(f"draft_supervision must be one of {DRAFT_SUPERVISION_MODES}")
@@ -386,7 +457,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
         ema = ParameterEMA(model, ema_decay) if ema_decay is not None else None
         checkpoint, ema_checkpoint, losses = _run_updates(
             dataset, folder, model, optimizer, bound, signature, deadline,
-            (supervision_mask, ema))
+            (supervision_mask, ema), workers=num_workers, prefetch=prefetch)
         if ema is not None and ema_checkpoint is None:
             raise RuntimeError("the EMA checkpoint was not published at the frozen endpoint")
         if deadline is not None:

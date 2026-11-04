@@ -119,7 +119,13 @@ def test_preflight_and_construction_never_read_state_fields(tmp_path, monkeypatc
     assert summary["usable_windows"] == 3 and proxy.state.reads == []
     with pytest.raises(AssertionError, match="state field read forbidden"):
         dataset[0]
-    assert proxy.state.reads == [0]
+    # Decision 0085 reads the whole contiguous window in one call, so the read is one
+    # index *vector* rather than a sequence of scalars. The intent is unchanged: nothing
+    # reads state during metadata discovery, and accessing a sample reads state exactly
+    # once, over exactly the indices the record needs.
+    assert len(proxy.state.reads) == 1
+    # The window is t-6, t, t+6 .. t+66 = fourteen consecutive frames starting at 0.
+    assert list(np.asarray(proxy.state.reads[0]).reshape(-1)) == list(range(14))
 
 
 @pytest.mark.parametrize("steps", [1, 2, 5, 12, 20])
