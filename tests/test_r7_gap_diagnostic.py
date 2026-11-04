@@ -436,7 +436,14 @@ def test_full_tiny_process_same24_cases_once_train_only_climate_no_optimizer_or_
     original_open = zarr.open_group
     result = _run(paths, options)
     assert zarr.open_group is original_open and len(fitting) == 1 and len(restored) == 2
-    assert len(reads) == 340 + 20 * 14 + 4 * 7
+    # Decision 0085 reads a whole window in one call: each of the 20 train cases now costs one
+    # index *vector* instead of 14 scalars. The old total (340 + 20*14 + 4*7) pinned that method,
+    # so its invariant is asserted instead: same indices covered, fewer round trips.
+    windows = [np.asarray(r).reshape(-1) for r in reads if not isinstance(r, int)]
+    scalars = [r for r in reads if isinstance(r, int)]
+    assert len(scalars) == 340 + 4 * 7 and len(windows) == 20
+    assert all(len(w) == 14 and bool((np.diff(w) == 1).all()) for w in windows)
+    assert len(scalars) + sum(map(len, windows)) == 340 + 20 * 14 + 4 * 7
     assert result["n_evaluated"] == len(result["cases"]) == 24 and result["lead_hours"] == list(gap.LEADS)
     assert result["scientific_claim"] is result["test_read"] is result["optimizer_imported"] is False
     assert result["optimizer_updates"] == 0 and result["diagnostic_training_mode"] is False and result["limitations"]
