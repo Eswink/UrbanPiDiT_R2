@@ -304,7 +304,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not args.worker:
         raise RuntimeError("dual-card mode is driven by `r7_round.py stage-seeds`, not by main")
-    return worker(args.out, args.worker, args.seed, args.deadline)
+    # ``sys.exit(value)`` prints a non-None value to stderr and sets a nonzero status, so the
+    # worker's return value must be discarded rather than propagated (a 38 MB protocol body
+    # otherwise lands in the stage log, as it did on this round's first prepare run).
+    worker(args.out, args.worker, args.seed, args.deadline)
 
 
 if __name__ == "__main__":

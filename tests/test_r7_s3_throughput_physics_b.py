@@ -175,6 +175,23 @@ def test_the_driver_is_runnable_as_a_script():
     assert "main" in body, "the __main__ guard does not call main()"
 
 
+def test_main_does_not_propagate_the_worker_result():
+    """``sys.exit(value)`` prints the value and exits nonzero, so main must not return it.
+
+    The first prepare run on this round wrote a 38 MB stage log because ``main`` returned
+    the worker's protocol body into ``sys.exit(...)``. A non-None exit value also sets a
+    nonzero status, so the stage would have failed for the wrong reason.
+    """
+    import ast
+    import pathlib
+    source = pathlib.Path(driver.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    main = next(node for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == "main")
+    returns = [node for node in ast.walk(main) if isinstance(node, ast.Return)]
+    assert returns == [], "main() must not return a value: sys.exit(worker(...)) prints it"
+
+
 def test_the_protocol_module_declares_its_entry_file():
     """The execution inventory is built from a named entry file, never a glob (decision 0067)."""
     assert protocol.ENTRY_FILES == ("scripts/study_r7_s3_throughput_physics_b.py",)
