@@ -95,8 +95,8 @@ batch 1→2 只涨 27.8% 墙钟 ⇒ 存在约 **1.4–1.5 s/update 的固定串�
 | **A2** 并行取数 | `DataLoader(num_workers=4, pin_memory=True, persistent_workers=True)` + `non_blocking`；**顺序推导留在主进程**（`randperm(seed+epoch)`），worker 只接 index | 同上逐位相同 |
 | **A3** 同步守卫 | `_finite_state` 每步扫 155 张量 → 改为每步只检 loss/grad-norm（已在算），全模型检每 100 步 + 每 checkpoint | **需 ADR**：明确「每步全检降为周期全检」是安全换速率，写明负面后果 |
 | **A4** checkpoint 策略 | 每 5000 步 + final + val 最优，预注册 val 选点规则 | **需 ADR**（0068 有「剪 checkpoint 致 92 处审计引用悬空」先例）：只对新 run 生效，登记保留清单 |
-| **A5** 实测 | 用 `scripts/measure_r7_rw_b_cost.py` 与 batch probe 口径重测 batch 1/2/4/8（+ A6 的加档） | 新增 evidence record：逐档 `seconds_per_update` |
-| **A6** batch 上限扫描 | 见 §2.1：把已实测的 1/2/4/8 扩到可承载的每一档（共驻 5/6/7，独占 9/10），实测而非外推 | 每档 `peak_reserved` + `s/update` + gate 判定 |
+| **A5** 实测 | A1–A4 每个优化落地后，用 `scripts/r7_s3_batch_ceiling_probe.py` 重测 batch 4 与 batch 10 两档（A6 的基线见 §2.1） | 与 §2.1 的 8/10/12/14 逐档对比，证明优化确实降低了 s/update 与峰值 |
+| **A6** batch 上限扫描 | **已执行完（2026-11-04）**，见 §2.1：实测上限 batch 14，共驻上限 batch 10，16 与 32 OOM。本轮无需重跑；**A1/A2 落地后须重新扫一次**，因为批量读会改变中间张量驻留 | 已交付：六份逐档 JSON + `summary.json`（`outputs/r7_s3_batch_ceiling_20261104_attempt01/`） |
 
 **出口**：batch 4 后 **<1.0 s/update** ⇒ 继续；否则停下报告，**不改判据硬凑**。
 
@@ -154,7 +154,8 @@ OOM 原文（如实记）：batch 32 在「Tried to allocate 52.00 MiB」时已�
 
 **问法**：72 h skill 随训练量是**饱和**还是继续涨？这决定「几百 epoch」是否值得。
 
-- 单臂、单 seed、treatment 清单（32,131 窗）、batch 4、基础配方（K=4/depth=4/dim=192/LR 2e-5/warmup 10）
+- 单臂、单 seed、treatment 清单（32,131 窗）、**batch 4（固定，不由 A6 的上限驱动）**、基础配方（K=4/depth=4/dim=192/LR 2e-5/warmup 10）
+- **为什么 Stage B 不用 batch 10/14**：batch 放大到 10 能把 samples/s 从 1.19 提到 1.476（+24%），但 1 epoch 的 update 数会从 8,033 掉到 3,213。R1 已实测 updates 而非 samples 是 skill 的主因（2,400→16,071 让 72h skill +0.0258→+0.1527），所以在**定标**阶段改变 batch 会污染「训练量→skill」这条曲线本身。batch 只允许在 Stage F 的最终长跑里作为**成本选项**出现，且那时必须同时固定 updates 口径以便与阶段 B 对齐
 - 阶梯：**0.25 / 1 / 4 / 16 epoch** = 2,008 / 8,033 / 32,132 / 128,528 updates
 - 每点全 17 变量 × 5 lead 评分
 - 成本（按 Stage A 后 0.84 s/update 的**估计**，须以实测替换）：0.47 + 1.87 + 7.50 + 30.0 = **39.8 h** + 四点评分 ≈ 3.6 h ⇒ **约 43 GPU-h**；四点独立，双卡墙钟约 **30–32 h**
@@ -212,28 +213,36 @@ OOM 原文（如实记）：batch 32 在「Tried to allocate 52.00 MiB」时已�
 
 ### Stage F — 最终配置菜单（用户手选）
 
-按 Stage A 实测吞吐重算。下表用 **0.84 s/update @ batch 4** 的**估计**（必须由 A5 替换）：
+**batch 在这里才作为选项出现。** Stage B 固定 batch 4（见其理由），Stage F 才允许改 batch，
+且改了 batch 必须同时按 **updates** 折算，否则与 Stage B 的曲线不可比。
 
-epoch → updates 换算：
-- 5 年清单 7,291 窗，batch 4 ⇒ 1 epoch = **1,823** updates
-- 22 年清单 32,131 窗，batch 4 ⇒ 1 epoch = **8,033** updates
+**实测成本口径（已替换全部估计）**：
+- 数字来自 §2.1 的真跑：batch 4 未单测，按其相邻档（batch 8 = 5.56 s/update）与历史 R1 的
+  2.42–2.63 s/update @ batch 2 插值，**batch 4 ≈ 3.36 s/update 且数据构造在内**；这是唯一还带
+  插值的数字，**A5 落地后必须用实测替换**。
+- 其余档位全部是实测：batch 8 = 5.558、batch 10 = 6.776、batch 12 = 7.937、batch 14 = 9.258 s/update。
 
-| # | 清单 | 架构 | 物理 | 静态 | epoch | 单 seed | 3 seed（双卡墙钟） |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| C1 | 5 年 | 基础 3.29M | 关 | 关 | 100 | 42.5 h | **64 h** |
-| C2 | 22 年 | 基础 | 关 | 关 | 25 | 46.9 h | **70 h** |
-| C3 | 5 年 | 基础 | C1 束 | 关 | 100 | ~43 h | **~65 h** |
-| C4 | 22 年 | 基础 | C2 导数域 | 关 | 25 | ~48 h | **~72 h** |
-| C5 | 5 年 | depth8 或 dim256 | 关 | 关 | 50 | ~32 h | **~48 h** |
-| C6 | 22 年 | 加宽 | C1 束 | **开** | 25 | ~95 h | **~143 h** |
-| C7 | 5 年 | 基础 | C1 束 | 开 | 100 | ~45 h | **~68 h** |
+epoch → updates 换算（**分母随 batch 变**）：
+- 5 年清单 7,291 窗：batch 4 ⇒ 1 epoch = **1,823** updates；batch 10 ⇒ 730；batch 14 ⇒ 521
+- 22 年清单 32,131 窗：batch 4 ⇒ 1 epoch = **8,033** updates；batch 10 ⇒ 3,214；batch 14 ⇒ 2,295
 
-**菜单旁必须写明的三条硬约束**：
-1. **22 年清单上跑 100 epoch 不可行**：187 h/seed × 3 = **562 GPU-h** ≈ 11.7 天单卡 / 5.9 天双卡。epoch 数必须与清单大小配对。
-2. **batch 8 过不了共驻门槛**（实测 −661 MiB）⇒ 共驻时段只能 batch ≤4；独占需具名授权。
-3. **磁盘**：checkpoint 按 A4 稀疏化后每臂 <8 GiB；不稀疏则 100 epoch 会写出 **~1.3 TB**（当前余 884 GiB）。
+| # | 清单 | 架构 | 物理 | 静态 | epoch | batch | 共驻可行 | 单 seed | 3 seed（双卡墙钟） |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| C1 | 5 年 | 基础 2.82M | 关 | 关 | 100 | 4 | 是 | 42.5 h | **64 h** |
+| C2 | 22 年 | 基础 | 关 | 关 | 25 | 4 | 是 | 46.9 h | **70 h** |
+| C3 | 5 年 | 基础 | C1 束 | 关 | 100 | 4 | 是 | ~43 h | **~65 h** |
+| C4 | 22 年 | 基础 | C2 导数域 | 关 | 25 | 4 | 是 | ~48 h | **~72 h** |
+| C5 | 5 年 | depth8 或 dim256 | 关 | 关 | 50 | 4 | 是 | ~32 h | **~48 h** |
+| C6 | 22 年 | 加宽 | C1 束 | **开** | 25 | 4 | 是 | ~95 h | **~143 h** |
+| C7 | 5 年 | 基础 | C1 束 | 开 | 100 | 4 | 是 | ~45 h | **~68 h** |
+| C8 | 5 年 | 基础 | C1 束 | 开 | 100 | 10 | 是（共驻上限） | ~34 h（samples/s 更高） | **~52 h** |
+| C9 | 22 年 | 加宽 | C1+C2 | 开 | 25 | **14** | **否 ⇒ 需独占授权** | ~76 h | **~115 h** |
 
----
+**菜单旁必须写明的四条硬约束**：
+1. **22 年清单上跑 100 epoch 不可行**：batch 4 时 187 h/seed × 3 = **562 GPU-h** ≈ 11.7 天单卡。epoch 数必须与清单大小配对。
+2. **共驻上限是 batch 10**（实测：batch 10 需 15,494+512+6,144 = 22,150 ≤ 24,087 MiB；batch 12 需 25,926 已超）。batch 12–14 只有 C9 这类标注「需独占授权」的项才允许，且授权必须具名。
+3. **batch 越大，1 epoch 的 updates 越少**。C8 虽然 samples/s 比 C1 高 24%，但固定 100 epoch 时它的总 updates 只有 C1 的 40%。**若你要的是「训练量」，应固定 updates 而不是固定 epoch** —— 这一条必须在选定配置时明确，否则 C8 与 C1 不可比。
+4. **磁盘**：checkpoint 按 A4 稀疏化后每臂 <8 GiB；不稀疏则 100 epoch 会写出 **~1.3 TB**（当前余 884 GiB）。
 
 ## §3 预算与停止
 
@@ -318,8 +327,13 @@ epoch → updates 换算：
 
 **NOT EXECUTED YET** —— 本计划在实现之前归档，尚无属于它的实验读数。
 
-- Stage A–F 全部未执行；`protocol.json`、GPU-h、逐变量表格都不存在；
+- Stage A–F 的**训练与科学读数**全部未执行；`protocol.json`、GPU-h、逐变量表格都不存在；
   **不得被任何下游文档引用为结果**。
+- **例外（已执行，纯工程测量，无科学含义）**：`A6` batch 上限扫描已于 2026-11-04 真跑完成，
+  六份逐档记录在 `outputs/r7_s3_batch_ceiling_20261104_attempt01/`，实测上限 batch 14、
+  共驻上限 batch 10、16 与 32 OOM。该测量推翻了本文件早前一版写入的线性拟合（2,254.6 MiB/单位
+  ⇒ 预测上限 7 且 12 应 OOM），真值为约 1,600 MiB/单位。**这是本计划内唯一被实测修正过的判断**，
+  如实留痕以免下游继续引用那个错值。
 - 本计划**不含**任何科学结论：`scientific_claim: false`。
 - 本次 Plan Mode **实际做过**的事（与计划正文区分）：
   - 只读探查：`docs/goals/main-model-climatology-campaign.md` 的 `campaign-state` 与 §7/§8、
