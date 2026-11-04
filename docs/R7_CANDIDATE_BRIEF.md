@@ -709,7 +709,7 @@ Records: 100; human-review candidates: 2
 
 - Outcome class: `engineering-positive`; candidate state: `not-candidate`
 - Human triage priority: `99` (not a scientific score)
-- Evidence: `docs/R7_S3_THROUGHPUT_PHYSICS_B_P0025_RESULT.md` (SHA256 `d5793ff8dbcafc5a30f8bd05b2d1c9f3d435ae04dac4edb579ce3989cd1d416e`)
+- Evidence: `docs/R7_S3_THROUGHPUT_PHYSICS_B_P0025_RESULT.md` (SHA256 `5a718d9d16256ecd38ce620ed5e5b6599e22904e2abec8cadd8dd15a8c41fdf6`)
 - Evidence commit: `36d4d27bc0bf9586761bc004323b0af999e94bc8`; experiment commit: `36d4d27bc0bf9586761bc004323b0af999e94bc8`
 - Protocol SHA256: `537e5e0c00aec86addd14fa6529dbd8cb6e83e41e359d97062562c811e9716ff`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
 - Reason: Stage B point 1 of the S3 throughput/physics campaign: one arm, one seed, batch 4, exactly 2,008 updates (0.25 epoch) from the pinned migrated parent, scored on all 17 variables at all five leads over the full 65x65 grid. The predeclared ENGINEERING exit (a)-(d) is all true, so the point is usable as one ordinate of the learning curve. It is explicitly NOT a saturation verdict: that rule is a first difference between the 16-epoch and 4-epoch points, so saturation_verdict is null and the rule is recorded verbatim in the protocol. No training-code identity comparison with earlier arms is possible.

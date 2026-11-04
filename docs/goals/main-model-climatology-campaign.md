@@ -420,6 +420,8 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   该断言把读法写成了数字。`157f531` 只改该测试（改断不变式，不删不放宽；R-051 恰在 600 行上限），
   `R7 CPU CI` run **`41837758372` = completed/success**，第 5–9 步全 success；
   干净 worktree 整包 `pytest -q` ⇒ **5,438 passed / 27 skipped / 0 failed**。
+  本块的登记提交 `99d0045` 另有一次 `R7 CPU CI` run **`41842156903` = completed/success**
+  （`pytest` job 全部步骤 success）——**红→绿→登记绿都已实测确认，不是「未能确认」**。
   **下一动作（S3）**：跑 Stage B 第二点（1 epoch = 8,033 updates）。**必须先按本点的实测
   1.3867 GPU-h / 1.174 s/update 重算预算**，不得沿用原估；四点全部跑完后才按 §3 的规则求
   `Δ = skill_72h(16e) − skill_72h(4e)` 判定饱和。恢复第一条命令＝

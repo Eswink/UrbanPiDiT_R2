@@ -153,6 +153,7 @@
 | --- | --- | --- |
 | `6254c94`（登记本点读数） | run **`41824751122`** | **failure**，job `pytest` 第 9 步「Run unit, integration and installed-wheel tests」 |
 | `157f531`（修该红） | run **`41837758372`** | **completed / success**，job `pytest` 第 5/6/7/8/9 步全 success |
+| `99d0045`（登记本页 §7） | run **`41842156903`** | **completed / success**，`pytest` job 全部步骤 success |
 
 **红的真因**（在干净 worktree 上复现后定位，非猜测）：`tests/test_r7_gap_diagnostic.py` 的
 `test_full_tiny_process_same24_cases_once_train_only_climate_no_optimizer_or_test` 断言
