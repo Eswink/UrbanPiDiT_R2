@@ -131,6 +131,8 @@
   决策 **0084**（方向扩围）/ **0085**（读法 + worker）/ **0086**（同步守卫）/ **0087**（checkpoint）。
   测试：`tests/test_r7_stage_a_read_path.py` 7 项新增，相关套件 **156 passed**；
   `check_conventions.py` 37 条阻断 **0 失败**；`verify_r7_evidence_index.py` 99 条 **PASS**。
+  **CI 状态未确认（如实登记）**：`r7_ci_wait.py` 因匿名 API 配额耗尽（403 rate limit）返回异常载荷；
+  降级证据是**干净检出（无 `outputs/`）上 431 passed**，非等价。不得读成绿、也不得读成红。
 
   **未做（如实登记）**：未重扫 batch 14/16/32；未在 batch 8/14 上单独测 A3 的相对贡献；
   未测 `persistent_workers` 的启动摊销对短 run 的影响；**Stage B 未启动**。

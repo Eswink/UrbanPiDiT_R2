@@ -207,3 +207,24 @@ git worktree add --detach /tmp/headwt HEAD
 - 未重扫 batch 14/16/32（旧口径已测，本轮未重跑）。
 - 未在 batch 8/14 上单独测 A3 的相对贡献（只在 batch 4 上测）。
 - 未测 `persistent_workers` 启动摊销对短 run（<100 updates）的影响。
+
+---
+
+## §8 CI 状态（未能确认，如实登记）
+
+`81c83fe` 与 `95c1872` 已推送到 `r7/weather-reasoning`（`git ls-remote` 与本地 HEAD 一致）。
+**CI 转绿未能确认**：`tools/r7_ci_wait.py` 返回
+`CiWaitError: unexpected Actions payload keys: ['documentation_url', 'message']`，
+直查 API 得 **403 `API rate limit exceeded`**（匿名配额 60 次/小时，AGENTS.md 已记该限制；
+本会话的大量 API 等待把它耗尽了）。**不得**把它读成 CI 红，也**不得**写成 CI 绿。
+
+本机替代证据（非等价，只作降级）：
+- **干净检出上实跑**：`git worktree add --detach /tmp/cleanwt2 95c1872`（**无 `outputs/`**，
+  与 CI 的裸检出同形），`tests/test_r7_stage_a_read_path.py`、`test_check_conventions.py`、
+  `test_r7_long_rollout.py`、`test_r7_long_rollout_runner.py`、`test_agent_hooks.py`
+  ⇒ **431 passed**。
+- `check_conventions.py`：37 条阻断 **0 失败**（与 CI 的同一步骤同脚本）。
+- `r7_round.py verify`：**passed**；证据索引 + brief：**99 records PASS**。
+
+**未做**：未在 CI 上观察到 `completed/success`；配额恢复后应重跑
+`.venv/bin/python tools/r7_ci_wait.py --ref 95c1872` 并在此处补记 run-id 与结论。
