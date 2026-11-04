@@ -414,6 +414,12 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   **整体作废、不登记任何读数**，产物保留不删；每一条都配了会失败的反证测试（22 项）。
   **登记**：`docs/R7_S3_THROUGHPUT_PHYSICS_B_P0025_RESULT.md`、`record:s3-throughput-physics-b-p0025`、
   §7 账本行（累计 **404.421295**）、本块、`campaign-state`；决策 **0088**。
+  **CI 如实（先红后绿，均已实测）**：`6254c94` 的 `R7 CPU CI` run **`41824751122` = failure**，
+  job `pytest` 第 9 步；真因是 `tests/test_r7_gap_diagnostic.py` 断言 `len(reads) == 340+20*14+4*7`，
+  而决策 0085 把 train 窗改成一次 14 帧 span 读 ⇒ 往返 648→**388**、索引覆盖不变，
+  该断言把读法写成了数字。`157f531` 只改该测试（改断不变式，不删不放宽；R-051 恰在 600 行上限），
+  `R7 CPU CI` run **`41837758372` = completed/success**，第 5–9 步全 success；
+  干净 worktree 整包 `pytest -q` ⇒ **5,438 passed / 27 skipped / 0 failed**。
   **下一动作（S3）**：跑 Stage B 第二点（1 epoch = 8,033 updates）。**必须先按本点的实测
   1.3867 GPU-h / 1.174 s/update 重算预算**，不得沿用原估；四点全部跑完后才按 §3 的规则求
   `Δ = skill_72h(16e) − skill_72h(4e)` 判定饱和。恢复第一条命令＝

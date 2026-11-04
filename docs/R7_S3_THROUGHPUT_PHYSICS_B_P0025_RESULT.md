@@ -142,3 +142,35 @@
 - **未给 16 个非 t2m 变量编 skill 分母**。
 - **未做多种子**（n=1 是决策 0088 的明确选择，不是遗漏）。
 - 本页不含任何科学结论；`scientific_claim: false`。
+
+---
+
+## §7 CI 状态（一次红、已定位并修好，绿已确认）
+
+**这一次不是「未能确认」，而是实测红过一次。** 如实登记：
+
+| 提交 | `R7 CPU CI` | 结论 |
+| --- | --- | --- |
+| `6254c94`（登记本点读数） | run **`41824751122`** | **failure**，job `pytest` 第 9 步「Run unit, integration and installed-wheel tests」 |
+| `157f531`（修该红） | run **`41837758372`** | **completed / success**，job `pytest` 第 5/6/7/8/9 步全 success |
+
+**红的真因**（在干净 worktree 上复现后定位，非猜测）：`tests/test_r7_gap_diagnostic.py` 的
+`test_full_tiny_process_same24_cases_once_train_only_climate_no_optimizer_or_test` 断言
+`len(reads) == 340 + 20*14 + 4*7`（648）。决策 0085 把每个 train 窗从 14 次标量读改成
+**一次 14 帧 span 读**，于是同一个 fixture 的往返次数变成 **388**，而**覆盖的索引完全没变**。
+这条断言把**读法**写成了数字，而不是它所代表的不变式——与 Stage A 曾修的
+`test_preflight_and_construction_never_read_state_fields` 是同一类缺陷。
+
+**修法**（只改测试，未改任何被测代码）：改断不变式——
+`340 + 4*7` 次标量读（气候态步 + 4 个验证窗各 7 帧）、**20** 次连续 14 帧 span、
+`len(scalars) + sum(len(windows)) == 648`（索引覆盖与旧断言逐字相同）。
+既没有删断言、也没有放宽上限：`R-051` 恰好落在 600 行硬上限（本文件改前 593 行）。
+
+**降级证据（与 CI 同形，非等价）**：干净 worktree `/tmp/cleanwt4`（**无 `outputs/`**、
+无本机的 `.venv` 符号链接）上跑**整包** `pytest -q` ⇒ **5,438 passed, 27 skipped, 0 failed**
+（与 CI 同一命令；红的那版是 5,434 passed + 4 failed，总数同为 5,438）。
+
+**另有一类只在本地出现的假红**：`tests/test_build_round_code_archive.py` 的 3 项在
+`/tmp/cleanwt3` 上失败，原因是该 worktree 里我建的 `.venv` 符号链接让 `git status` 变脏，
+而归档器拒绝归档脏树。CI 的裸检出没有这个文件，故与 CI 无关；移走符号链接后 67 项全过。
+**这一条不得读成「CI 也红」**，也不得读成代码缺陷。

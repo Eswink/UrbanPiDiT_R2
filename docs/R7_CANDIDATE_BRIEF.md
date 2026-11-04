@@ -709,7 +709,7 @@ Records: 100; human-review candidates: 2
 
 - Outcome class: `engineering-positive`; candidate state: `not-candidate`
 - Human triage priority: `99` (not a scientific score)
-- Evidence: `docs/R7_S3_THROUGHPUT_PHYSICS_B_P0025_RESULT.md` (SHA256 `16a05b0c770d21a9d09cd3e81ee9f81528dd1a37ce7faf3864689d170b37b340`)
+- Evidence: `docs/R7_S3_THROUGHPUT_PHYSICS_B_P0025_RESULT.md` (SHA256 `d5793ff8dbcafc5a30f8bd05b2d1c9f3d435ae04dac4edb579ce3989cd1d416e`)
 - Evidence commit: `36d4d27bc0bf9586761bc004323b0af999e94bc8`; experiment commit: `36d4d27bc0bf9586761bc004323b0af999e94bc8`
 - Protocol SHA256: `537e5e0c00aec86addd14fa6529dbd8cb6e83e41e359d97062562c811e9716ff`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
 - Reason: Stage B point 1 of the S3 throughput/physics campaign: one arm, one seed, batch 4, exactly 2,008 updates (0.25 epoch) from the pinned migrated parent, scored on all 17 variables at all five leads over the full 65x65 grid. The predeclared ENGINEERING exit (a)-(d) is all true, so the point is usable as one ordinate of the learning curve. It is explicitly NOT a saturation verdict: that rule is a first difference between the 16-epoch and 4-epoch points, so saturation_verdict is null and the rule is recorded verbatim in the protocol. No training-code identity comparison with earlier arms is possible.
@@ -722,6 +722,7 @@ Records: 100; human-review candidates: 2
   - development calibration on the 65x65 multi-year instance only; the test split stays sealed (r=0)
   - the stage-budget estimate of about 12 GPU-h was wrong by 8.7x: measured 1.3867 GPU-h. The estimate is recorded as an estimate and the measurement replaces it
   - attempt01 of this point was voided after three defects (checkpoint cadence not passed to the runner, a climatology lookup reading the wrong block, and an offline denial that killed AF_UNIX worker IPC); its artefacts are retained but contribute no reading
+- CI run: `41837758372`
 - Excluded from runnable candidates: not a candidate: this point is one ordinate of a calibration curve (n=1 seed, no control arm, no predeclared scientific exit). The saturation question it exists to answer requires the other three points, so nothing here can be promoted to candidate state.
 - Recorded metrics (not recomputed): batch_size=4, checkpoints_retained=1, climatology_denominator_t2m={"12": 3.9196037113045894, "24": 3.921682294513083, "48": 3.9253820690090073, "6": 3.9188406572176904, "72": 3.926891361747067}, curve_point=p0025, epochs=0.2499769801734459, eval_seconds=2633.8, exit_conditions={"a": true, "all": true, "b": true, "c": true, "d": true}, gpu_hours=1.3867, leads=5, parent_state_digest=7c416ccb4054cf7e077788a43b02917e6a2dcf2503058152a7f0ab4b0ab70707, peak_reserved_bytes=9372172288, saturation_verdict=null, scored_variables=17, seconds_per_update=1.174, seed=41, soft_overrun_seconds=0.0, t2m_rmse={"12": 2.8581362086156092, "24": 2.6109014935864434, "48": 3.332818231952145, "6": 2.286244980456242, "72": 3.7293432368905592}, t2m_skill={"12": 0.46828180311882284, "24": 0.5567628451556292, "48": 0.27912595649348015, "6": 0.6596464226446677, "72": 0.09808223891915513}, torch_threads=28, train_seconds=2358.3, updates=2008
 
