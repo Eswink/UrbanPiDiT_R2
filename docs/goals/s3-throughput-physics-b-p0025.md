@@ -133,17 +133,29 @@
 
 ---
 
-## §8 下一动作
+
+- **2026-11-04 `attempt02` 跑完并登记：工程出口 (a)–(d) 全真。**
+  状态 `measured`；GPU-h **1.3867**（账本累计 403.034595 → **404.421295**）。
+  **读数**：t2m 6/12/24/48/72 h RMSE `2.286245/2.858136/2.610901/3.332818/3.729343 K`、
+  skill `+0.659646/+0.468282/+0.556763/+0.279126/+0.098082`；17 变量 × 5 lead 全有限。
+  `saturation_verdict: null`（一个点不可判定饱和）。checkpoint **1 个**、峰值 8.729 GiB、线程 28。
+  `exit_conditions {"a":true,"b":true,"c":true,"d":true,"all":true}`。
+  **为何停**：本点的预声明出口已满足，且**本点不能判定饱和**——那是一阶差分，需要第二点。
+  按决策 0088 §Decision 1，另三个点是**各自独立**的 attempt；不在本轮内自动续跑。
+  **恢复第一条命令**：
+  ```
+  .venv/bin/python tools/r7_round.py state
+  ```
+  随后**下一动作（S3）**：按实测 1.3867 GPU-h / 1.174 s/update 重算第二点（8,033 updates）预算，再立新 brief + ADR。
+
+## §8 下一动作（S3）
+
+本点已跑完并登记，工程出口 (a)–(d) 全真。阶段内要继续的是**第二点**：
 
 ```
 .venv/bin/python tools/r7_round.py state
 ```
 
-确认 `campaign_state.current_round_goal` 指向**本文件**，然后：
-
-```
-.venv/bin/python tools/r7_round.py freeze
-```
-
-冻结之后按 `prepare → archive → seed 41 → reading` 顺序跑；该顺序由
-`tools/r7_round.py stage` 逐阶段驱动，任何一步失败即停。
+然后按**本点实测**的 `1.3867 GPU-h / 1.174 s/update` 重算第二点（1 epoch = 8,033 updates）
+预算，另立新 brief + ADR（第三、四点同理），四点跑完后才按 §4 的规则求饱和判定。
+**不在本文件内自动续跑**：决策 0088 §Decision 1 把四个点定为各自独立的 attempt。
