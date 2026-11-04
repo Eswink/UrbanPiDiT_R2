@@ -192,6 +192,42 @@ def test_main_does_not_propagate_the_worker_result():
     assert returns == [], "main() must not return a value: sys.exit(worker(...)) prints it"
 
 
+def test_offline_denial_blocks_outbound_but_not_local_ipc():
+    """R-028 denies outbound connections; it must not deny AF_UNIX worker IPC.
+
+    Measured defect: the blanket denial killed ``multiprocessing``'s resource sharer, which
+    the pin-memory thread uses over an ``AF_UNIX`` socket, and the first Stage B seed died
+    with ``Pin memory thread exited unexpectedly``. A local socket cannot leave the host, so
+    permitting it while denying IP keeps the rule's intent and lets a pinned loader run.
+    """
+    import socket
+
+    from scripts import r7_m3_offline
+
+    r7_m3_offline.deny_network()
+    try:
+        with pytest.raises(RuntimeError, match="offline"):
+            socket.create_connection(("198.51.100.7", 80))
+        with pytest.raises(RuntimeError, match="offline"):
+            socket.getaddrinfo("example.invalid", 80)
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        with pytest.raises(RuntimeError, match="offline"):
+            probe.connect(("198.51.100.7", 80))
+        probe.close()
+        # A local AF_UNIX pair must still be able to connect.
+        import tempfile
+        path = str(pytest.importorskip("pathlib").Path(tempfile.mkdtemp()) / "s.sock")
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.bind(path)
+        server.listen(1)
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client.connect(path)
+        client.close()
+        server.close()
+    finally:
+        r7_m3_offline.allow_network()
+
+
 def test_the_protocol_module_declares_its_entry_file():
     """The execution inventory is built from a named entry file, never a glob (decision 0067)."""
     assert protocol.ENTRY_FILES == ("scripts/study_r7_s3_throughput_physics_b.py",)
