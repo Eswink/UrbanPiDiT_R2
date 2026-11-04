@@ -151,6 +151,38 @@ def test_the_point_is_a_single_seed_and_a_single_arm():
                for item in constants["limitations"])
 
 
+def test_the_driver_is_runnable_as_a_script():
+    """A driver without a ``__main__`` guard exits 0 having done nothing.
+
+    This round shipped that defect: ``stage prepare`` reported success in 0.06 s and wrote
+    no ``prepared_protocol.json``, because importing the module defined ``main`` but never
+    called it. The wrapper creates one worker process per stage, so the guard is what makes
+    the stage happen at all -- a test that the module body calls ``main()`` under ``__main__``
+    is the only cheap way to catch it without a GPU.
+    """
+    import ast
+    import pathlib
+    source = pathlib.Path(driver.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    guards = [
+        node for node in tree.body
+        if isinstance(node, ast.If)
+        and isinstance(node.test, ast.Compare)
+        and getattr(node.test.left, "id", None) == "__name__"
+    ]
+    assert guards, "the driver has no `if __name__ == '__main__'` guard"
+    body = ast.dump(guards[0])
+    assert "main" in body, "the __main__ guard does not call main()"
+
+
+def test_the_protocol_module_declares_its_entry_file():
+    """The execution inventory is built from a named entry file, never a glob (decision 0067)."""
+    assert protocol.ENTRY_FILES == ("scripts/study_r7_s3_throughput_physics_b.py",)
+    import pathlib
+    assert (pathlib.Path(driver.__file__).resolve().parents[1]
+            / protocol.ENTRY_FILES[0]).is_file()
+
+
 def test_reading_without_a_finite_loss_is_refused():
     """A nonfinite training loss must stop the point before it is scored."""
     losses = [1.0, float("inf"), 0.9]

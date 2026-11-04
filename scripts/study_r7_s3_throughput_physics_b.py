@@ -305,3 +305,7 @@ def main(argv=None):
     if not args.worker:
         raise RuntimeError("dual-card mode is driven by `r7_round.py stage-seeds`, not by main")
     return worker(args.out, args.worker, args.seed, args.deadline)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
