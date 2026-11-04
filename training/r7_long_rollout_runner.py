@@ -330,13 +330,32 @@ class _BatchLoader:
         return next(self.batches)
 
 
-def _run_updates(dataset, folder, model, optimizer, contract, signature, deadline, runtime=None,
-                 workers=0, prefetch=4):
-    supervision_mask, ema = runtime if runtime is not None else (None, None)
+def _runtime_options(runtime):
+    """Unpack ``runtime``: the registered pair, optionally followed by the loader knobs."""
+    if runtime is None:
+        return (None, None, 0, 4)
+    values = tuple(runtime)
+    if len(values) == 2:
+        return (*values, 0, 4)
+    if len(values) == 4:
+        return values
+    raise ValueError("runtime must be (mask, ema) or (mask, ema, workers, prefetch_factor)")
+
+
+def _run_updates(dataset, folder, model, optimizer, contract, signature, deadline, runtime=None):
+    """One frozen run's updates.
+
+    ``runtime`` is the optional per-run bundle: ``(supervision_mask, ema)`` as before, or
+    that pair plus ``workers`` and ``prefetch_factor``. It stays one argument so the update
+    loop keeps its registered call shape -- ``_run_updates`` already sat at the R-023
+    argument ceiling before decision 0085, and widening it would move a size-report entry
+    instead of a behaviour.
+    """
+    supervision_mask, ema, workers, prefetch_factor = _runtime_options(runtime)
     epoch, cursor, losses, checkpoint, ema_checkpoint = 0, 0, [], None, None
     device = next(model.parameters()).device
     progress, started = Path(folder) / PROGRESS_FILE, time.perf_counter()
-    loader = (_BatchLoader(dataset, contract, workers, prefetch,
+    loader = (_BatchLoader(dataset, contract, workers, prefetch_factor,
                            pin_memory=device.type == "cuda")
               if workers > 0 else None)
     for update in range(1, contract["total_updates"] + 1):
@@ -407,7 +426,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
                           deadline=None, checkpoint_every=20, device_name="cpu", batch_size=1, clip=1.,
                           supervision_mask=None, draft_supervision=DRAFT_SUPERVISION_DEEP,
                           gradient_lambda=ZERO_GRADIENT_LAMBDA, ema_decay=None,
-                          gradient_surgery="off", sam_rho=None, num_workers=0, prefetch=4):
+                          gradient_surgery="off", sam_rho=None, loader=(0, 4)):
     weights = validate_physical_weights(physical_weights)
     if draft_supervision not in DRAFT_SUPERVISION_MODES:
         raise ValueError(f"draft_supervision must be one of {DRAFT_SUPERVISION_MODES}")
@@ -457,7 +476,7 @@ def fine_tune_long_rollout(manifest, output, *, model, contract, physical_weight
         ema = ParameterEMA(model, ema_decay) if ema_decay is not None else None
         checkpoint, ema_checkpoint, losses = _run_updates(
             dataset, folder, model, optimizer, bound, signature, deadline,
-            (supervision_mask, ema), workers=num_workers, prefetch=prefetch)
+            (supervision_mask, ema, *loader))
         if ema is not None and ema_checkpoint is None:
             raise RuntimeError("the EMA checkpoint was not published at the frozen endpoint")
         if deadline is not None:
