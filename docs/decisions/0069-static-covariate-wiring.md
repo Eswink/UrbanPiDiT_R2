@@ -1,7 +1,8 @@
 # 0069 — 静态协变量接入模型：`static_identity` 绑进 `protocol_sha256`，并预声明本轮出口
 
 - **日期**：2026-10-29
-- **状态**：proposed
+- **状态**：accepted
+- **状态变更**：2026-11-05 由 `proposed` 改为 `accepted`，依据见文末「状态更正」
 - **范围**：`docs/goals/s3-urban-static-covariates.md` 之后的**模型侧接线轮**。
   **不改**已发布的静态数据产物、**不重建** store、**不**把静态量做成 state 通道、
   **不改**任何已冻结判据、**不动** `data/raw|interim|processed`。
@@ -139,3 +140,27 @@ outputs/r7_urban_static_covariates_attempt01/published/manifest/manifest.json
 - on 路径的具体注入位置（encoder 前的额外通道 / FiLM 式调制 / 输出偏置）——
   三者在参数增量与语义上不同，必须选定一个并写明**为何**选它。
 - 是否需要 parameter-matched 的 off 控制臂（取决于选定的注入方式是否加参数）。
+
+## 状态更正（2026-11-05，S3 Stage D 前置核对）
+
+**本 ADR 原为 `proposed`，而它预声明的四个出口早已全真、其证据也已登记**——这正是目标长文
+`docs/goals/s3-throughput-and-physics-campaign.md` Stage D 点名要修的漂移。核对如下：
+
+| 事实 | 凭证 |
+| --- | --- |
+| W1–W4 全真 | `outputs/r7_s3_static_covariates_wiring_20261029_attempt02/` 的 receipt：`w1.passed/w2.passed/w4.passed` 均为 `true`，`w2.differences == []` |
+| 证据页存在 | `docs/R7_STATIC_COVARIATES_WIRING.md`，四个出口逐条记录 |
+| 证据已登记 | 索引 `record:s3-urban-static-covariates-wiring`，`outcome_class: engineering-positive`、`candidate_state: not-candidate` |
+| 身份绑定成立 | W1 实测：`static_identity` 改 1 字符 ⇒ `protocol_sha256 48c09621… → a52465be…`，而两臂 `data_identity` 同为 `81307008…` |
+| 无副作用成立 | W2 实测：改动前后模型参数摘要逐项相等，`differences == []` |
+| 参数量未变 | 两臂均 `3,286,037`，`parameter_delta = 0` |
+| 测试现状 | `tests/test_r7_static_covariates_wiring.py` **35 项全过**（2026-11-05 实跑） |
+
+因此「接线是否已按本 ADR 的形态完成」这个问题的答案是**是**，状态由 `proposed` 改为
+`accepted`。**这不是对科学结论的判定**：本 ADR 第 3 条明确写了「本轮不设科学判据、不得宣称
+静态协变量改善天气」，那条限制**完全不变**。改的只是「这份 ADR 是否已经执行过」这个
+行政状态，而它此前与实际事实不符。
+
+**未随状态更正而改变的事项**：`static_conditioning` 仍是**默认 off**；on/off 谁更好的问题
+仍然没有被本 ADR 授权比较；`model_code_sha256` 仍是 `59340710…`（后续 0080/0083 修订后的值），
+本轮的 `a38be16c…` 是历史值，引用时必须连修订一起读。
