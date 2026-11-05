@@ -1,0 +1,176 @@
+"""CPU counterproofs for Stage C1's physical constraints; no GPU, no data, no claim.
+
+The property that matters most is the one decision 0092 rests on: **each term returns exactly
+zero on a field that already satisfies its constraint**. If that fails, these are not
+constraints but smoothing priors in disguise -- the closed spatial-gradient loss's failure
+mode -- so it is asserted with exact equality rather than a tolerance.
+
+The second property is the family argument's other half: the optimum is *not* a constant
+field. A constant non-divergent wind field, a constant non-negative humidity and a dew point
+below T all score zero, which a ``‖∇pred‖²`` penalty would not.
+"""
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+import numpy as np
+import pytest
+import torch
+
+from training import r7_physical_constraints as constraints
+
+
+def _grid(h=5, w=6):
+    lat = torch.linspace(50.0, 46.0, h, dtype=torch.float64)
+    lon = torch.linspace(10.0, 15.0, w, dtype=torch.float64)
+    return lat, lon
+
+
+def test_the_weights_are_the_declared_ones():
+    """w_div and w_dew are quoted from legacy; w_q is this round's choice and must say so."""
+    assert constraints.W_DIVERGENCE == 0.1
+    assert constraints.W_DEW_POINT == 0.5
+    assert constraints.W_HUMIDITY == 0.5
+    source = Path(constraints.__file__).read_text(encoding="utf-8")
+    assert "legacy" in source and "physical_consistency.py:68-70" in source
+    assert "this round's choice" in source.lower() or "This round's choice" in source
+
+
+def test_a_nondivergent_field_scores_exactly_zero():
+    """A constant wind field has zero divergence, so the term must be exactly 0.0, not ~0."""
+    lat, lon = _grid()
+    u = torch.full((5, 6), 7.0, dtype=torch.float64)
+    v = torch.full((5, 6), -3.0, dtype=torch.float64)
+    value = constraints.divergence_penalty(u, v, lat, lon)
+    assert float(value) == 0.0
+
+
+def test_a_divergent_field_scores_positive():
+    """The term must actually see divergence, or it is inert."""
+    lat, lon = _grid()
+    # A u that varies strongly in longitude is divergent by construction.
+    u = torch.linspace(-40.0, 40.0, 6, dtype=torch.float64).repeat(5, 1)
+    v = torch.zeros((5, 6), dtype=torch.float64)
+    value = constraints.divergence_penalty(u, v, lat, lon)
+    assert float(value) > 0.0
+
+
+def test_the_tolerance_suppresses_small_divergence_only():
+    """Below the frozen tolerance the term is silent; above it, it charges."""
+    lat, lon = _grid()
+    u = torch.linspace(-1e-6, 1e-6, 6, dtype=torch.float64).repeat(5, 1)
+    v = torch.zeros((5, 6), dtype=torch.float64)
+    assert float(constraints.divergence_penalty(u, v, lat, lon)) == 0.0
+    assert constraints.DIVERGENCE_TOLERANCE == 1e-5
+
+
+def test_nonnegative_humidity_scores_exactly_zero():
+    q = torch.tensor([0.0, 1e-6, 0.005, 0.02], dtype=torch.float64)
+    assert float(constraints.humidity_nonnegative(q)) == 0.0
+
+
+def test_negative_humidity_is_charged():
+    q = torch.tensor([0.01, -0.002], dtype=torch.float64)
+    value = float(constraints.humidity_nonnegative(q))
+    assert value > 0.0
+    # Quadratic: the charge is the squared violation.
+    assert value == pytest.approx((0.002 ** 2 + 0.0) / 2, rel=1e-12)
+
+
+def test_dew_point_below_temperature_scores_exactly_zero():
+    t = torch.tensor([280.0, 290.0], dtype=torch.float64)
+    td = torch.tensor([275.0, 290.0], dtype=torch.float64)
+    assert float(constraints.dew_point_le_temperature(td, t)) == 0.0
+
+
+def test_dew_point_above_temperature_is_charged():
+    t = torch.tensor([280.0], dtype=torch.float64)
+    td = torch.tensor([282.0], dtype=torch.float64)
+    assert float(constraints.dew_point_le_temperature(td, t)) == pytest.approx(4.0, rel=1e-12)
+
+
+def test_the_three_terms_together_are_zero_on_a_satisfying_field():
+    """The family argument's core: a physically admissible field costs nothing.
+
+    A constant wind field, small non-negative humidity and a dew point below T. A gradient
+    penalty would still charge this field for its structure; these constraints do not.
+    """
+    lat, lon = _grid()
+    channels = torch.zeros((8, 5, 6), dtype=torch.float64)
+    names = ("mslp", "t850", "q850", "u850", "v850", "t500", "u500", "v500")
+    index = {name: i for i, name in enumerate(names)}
+    channels[index["t850"]] = 285.0
+    channels[index["q850"]] = 0.004
+    channels[index["u850"]] = 5.0
+    channels[index["v850"]] = -2.0
+    body = constraints.physical_constraint_terms(channels, lat, lon)
+    assert float(body["divergence"]) == 0.0
+    assert float(body["humidity"]) == 0.0
+    assert float(body["dew_point"]) == 0.0
+    assert float(body["total"]) == 0.0
+
+
+def test_the_optimum_is_not_a_constant_field():
+    """A structured but admissible field also costs zero, so the optimum set is not degenerate."""
+    lat, lon = _grid()
+    channels = torch.zeros((8, 5, 6), dtype=torch.float64)
+    names = ("mslp", "t850", "q850", "u850", "v850", "t500", "u500", "v500")
+    index = {name: i for i, name in enumerate(names)}
+    # A spatially varying temperature and humidity: not constant, still admissible.
+    channels[index["t850"]] = torch.linspace(280.0, 292.0, 6, dtype=torch.float64).repeat(5, 1)
+    channels[index["q850"]] = torch.linspace(0.002, 0.010, 6, dtype=torch.float64).repeat(5, 1)
+    channels[index["u850"]] = 4.0
+    channels[index["v850"]] = -1.0
+    body = constraints.physical_constraint_terms(channels, lat, lon)
+    assert float(body["total"]) == 0.0
+
+
+def test_an_unknown_weight_name_is_refused():
+    lat, lon = _grid()
+    channels = torch.zeros((8, 5, 6), dtype=torch.float64)
+    with pytest.raises(KeyError, match="unknown constraint weights"):
+        constraints.physical_constraint_terms(channels, lat, lon, weights={"smoothness": 1.0})
+
+
+def test_a_too_narrow_prediction_is_refused():
+    lat, lon = _grid()
+    with pytest.raises(ValueError, match="channels"):
+        constraints.physical_constraint_terms(torch.zeros((3, 5, 6)), lat, lon)
+
+
+def test_the_module_does_not_import_legacy():
+    """Decision 0092: legacy bundles closed and unauthorised terms, so it is quoted, not used."""
+    source = Path(constraints.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module)
+    assert not any("legacy" in name for name in imported), imported
+
+
+def test_the_terms_are_untargeted():
+    """No term may read a target: the public surface takes a prediction and coordinates only."""
+    import inspect
+    for name in ("divergence_penalty", "humidity_nonnegative", "dew_point_le_temperature"):
+        signature = inspect.signature(getattr(constraints, name))
+        for parameter in signature.parameters:
+            assert "target" not in parameter.lower(), (name, parameter)
+    signature = inspect.signature(constraints.physical_constraint_terms)
+    assert "target" not in " ".join(signature.parameters).lower()
+
+
+def test_relu_not_softplus_so_satisfying_fields_are_free():
+    """A softplus hinge would charge a satisfying field; the code must call clamp_min instead.
+
+    The check is on *calls*, not on the text: the module's docstring names softplus on purpose,
+    to record why it is not used, so a substring test would fail on its own explanation.
+    """
+    tree = ast.parse(Path(constraints.__file__).read_text(encoding="utf-8"))
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+    names = {getattr(node.func, "attr", getattr(node.func, "id", "")) for node in calls}
+    assert "clamp_min" in names
+    assert "softplus" not in names
