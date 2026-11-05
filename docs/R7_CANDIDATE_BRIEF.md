@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 101; human-review candidates: 2
+Records: 102; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -746,6 +746,27 @@ Records: 101; human-review candidates: 2
 - CI run: `41887734901`
 - Excluded from runnable candidates: not a candidate: this point is one ordinate of a calibration curve (n=1 seed, no control arm, no predeclared scientific exit). The saturation question it exists to answer requires the remaining points, so nothing here can be promoted to candidate state.
 - Recorded metrics (not recomputed): batch_size=4, checkpoints_retained=2, climatology_denominator_t2m={"12": 3.9196037113045894, "24": 3.921682294513083, "48": 3.9253820690090073, "6": 3.9188406572176904, "72": 3.926891361747067}, curve_point=p1000, epochs=1.000031, eval_seconds=2697.3, exit_conditions={"a": true, "all": true, "b": true, "c": true, "d": true, "verdict": "advance-to-next-curve-point"}, gpu_hours=3.3165, leads=5, parent_state_digest=7c416ccb4054cf7e077788a43b02917e6a2dcf2503058152a7f0ab4b0ab70707, peak_reserved_bytes=9569304576, saturation_verdict=null, scored_variables=17, seconds_per_update=1.1505, seed=41, soft_overrun_seconds=0.0, t2m_rmse={"12": 2.775949916931046, "24": 2.519487217344376, "48": 3.19639996672428, "6": 2.247391904171798, "72": 3.600570383584009}, t2m_skill={"12": 0.49842147682318516, "24": 0.5872572022405149, "48": 0.3369315462428676, "6": 0.6711162513891589, "72": 0.15929266495680194}, torch_threads=28, train_seconds=9242.2, updates=8033
+
+## s3-throughput-physics-b-p4000
+
+- Outcome class: `engineering-positive`; candidate state: `not-candidate`
+- Human triage priority: `99` (not a scientific score)
+- Evidence: `docs/R7_S3_THROUGHPUT_PHYSICS_B_P4000_RESULT.md` (SHA256 `5922b12c610df48837d41b273ab1ff50531fe6bafbd04c240d3c814c86fe7807`)
+- Evidence commit: `49f9aef286d6e66c1a3a9d0e984b5d501c6ff678`; experiment commit: `49f9aef286d6e66c1a3a9d0e984b5d501c6ff678`
+- Protocol SHA256: `e6c939f4cf62611c5479ebe0c1aa518c5d1690fd9815379ba582379dc5712513`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Stage B point 3 of the S3 throughput/physics campaign: one arm, one seed, batch 4, exactly 32,132 updates (4.000124 epoch) from the pinned migrated parent, scored on all 17 variables at all five leads over the full 65x65 grid. The predeclared ENGINEERING exit (a)-(d) is all true, so the point is usable as the third ordinate of the learning curve. It is explicitly NOT a saturation verdict: that rule is a first difference between the 16-epoch and 4-epoch points, so saturation_verdict is null. Point 3's first attempt was voided for a batch-alignment defect (decision 0091); attempt02 is the source of these readings and ran clean.
+- Limitations:
+  - one seed, one arm: this point estimates a learning-curve ordinate, not a significance claim; no interval is computed or implied
+  - it is NOT a saturation verdict: the frozen rule is a first difference between the 16-epoch and 4-epoch points, so saturation_verdict is null and no reading here may be cited as evidence of saturation either way
+  - the deltas against points 1 and 2 are differences of independent GPU runs with no pairing structure; they carry unquantified run-to-run variance and are not significance results
+  - the curve is NOT a single code identity: points 1-2 ran under training_code_sha256 cdb89bca which contained the short-draw defect, while this point runs under af2a5adc; per decision 0091's position table the batch sequences are identical for those update counts, but the identities differ and must be quoted together
+  - only t2m has a registered climatology denominator; the other sixteen variables are reported as raw RMSE and were given no skill number rather than an invented denominator
+  - GPU training is not bitwise reproducible: two identical runs of this configuration differ in the loss sequence, so this is config-reproducible, not bit-reproducible
+  - development calibration on the 65x65 multi-year instance only; the test split stays sealed (r=0)
+  - attempt01 of this point was voided after a measured batch-alignment defect and its 10.1907 GPU-h are charged in full; its artefacts are retained but contribute no reading
+  - the duration envelope was widened before this run (decision 0090) because the previous one would have truncated this point at 36,000 s while training actually needed 37,069 s
+- Excluded from runnable candidates: not a candidate: one ordinate of a calibration curve (n=1 seed, no control arm, no predeclared scientific exit). The saturation question needs the 16-epoch point, so nothing here can be promoted to candidate state.
+- Recorded metrics (not recomputed): batch_size=4, checkpoints_retained=7, climatology_denominator_t2m={"12": 3.9196037113045894, "24": 3.921682294513083, "48": 3.9253820690090073, "6": 3.9188406572176904, "72": 3.926891361747067}, curve_point=p4000, epochs=4.000124, eval_seconds=2667.1, exit_conditions={"a": true, "all": true, "b": true, "c": true, "d": true, "verdict": "advance-to-next-curve-point"}, gpu_hours=11.0378, leads=5, parent_state_digest=7c416ccb4054cf7e077788a43b02917e6a2dcf2503058152a7f0ab4b0ab70707, peak_reserved_bytes=9569304576, saturation_verdict=null, scored_variables=17, seconds_per_update=1.1536, seed=41, soft_overrun_seconds=0.0, t2m_rmse={"12": 2.567665288447667, "24": 2.3590959932492352, "48": 3.0156349084384555, "6": 2.110900412005156, "72": 3.4446152118916418}, t2m_skill={"12": 0.5708664200676533, "24": 0.6381351404865669, "48": 0.40980754205070424, "6": 0.7098515338259002, "72": 0.2305442362929394}, torch_threads=28, train_seconds=37069.0, updates=32132, void_attempt_gpu_hours=10.1907
 
 ## s3-throughput-physics-stage-a
 
