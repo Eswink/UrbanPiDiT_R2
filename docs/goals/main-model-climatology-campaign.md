@@ -425,6 +425,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   按 0091 的位置表两者批次序列逐次相同、读数有效，但**整条曲线不是单一代码身份**，引用须写明。
   **登记**：`docs/R7_S3_THROUGHPUT_PHYSICS_B_P4000_RESULT.md`、`record:s3-throughput-physics-b-p4000`、
   §7 账本行（累计 **428.966297**）、本块、`campaign-state`；决策 **0090**、**0091**。
+  **CI 实测**：登记提交 `ea828c6` 的 `R7 CPU CI` run **`42072825389` = completed/success**。
   **下一动作（S3）**：跑 Stage B 第四点（16 epoch = 128,528 updates）。**必须先按本点实测
   11.0378 GPU-h / 1.1536 s/update 重算预算**，不得沿用原估；四点跑完后才按 §3 的规则求
   `Δ = skill_72h(16e) − skill_72h(4e)` 判定饱和（判定工具已就绪并有 29 项测试）。
