@@ -288,9 +288,19 @@ def _index_stream(contract, total):
 
     Materialising the stream up front is what lets a worker pool serve the batches
     without owning the training order: the order is decided here, by the same
-    ``randperm(seed + epoch)`` and the same cursor arithmetic as the serial loop, and
-    the loader below only turns consecutive slices of it into batches. Batch boundaries
-    therefore coincide with update boundaries by construction.
+    ``randperm(seed + epoch)`` and the same cursor arithmetic as the serial loop.
+
+    **The draws are not all the same length.** When ``total`` is not a multiple of the batch
+    size, the final draw of each epoch is short (``total % batch`` samples), so the flat
+    stream is not a whole number of batches and a ``DataLoader`` handed the flat list would
+    re-chunk across update boundaries. That is not hypothetical: with 32,131 usable windows
+    and batch 4 the last draw of every epoch is 3 samples, and a 32,132-update run was served
+    a batch that differed from its registered draw from update 8,033 onward -- 24,099
+    updates trained on the wrong sample grouping before the loader ran dry and raised
+    ``StopIteration``. Point 3's first attempt was voided for exactly this.
+
+    So the boundaries are returned explicitly as :func:`_draw_sizes`, and ``_BatchLoader``
+    serves one batch per draw rather than trusting the flat list's arithmetic.
     """
     stream, epoch, cursor = [], 0, 0
     for _ in range(contract["total_updates"]):
@@ -302,31 +312,76 @@ def _index_stream(contract, total):
     return stream
 
 
+def _draw_sizes(contract, total):
+    """The length of every draw :func:`_index_stream` makes, in order.
+
+    Recorded separately because the flat stream alone cannot express a short draw: the
+    consumer has to know where each update's samples start and stop.
+    """
+    sizes, epoch, cursor = [], 0, 0
+    for _ in range(contract["total_updates"]):
+        if cursor == total:
+            epoch, cursor = epoch + 1, 0
+        count = min(contract["batch_size"], total - cursor)
+        sizes.append(count)
+        cursor += count
+    return sizes
+
+
 class _BatchLoader:
-    """Serve the precomputed index stream from worker processes, one batch at a time."""
+    """Serve the precomputed index stream from worker processes, one batch per draw.
+
+    The loader is built with ``batch_size=1`` and each draw is handed to it as its own
+    sampler element, so the DataLoader cannot re-chunk across update boundaries. A short
+    final draw stays short instead of absorbing the next update's samples.
+
+    Handing the flat stream to a ``batch_size=contract["batch_size"]`` DataLoader looked
+    equivalent and was not: see :func:`_index_stream` for the measured consequence.
+    """
 
     def __init__(self, dataset, contract, workers, prefetch, pin_memory=None):
         from torch.utils.data import DataLoader
         self.batch_size = contract["batch_size"]
         self.stream = _index_stream(contract, len(dataset))
+        self.sizes = _draw_sizes(contract, len(dataset))
+        # One batch-sampler element per draw: a list of that draw's indices. The batch
+        # sampler hands each element to the dataset as a *batch*, so a short draw stays
+        # short instead of absorbing the next update's samples.
+        self.draws = []
+        offset = 0
+        for count in self.sizes:
+            self.draws.append(self.stream[offset:offset + count])
+            offset += count
         # Pinning is only meaningful with a CUDA consumer, and its worker-side loop shares
         # CUDA file descriptors across the fork -- which is exactly what fails in a process
         # that is not using the GPU (CPU tests, CI). Default to the device in use.
         if pin_memory is None:
             pin_memory = torch.cuda.is_available()
         self.pin_memory = pin_memory
-        self.loader = DataLoader(dataset, batch_size=self.batch_size,
-                                 sampler=self.stream, num_workers=workers, pin_memory=pin_memory,
+        self.loader = DataLoader(dataset, batch_sampler=self.draws, num_workers=workers,
+                                 pin_memory=pin_memory,
                                  persistent_workers=True, prefetch_factor=prefetch)
         self.batches = iter(self.loader)
         self.consumed = 0
 
     def batch(self, indices):
-        """The next batch, asserting it is exactly the one the serial path would build."""
-        expected = self.stream[self.consumed:self.consumed + len(indices)]
-        if expected != list(indices):
-            raise RuntimeError("the worker pool diverged from the registered index stream")
-        self.consumed += len(indices)
+        """The next batch, asserting it is exactly the one the serial path would build.
+
+        The assertion compares against the draw the *stream* declares, not against the
+        caller's requested indices alone: the two can disagree, and when they did (a short
+        draw mid-run) the old check passed because it advanced by ``len(indices)`` and so
+        never noticed the extra sample the loader had appended. Now the expected draw comes
+        from ``self.draws`` and its length is checked too.
+        """
+        if self.consumed >= len(self.draws):
+            raise RuntimeError("the worker pool ran out of registered draws")
+        draw = self.draws[self.consumed]
+        if list(draw) != list(indices) or len(draw) != len(indices):
+            raise RuntimeError(
+                f"the worker pool diverged from the registered index stream at draw "
+                f"{self.consumed + 1}: registered {len(draw)} samples, caller asked for "
+                f"{len(indices)}")
+        self.consumed += 1
         return next(self.batches)
 
 

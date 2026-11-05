@@ -207,3 +207,54 @@ def test_a_divergent_index_draw_is_refused(tmp_path):
     # first draw again must be refused rather than silently re-served.
     with pytest.raises(RuntimeError, match="diverged"):
         loader.batch(first)
+
+
+def test_a_short_final_draw_stays_short_and_does_not_shift_later_batches():
+    """The measured defect: a short draw mid-run made every later batch mis-grouped.
+
+    ``_BatchLoader`` used to hand the flat index stream to a DataLoader with
+    ``batch_size=contract["batch_size"]``. With a dataset whose length is not a multiple of
+    the batch size, each epoch's last draw is short, the flat stream stops being a whole
+    number of batches, and the DataLoader re-chunks across update boundaries. On the real
+    store (32,131 usable windows, batch 4) that made a 32,132-update run train on batches
+    that differed from its registered draw from update 8,033 onward, then raise
+    ``StopIteration`` at the end -- point 3's first attempt was voided for it.
+
+    This fixture uses 7 windows and batch 3, so the short draw lands *mid-run* (update 3 of
+    5), which is the failing shape. It asserts on draw sizes alone, so it needs no worker.
+    """
+    from training.r7_long_rollout_runner import _draw_sizes, _index_stream
+
+    total, batch, updates = 7, 3, 5
+    contract = {"seed": 41, "batch_size": batch, "total_updates": updates}
+    sizes = _draw_sizes(contract, total)
+    # Epoch 0: 3, 3, 1 (short at update 3). Epoch 1 restarts: 3, 3.
+    assert sizes == [3, 3, 1, 3, 3]
+    assert sum(sizes) == len(_index_stream(contract, total))
+    # The whole point: one draw per update, even though the flat stream is not a whole
+    # number of uniform batches.
+    assert len(sizes) == updates
+    assert sum(sizes) % batch != 0
+
+
+def test_the_loader_serves_one_batch_per_registered_draw(tmp_path):
+    """End-to-end through the loader: draw count and per-draw lengths must match the plan."""
+    manifest, _ = long_fixture(tmp_path)
+    dataset, _ = dataset_for(manifest, physical_steps=2)
+    total, batch, updates = len(dataset), 2, 5
+    contract = {"seed": 41, "batch_size": batch, "total_updates": updates}
+    from training.r7_long_rollout_runner import _draw_sizes
+    expected_sizes = _draw_sizes(contract, total)
+    loader = _forked_loader(dataset, contract)
+    assert len(loader.draws) == updates
+    assert [len(draw) for draw in loader.draws] == expected_sizes
+    # ``len(batch)`` is the number of collated fields (17), not the sample count: the batch
+    # dimension is read off a tensor the dataset always emits.
+    served = []
+    for draw in loader.draws:
+        batch = loader.batch(list(draw))
+        served.append(int(batch["atmos_target"].shape[0]))
+    assert served == expected_sizes
+    # A draw beyond the registered plan is refused rather than silently served.
+    with pytest.raises(RuntimeError, match="ran out of registered draws"):
+        loader.batch(list(loader.draws[0]))
