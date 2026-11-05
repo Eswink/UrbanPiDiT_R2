@@ -223,3 +223,17 @@ def test_the_two_engines_are_separate_modules():
     # The small engine's envelope is unchanged by the large one's existence.
     assert small.budgets("p1000")["per_seed_seconds"] == 36000.0
     assert proto.budgets("p4000")["per_seed_seconds"] > 36000.0
+
+def test_the_fourth_point_binding_is_present_and_consistent():
+    """Point 4 is the saturation rule's 16-epoch end, so its binding must exist and agree."""
+    assert proto.entry_file(POINT4) == "scripts/study_r7_s3_throughput_physics_b_p1600.py"
+    binding = __import__("scripts.study_r7_s3_throughput_physics_b_p1600", fromlist=["x"])
+    assert binding.POINT == POINT4 and binding.UPDATES == 128528
+    tuned = proto.budgets(POINT4)
+    assert binding.PER_SEED_SECONDS == tuned["per_seed_seconds"]
+    assert binding.PLANNED_SECONDS == tuned["planned_seconds"]
+    assert binding.HARD_CAP_SECONDS == tuned["hard_cap_seconds"]
+    # The envelope must contain the estimate for the largest point too, or it truncates.
+    assert tuned["per_seed_seconds"] > tuned["point_seconds_estimate"]
+    # 128,528 updates cross 25 checkpoints at the 5,000 cadence, plus the endpoint.
+    assert len(range(5000, 128528 + 1, 5000)) == 25
