@@ -115,3 +115,24 @@ def _dew_point_celsius(q, temperature):
     dew_c = 243.5 * log_term / (17.67 - log_term)
     # ``temperature`` is in Kelvin on this store (t850), so return Kelvin to compare like with like.
     return dew_c + 273.15
+
+
+def denormalize(fields, normalization, channels):
+    """Map a normalized ``[..., C, H, W]`` tensor back to physical units.
+
+    The training path never sees the store's normalization constants -- the dataset normalises
+    inside ``__getitem__`` -- so the constants have to be handed in explicitly and their digest
+    recorded in the protocol. That makes "which mean/std were used" an auditable field rather
+    than an implicit one, which matters because it changes every constraint's magnitude.
+
+    ``channels`` is the store's own channel order, declared by the caller, never inferred from
+    the tensor's width: a silently reordered store must fail here rather than rescale the wrong
+    variable.
+    """
+    mean, std = normalization
+    if mean.shape != std.shape or mean.shape[0] != len(channels):
+        raise ValueError(f"normalization has {mean.shape[0]} entries, channels has {len(channels)}")
+    if fields.shape[-3] != len(channels):
+        raise ValueError(f"fields carry {fields.shape[-3]} channels, channels names {len(channels)}")
+    shape = (1,) * (fields.ndim - 3) + (len(channels), 1, 1)
+    return fields * std.reshape(shape) + mean.reshape(shape)

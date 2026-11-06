@@ -52,6 +52,23 @@ q 非负的权重取与露点项相同的 0.5，理由是二者都是「硬物�
 「这个组合有用」，不说明哪一项有用。因此 brief 必须**预注册**后续分离实验的形态，
 本轮不做。
 
+## Context（续，2026-11-06 实现时发现的第三条约束）
+
+**⑥ 训练 batch 里没有反归一化常数，这是一个必须在冻结前解决的接线问题。**
+`_rollout` 的预测在**归一化空间**，而 C1 的三项都需要物理单位（Pa、kg/kg、K）。
+检查 `training/r7_long_rollout_runner.py` 与 `training/r7_autoregressive_rollout.py`：
+**没有任何 `normalization_mean`/`std` 进入训练路径**（数据集在 `__getitem__` 里就归一化完了）。
+因此 C1 的驱动必须在**协议里**带上 store 的 `normalization` 常数，并断言其 SHA256
+等于 store 属性里的那一份——否则「用哪份 mean/std 反归一化」会成为一个**未登记的隐变量**，
+而它直接改变约束的数值。
+
+**处置（写进实现，不靠约定）**：`training/r7_physical_constraints.py` 的
+`physical_constraint_terms` 只接受**已反归一化**的张量；驱动负责反归一化并把所用常数的
+digest 记进 protocol。这样约束模块本身无状态、可单测，而"用哪份常数"是可审计的。
+
+**⑦ 这一条不改变三项约束的族判别**（Context ②）。它只是说明：C1 的实现比"加一个 loss 项"
+多一步接线，那一步必须在冻结前做完并登记，不能在跑完后补。
+
 ## Decision
 
 **1. 新建 `training/r7_physical_constraints.py`，三项约束，无目标，不 import legacy。**

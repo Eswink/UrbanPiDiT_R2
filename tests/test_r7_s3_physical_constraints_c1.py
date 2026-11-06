@@ -174,3 +174,30 @@ def test_relu_not_softplus_so_satisfying_fields_are_free():
     names = {getattr(node.func, "attr", getattr(node.func, "id", "")) for node in calls}
     assert "clamp_min" in names
     assert "softplus" not in names
+
+
+def test_denormalize_round_trips_the_store_convention():
+    """The inverse of the dataset's own ``(x − mean)/std`` must be exact arithmetic."""
+    channels = ("t2m", "q850", "u850")
+    mean = torch.tensor([280.0, 0.005, 3.0], dtype=torch.float64)
+    std = torch.tensor([10.0, 0.004, 2.0], dtype=torch.float64)
+    normalized = torch.zeros((1, 3, 2, 2), dtype=torch.float64)
+    physical = constraints.denormalize(normalized, (mean, std), channels)
+    # Zero in normalized space is the mean in physical space.
+    for index, expected in enumerate(mean):
+        assert torch.all(physical[..., index, :, :] == expected)
+    # And a known normalized value maps back through the same affine form.
+    normalized[..., 1, 0, 0] = 2.0
+    physical = constraints.denormalize(normalized, (mean, std), channels)
+    assert float(physical[..., 1, 0, 0]) == pytest.approx(0.005 + 2.0 * 0.004)
+
+
+def test_denormalize_refuses_a_channel_count_mismatch():
+    """A store whose channel order moved must fail here, not rescale the wrong variable."""
+    mean = torch.zeros(3, dtype=torch.float64)
+    std = torch.ones(3, dtype=torch.float64)
+    with pytest.raises(ValueError, match="channels names"):
+        constraints.denormalize(torch.zeros((2, 2, 2)), (mean, std), ("a", "b", "c"))
+    with pytest.raises(ValueError, match="entries"):
+        constraints.denormalize(torch.zeros((3, 2, 2)), (torch.zeros(2), torch.ones(2)),
+                                ("a", "b", "c"))
