@@ -266,3 +266,32 @@ def test_the_c2_terms_dict_carries_tensors_and_metadata_separately():
     assert isinstance(body["vorticity"], torch.Tensor)
     assert isinstance(body["total"], torch.Tensor)
     assert isinstance(body["weights"], dict) and isinstance(body["scales"], dict)
+
+
+def test_every_driver_global_resolves_before_a_gpu_stage_sees_it():
+    """A NameError inside a function body is invisible to import and to any test that skips it.
+
+    Two defects reached a GPU stage that way after the driver was split from its protocol module:
+    ``freeze`` referenced PLANNED_SECONDS and the driver called a bare ``arm_spec()``. Both were
+    only found by running the stage. This resolves every global each function loads, which is the
+    check that would have caught them on a laptop.
+    """
+    import builtins
+    import dis
+    import importlib
+    import types
+
+    problems = []
+    for module_name in ("scripts.study_r7_s3_derivative_matching_c2",
+                        "scripts.r7_s3_derivative_matching_c2_protocol"):
+        module = importlib.import_module(module_name)
+        for name, obj in vars(module).items():
+            if not isinstance(obj, types.FunctionType) or obj.__module__ != module.__name__:
+                continue
+            for instruction in dis.get_instructions(obj.__code__):
+                if instruction.opname not in ("LOAD_GLOBAL", "LOAD_NAME"):
+                    continue
+                key = instruction.argval
+                if key not in module.__dict__ and not hasattr(builtins, key):
+                    problems.append(f"{module_name}.{name}: {key}")
+    assert not problems, problems

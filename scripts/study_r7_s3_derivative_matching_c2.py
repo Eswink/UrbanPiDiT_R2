@@ -62,7 +62,7 @@ def _parent_model(seed, body):
         raise RuntimeError(f"seed {seed} parent is not the frozen endpoint")
     with isolated_stream():
         torch.manual_seed(int(seed))
-        model = make_model("process", arm_spec())
+        model = make_model("process", proto.arm_spec())
     model.load_state_dict(saved["model"], strict=True)
     digest = _state_digest(model.state_dict())
     if digest != parent_pins.MIGRATED_PARENT_STATE_DIGEST[seed]:
@@ -85,7 +85,7 @@ def _arm_contract(body, arm, parent, parent_sha):
                               "std": body["store_constants"]["std"]},
             "channels": body["store_constants"]["channels"],
             "derivative_scales": body["derivative_matching"]["scales"]})
-    return {"kind": "process", "model": arm_spec(),
+    return {"kind": "process", "model": proto.arm_spec(),
             "data_identity": body["train_data_identity"],
             "source_sha256": body["source_sha256"],
             "protocol_sha256": body["protocol_sha256"],
