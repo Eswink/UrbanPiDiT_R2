@@ -425,6 +425,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   若无 `batch_sampler` 修复会在第 8,033 次更新就错位且跑不完。
   **登记**：`docs/R7_S3_THROUGHPUT_PHYSICS_B_P1600_RESULT.md`、`record:s3-throughput-physics-b-p1600`、
   §7 账本行（累计 **469.299197**）、本块、`campaign-state`；决策 **0093**。
+  **CI 实测**：登记提交 `de0ecfa` 的 `R7 CPU CI` run **`42362184809` = completed/success**。
   **下一动作（S3）**：**Stage B 的 D4 交付物已完整**。按目标长文 §3，未饱和授权的是
   「最终 run 取 16–64 epoch」这一**范围**；下一项因此是 **Stage C（物理约束两轮）**
   （其 C1 设计与「不是同一族」论证已落 ADR 0092、三项约束已实现并有 17 项测试、
