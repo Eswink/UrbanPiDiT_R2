@@ -2907,6 +2907,8 @@ recheck 一侧**已消除**（本轮 `passed: true`，而 attempt03 是 `913872.
 campaign §7 账本行、本 §8 块。决策 **0094**（新）；**0092 `proposed → superseded by 0094`**
 （保留不删，作拦截留痕）。测试 `tests/test_r7_s3_physical_constraints_c1.py` **24 项全绿**；
 `check_conventions.py` 37 条阻断 **0 失败**；`verify_r7_evidence_index.py` **104 条 PASS**。
+**CI 已确认**：`c245fcb` 的 **R7 CPU CI** run **`42374118124`** 结论 **`success`**
+（其余 17 条实验 workflow 按 commit-message 标签门控显示 skipped，是设计行为）。
 
 **为何停（本阶段）**：不是触授权边界、不是达科学停止条件，而是**前置条件按设计失败**——
 0084 §6 明确「论证不成立则不得开轮」。继续硬跑 C1 会花约 64 GPU-h 去复现一个已知失效模式，

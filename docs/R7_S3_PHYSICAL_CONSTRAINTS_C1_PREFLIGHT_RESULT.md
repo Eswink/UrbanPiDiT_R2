@@ -163,6 +163,8 @@
 | 测试 | `tests/test_r7_s3_physical_constraints_c1.py` **24 项**全绿 |
 | 约定检查 | `tools/check_conventions.py` 37 条阻断规则 **0 失败** |
 
+**CI**：`c245fcb` 的 **R7 CPU CI** run **`42374118124`** 结论 **`success`**（其余 17 条实验 workflow 按 commit-message 标签门控显示 skipped，是设计行为）。
+
 **可复现等级**：`analysis-reproducible`（CPU 前向在固定权重下确定性；脚本为一次性探针，
 未进执行闭包，其方法在 §1 与 ADR 0094 中逐步写明可重写）。
 
