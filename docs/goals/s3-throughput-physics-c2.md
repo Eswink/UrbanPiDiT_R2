@@ -228,3 +228,17 @@
   **下一动作**：`attempt05` 重新冻结。**恢复第一条命令**
   `.venv/bin/python tools/r7_round.py state`，然后 `freeze` → `prepare`（**preflight 必须重跑**）
   → `archive` → `stage-seeds` → `reading`。
+
+- **2026-11-08 `attempt05` 冻结并开跑**：协议 **`b7a8e526…`**
+  （`attempt04` 的 `dcc38292…` **永久作废**，不作 `attempt05` 的任何输入）。
+  **为何是新协议而不是复用**：修复改了 `scripts/study_r7_s3_derivative_matching_c2.py`
+  的字节，而该文件在 `execution_files_sha256` 里；虽然 `training_code_digest` 的三处
+  源文件未变（实测 `e7674118…` 与 `attempt04` 相同、`model_code` 仍 `59340710…`），
+  执行闭包本身已不同，故必须重新冻结。
+  **包络未改的理由（按实测核对过，不是沿用）**：本轮 `attempt04` 实测
+  **1.1349 / 1.1497 s/update（均值 1.1423）**，比 brief 假定的 1.1096 慢 **3.0%**；
+  据此每臂 `32,132 × 1.1423 + 2,588.1 = 39,292.5 s ≈ 10.92 GPU-h`、
+  每 seed 两臂 `21.83 h`。而 `per_seed = 115,200 s = 32 h` 对**两臂合跑**仍有
+  **1.47 倍**余量（`115200 / 78585`），故 **115,200 / 230,400 的包络继续够用**，
+  不因 3% 的速率差改动（改包络会让协议与 `attempt04` 不可比，且没有触发条件）。
+  **`prepare` 必须重跑 preflight** —— 它是冻结前置而不是可继承的测量；已启动。
