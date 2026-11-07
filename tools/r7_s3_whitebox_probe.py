@@ -153,9 +153,151 @@ def _static_fields():
             "variables": list(variables), "shape": list(fields.shape)}
 
 
+
+def _trained_state_measurements(checkpoint, manifest_path, channels, cases):
+    """The two Stage D measurements on a **trained** model, not on the definitions.
+
+    Stage D's brief asks for two things a definition check cannot answer:
+
+    1. the P state's 8 anchored slots against the 8 diagnostic targets -- ``process_predictions``
+       is ``[B, K, anchored_processes]``, so each slot is a scalar per reasoning step and the
+       cross-slot alignment matrix is computable exactly as :func:`alignment_matrix` expects;
+    2. the Z state's per-position solve progress against the terrain / land-sea static fields --
+       ``solver_state`` is the per-position working state, and its magnitude at the last step is
+       the progress the gate has made.
+
+    Both are read from one forward pass per case with no gradient, so this stays CPU-only and
+    0 GPU-h. Nothing here is a skill claim: it says what the trained weights *did*.
+    """
+    import numpy as np
+    import torch
+    from torch.utils.data import default_collate
+
+    from data.r7_long_rollout_dataset import (
+        ZarrLongRolloutDataset, preflight_long_rollout_windows)
+    from model.r7_process_tensor_diagnostics import (
+        PROCESS_DIAGNOSTIC_NAMES, compute_process_tensor_diagnostics)
+    from training.r7_experiment import load_checkpoint, make_model
+
+    saved = load_checkpoint(checkpoint)
+    contract = saved["contract"]
+    model = make_model(contract["kind"], contract["model"])
+    model.load_state_dict(saved["model"], strict=True)
+    model.eval()
+
+    # The checkpoint's contract records neither the manifest nor the channel order (it pins
+    # their digests instead), so both are passed in explicitly. Guessing either would make the
+    # diagnostic vector -- and therefore the whole alignment matrix -- an unregistered variable.
+    manifest = Path(manifest_path)
+    if not manifest.is_file():
+        raise RuntimeError(f"the training manifest is not on this machine: {manifest}")
+    windows = preflight_long_rollout_windows(manifest, physical_steps=12)
+    dataset = ZarrLongRolloutDataset(manifest, physical_steps=12,
+                                     expected_exclusions=windows["excluded_sample_ids"],
+                                     expected_window_sha256=windows["window_sha256"])
+
+    slot_rows, diagnostic_rows, progress_rows = [], [], []
+    for case in cases:
+        batch = default_collate([dataset[case]])
+        with torch.no_grad():
+            output = model(batch, reasoning_steps=contract["steps"])
+        # P state: the 8 anchored slots at every reasoning step, averaged over steps so each
+        # case contributes one 8-vector -- the alignment question is across cases, not steps.
+        slots = output.process_predictions.detach().to(torch.float64)
+        slot_rows.append(slots.mean(dim=1).reshape(-1).cpu().numpy())
+        # The 8 diagnostics, computed independently from the analysis field of the same window.
+        state = batch["atmos_target"]
+        vector = compute_process_tensor_diagnostics(
+            state[0], list(channels),
+            batch["latitude"][0], batch["longitude"][0])
+        diagnostic_rows.append(np.asarray(vector, dtype=np.float64))
+        # Z state: per-position magnitude of the solver's working state after the last step.
+        if output.solver_state is None:
+            raise RuntimeError("this checkpoint has no solver state, so the Z measurement "
+                               "cannot be made; the probe refuses rather than reporting zero")
+        progress = output.solver_state.detach().to(torch.float64).abs()
+        # solver_state is [B, token_hw[0]*token_hw[1], D] on the TOKEN grid, which is 33x33 here
+        # (65 / patch 2 = 32.5 -> 33), not the 65x65 pixel grid the static fields live on.
+        # Reduce the feature axis to a per-token scalar first, then map tokens to pixels with a
+        # declared nearest-neighbour repeat -- declared because a bilinear map would invent
+        # smoothness the solver does not have, and the two grids genuinely differ in size.
+        tokens = progress.mean(dim=-1)[0]
+        rows, columns = output.token_hw
+        if tokens.numel() != rows * columns:
+            raise RuntimeError(f"solver_state carries {tokens.numel()} positions but token_hw is "
+                               f"{output.token_hw}")
+        progress_rows.append(tokens.reshape(rows, columns).cpu().numpy())
+
+    alignment = alignment_matrix(np.stack(slot_rows), np.stack(diagnostic_rows))
+    alignment["diagnostic_names"] = list(PROCESS_DIAGNOSTIC_NAMES)
+    progress = np.mean(np.stack(progress_rows), axis=0)
+    # The raw per-token field is returned separately rather than embedded: it is an ndarray, so
+    # it cannot enter the JSON report, and its summary plus the correlations are what a reader
+    # needs. The caller writes it beside the report as a .npy for anyone who wants the map.
+    return {"alignment": alignment, "progress_field_shape": list(progress.shape),
+            "progress_grid": "token",
+            "progress_summary": {"min": float(progress.min()), "max": float(progress.max()),
+                                 "mean": float(progress.mean()),
+                                 "nonzero_fraction": float((progress != 0).mean())}}, progress
+
+
+def _correlate_on_pixel_grid(progress, stack, variables):
+    """Correlate the solver's token-grid progress with the pixel-grid static fields.
+
+    The two grids are genuinely different sizes: the solver works on a 33x33 token grid
+    (65 / patch 2 = 32.5, rounded up) while the static product is 65x65 pixels. Rather than
+    resample either one, each token's progress is compared against the mean of the pixels it
+    covers; the block boundaries are derived from the two shapes, so a different grid fails
+    loudly here instead of being silently broadcast.
+
+    Reported per static variable with no threshold, because the campaign fixes none for this
+    relationship. ``pearson`` over a monotone covariate (a fraction) and ``spearman`` over the
+    ranks are both given because a land-fraction field is far from normal.
+    """
+    import numpy as np
+    field = np.asarray(progress, dtype=np.float64)
+    if field.ndim != 2:
+        raise RuntimeError(f"progress must be 2-D, got {field.shape}")
+    height, width = int(stack.shape[-2]), int(stack.shape[-1])
+    rows, columns = field.shape
+    if rows > height or columns > width:
+        raise RuntimeError(f"the token grid {field.shape} is finer than the pixel grid "
+                           f"{(height, width)}; pooling would lose positions")
+    # Boundaries of the pixel block each token owns: even split, remainder to the last cells.
+    row_edges = [row * height // rows for row in range(rows + 1)]
+    column_edges = [column * width // columns for column in range(columns + 1)]
+    correlations = {}
+    for position, name in enumerate(variables):
+        pixels = np.asarray(stack[position].numpy(), dtype=np.float64)
+        pooled = np.empty((rows, columns), dtype=np.float64)
+        for row in range(rows):
+            for column in range(columns):
+                block = pixels[row_edges[row]:row_edges[row + 1],
+                               column_edges[column]:column_edges[column + 1]]
+                if block.size == 0:
+                    raise RuntimeError(f"token ({row},{column}) covers no pixels")
+                pooled[row, column] = block.mean()
+        correlations[name] = {
+            "pearson": _correlation(field.reshape(-1), pooled.reshape(-1)),
+            "spearman": _correlation(_rank(field.reshape(-1)), _rank(pooled.reshape(-1)))}
+    return {"token_grid": [rows, columns], "pixel_grid": [height, width],
+            "mapping": "each token is compared against the mean of the pixel block it covers",
+            "correlations": correlations}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, help="write the probe JSON here (default stdout)")
+    # The trained-checkpoint mode is opt-in and takes its inputs explicitly: the checkpoint's
+    # contract pins the manifest and channel digests but does not record the values, so both
+    # must be supplied rather than guessed. Without --checkpoint the probe runs the definition
+    # checks only, which is what a bare CI checkout can do.
+    parser.add_argument("--checkpoint", type=Path,
+                        help="measure a trained model's P and Z states (needs --manifest and --store)")
+    parser.add_argument("--manifest", type=Path, help="the training manifest the checkpoint was fit on")
+    parser.add_argument("--store", type=Path, help="the zarr store, for the channel order")
+    parser.add_argument("--cases", default="1000,9000,17000,25000,29000",
+                        help="comma-separated dataset indices for the trained-state measurement")
     args = parser.parse_args(argv)
     # This probe deliberately does NOT load a trained checkpoint: doing so needs a frozen
     # protocol and model construction that Stage D's brief pins separately. What it can do
@@ -201,6 +343,40 @@ def main(argv=None):
         static_ok, static_note = False, f"{type(exc).__name__}: {exc}"
     body["static_product_available"] = static_ok
     body["static_note"] = static_note
+    if args.checkpoint is not None:
+        if args.manifest is None or args.store is None:
+            parser.error("--checkpoint requires --manifest and --store")
+        import zarr
+        store = zarr.open_group(str(args.store), mode="r")
+        channels = list(store.attrs["channels"])
+        cases = [int(value) for value in str(args.cases).split(",") if value.strip()]
+        measured, progress = _trained_state_measurements(
+            args.checkpoint, args.manifest, channels, cases)
+        body["trained_state"] = measured
+        body["trained_state"]["checkpoint"] = str(args.checkpoint)
+        body["trained_state"]["cases"] = cases
+        body["trained_state"]["channels"] = channels
+        # Sidecar for the per-token map; the JSON carries only its summary and correlations.
+        import numpy as _np
+        sidecar = Path(args.out).with_suffix(".progress.npy") if args.out else None
+        if sidecar is not None:
+            _np.save(sidecar, progress)
+            body["trained_state"]["progress_sidecar"] = str(sidecar)
+        if static_ok:
+            # ``_static_fields`` returns identity metadata, not the arrays; the correlation needs
+            # the [K,H,W] stack itself, so it is loaded here by the same identity-checked entry
+            # point rather than re-derived.
+            from model import static_conditioning_r7 as static
+            stack, variables = static.load_static_fields()
+            body["trained_state"]["progress_correlations"] = _correlate_on_pixel_grid(
+                progress, stack, variables)
+        else:
+            body["trained_state"]["progress_correlations"] = None
+        # A trained-state measurement is a measurement, not a check: it is reported and never
+        # folded into all_checks, because the campaign fixes no numeric bar for either relation.
+        body["trained_state_measured"] = True
+    else:
+        body["trained_state_measured"] = False
     body["all_checks"] = all(body["checks"].values())
     text = json.dumps(body, indent=2, ensure_ascii=False, allow_nan=False)
     if args.out is None:
@@ -210,6 +386,7 @@ def main(argv=None):
             handle.write(text + "\n")
         print(f"wrote {args.out}: all_checks={body['all_checks']}")
     return 0 if body["all_checks"] else 1
+
 
 
 if __name__ == "__main__":

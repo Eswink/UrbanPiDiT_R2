@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 104; human-review candidates: 2
+Records: 105; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1994,6 +1994,26 @@ Records: 104; human-review candidates: 2
   - the campaign-state current_round_goal pointer was not repointed: R1's workflow was still running and r7_round.py resolves the round from that pointer, so changing it would have broken R1's remaining seeds
 - Excluded from runnable candidates: Not a candidate: this is a data-preparation round, not a model or scientific result. It fetches the named anonymous urban static covariates and publishes them as derived statistics on the frozen 0.25 deg grid; no model was trained or scored, 2023 test was not read and r stays 0. It is recorded as engineering-positive because every in-scope layer was reachable and the sampling re-derivation matched.
 - Recorded metrics (not recomputed): cells_below_full_land_cover_coverage=13, download_bytes=14484496452, download_files=195, fields_arrays=36, ghsl_tiles_per_epoch_product=9, gpu_hours=0.0, layers_dropped=2, layers_reachable=13, min_land_cover_coverage=0.5, network_bytes=14484496452, recheck_max_relative_delta=5.1535351518462713e-08, recheck_tolerance=1e-05, wall_clock_seconds=9550, worldcover_absent_tiles_per_year=1, worldcover_tiles_per_year=48
+
+## s3-whitebox-trained-state
+
+- Outcome class: `mixed`; candidate state: `not-candidate`
+- Human triage priority: `55` (not a scientific score)
+- Evidence: `docs/R7_S3_WHITEBOX_TRAINED_STATE_RESULT.md` (SHA256 `0beb25b92ee323d89667703c30ef451fd5352301a1df7a9ee6e54fc06bce32f1`)
+- Evidence commit: `0000000000000000000000000000000000000000`; experiment commit: `0000000000000000000000000000000000000000`
+- Protocol SHA256: `not recorded`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Stage D's white-boxing measured on a TRAINED checkpoint (p1600 endpoint, seed 41), which the probe previously refused to do and said so in its own limitations. Two results. (1) P state: the 8 anchored slots are NOT eight independent signals -- their diagnostic profiles correlate 0.94-1.00 with each other, and only 2 of 8 have their argmax on the diagnostic the model's docstring names for them (per-slot |rho| only 0.25-0.35, i.e. weak). So the documented 'slot i aligns to proxy i' claim does not hold numerically for the trained weights; the slots look like one weakly correlated common factor replicated eight times. This falsifies a documentation claim, not necessarily the design intent. (2) Z state: per-position solver progress correlates only weakly with the urban/vegetation statics (|rho| <= 0.43, max -0.4289 for population density, -0.4170 for built surface, -0.4150 for built land cover), and the sign is consistently negative -- more built-up means LESS solver progress, the opposite of the 'more complex surface, more effort' intuition. The progress field's dynamic range is only 0.065, so there is little variance to explain either way. Both are CPU-only, 0 GPU-h, train manifest only.
+- Limitations:
+  - one checkpoint only (p1600 endpoint, seed 41): earlier checkpoints could separate the slots differently, and n=1 model means no interval
+  - the 65x65 multi-year instance only; the 129x129 wide instance has a different pixel grid and a different static product and is untested
+  - the P-state measurement averages the 8 slots over the K=4 reasoning steps, so a slot that carries different information at different steps would be masked
+  - aligned_slots = 2/8 must not be read as 'two slots are broken': because the eight slots correlate 0.94+ with each other, the argmax assignment is itself unstable and the real reading is the slot-to-slot correlation, not the argmax count
+  - the Z-state correlation pools each 33x33 token against the mean of the pixel block it covers; a different pooling would change the correlation slightly, though not its sign
+  - no threshold is applied: the campaign fixes no numeric bar for either relationship, so this reports measurements and issues no pass/fail verdict
+  - no slot ablation was done (zeroing a slot and measuring the forecast change), which would need GPU time or many forwards and is a different round's design
+  - the model docstring was NOT edited: changing it is a code change needing its own decision and tests, so this page records the discrepancy rather than fixing it
+- Excluded from runnable candidates: not a candidate: this describes what a trained model's internal state does, not whether its forecasts are good. scientific_claim is false, no skill metric is involved, and no threshold exists to pass.
+- Recorded metrics (not recomputed): aligned_slots=2, anchored_slots=8, blocking_convention_rules_failing=0, cases_measured=60, checkpoint=update_0128528.pt (p1600 endpoint, seed 41), checkpoint_updates=128528, corr_built_landcover_spearman=-0.415, corr_built_surface_spearman=-0.417, corr_pop_density_spearman=-0.4289, diagnostic_targets=8, gpu_hours=0.0, max_abs_static_correlation=0.4289, per_slot_abs_spearman_max=0.349, per_slot_abs_spearman_min=0.253, pixel_grid=[65, 65], progress_dynamic_range=0.0648, progress_field_shape=[33, 33], progress_grid=token (65 / patch 2 = 32.5 -> 33), progress_max=0.4439, progress_mean=0.3943, progress_min=0.3792, progress_nonzero_fraction=1.0, slot_profile_correlation_max=1.0, slot_profile_correlation_min=0.939, test_read=false, tests_passing=13, train_batches_only=true, val_read=false
 
 ## s3-urban-static-covariates-attempt04
 
