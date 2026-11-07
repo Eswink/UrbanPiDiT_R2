@@ -150,9 +150,52 @@ R-021 计数与实测重新一致；第三个同类缺陷（`check_provenance`�
 
 ## 未决（留给下一轮）
 
-- 是否值得建一条通用静态守卫：解析驱动里每个 `module.attr`，断言属性存在
-  （`test_every_driver_global_resolves...` 的**属性级**版本）。它能同时抓第 1/2/3 类中的两类。
+- ~~是否值得建一条通用静态守卫：解析驱动里每个 `module.attr`，断言属性存在。~~
+  **本 ADR 写完后当天就建了**，见下方补记：`tools/check_driver_attributes.py`。
 - `attempt05` 的 `per_seed_seconds` 是否仍取 115,200 s（本轮实测 1.136/1.147 s/update，
   比 brief 的 1.1096 慢约 3%）；重算后若包络仍 > 2×估计则沿用。
 - `attempt05` 是否需要把 `readings()` 的合成树测试**扩展到 b 项为假**的分支
   （当前只测了全真路径），以证明 (b) 真的会因为「未记录 constraint 项」而失败。
+
+## 补记（2026-11-08，同日）：通用属性级守卫已建，第 4 条负面后果不再无条件成立
+
+上面「Consequences 4」说修复只处理了 C2 驱动的三处、**没有**建通用守卫。那一条在**同一天**
+就被补上了，如实记在这里，因为**不改正文**会让读者以为守卫仍缺。
+
+**工具**：`tools/check_driver_attributes.py`（146 行，纯标准库 + `ast`，只读）。
+它从**被检文件自己的顶层 import** 推出别名映射（`import x.y as z` 与 `from x import y`
+两种拼写都覆盖，二者语义不同），然后逐个解析代码里出现的 `alias.attr`，
+报告模块或对象上**不存在**的属性。
+
+**为什么它能抓而既有那道网抓不到**：既有
+`test_every_driver_global_resolves_before_a_gpu_stage_sees_it` 反汇编后只看
+`LOAD_GLOBAL` / `LOAD_NAME`。`curve.EVALUATION_LEADS` 在字节码里是
+`LOAD_GLOBAL curve` + `LOAD_ATTR EVALUATION_LEADS`——**全局名 `curve` 完全合法**，
+所以那条测试**通过**。属性级检查补的正是这一层。
+
+**反证实测（这是它存在的理由，不是自证）**：
+在 `d7b5be6` 的**真实缺陷版本**驱动上运行，输出**两处**真实缺陷，行号正确：
+
+```
+/tmp/buggy_driver.py:138: curve.EVALUATION_LEADS (scripts.r7_s3_curve_point_large_protocol): attribute is absent from the module
+/tmp/buggy_driver.py:145: curve.check_provenance (scripts.r7_s3_curve_point_large_protocol): attribute is absent from the module
+exit=1
+```
+
+在修复后的驱动上 `exit=0`。**注意它只抓到两处，抓不到第 3 处（缩进）**——
+缩进是控制流缺陷，任何「名字/属性是否存在」的检查都不可能看见它；
+那一处由 `test_the_fill_lives_in_the_lead_loop_not_the_candidate_branch` 的结构性断言覆盖。
+**两类网各管一类缺陷，不能互相替代。**
+
+**测试**：`tests/test_check_driver_attributes.py` **8 项**，其中 6 项是**反证**
+（用 `tmp_path` 上的模块对分别构造：缺失属性必报、目标模块不可 import 必报而不吞、
+同一对只报一次、写目标与本地属性不在范围内、CLI 退出码 0/1、正对照必须不报），
+外加一条**针对真实驱动的回归**（`test_the_real_c2_driver_has_no_missing_attributes`）。
+
+**代价与边界（如实列出）**：
+- 它**只**检查 `alias.attr` 读；`getattr(mod, name)`（动态名）看不见，这是刻意的边界；
+- **属性存在 ≠ 调用正确**：参数个数、类型、语义都不在范围内；
+- 它**不是** CI 阻断项，也未接入 hooks——本 ADR **不为它**申请阻断地位；
+  要接入须另立决策（与 R-049 同类的接线决策），本 ADR 不预设。
+- 已实测：新工具与测试都在 R-051 的 600 行硬限与 R-021 的 400 行目标带内
+  （146 / 126 行），**R-021 计数保持 135、R-020 保持 67 不变**。
