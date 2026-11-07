@@ -295,4 +295,3 @@ def test_every_driver_global_resolves_before_a_gpu_stage_sees_it():
                 if key not in module.__dict__ and not hasattr(builtins, key):
                     problems.append(f"{module_name}.{name}: {key}")
     assert not problems, problems
-
