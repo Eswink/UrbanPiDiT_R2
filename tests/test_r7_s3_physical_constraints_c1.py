@@ -57,12 +57,42 @@ def test_a_divergent_field_scores_positive():
 
 
 def test_the_tolerance_suppresses_small_divergence_only():
-    """Below the frozen tolerance the term is silent; above it, it charges."""
+    """Below the frozen dead-band the term is silent; above it, it charges.
+
+    The dead-band is in units of ``DIVERGENCE_SCALE`` (decision 0094), so a field whose
+    divergence is well under one scale unit is free and one that exceeds it is charged.
+    """
     lat, lon = _grid()
     u = torch.linspace(-1e-6, 1e-6, 6, dtype=torch.float64).repeat(5, 1)
     v = torch.zeros((5, 6), dtype=torch.float64)
     assert float(constraints.divergence_penalty(u, v, lat, lon)) == 0.0
-    assert constraints.DIVERGENCE_TOLERANCE == 1e-5
+    assert constraints.DIVERGENCE_TOLERANCE == 1.0
+    assert constraints.DIVERGENCE_SCALE == 1e-5
+    # A field well above one scale unit must charge.
+    strong = torch.linspace(-40.0, 40.0, 6, dtype=torch.float64).repeat(5, 1)
+    assert float(constraints.divergence_penalty(strong, v, lat, lon)) > 1.0
+
+
+def test_every_term_is_dimensionless_so_it_can_be_added_to_a_normalized_loss():
+    """Decision 0094: the pre-freeze measurement found the absolute form 1e-11..2e-6 against L~1.
+
+    A violation of exactly one declared scale unit must score exactly 1.0 (outside the
+    divergence dead-band), which is what makes the bundle O(1) next to the MSE rather than
+    numerically invisible. This is asserted arithmetically, not by a run.
+    """
+    # Humidity: q = -1 scale unit -> relu(-q/scale) = 1 -> mean of 1 = 1.
+    assert float(constraints.humidity_nonnegative(
+        torch.tensor([-constraints.HUMIDITY_SCALE], dtype=torch.float64))) == pytest.approx(1.0)
+    # Dew point: Td - T = 1 scale unit -> 1.
+    assert float(constraints.dew_point_le_temperature(
+        torch.tensor([1.0], dtype=torch.float64), torch.tensor([0.0], dtype=torch.float64)
+    )) == pytest.approx(1.0 / constraints.TEMPERATURE_SCALE ** 2)
+    # Divergence: the hinge subtracts the dead-band, so one scale unit is still free by design
+    # and two scale units charge (2 - 1)^2 = 1.
+    assert constraints.DIVERGENCE_TOLERANCE == 1.0
+    # The scales themselves are frozen constants, recorded so a run cannot silently retune them.
+    assert (constraints.DIVERGENCE_SCALE, constraints.HUMIDITY_SCALE,
+            constraints.TEMPERATURE_SCALE) == (1e-5, 1e-3, 1.0)
 
 
 def test_nonnegative_humidity_scores_exactly_zero():
@@ -74,8 +104,8 @@ def test_negative_humidity_is_charged():
     q = torch.tensor([0.01, -0.002], dtype=torch.float64)
     value = float(constraints.humidity_nonnegative(q))
     assert value > 0.0
-    # Quadratic: the charge is the squared violation.
-    assert value == pytest.approx((0.002 ** 2 + 0.0) / 2, rel=1e-12)
+    # Quadratic in the dimensionless violation: (-0.002 / 1e-3)^2 / 2 = 2.0.
+    assert value == pytest.approx((-0.002 / constraints.HUMIDITY_SCALE) ** 2 / 2, rel=1e-12)
 
 
 def test_dew_point_below_temperature_scores_exactly_zero():
@@ -87,7 +117,9 @@ def test_dew_point_below_temperature_scores_exactly_zero():
 def test_dew_point_above_temperature_is_charged():
     t = torch.tensor([280.0], dtype=torch.float64)
     td = torch.tensor([282.0], dtype=torch.float64)
-    assert float(constraints.dew_point_le_temperature(td, t)) == pytest.approx(4.0, rel=1e-12)
+    # Dimensionless: ((282 - 280) / 1 K)^2 = 4.0.
+    assert float(constraints.dew_point_le_temperature(td, t)) == pytest.approx(
+        (2.0 / constraints.TEMPERATURE_SCALE) ** 2, rel=1e-12)
 
 
 def test_the_three_terms_together_are_zero_on_a_satisfying_field():
@@ -104,7 +136,7 @@ def test_the_three_terms_together_are_zero_on_a_satisfying_field():
     channels[index["q850"]] = 0.004
     channels[index["u850"]] = 5.0
     channels[index["v850"]] = -2.0
-    body = constraints.physical_constraint_terms(channels, lat, lon)
+    body = constraints.physical_constraint_terms(channels, names, lat, lon)
     assert float(body["divergence"]) == 0.0
     assert float(body["humidity"]) == 0.0
     assert float(body["dew_point"]) == 0.0
@@ -122,21 +154,63 @@ def test_the_optimum_is_not_a_constant_field():
     channels[index["q850"]] = torch.linspace(0.002, 0.010, 6, dtype=torch.float64).repeat(5, 1)
     channels[index["u850"]] = 4.0
     channels[index["v850"]] = -1.0
-    body = constraints.physical_constraint_terms(channels, lat, lon)
+    body = constraints.physical_constraint_terms(channels, names, lat, lon)
     assert float(body["total"]) == 0.0
+
+
+def test_channels_are_matched_by_name_not_by_position():
+    """The store's order is t2m,u10,v10,mslp,z850,... -- a positional zip would read the wrong fields.
+
+    This is the counterproof for the defect found before freezing: with a positional zip the
+    divergence operator would receive ``t2m`` where it asked for ``mslp`` and ``mslp`` where it
+    asked for ``u850``, and every term would return a plausible but meaningless number. Here the
+    same physical field is presented in the store's real 17-channel order and must give exactly
+    the same answer as the 8-channel contiguous presentation above.
+    """
+    lat, lon = _grid()
+    store_names = ("t2m", "u10", "v10", "mslp", "z850", "t850", "q850", "u850", "v850",
+                   "z500", "t500", "q500", "u500", "v500", "z250", "u250", "v250")
+    channels = torch.zeros((len(store_names), 5, 6), dtype=torch.float64)
+    index = {name: i for i, name in enumerate(store_names)}
+    channels[index["t850"]] = 285.0
+    channels[index["q850"]] = 0.004
+    channels[index["u850"]] = 5.0
+    channels[index["v850"]] = -2.0
+    # Values that would make a positional zip loudly wrong: t2m is huge and u10 diverges.
+    channels[index["t2m"]] = 1.0e6
+    channels[index["u10"]] = torch.linspace(-500.0, 500.0, 6, dtype=torch.float64).repeat(5, 1)
+    body = constraints.physical_constraint_terms(channels, store_names, lat, lon)
+    assert float(body["total"]) == 0.0
+
+
+def test_a_reordered_store_is_refused_rather_than_rescaled():
+    """A name that is absent must be a KeyError, not a silent positional read."""
+    lat, lon = _grid()
+    channels = torch.zeros((8, 5, 6), dtype=torch.float64)
+    names = ("mslp", "t850", "q850", "u850", "v850", "t500", "u500", "v250")
+    with pytest.raises(KeyError, match="missing the named channels"):
+        constraints.physical_constraint_terms(channels, names, lat, lon)
+    with pytest.raises(ValueError, match="names were declared"):
+        constraints.physical_constraint_terms(channels, names[:7], lat, lon)
 
 
 def test_an_unknown_weight_name_is_refused():
     lat, lon = _grid()
     channels = torch.zeros((8, 5, 6), dtype=torch.float64)
+    names = ("mslp", "t850", "q850", "u850", "v850", "t500", "u500", "v500")
     with pytest.raises(KeyError, match="unknown constraint weights"):
-        constraints.physical_constraint_terms(channels, lat, lon, weights={"smoothness": 1.0})
+        constraints.physical_constraint_terms(channels, names, lat, lon,
+                                              weights={"smoothness": 1.0})
 
 
 def test_a_too_narrow_prediction_is_refused():
     lat, lon = _grid()
+    names = ("mslp", "t850", "q850", "u850", "v850", "t500", "u500", "v500")
     with pytest.raises(ValueError, match="channels"):
-        constraints.physical_constraint_terms(torch.zeros((3, 5, 6)), lat, lon)
+        constraints.physical_constraint_terms(torch.zeros((3, 5, 6)), names[:3], lat, lon)
+    # Enough channels but the wrong count of names is also a ValueError, not a silent zip.
+    with pytest.raises(ValueError, match="names were declared"):
+        constraints.physical_constraint_terms(torch.zeros((8, 5, 6)), names[:7], lat, lon)
 
 
 def test_the_module_does_not_import_legacy():

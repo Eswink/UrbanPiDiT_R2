@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 103; human-review candidates: 2
+Records: 104; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1889,6 +1889,25 @@ Records: 103; human-review candidates: 2
   - The invalid first K1 harness run is retained but excluded from conclusions.
 - Excluded from runnable candidates: Mixed depth trade-off; requires a separately frozen hypothesis before any follow-up.
 - Recorded metrics (not recomputed): free_scaling_supported=false, gpu_hours=0.5, independent_k1_result=mixed, phase=c3, seeds=3, test_read=false
+
+## s3-physical-constraints-c1-preflight-veto
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `60` (not a scientific score)
+- Evidence: `docs/R7_S3_PHYSICAL_CONSTRAINTS_C1_PREFLIGHT_RESULT.md` (SHA256 `2cce20baf80e437439f26b05d9322122558d4808c7fa43d635c16a7a166e85fd`)
+- Evidence commit: `0000000000000000000000000000000000000000`; experiment commit: `0000000000000000000000000000000000000000`
+- Protocol SHA256: `not recorded`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Stage C1 was NOT opened. Decision 0084 section 6 makes 'argue this is not the same family as the closed spatial-gradient loss' an opening precondition, and decision 0092's argument rested on a testable empirical claim: that the real atmosphere already satisfies the three constraints, so the optimum set contains the truth. Measured before freezing, on 8 train batches with the p1600 endpoint, that claim is false: the divergence term charges the ANALYSIS field 10.2x more than the model's forecast (8/8 cases, 6.50-15.48x). Raw physical quantities confirm it independently of the scale constants -- mean |div| is 2.51e-05 s^-1 in the analysis versus 8.52e-06 in the model, p95 7.30e-05 versus 2.39e-05 -- i.e. the model is SMOOTHER than reality, so minimising divergence pushes the forecast toward smoother-than-truth, which is the closed spatial-gradient loss's failure mode rather than a truth-containing optimum. The specific-humidity term is identically zero on this store (q850 minimum always > 1e-3, negative fraction 0.0), so 0.5 of the bundle's weight carries no gradient. Zero GPU-hours were spent: this is a preflight veto, not an experimental negative, and it licenses no claim that physical constraints are useless.
+- Limitations:
+  - covers only the 65x65 multi-year instance (2000-2021 train / 2022 val); the 129x129 wide instance, the 5-year manifest and other resolutions are untested, and divergence is a scale-dependent quantity, so the result must not be extrapolated
+  - one model (the p1600 endpoint) and one parent (1600 updates): n=1 model with no interval, and a weaker or stronger model could have a different divergence spectrum
+  - the scale constants DIVERGENCE_SCALE/HUMIDITY_SCALE/TEMPERATURE_SCALE are this round's choices derived from the analysis-field distribution, not measured optima; they change the size of each term but not the section-3 inequality, which was rechecked with raw physical quantities
+  - the humidity term being identically zero holds on this store only; data with dry or upper-level regions could activate it, so this is not evidence that the constraint is meaningless in general
+  - the preflight scripts were one-off CPU probes and are not in any execution closure; the method is written out step by step so it can be rewritten, but the exact bytes are not archived
+  - this is a preflight veto, not an experimental negative: no on/off arms were run, so nothing here licenses a claim that physical constraints do not help, that divergence is unimportant, or that Stage C2 is hopeless
+  - the engineering fixes change training_code_sha256, so any future reopening cannot use Stage B's arms as a code-identity comparison
+- Excluded from runnable candidates: not a candidate and not a scientific result: no training run, no protocol, no arms. It is the record of an opening precondition failing, which is exactly what decision 0084 section 6 asks for.
+- Recorded metrics (not recomputed): abs_divergence_p95_analysis_s_inv=7.2998e-05, abs_divergence_p95_model_s_inv=2.3913e-05, blocking_convention_rules_failing=0, bundle_analysis_over_model_ratio_max=15.481, bundle_analysis_over_model_ratio_mean=10.222, bundle_analysis_over_model_ratio_min=6.503, cases_measured=8, cases_where_analysis_charged_more=8, dew_point_term_analysis_mean=2.7204e-05, dew_point_term_model_mean=9.3815e-05, dimensionless_fix_grad_ratio_endpoint_max=1.244, dimensionless_fix_grad_ratio_endpoint_min=0.5029, dimensionless_fix_grad_ratio_parent_max=4.104, dimensionless_fix_grad_ratio_parent_min=2.103, divergence_term_analysis_mean=8.4703, divergence_term_model_mean=0.8286, gpu_hours=0.0, humidity_term_analysis_mean=0.0, humidity_term_model_mean=0.0, legacy_vs_spherical_magnitude_ratio=3407000000.0, mean_abs_divergence_analysis_s_inv=2.5063e-05, mean_abs_divergence_model_s_inv=8.5227e-06, pre_fix_grad_ratio_parent_max=0.001013, pre_fix_grad_ratio_parent_min=2.728e-10, protocol_frozen=false, q850_min_analysis_kgkg=0.001051, q850_min_model_kgkg=0.0021055, q850_negative_fraction=0.0, round_opened=false, test_read=false, tests_passing=24, train_batches_only=true, val_read=false
 
 ## s4-fy-2016-first-confirmation
 
