@@ -104,7 +104,7 @@
   == "full_grid"`）。**无读数、无 GPU 时间**。修法：不传 mask，并**断言**训练报告必须是 `full_grid`，
   使掩码无法在其它身份检查仍全通过的情况下悄悄回来。
 
-- **2026-11-08 `attempt04` 开跑（当前）**：协议 `ac61e3f…`、archive 通过、`prepare` 578.6 s
+- **2026-11-08 `attempt04` 开跑（当前）**：**冻结协议 `dcc38292…`**（`ac61e3f…` 是 `preparation_protocol.json` 的**初稿**摘要，不是冻结值——`prepared_protocol` 会把 live 身份、preflight、94 项闭包与父钉**加入**后再重算，所以两者必然不同；`validate_protocol` 于 2026-11-08 运行中**复验通过**，94 个钉住文件逐字节匹配）、archive 通过、`prepare` 578.6 s
   （含驱动内前置检验：dose `0.5702/0.4920/0.4707/0.4300`、`zero_at_target` 全 `0.0`、
   导出尺度与声明相符）。两卡各一 seed 并行（seed41/42 先跑 **off** 臂），
   实测 9,308 / 9,287 MiB、util 25%/68%、loss 0.95 → 0.69。

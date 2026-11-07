@@ -2,7 +2,7 @@
 
 - **日期**：2026-11-08
 - **状态**：proposed
-- **执行前置**：C2 在跑（`attempt04`，协议 `ac61e3f…`），其 `execution_files_sha256` 钉了 **94** 个文件
+- **执行前置**：C2 在跑（`attempt04`，冻结协议 **`dcc38292…`**），其 `execution_files_sha256` 钉了 **94** 个文件
   （含 17 个 `training_code_digest` 源文件中的全部）。本 ADR 只做**只读判定**与**形态定义**，
   **不写任何 `model/**` 或 `training/**` 代码**，不冻协议、不跑 GPU
 - **范围**：`docs/goals/s3-throughput-and-physics-campaign.md` Stage D 的接线部分（D1）；
