@@ -268,3 +268,30 @@
   **注意**：这个早期速率比 `attempt04` 的稳步值（1.136/1.147）更高，故 §5 的
   1.47 倍包络余量要**在跑稳后复核**；若持续高于约 1.5 s/update 则两臂合计可能逼近
   `per_seed` 32 h，届时应如实记 `soft_overrun` 而**不**改硬限。
+
+- **2026-11-08 编排形态的核对（事实更正 + 一处如实缺口）**：完成校验器称
+  「`.zcode/workflow-drafts/r7-throughput-physics-round.dwf.ts` 未被创建或运行，无证据」。
+  **前半句不成立，后半句成立**，分开记：
+  - **文件存在且是真派生件**：`.zcode/workflow-drafts/r7-throughput-physics-round.dwf.ts`，
+    **34,663 字节**，mtime 2026-11-04 20:03，头部逐条写明与源草稿
+    `r7-campaign-round.dwf.ts`（32,487 字节）的**三处实测差异**（`maxRounds` 上限 8 而非 50、
+    单 stage 超时 14,400,000 ms、侦察/登记词改指本 campaign 的判据），
+    并注明「决策 0044/0045、计划 0020」。
+  - **它满足目标长文点名的每一条结构要求（逐条 grep 实测）**：`maxRounds` 硬上限 8
+    （`r7-throughput-physics-round.dwf.ts:113`）、stage 超时 `{ timeoutMs: 14400000 }`（`:336`）、
+    19 处 `world.run`/`agent(` 调用、**自跑** `r7_round.py round-guard`（`:377`，提交前）与
+    `r7_round.py verify`（`:462`，登记后，非 0 即中止）、只推 `r7/weather-reasoning`（`:133`）、
+    四件套登记指令齐全（`:267-272`，含「数字不要自己算，先跑 `ledger_run ledger-plan`」）。
+  - **它未被 `.zcode/` 的 git 忽略规则排除出「应该提交」的范围**：`.zcode/*` 是**刻意**
+    被 `.gitignore:73` 忽略的（`artifact-storage.md` 判定「工具运行态」不提交），
+    故 `git log` 里没有它是**正确状态**，不是遗留缺陷。
+  - **如实缺口**：本会话**没有用它跑轮**，而是用 `tools/r7_round.py` 的
+    `state/freeze/stage/stage-seeds/verify` **逐 stage 手工推进**。
+    这**不改变**执行路径——workflow 内部调用的正是同一批 `world.run("tools/r7_round.py", ...)`，
+    且本会话每一步都**自跑了** `commit-guard`（提交前）与 `verify`（登记后），
+    **没有依赖 hook 兜底**；但「由 workflow 编排」这一形态**确实没落实**，据实登记。
+    原因不辩护：`attempt06` 已在跑，此时起一个 workflow 轮只会与在跑轮冲突；
+    而 `attempt04→06` 的每次作废都发生在「读数/评估下一步」，需要**逐步读产物再决定**，
+    不是 workflow 的「一轮跑到底」能承担的。
+  - **因此本条的处置**：不假称 workflow 已跑；补记文件身份与结构核对证据（上面三条），
+    并把「下一轮若从干净状态开新轮，应改用该 workflow 起跑」写进 §8 的下一动作。
