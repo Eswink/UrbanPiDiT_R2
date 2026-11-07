@@ -295,3 +295,28 @@
     不是 workflow 的「一轮跑到底」能承担的。
   - **因此本条的处置**：不假称 workflow 已跑；补记文件身份与结构核对证据（上面三条），
     并把「下一轮若从干净状态开新轮，应改用该 workflow 起跑」写进 §8 的下一动作。
+
+- **2026-11-08 Stage E1 的阻塞原因被实测更正（影响"接下来做什么"的判断）。**
+  此前（含决策 0096 第 7 条与我的进度记录）把 E1 的阻塞写成「E1 要改 `training/`，
+  会让 C2 的 `training_code_digest` 失效」。**实测不成立**：
+  - E1a 的因子 `physical_weights` 与 E1b 的 `draft_supervision` **都是
+    `fine_tune_long_rollout` 的每次调用参数**（签名实测：`physical_weights` 无默认值、
+    `draft_supervision` 默认 `"deep"`）；
+  - 注册的稀疏向量写在 **`scripts/`**（`study_r7_s3_wide_single_factor.py:38`
+    的 `PHYSICAL_WEIGHTS = (1.,.5,0.,.5,0.,0.,0.,.5,0.,0.,0.,.5)`），
+    **不在** `training_code_digest()` 的 13 个 `SOURCE_FILES` 内。
+  ⇒ 只要 E1 的新驱动全部落在 `scripts/`，**不改 `training/**`**、`training_code_digest` 不变。
+  **唯一真实的阻塞是资源**：E1 的轮次会在 GPU 上与 `attempt06` 争卡，而共驻规则
+  （R-054／决策 0026）要求统一父调度串行。**这是资源理由，不是身份理由**，两者原先被混为一谈。
+  决策 0096 已按此加了一段同日更正（正文不改，留痕）。
+
+  **这条更正改变了"能否现在推进"的答案，但没有改变"现在该做什么"**：
+  E1a 需要**自己的**协议层与驱动（C2 的协议把轴写死为 `derivative_matching == "c2"`、
+  驱动在 `_arm_contract` 里直接写死该键，`validate_protocol` 也断言
+  `body["arms"][CANDIDATE]["derivative_matching"] != "c2"` 即报错——
+  见 `r7_s3_derivative_matching_c2_protocol.py:400-403`），**无法复用**。
+  现在写它等于在 `attempt06` 仍占两卡时先造一份**无法冻结**的 ~700 行代码，
+  而且它必须按 §5 的 16 epoch 口径（128,528 updates）重算预算——那是决策 0096 已申报的
+  **约 250 GPU-h/轮、两轮约 500 GPU-h**。
+  **故本轮不预造 E1a 代码**，如实记为「未做」，理由如上；`attempt06` 读完并登记后，
+  按 0096 的 E1a/E1b 各开一轮。
