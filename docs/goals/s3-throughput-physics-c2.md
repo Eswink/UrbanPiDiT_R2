@@ -320,3 +320,24 @@
   **约 250 GPU-h/轮、两轮约 500 GPU-h**。
   **故本轮不预造 E1a 代码**，如实记为「未做」，理由如上；`attempt06` 读完并登记后，
   按 0096 的 E1a/E1b 各开一轮。
+
+- **2026-11-08 第五、六次 CI 红已修，`c2fca44` 绿（run `42424559583`）**：
+  - **第五次（`3773ccb`，run `42421309692`）**：第 9 步测试失败。根因是**我的**
+    `tests/test_reconcile_r7_static_parent.py` 里有 3 项**直接构造静态 conditioner**，
+    而已发布静态产物在 `outputs/` 下、**干净检出没有它** ⇒ `FileNotFoundError`
+    （`static product is not published`）。**这是我已知的失败类**（干净检出缺产物），
+    仍然漏了。修法：新增具名 `_skip_without_static_product()`（与既有的
+    `_skip_without_parent()` 同一纪律，**不造合成场**）。干净工作树实测：
+    **2 passed / 5 skipped / 0 failed**（修前 3 failed）。
+  - **第六次（`cd7bd4f`，run `42422721080`）**：第 9 步测试失败，`size-thresholds.md`
+    记录的计数与实测不符——我的新工具把 **R-019b 推到 1133**（一行 122 字符）、
+    **R-020 推到 68**（`reconcile` 达 **144 行**）。**修法是缩我的代码，不是改标记**：
+    `reconcile` 沿真实接缝拆成 `_load_parent` / `_probe_arms` / `_receipt` + 一个短
+    `reconcile`（每个函数 **≤60 行**），长行折行。**重构数值上无副作用**：
+    对账 digest 仍 **`4e56d823…`**、张量数仍 **157**。
+    三个计数回到基线：**R-019b 1132 / R-020 67 / R-021 135**。
+  - **两次的共同教训（已写进流程）**：C 类「目标态」计数只在 **`--report`** 下出现，
+    默认运行看不见，但 `tests/test_check_conventions.py::test_size_report_counts_match_the_checker`
+    会在 CI 里断言它们与 `size-thresholds.md` 一致 ⇒ **新增任何 .py 都可能在 CI 上因此变红**。
+    本地提交前应跑 `.venv/bin/python tools/check_conventions.py --report` 并核对三个计数，
+    而不是只看阻断规则。这条我先前漏了两次。
