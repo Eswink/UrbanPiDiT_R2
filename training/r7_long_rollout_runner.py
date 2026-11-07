@@ -221,14 +221,24 @@ def _update(model, optimizer, batch, contract, device, deadline, supervision_mas
     moved = {name: value.to(device, non_blocking=non_blocking) if torch.is_tensor(value) else value
              for name, value in batch.items()}
     result = _rollout(model, moved, contract, supervision_mask)
+    # Stage C1: ``None`` when the axis is off, so the registered branch below is untouched.
+    # The helper lives in the constraints module so this file stays under R-051's cap.
+    from .r7_physical_constraints import constraint_term as _constraint_term
+    constraint = _constraint_term(result, moved, contract)
+    objective = result.loss if constraint is None else result.loss + constraint["total"]
     surgery_mode = require_gradient_surgery(
         contract["autoregression"].get("gradient_surgery", "off"))
     sam_rho = require_sam_rho(contract["autoregression"].get("sam_rho"))
     if sam_rho is not None and surgery_mode != "off":
         raise ValueError("the SAM update rule cannot be combined with the gradient-surgery axis")
+    if constraint is not None and (surgery_mode != "off" or sam_rho is not None):
+        # Decision 0092's single-factor claim: mixing C1 with an alternative update rule would
+        # make the on/off difference unattributable, so the combination is refused rather than
+        # silently allowed.
+        raise ValueError("the c1 constraint cannot be combined with gradient surgery or SAM")
     if surgery_mode == "off" and sam_rho is None:
         # The registered path, verbatim; no extra reduction touches the graph.
-        result.loss.backward()
+        objective.backward()
         surgery, sam = {}, {}
     elif sam_rho is not None:
         # Two forward/backward passes: the registered gradient (this first backward) is
@@ -260,6 +270,12 @@ def _update(model, optimizer, batch, contract, device, deadline, supervision_mas
                "l12": None if result.l12 is None else float(result.l12.detach()),
                "per_step_losses": result.per_step_losses.detach().cpu().tolist(),
                "gradient_norm": float(norm)}
+    if constraint is not None:
+        # The raw terms are recorded so the reading can check that the constraint actually bit
+        # (exit (b)), rather than trusting that "it was on".
+        metrics.update({f"constraint_{name}": float(constraint[name].detach())
+                        for name in ("divergence", "humidity", "dew_point", "total")})
+        metrics["objective"] = float(objective.detach())
     metrics.update(surgery)
     metrics.update(sam)
     return metrics

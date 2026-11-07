@@ -136,3 +136,40 @@ def denormalize(fields, normalization, channels):
         raise ValueError(f"fields carry {fields.shape[-3]} channels, channels names {len(channels)}")
     shape = (1,) * (fields.ndim - 3) + (len(channels), 1, 1)
     return fields * std.reshape(shape) + mean.reshape(shape)
+
+
+def constraint_term(result, moved, contract):
+    """Stage C1's untargeted constraint on the *last* forecast, or ``None`` when off.
+
+    ``None`` is returned without constructing anything when the axis is off, so the
+    registered path never touches this code and cannot acquire a numerical difference from
+    it. When on, the term is computed on the denormalised last forecast: the training batch
+    carries no normalization constants (the dataset normalises inside ``__getitem__``), so
+    the caller must pass them in the contract and their digest is frozen in the protocol.
+
+    Only the last forecast is constrained. Constraining every physical step would multiply
+    the cost by the step count and mix "does the constraint help" with "how often is it
+    applied"; decision 0092 fixes one application per update, which is what the brief's
+    single-factor claim needs.
+    """
+    axis = contract["autoregression"].get("physical_constraints")
+    if axis is None:
+        return None
+    if axis != "c1":
+        raise ValueError(f"physical_constraints must be absent or 'c1', got {axis!r}")
+    import numpy as np
+
+    from .r7_physical_constraints import denormalize, physical_constraint_terms
+    normalization = contract["autoregression"].get("normalization")
+    channels = contract["autoregression"].get("channels")
+    if not normalization or not channels:
+        raise ValueError("the c1 axis requires the store's normalization and channel order")
+    mean = torch.as_tensor(np.asarray(normalization["mean"], dtype=np.float32))
+    std = torch.as_tensor(np.asarray(normalization["std"], dtype=np.float32))
+    forecast = result.forecasts[:, -1]
+    physical = denormalize(forecast, (mean.to(forecast.device), std.to(forecast.device)),
+                           tuple(channels))
+    latitude, longitude = moved.get("latitude"), moved.get("longitude")
+    if latitude is None or longitude is None:
+        raise ValueError("the c1 axis requires latitude and longitude in the batch")
+    return physical_constraint_terms(physical, latitude, longitude)

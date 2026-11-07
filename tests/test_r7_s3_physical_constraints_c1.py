@@ -201,3 +201,39 @@ def test_denormalize_refuses_a_channel_count_mismatch():
     with pytest.raises(ValueError, match="entries"):
         constraints.denormalize(torch.zeros((3, 2, 2)), (torch.zeros(2), torch.ones(2)),
                                 ("a", "b", "c"))
+
+
+def test_the_axis_is_absent_by_default_so_the_registered_path_is_untouched():
+    """``physical_constraints`` must be an opt-in contract key, never a default."""
+    from training.r7_physical_constraints import constraint_term as _constraint_term
+    import inspect
+    source = inspect.getsource(_constraint_term)
+    # The off path must return before constructing anything: an early None is what keeps the
+    # registered arithmetic bit-identical, and a "weight 0" path would not.
+    assert "if axis is None:\n        return None" in source
+    tree = ast.parse(source)
+    # ast.walk yields in breadth-first order, not source order, so sort by line: the guard
+    # must be the *first* return executed, which is the one with the smallest line number.
+    first = sorted((n for n in ast.walk(tree) if isinstance(n, ast.Return)),
+                   key=lambda node: node.lineno)[0]
+    assert isinstance(first.value, ast.Constant) and first.value.value is None
+
+
+def test_an_unknown_constraint_axis_is_refused():
+    from training.r7_physical_constraints import constraint_term as _constraint_term
+    with pytest.raises(ValueError, match="must be absent or 'c1'"):
+        _constraint_term(None, {}, {"autoregression": {"physical_constraints": "c2"}})
+
+
+def test_the_constraint_refuses_to_mix_with_sam_or_gradient_surgery():
+    """A single-factor claim is only honest if the combination is refused, not merely unused."""
+    source = Path(constraints.__file__).parent.joinpath("r7_long_rollout_runner.py").read_text(
+        encoding="utf-8") + Path(constraints.__file__).read_text(encoding="utf-8")
+    assert "cannot be combined with gradient surgery or SAM" in source
+
+
+def test_the_c1_axis_requires_the_normalization_and_channel_order():
+    """Without them the denormalisation would be an unregistered hidden variable."""
+    from training.r7_physical_constraints import constraint_term as _constraint_term
+    with pytest.raises(ValueError, match="requires the store's normalization"):
+        _constraint_term(None, {}, {"autoregression": {"physical_constraints": "c1"}})
