@@ -140,3 +140,18 @@
   不会让 C2 的 `reading` 身份失效。**D1 接线与 E1 实跑则必须等**——`validate_protocol` 会校验
   `model_code_digest()` 与 `training_code_digest()`，现在改 `model/**` 或 `training/**`
   会让 C2 已冻结的身份失效。
+
+- **2026-11-08 第三次 CI 红（`0f72dca`）已修，`0f026c1` 绿（run `42399805771`）**：
+  干净工作树 **5,569 passed / 27 skipped / 0 failed** 独立复核。
+  根因：`scripts/r7_s3_derivative_matching_c2_protocol.py` **404 行**，越过 R-021 的 400 行目标带 4 行，
+  使 `size-thresholds.md` 记的 135 与实测 136 不符。
+  **处置与前面的 R-020 案例不同，理由必须写明**：该文件的 SHA256 已被在跑的
+  `attempt04` 钉进 `execution_files_sha256`（`3f1d8e37…`），`validate_protocol` 会逐文件校验。
+  **我先试了就地缩小**（改注释与 docstring 到 400 行），随即实测到
+  **`pinned 3f1d8e37… vs actual 4369e449… MATCH: False`** —— 那会让约 500 GPU-h 的在跑轮次身份失效。
+  **立刻用 `git checkout` 恢复被钉的字节**，复核：**94 个钉住文件全部匹配、
+  `model_code_digest` 与 `training_code_digest` 均与协议相符**。
+  然后按 `size-thresholds.md` **自身的既有惯例**记录计数（135→136）并写明理由与恢复条件，
+  **不动阈值、不动规则级别、不加冻结例外**；该文件在 C2 跑完后应缩回 ≤400 行、计数回到 135。
+  **这一条是「先动手、再验证」的一次真实失误，已如实登记**；正确的顺序应是在改任何
+  `execution_files_sha256` 成员之前先核对它是否被在跑轮次钉住。
