@@ -89,6 +89,16 @@ LR 2e-5/warmup 10/weight_decay 1e-4/clip 1.0、`full_grid` 监督、三 seed（4
 **7. 不在 C2 结束前冻结任何 E1 协议。** C2 的 `reading` 会 `validate_protocol`，
 其中 `training_code_digest()` 覆盖 `training/**`；在它跑完前改训练代码会让 C2 身份失效。
 
+   **2026-11-08 更正（实测）**：本条原先把 E1 的阻塞原因写成「E1 要改 `training/`」，**不成立**。
+   E1a 的因子 `physical_weights` 与 E1b 的 `draft_supervision` **都是 `fine_tune_long_rollout`
+   的每次调用参数**（实测签名：`physical_weights` 无默认值、`draft_supervision` 默认 `deep`），
+   注册值写在 **`scripts/`**（`study_r7_s3_wide_single_factor.py:38` 的 `PHYSICAL_WEIGHTS`），
+   **不在** `training_code_digest()` 的 13 个 `SOURCE_FILES` 内。因此只要新驱动全部落在
+   `scripts/`，E1a/E1b **不需要改 `training/**`**、`training_code_digest` 不变、**不必**等
+   C2 的 `reading`。**仍然要等的只是一件事**：E1 会与 `attempt06` 争卡，而共驻规则
+   （R-054／决策 0026）要求统一父调度串行 ⇒ **E1 排在 `attempt06` 之后是资源理由，不是身份理由**。
+   这两个理由原先被混为一谈，此处分开。
+
 ## Consequences
 
 **负面后果（代价，必须如实列出）**

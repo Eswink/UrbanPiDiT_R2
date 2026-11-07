@@ -31,8 +31,24 @@ def _skip_without_parent():
                     "synthetic fallback")
 
 
+def _skip_without_static_product():
+    """The published static product is also an untracked outputs/ artifact.
+
+    CI is a bare checkout with no outputs/, so every test that builds the conditioner must skip
+    there with a named reason rather than failing on a missing BUILD_COMPLETE. This is the same
+    artifact-absence rule the rest of the suite follows; making the requirement explicit here is
+    what keeps the clean checkout green without inventing a synthetic field.
+    """
+    from model import static_conditioning_r7 as static
+    if not (static.STATIC_MANIFEST.parent / "BUILD_COMPLETE.json").is_file():
+        pytest.skip("the published static product is an untracked outputs/ artifact; no synthetic "
+                    "fallback")
+
+
 def test_the_buffer_keys_are_exactly_the_two_the_model_adds():
     """If model/ renames a buffer, the tool must fail rather than reconcile nothing silently."""
+    _skip_without_parent()
+    _skip_without_static_product()
     from training.r7_experiment import make_model
     spec = torch.load(PARENT, map_location="cpu", weights_only=True)["contract"]["model"]
     with torch.random.fork_rng(devices=[]):
@@ -45,6 +61,7 @@ def test_the_buffer_keys_are_exactly_the_two_the_model_adds():
 
 def test_the_published_buffers_are_the_published_product():
     """The field buffer must be bit-identical to the stack ``load_static_fields`` returns."""
+    _skip_without_static_product()
     built, provenance = tool._published_buffers()
     assert provenance["field_equals_published_stack"] is True
     assert provenance["variable_count"] == len(provenance["variables"])
@@ -59,6 +76,7 @@ def test_the_published_buffers_are_the_published_product():
 
 def test_the_reconciled_digest_is_stable_across_two_builds():
     """A deterministic reconciliation: same parent + same product => same digest, twice."""
+    _skip_without_static_product()
     built_a, _ = tool._published_buffers()
     built_b, _ = tool._published_buffers()
     for key in tool.BUFFER_KEYS:
@@ -80,8 +98,8 @@ def test_an_existing_output_directory_is_refused(tmp_path):
 
 def test_the_tool_refuses_a_parent_that_already_carries_static(tmp_path):
     """Reconciling an on-arm parent would be a no-op dressed as work; say so instead."""
-    if not PARENT.is_file():
-        _skip_without_parent()
+    _skip_without_parent()
+    _skip_without_static_product()
     payload = torch.load(PARENT, map_location="cpu", weights_only=True)
     tampered = dict(payload)
     contract = json.loads(json.dumps(payload["contract"]))
@@ -96,6 +114,7 @@ def test_the_tool_refuses_a_parent_that_already_carries_static(tmp_path):
 def test_a_real_reconciliation_records_the_gap_it_closes(tmp_path):
     """The end-to-end property: 157 tensors, strict pass, bare parent rejected, two left missing."""
     _skip_without_parent()
+    _skip_without_static_product()
     receipt = tool.reconcile(PARENT, tmp_path / "out")
     assert receipt["strict_load_of_reconciled_passed"] is True
     assert receipt["bare_parent_into_on_arm_failed"] is True
