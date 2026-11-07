@@ -73,9 +73,7 @@ backbone.static_conditioning_pathway.projection  is_buffer True  persistent True
 自己重建的缓冲区（数值上相同，但**没有任何东西证明**它等于发布产物）。
 这是一个「看起来跑通了」的静默错误，与 0069 第 2 条要防的是同一类。
 
-**④ 因此目标长文那句「这会改 `model_code_sha256` 故必须重做父迁移」在本情形下不成立。**
-
-`model_code_digest()` 对 `model/**.py` 的**字节**做哈希
+**④ 因此目标长文那句「这会改 `model_code_sha256` 故必须重做父迁移」在本情形下不成立。**`model_code_digest()` 对 `model/**.py` 的**字节**做哈希
 （`training/r7_experiment.py:31-39`，`rglob('*.py')`）。而
 `static_conditioning` 的模型侧代码**早就存在**——`896eabf`（2026-10-29）
 就已落盘，早于注册父的迁移（2026-11-03）。**把开关从 `False` 改成 `True`
@@ -91,6 +89,21 @@ backbone.static_conditioning_pathway.projection  is_buffer True  persistent True
 在写它的时候就是对未来的一个错误预测。** 它不是「现在被推翻了」，
 而是**从写下的那天起就不成立**，因为开关先于父迁移存在。据实登记，
 不改目标长文（它是不可变记录），由本 ADR 承担更正。
+
+**⑥ 可复现等级：本条**不是**全仓可复现的，据实标注。** ② 的十项实测用的是
+**注册 recipe 的 spec**，而该 spec 的来源是
+`r7_s3_curve_point_large_protocol.model_spec()` → `dose.recipe._shared().archived_process_spec()`，
+它**读 `outputs/r7_v2_comparison_20261004_attempt01/protocol.json`**。实测：在
+`126c08e` 的**干净工作树**里跑同样的脚本，第一步就
+`FileNotFoundError: outputs/r7_v2_comparison_20261004_attempt01/protocol.json`
+——因为 `outputs/` 不入版本控制（R-035 的既有判定）。
+所以本条的复现等级是 **`analysis-reproducible`，且需既有产物树**，
+**不是** `clean-clone-reproducible`。这不影响判定本身（三处核心事实——
+`model/weather_forecaster_r7.py` 的 `static_conditioning_pathway` 构造与读取、
+两个 persistent buffer 的存在、`migrate_r7_parent_state.py:105` 的 `strict=True`——
+都可以在干净克隆里由**源码**直接读到），但「十项数值」需要
+`outputs/r7_v2_comparison_20261004_attempt01/` 在场。**下一个 ADR 若要建守卫，
+应当把 spec 从源码可复算的常量补齐**，而不是依赖一份归档。
 
 ## Decision
 
@@ -158,6 +171,9 @@ backbone.static_conditioning_pathway.projection  is_buffer True  persistent True
    「调制方式」。这条限制在下一轮做比较时仍然在。
 6. **本 ADR 为 0 GPU-h、零读数。** 它不应被计入任何 Stage 的算力，
    也不构成 D 段约 1 GPU-h 预算的消耗。
+7. **十项数值不是干净克隆可复现的**（见 Context ⑥）：spec 取自归档的
+   `outputs/r7_v2_comparison_20261004_attempt01/protocol.json`，而 `outputs/` 不入版本控制。
+   干净克隆只能复现**定性**部分（源码可读的三个事实），复现十项数值需要既有产物树。
 
 **正面后果**：把一条**会导致静默错误**的实现细节（两个 persistent buffer 在
 `strict=False` 下被丢弃）在**动手之前**测出来并写下来；纠正了一条从写下之日起
