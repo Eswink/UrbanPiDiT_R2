@@ -272,10 +272,13 @@ def _update(model, optimizer, batch, contract, device, deadline, supervision_mas
                "per_step_losses": result.per_step_losses.detach().cpu().tolist(),
                "gradient_norm": float(norm)}
     if constraint is not None:
-        # The raw terms are recorded so the reading can check that the constraint actually bit
-        # (exit (b)), rather than trusting that "it was on".
-        metrics.update({f"constraint_{name}": float(constraint[name].detach())
-                        for name in ("divergence", "humidity", "dew_point", "total")})
+        # Every raw term the active axis returned is recorded, so the reading can check that the
+        # term actually bit (exit (b)) rather than trusting that "it was on". The names come from
+        # the dict itself: C1 returns divergence/humidity/dew_point, C2 returns
+        # divergence/vorticity, and a hardcoded list would raise KeyError on the other axis.
+        metrics.update({f"constraint_{name}": float(value.detach())
+                        for name, value in constraint.items()
+                        if isinstance(value, torch.Tensor)})
         metrics["objective"] = float(objective.detach())
     metrics.update(surgery)
     metrics.update(sam)

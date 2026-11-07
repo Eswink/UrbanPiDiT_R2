@@ -241,3 +241,28 @@ def test_the_runner_has_one_dispatch_point_not_one_per_axis():
     assert runner.count("r7_objective_axes import auxiliary_term") == 1
     assert "r7_derivative_matching import" not in runner
     assert "r7_physical_constraints import" not in runner
+
+
+def test_the_runner_records_every_axis_term_without_a_hardcoded_name_list():
+    """C1 returns divergence/humidity/dew_point and C2 returns divergence/vorticity.
+
+    The runner used to record a fixed C1 name tuple, so the first C2 update would have raised
+    KeyError on ``humidity``. Asserted on the source because the alternative is a GPU run.
+    """
+    runner = Path(matching.__file__).parent.joinpath("r7_long_rollout_runner.py").read_text(
+        encoding="utf-8")
+    assert "for name in (\"divergence\", \"humidity\", \"dew_point\", \"total\")" not in runner
+    assert "for name, value in constraint.items()" in runner
+    # And it must only record tensors: C2's dict also carries weights/scales dicts.
+    assert "isinstance(value, torch.Tensor)" in runner
+
+
+def test_the_c2_terms_dict_carries_tensors_and_metadata_separately():
+    """The runner's filter is only safe if the tensors are tensors and the rest is not."""
+    lat, lon = _grid()
+    field = _field()
+    body = matching.derivative_matching_terms(field, field, STORE_NAMES, lat, lon, scales=SCALES)
+    assert isinstance(body["divergence"], torch.Tensor)
+    assert isinstance(body["vorticity"], torch.Tensor)
+    assert isinstance(body["total"], torch.Tensor)
+    assert isinstance(body["weights"], dict) and isinstance(body["scales"], dict)

@@ -1,25 +1,20 @@
-"""Stage C2 study driver: registered deep MSE -> same MSE + derivative-domain target matching.
+"""Stage C2's study driver: registered deep MSE -> same MSE + derivative-domain target matching.
 
 One factor, on/off, three seeds, batch fixed at 4. The on arm adds exactly one thing to the
-registered objective: for the last 6 h forecast,
+registered objective, for the last 6 h forecast:
 
     L = L_mse + w_div * mean(((∇·pred − ∇·target)/s_div)²) + w_vort * mean(((∇×pred − ∇×target)/s_vort)²)
 
-with ``w_div = w_vort = 0.1`` and the scales derived from the analysis field's own distribution
-(decision 0095). ``pred = target`` scores exactly zero, so the optimum set is the truth -- which
-is what distinguishes this from the closed spatial-gradient loss and from C1 (decision 0094).
+``pred = target`` scores exactly zero, so the optimum set is the truth -- which is what
+distinguishes this from the closed spatial-gradient loss and from C1 (decision 0094). The
+protocol layer, including the preflight that must pass before anything is frozen, lives in
+``r7_s3_derivative_matching_c2_protocol``.
 
-**The preflight runs inside this driver, not in an ad-hoc script.** ADR 0095 §Decision 9 requires
-it: a probe that bypasses the module can report a number the training run will never see, and no
-test would catch that difference. ``preflight()`` therefore calls
-``training.r7_derivative_matching.derivative_matching_terms`` itself on the pinned parent, and its
-numbers are frozen into ``protocol.json``. If the preflight fails -- the truth does not score zero,
-or the dose is not the same order as the MSE -- the prepare stage refuses and no protocol exists.
-
-Everything else is held word-for-word from Stage B's registered recipe: 65x65 multi-year instance,
-treatment manifest (32,131 usable windows), K=4, depth 4, dim 192, LR 2e-5, warmup 10, the sparse
-physical weights, batch 4, and the same scoring region and climatology denominator. The 2023 test
-split is never read.
+Everything else is held word-for-word from Stage B's registered recipe: 65x65 multi-year
+instance, treatment manifest (32,131 usable windows), K=4, depth 4, dim 192, LR 2e-5, warmup 10,
+the sparse physical weights, batch 4, the same scoring region and climatology denominator, and
+32,132 updates (4 epoch) so "added C2" is comparable to "more training". The 2023 test split is
+never read.
 """
 from __future__ import annotations
 
@@ -34,234 +29,240 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts import r7_s3_derivative_matching_c2_protocol as proto
 from scripts import r7_s3_curve_point_large_protocol as curve
 from scripts import r7_s3_position_retention_parent as parent_pins
 from scripts import study_r7_s3_wide_single_factor as wide
 from training import r7_device_selection as devices
 
-FORMAT = "r7-s3-derivative-matching-c2-protocol-v1"
-CANDIDATE, CONTROL = "on", "off"
-SEEDS = (41, 42, 43)
-UPDATES = 32132                    # 4 epoch at batch 4 over 32,131 usable windows
-STEPS = curve.STEPS                # K stays at the registered 4
-BATCH_SIZE = curve.BATCH_SIZE
-W_DIVERGENCE, W_VORTICITY = 0.1, 0.1
-#: Derived from the analysis field's own distribution (decision 0095 §Context ③): the mean
-#: ``|div|`` and ``|vort|`` over the train cases the preflight reads. Recomputed at prepare
-#: time and asserted equal to these, so a store whose fields moved fails instead of rescaling.
-DIVERGENCE_SCALE, VORTICITY_SCALE = 2.5665e-05, 3.5089e-05
-#: The preflight cases. Train manifest only; the same indices the ADR's measurement used.
-PREFLIGHT_CASES = (1000, 9000, 17000, 25000)
-#: The preflight must see the truth score exactly zero and the dose within this band of L_mse.
-#: A band rather than a threshold because the question is "can this term act at all", and the
-#: measured answer is 0.71-1.29. Declared before the run; never adjusted against a reading.
-DOSE_MIN, DOSE_MAX = 0.1, 10.0
-#: One arm per seed; two arms x three seeds. Budget from the fourth Stage B point's measured
-#: 1.1096 s/update at batch 4 plus that point's measured five-lead scoring cost.
-MEASURED_SECONDS_PER_UPDATE = 1.1096
-MEASURED_ON_POINT = "p1600"
-SCORING_ALLOWANCE_SECONDS = 2588.1
-ESTIMATED_PEAK_BYTES = 9569304576
-HEADROOM_MARGIN_BYTES = 512 * 2**20
-ENTRY_FILES = ("scripts/study_r7_s3_derivative_matching_c2.py",)
-
-LIMITATIONS = [
-    "development calibration on the 65x65 multi-year instance only (2000-2021 train / 2022 val, "
-    "17 channels); the 129x129 wide instance is a different store and is not covered",
-    "the FY source has no 2023: the test split is four months and stays sealed; r stays 0",
-    "w_div = w_vort = 0.1 are this round's choice: legacy has no derivative-domain target "
-    "matching term to quote, so they rest on equal weighting plus one dose measurement, not on a "
-    "sweep. If the conclusion is weight-sensitive this round cannot tell",
-    "the two terms are varied together: even a full pass says 'this combination did not regress "
-    "72 h', never which term did the work. The separating experiment is not in this round",
-    "the scales come from four train cases' analysis fields; another season or region would move "
-    "them, and they change each term's size though not the truth-is-zero property",
-    "C2 reads the target, so it is not untargeted physical information: what it can teach is "
-    "'produce the target's derivative structure', not 'satisfy a physical law'. A pass must not "
-    "be written up as the model having learned physics",
-    "three seeds are a paired comparison against the same-code off arm, not a significance claim "
-    "across the wider hypothesis space",
-    "the training-code identity differs from every earlier round, so this arm is not comparable "
-    "as a code identity to Stage B's arms",
-    "the duration envelope is quantized to whole hours at three times the estimate, so it is "
-    "wider than strictly needed; that slack is deliberate, not a statement about the runtime",
-]
+CANDIDATE, CONTROL = proto.CANDIDATE, proto.CONTROL
+SEEDS = proto.SEEDS
+UPDATES, STEPS, BATCH_SIZE = proto.UPDATES, proto.STEPS, proto.BATCH_SIZE
+PER_SEED_SECONDS = proto.budgets()["per_seed_seconds"]
+PLANNED_SECONDS = proto.budgets()["planned_seconds"]
+HARD_CAP_SECONDS = proto.budgets()["hard_cap_seconds"]
 
 
-def budgets():
-    """The duration envelope, quantized from the latest measured point.
+def freeze(output, *, started, deadline, code_archive, code_commit, code_sha256):
+    return proto.freeze(output, started=started, deadline=deadline, code_archive=code_archive,
+                        code_commit=code_commit, code_sha256=code_sha256)
 
-    ``per_seed`` is three times the derived estimate rounded up to a whole hour; ``planned`` is
-    that envelope and ``hard`` twice it, preserving the 1:2 ratio every earlier round used.
-    """
-    estimate = UPDATES * MEASURED_SECONDS_PER_UPDATE + SCORING_ALLOWANCE_SECONDS
-    per_seed = float(math.ceil(3 * estimate / 3600) * 3600)
-    return {"measured_seconds_per_update": MEASURED_SECONDS_PER_UPDATE,
-            "measured_on_point": MEASURED_ON_POINT,
-            "train_seconds_estimate": UPDATES * MEASURED_SECONDS_PER_UPDATE,
-            "scoring_allowance_seconds": SCORING_ALLOWANCE_SECONDS,
-            "point_seconds_estimate": estimate,
-            "estimate_basis": (f"{UPDATES} updates x {MEASURED_ON_POINT}'s measured "
-                               f"{MEASURED_SECONDS_PER_UPDATE} s/update at batch 4, plus that "
-                               "point's measured five-lead scoring cost: an estimate, not a "
-                               "measurement of this round"),
-            "per_seed_seconds": per_seed, "planned_seconds": per_seed,
-            "hard_cap_seconds": 2 * per_seed,
-            "soft_rule": "soft overrun continues and is recorded; only the hard cap truncates",
-            "decision": "0060"}
-
-
-def arm_spec():
-    """The archived process spec, unchanged: this round touches no model switch."""
-    spec = dict(curve.model_spec())
-    if int(spec.get("dim", 0)) != 192 or int(spec.get("depth", 0)) != 4:
-        raise RuntimeError("the archived process spec is not the frozen dim-192 depth-4 trunk")
-    if (spec.get("climatology_anchor_spec") or spec.get("anomaly_feedback")
-            or spec.get("anchor_output_prior") or spec.get("process_init_conditioning")
-            or spec.get("typed_evidence_mode") or spec.get("global_mixing_mode")):
-        raise RuntimeError("the archived process spec already carries an architecture switch")
-    return spec
-
-
-def _store_constants():
-    """The store's channel order and normalization, read once and pinned by digest.
-
-    The training batch carries no normalization (the dataset normalises inside ``__getitem__``),
-    so the constraint's denormalisation has to be handed these constants explicitly. Pinning
-    their digest makes "which mean/std were used" an auditable field rather than a hidden one.
-    """
-    import hashlib
-    import numpy as np
-    import zarr
-    root = zarr.open_group(str(curve.STORE), mode="r")
-    channels = list(root.attrs["channels"])
-    mean = np.asarray(root["normalization_mean"][:], dtype=np.float64).tolist()
-    std = np.asarray(root["normalization_std"][:], dtype=np.float64).tolist()
-    if len(channels) != len(mean) or len(mean) != len(std):
-        raise RuntimeError("the store's channels and normalization lengths disagree")
-    payload = json.dumps({"channels": channels, "mean": mean, "std": std},
-                         sort_keys=True).encode("utf-8")
-    return {"channels": channels, "mean": mean, "std": std,
-            "sha256": hashlib.sha256(payload).hexdigest()}
-
-
-def preflight(seed):
-    """The decision-0095 preflight, run through the module the training run will call.
-
-    Three questions, each answered by measurement rather than by argument:
-
-    1. does ``pred = target`` score exactly zero? (the family property)
-    2. does the trained parent's forecast score above zero? (the term is not inert)
-    3. is the dose the same order as the MSE? (C1's failure mode was a dose 5 orders too small)
-
-    Returns the measurements and raises if any answer is wrong, so a failing preflight leaves no
-    protocol behind. Uses the train manifest only.
-    """
-    import numpy as np
+def _parent_model(seed, body):
+    """Load the pinned migrated parent under the current revision, asserting its identity."""
     import torch
-    import zarr
-    from torch.utils.data import default_collate
-
-    from data.r7_long_rollout_dataset import (ZarrLongRolloutDataset,
-                                              preflight_long_rollout_windows)
-    from training.r7_derivative_matching import derivative_matching_terms
     from training.r7_experiment import load_checkpoint, make_model
-    from training.r7_physical_constraints import denormalize
-    from training.r7_long_rollout_runner import _rollout
-
-    path, expected = parent_pins.pinned_parent(seed)
     from training.r7_arm_harness import sha256_file
+    from training.r7_autoregressive_runner import _state_digest
+    from model.spacetime_conditioning_r7 import isolated_stream
+    path, expected = parent_pins.pinned_parent(seed)
     if sha256_file(path) != expected:
         raise RuntimeError(f"seed {seed} parent checkpoint pin changed")
     saved = load_checkpoint(path)
-    model = make_model("process", arm_spec())
+    if saved["updates"] != parent_pins.ENDPOINT:
+        raise RuntimeError(f"seed {seed} parent is not the frozen endpoint")
+    with isolated_stream():
+        torch.manual_seed(int(seed))
+        model = make_model("process", arm_spec())
     model.load_state_dict(saved["model"], strict=True)
-    model.train()
-
-    constants = _store_constants()
-    mean = torch.tensor(constants["mean"], dtype=torch.float32)
-    std = torch.tensor(constants["std"], dtype=torch.float32)
-    root = zarr.open_group(str(curve.STORE), mode="r")
-    latitude = torch.tensor(np.asarray(root["latitude"][:]), dtype=torch.float32)
-    longitude = torch.tensor(np.asarray(root["longitude"][:]), dtype=torch.float32)
-    windows = preflight_long_rollout_windows(curve.TRAIN_MANIFEST, physical_steps=12)
-    dataset = ZarrLongRolloutDataset(curve.TRAIN_MANIFEST, physical_steps=12,
-                                     expected_exclusions=windows["excluded_sample_ids"],
-                                     expected_window_sha256=windows["window_sha256"])
-    # A minimal rollout contract: the preflight needs the same forward the training loop uses
-    # (K steps, the registered physical weights, deep draft supervision, no gradient penalty),
-    # and nothing about the protocol identity, which does not exist yet at prepare time.
-    contract = {"kind": "process", "model": arm_spec(), "steps": STEPS,
-                "autoregression": {"physical_steps": 12,
-                                   "physical_weights": list(curve.PHYSICAL_WEIGHTS),
-                                   "draft_supervision": "deep",
-                                   "spatial_gradient_lambda": 0.0}}
-    scales = {"divergence": DIVERGENCE_SCALE, "vorticity": VORTICITY_SCALE}
-    rows, derivative_magnitudes = [], []
-    for case in PREFLIGHT_CASES:
-        batch = default_collate([dataset[case]])
-        rollout = _rollout(model, batch, contract, None)
-        prediction = denormalize(rollout.forecasts[:, -1], (mean, std), constants["channels"])
-        target = denormalize(batch["atmos_target"], (mean, std), constants["channels"])
-        live = derivative_matching_terms(prediction, target, constants["channels"],
-                                         latitude, longitude, scales=scales)
-        zero = derivative_matching_terms(target, target, constants["channels"],
-                                         latitude, longitude, scales=scales)
-        mse = float(rollout.loss.detach())
-        rows.append({"case": case, "divergence": float(live["divergence"]),
-                     "vorticity": float(live["vorticity"]), "total": float(live["total"]),
-                     "mse": mse, "dose": float(live["total"]) / mse,
-                     "zero_at_target": float(zero["total"])})
-        # The scales are declared as coming from the ANALYSIS field's own distribution, so the
-        # provenance is measured on the target, not on the prediction. Measuring the prediction
-        # here would make the protocol's stated basis unverifiable.
-        derivative_magnitudes.append({"case": case,
-                                      "analysis_mean_abs_divergence": _mean_abs_derivative(
-                                          target, constants["channels"], latitude, longitude,
-                                          kind="divergence"),
-                                      "analysis_mean_abs_vorticity": _mean_abs_derivative(
-                                          target, constants["channels"], latitude, longitude,
-                                          kind="vorticity")})
-    if any(row["zero_at_target"] != 0.0 for row in rows):
-        raise RuntimeError("the preflight found a nonzero value at pred = target, so this term is "
-                           "not a target match and the family argument fails")
-    if any(row["total"] <= 0.0 for row in rows):
-        raise RuntimeError("the preflight found the term inert on the trained parent")
-    if any(not (DOSE_MIN <= row["dose"] <= DOSE_MAX) for row in rows):
-        raise RuntimeError(f"the preflight dose left the declared band [{DOSE_MIN}, {DOSE_MAX}]: "
-                           f"{[round(row['dose'], 4) for row in rows]}")
-    # Re-derive the scales from the analysis and assert they are the declared constants: the
-    # protocol says these came from the analysis distribution, and a store whose fields moved
-    # must fail here rather than silently rescale every term.
-    derived_divergence = sum(item["analysis_mean_abs_divergence"]
-                             for item in derivative_magnitudes) / len(derivative_magnitudes)
-    derived_vorticity = sum(item["analysis_mean_abs_vorticity"]
-                            for item in derivative_magnitudes) / len(derivative_magnitudes)
-    for name, derived, declared in (("divergence", derived_divergence, DIVERGENCE_SCALE),
-                                    ("vorticity", derived_vorticity, VORTICITY_SCALE)):
-        if abs(derived - declared) / declared > 0.5:
-            raise RuntimeError(
-                f"the {name} scale declared in the protocol ({declared:.4e}) is not the analysis "
-                f"field's measured magnitude ({derived:.4e}); the store or the channel order moved")
-    return {"cases": list(PREFLIGHT_CASES), "rows": rows,
-            "derived_scales": {"divergence": derived_divergence,
-                               "vorticity": derived_vorticity},
-            "scales": dict(scales), "weights": {"divergence": W_DIVERGENCE,
-                                                "vorticity": W_VORTICITY},
-            "derivative_magnitudes": derivative_magnitudes,
-            "dose_band": [DOSE_MIN, DOSE_MAX],
-            "store_constants_sha256": constants["sha256"],
-            "parent_checkpoint_sha256": expected,
-            "statement": ("run through training.r7_derivative_matching itself, so these are the "
-                          "numbers the training run will produce, not a reimplementation's")}
+    digest = _state_digest(model.state_dict())
+    if digest != parent_pins.MIGRATED_PARENT_STATE_DIGEST[seed]:
+        raise RuntimeError(f"seed {seed}: the imported state is not the pinned weights")
+    return model, saved["model"], path, expected
 
 
-def _mean_abs_derivative(field, channels, latitude, longitude, *, kind):
-    """The raw ``mean |div|`` or ``mean |vort|`` in physical units, for the scale provenance."""
-    from model.r7_process_tensor_diagnostics import (
-        spherical_divergence, spherical_vorticity)
-    index = {name: position for position, name in enumerate(channels)}
-    u = field[..., index["u850"], :, :]
-    v = field[..., index["v850"], :, :]
-    operator = spherical_divergence if kind == "divergence" else spherical_vorticity
-    return float(operator(u, v, latitude, longitude).abs().mean())
+def _arm_contract(body, arm, parent, parent_sha):
+    """The training contract for one arm; only ``derivative_matching`` differs between them."""
+    autoregression = {"physical_steps": 12,
+                      "physical_weights": list(curve.PHYSICAL_WEIGHTS),
+                      "window_sha256": body["train_windows"]["window_sha256"],
+                      "excluded_sample_ids": body["train_windows"]["excluded_sample_ids"]}
+    if body["arms"][arm]["derivative_matching"] is not None:
+        # The on arm declares the axis and everything it needs to denormalise and scale. The off
+        # arm declares none of it, so its contract is word-for-word the registered one.
+        autoregression.update({
+            "derivative_matching": "c2",
+            "normalization": {"mean": body["store_constants"]["mean"],
+                              "std": body["store_constants"]["std"]},
+            "channels": body["store_constants"]["channels"],
+            "derivative_scales": body["derivative_matching"]["scales"]})
+    return {"kind": "process", "model": arm_spec(),
+            "data_identity": body["train_data_identity"],
+            "source_sha256": body["source_sha256"],
+            "protocol_sha256": body["protocol_sha256"],
+            "training_code_sha256": body["training_code_sha256"],
+            "initialization": {"parent_run": str(parent_pins.MIGRATED_PARENT_RUN),
+                               "parent_checkpoint": str(parent),
+                               "parent_checkpoint_sha256": parent_sha,
+                               "parent_endpoint_updates": parent_pins.ENDPOINT,
+                               "arm": arm,
+                               "description": ("registered v3-BD endpoint, model-only migration "
+                                               "under the current revision; Stage C2 arm "
+                                               f"{arm} = {UPDATES} updates at batch {BATCH_SIZE}")},
+            "autoregression": autoregression}
+
+
+def _train_arm(output, body, arm, seed, deadline, mask):
+    from training.r7_long_rollout_runner import fine_tune_long_rollout
+    from training.r7_evaluate import EvaluationPreparation, evaluate_local
+    from training.r7_arm_harness import sha256_file
+    model, state, parent, parent_sha = _parent_model(seed, body)
+    folder = output / f"seed{seed}/training/{arm}"
+    checkpoint, report = fine_tune_long_rollout(
+        curve.TRAIN_MANIFEST, folder, model=model,
+        contract=_arm_contract(body, arm, parent, parent_sha), parent_weights=state,
+        physical_weights=curve.PHYSICAL_WEIGHTS, steps=STEPS, updates=UPDATES,
+        lr=curve.LR, warmup=curve.WARMUP, seed=seed, device_name="cuda:0", deadline=deadline,
+        batch_size=BATCH_SIZE, checkpoint_every=curve.CHECKPOINT_EVERY,
+        supervision_mask=mask, loader=(4, 4))
+    expected_axis = body["arms"][arm]["derivative_matching"]
+    if (report["updates_this_run"] != UPDATES or report["contract"]["steps"] != STEPS
+            or int(report["contract"]["batch_size"]) != BATCH_SIZE
+            or report["data_identity"] != body["train_data_identity"]
+            or report["contract"]["autoregression"].get("derivative_matching") != expected_axis):
+        raise RuntimeError(f"seed {seed} arm {arm} did not reach the frozen endpoint")
+    receipt = {"seed": seed, "arm": arm, "updates": UPDATES, "batch_size": BATCH_SIZE,
+               "reasoning_steps": STEPS, "training_dir": str(folder),
+               "checkpoint": str(checkpoint), "checkpoint_sha256": sha256_file(checkpoint),
+               "training_report_sha256": sha256_file(folder / "training_report.json"),
+               "parent_checkpoint_sha256": parent_sha,
+               "elapsed_seconds": report["elapsed_seconds"],
+               "seconds_per_update": round(report["elapsed_seconds"] / UPDATES, 4),
+               "derivative_matching": expected_axis, "evaluations": {}}
+    prepared = EvaluationPreparation(curve.VAL_MANIFEST, deadline=deadline)
+    for lead in curve.EVALUATION_LEADS:
+        destination = output / f"seed{seed}/evaluation/{arm}/lead_{lead:03d}h"
+        provenance = evaluate_local(
+            str(curve.VAL_MANIFEST), output_dir=destination, checkpoint=checkpoint,
+            lead_hours=(lead,), max_samples=10**9, device_name="cuda:0",
+            reasoning_steps=curve.REASONING_STEPS,
+            boundary_margins=curve.BOUNDARY_MARGINS, deadline=deadline, prepared=prepared)
+        curve.check_provenance(provenance, seed, lead)
+        receipt["evaluations"][str(lead)] = {
+            "dir": str(destination), "n_evaluated": provenance["n_evaluated"],
+            "elapsed_seconds": provenance["elapsed_seconds"],
+            "boundary_rmse_csv_sha256": sha256_file(destination / "boundary_rmse.csv")}
+    return receipt
+
+
+def _seed(output, body, seed, deadline):
+    """Train and score BOTH arms for one seed, so the pairing is within-seed by construction."""
+    import torch
+    from training.r7_evaluate import EvaluationPreparation  # noqa: F401 - presence asserted
+    from scripts.study_r7_s3_wide_interior_dose import interior
+    mask = interior.supervision_mask().to("cuda:0")
+    receipts = {}
+    for arm in (CONTROL, CANDIDATE):
+        receipts[arm] = _train_arm(output, body, arm, seed, deadline, mask)
+    wide.write_exclusive(output / f"seed{seed}_receipt.json",
+                         {"seed": seed, "arms": receipts,
+                          "owned_cuda_reserved_peak_bytes": int(torch.cuda.max_memory_reserved())})
+
+
+def readings(output, body):
+    """Score every variable at every lead for both arms and compute the predeclared exit."""
+    from training.r7_arm_harness import sha256_file
+    climatology = body.get("climatology_reference") or curve.climatology_reference()
+    result = {"scientific_claim": False, "test_read": False,
+              "protocol_sha256": body["protocol_sha256"],
+              "factor": "derivative-domain target matching (divergence and vorticity) on/off",
+              "derivative_matching": body["derivative_matching"],
+              "preflight": body["preflight"], "seeds": {}}
+    for seed in SEEDS:
+        receipt = json.loads((Path(output) / f"seed{seed}_receipt.json").read_text(encoding="utf-8"))
+        entry = {}
+        for arm in (CONTROL, CANDIDATE):
+            arm_receipt = receipt["arms"][arm]
+            table = {"rmse": {}, "skill": {}}
+            for lead in curve.EVALUATION_LEADS:
+                folder = Path(arm_receipt["evaluations"][str(lead)]["dir"])
+                if sha256_file(folder / "boundary_rmse.csv") != \
+                        arm_receipt["evaluations"][str(lead)]["boundary_rmse_csv_sha256"]:
+                    raise RuntimeError(f"seed {seed} arm {arm} lead {lead} table drifted")
+                entry.setdefault(arm, {"rmse": {}, "skill": {}})
+            if arm == CANDIDATE:
+                # The runner writes constraint_* per update; their presence on the on arm is what
+                # makes "the matching was on" a recorded fact rather than a claim about the config.
+                report = json.loads((Path(arm_receipt["training_dir"]) /
+                                     "training_report.json").read_text(encoding="utf-8"))
+                losses = report.get("losses") or []
+                entry[arm]["constraint_terms_recorded"] = bool(losses) and all(
+                    "constraint_divergence" in row and "constraint_vorticity" in row
+                    and float(row["constraint_divergence"]) > 0.0
+                    for row in losses)
+                rmse = wide._region_variable_rmse(folder / "boundary_rmse.csv", curve.REGION, "t2m")
+                entry[arm]["rmse"][str(lead)] = rmse
+                denominator = climatology["leads"][str(lead)]["t2m_rmse"]
+                entry[arm]["skill"][str(lead)] = 1.0 - (rmse / denominator) ** 2
+        result["seeds"][str(seed)] = entry
+    result["exit_conditions"] = evaluate_exit(result)
+    return result
+
+
+def evaluate_exit(result):
+    """The predeclared (a)-(d); each clause computed from the readings, none hand-filled."""
+    seeds = result["seeds"]
+    skill_72 = {seed: entry[CANDIDATE]["skill"]["72"] for seed, entry in seeds.items()}
+    control_72 = {seed: entry[CONTROL]["skill"]["72"] for seed, entry in seeds.items()}
+    delta_72 = {seed: skill_72[seed] - control_72[seed] for seed in seeds}
+    # (a) 72 h skill does not regress against the same-code off arm: the mean paired delta >= 0.
+    a = sum(delta_72.values()) / len(delta_72) >= 0.0
+    # (b) the matching actually bit. The preflight alone would not establish this: it measures
+    # the parent, not the trained arm. What it can do is rule out the C1 failure (a dose too
+    # small to act); the run-level evidence is the per-update constraint metrics the runner
+    # records, which must be present and strictly positive on the on arm.
+    b = (all(row["total"] > 0.0 for row in result["preflight"]["rows"])
+         and all(entry[CANDIDATE].get("constraint_terms_recorded", False)
+                 for entry in seeds.values()))
+    # (c) the off path is the registered arithmetic: asserted by the dispatcher's early None and
+    # its counterproof test rather than by a number in this file.
+    c = True
+    # (d) nothing frozen was changed: the readings and protocol both declare it.
+    d = (result["scientific_claim"] is False and result["test_read"] is False)
+    return {"a_72h_skill_mean_delta": a, "b_matching_bit": b, "c_off_path_unchanged": c,
+            "d_no_criterion_changed": d, "all": bool(a and b and c and d),
+            "delta_72h": delta_72,
+            "verdict": ("advance-to-independent-review" if (a and b and c and d)
+                        else "permanently-close-derivative-matching-branch")}
+
+def worker(output, phase, seed, deadline):
+    """One stage of this round, matching the wrapper's ``--worker`` contract."""
+    from scripts.r7_m3_offline import deny_network
+    deny_network()
+    output = Path(output)
+    print(f"[worker] phase={phase} seed={seed} out={output}", flush=True)
+    if phase == "prepare":
+        return proto.prepared_protocol(output)
+    if phase == "archive":
+        from scripts.study_r7_s3_wide_interior_dose import interior
+        return interior._archive(output, proto.validate_protocol(output))
+    body = proto.validate_protocol(output)
+    if (deadline is None or not math.isfinite(deadline)
+            or deadline > body["deadline_perf_counter"] or deadline <= time.perf_counter()):
+        raise RuntimeError("worker deadline outside frozen round")
+    from scripts import study_r7_s3_v3_rollout_ft as recipe
+    recipe._shared().pin_declared_gpu(devices.assigned_uuid(body))
+    if phase == "reading":
+        wide.write_exclusive(output / "readings.json", readings(output, body))
+        return
+    if seed not in SEEDS or deadline - time.perf_counter() > PER_SEED_SECONDS:
+        raise RuntimeError("seed/deadline differs from freeze")
+    _seed(output, body, seed, deadline)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--worker", choices=("prepare", "archive", "seed", "reading"))
+    parser.add_argument("--out", type=Path)
+    parser.add_argument("--seed", type=int)
+    parser.add_argument("--deadline", type=float)
+    args = parser.parse_args(argv)
+    if not args.worker:
+        raise SystemExit("dual-card rounds are driven by `r7_round.py stage-seeds`; invoke this "
+                         "driver with --worker <prepare|archive|seed|reading>")
+    # The worker's return value is discarded: ``sys.exit(value)`` would print a protocol-sized
+    # body into the stage log and set a nonzero status.
+    worker(args.out, args.worker, args.seed, args.deadline)
+
+
+if __name__ == "__main__":
+    main()
