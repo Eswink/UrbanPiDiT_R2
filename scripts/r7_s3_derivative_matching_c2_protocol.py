@@ -95,6 +95,11 @@ def budgets():
             "decision": "0060"}
 
 
+PER_SEED_SECONDS = budgets()["per_seed_seconds"]
+PLANNED_SECONDS = budgets()["planned_seconds"]
+HARD_CAP_SECONDS = budgets()["hard_cap_seconds"]
+
+
 def arm_spec():
     """The archived process spec, unchanged: this round touches no model switch."""
     spec = dict(curve.model_spec())
