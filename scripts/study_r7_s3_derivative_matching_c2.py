@@ -102,6 +102,7 @@ def _arm_contract(body, arm, parent, parent_sha):
 
 
 def _train_arm(output, body, arm, seed, deadline, mask):
+    """One arm's training and scoring. ``mask`` is always None here: see :func:`_seed`."""
     from training.r7_long_rollout_runner import fine_tune_long_rollout
     from training.r7_evaluate import EvaluationPreparation, evaluate_local
     from training.r7_arm_harness import sha256_file
@@ -120,6 +121,11 @@ def _train_arm(output, body, arm, seed, deadline, mask):
             or report["data_identity"] != body["train_data_identity"]
             or report["contract"]["autoregression"].get("derivative_matching") != expected_axis):
         raise RuntimeError(f"seed {seed} arm {arm} did not reach the frozen endpoint")
+    # The registered recipe is full-grid on this store; a mask reappearing would silently change
+    # the objective while every other identity check still passed.
+    if report["supervision"]["kind"] != "full_grid":
+        raise RuntimeError(f"seed {seed} arm {arm} supervised on "
+                           f"{report['supervision']['kind']}, not the registered full grid")
     receipt = {"seed": seed, "arm": arm, "updates": UPDATES, "batch_size": BATCH_SIZE,
                "reasoning_steps": STEPS, "training_dir": str(folder),
                "checkpoint": str(checkpoint), "checkpoint_sha256": sha256_file(checkpoint),
@@ -147,12 +153,13 @@ def _train_arm(output, body, arm, seed, deadline, mask):
 def _seed(output, body, seed, deadline):
     """Train and score BOTH arms for one seed, so the pairing is within-seed by construction."""
     import torch
-    from training.r7_evaluate import EvaluationPreparation  # noqa: F401 - presence asserted
-    from scripts.study_r7_s3_wide_interior_dose import interior
-    mask = interior.supervision_mask().to("cuda:0")
+    # No supervision mask: this store trains on the FULL 65x65 grid, exactly as Stage B does
+    # ("full_grid (no spatial mask on the native 65x65 grid)"). The wide 129x129 recipe's
+    # interior_32 mask is [65,65] on that store but a 1x1 point here, and passing it raised
+    # "mask must be [H,W] matching the prediction grid" before the first update.
     receipts = {}
     for arm in (CONTROL, CANDIDATE):
-        receipts[arm] = _train_arm(output, body, arm, seed, deadline, mask)
+        receipts[arm] = _train_arm(output, body, arm, seed, deadline, None)
     wide.write_exclusive(output / f"seed{seed}_receipt.json",
                          {"seed": seed, "arms": receipts,
                           "owned_cuda_reserved_peak_bytes": int(torch.cuda.max_memory_reserved())})
