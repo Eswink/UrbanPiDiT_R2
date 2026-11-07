@@ -204,3 +204,14 @@
   然后按 §8 的 `freeze` → `prepare`（**preflight 必须重跑**）→ `archive` → `stage-seeds` →
   `reading` 顺序重开。**注意**：`attempt05` 会**重新**把 400 行的协议钉进
   `execution_files_sha256`，届时再改该文件仍须按 `size-thresholds.md` 的办法处理。
+
+- **2026-11-08 第四次 CI 红（`3218058`，run `42414650080`）已修，`71d8e89` 重推**：
+  失败步骤是第 8 步 **Compile active modules and check whitespace**，具体是
+  `git show --check --format= HEAD` 报
+  **`tests/test_r7_s3_derivative_matching_c2.py:298: new blank line at EOF.`**
+  ——把读数出口测试拆成 `tests/test_r7_s3_c2_reading_exit.py` 时，原文件尾部留下一个空行。
+  `compileall` 那半**实测通过**（`exit=0`），所以红的是**空白**不是语法。
+  修法：把六个被触碰的文件的尾部统一成「恰好一个换行」（只改了这一个文件，14460→14459 字节），
+  **无任何断言或逻辑改动**。**本地复验**：`git show --check --format= HEAD` 现在输出为空。
+  **教训（已写进流程）**：CI 的第 8 步用 `git show --check` 检查**待推提交**的空白，
+  所以这条应在**提交前**跑，而不是等 CI；拆分/移动文件的提交尤其容易在尾部留下空行。
