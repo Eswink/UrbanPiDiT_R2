@@ -192,3 +192,52 @@ def test_the_terms_read_the_target_because_that_is_what_c2_is():
     for name in ("divergence_matching", "vorticity_matching", "derivative_matching_terms"):
         parameters = list(inspect.signature(getattr(matching, name)).parameters)
         assert "target" in parameters, (name, parameters)
+
+
+def test_the_dispatcher_returns_none_before_building_anything_when_every_axis_is_off():
+    """The off path must not touch a graph: a "weight 0" branch would still change the numbers.
+
+    Asserted structurally, because a numerical equality test cannot see a zero-weight term that
+    still allocates and still adds 0.0 into the objective.
+    """
+    from training.r7_objective_axes import auxiliary_term
+    contract = {"autoregression": {"physical_steps": 12}}
+    assert auxiliary_term(None, {}, contract) is None
+    # An explicit None on either axis is the same as absent.
+    contract = {"autoregression": {"physical_constraints": None, "derivative_matching": None}}
+    assert auxiliary_term(None, {}, contract) is None
+
+
+def test_the_dispatcher_refuses_two_auxiliary_axes_at_once():
+    """Decision 0095: an on/off difference that mixes two new terms cannot be attributed."""
+    from training.r7_objective_axes import auxiliary_term
+    contract = {"autoregression": {"physical_constraints": "c1", "derivative_matching": "c2"}}
+    with pytest.raises(ValueError, match="cannot be enabled together"):
+        auxiliary_term(None, {}, contract)
+
+
+def test_the_dispatcher_routes_each_axis_to_its_own_module():
+    """C1 and C2 are separate decisions; the dispatcher must not conflate them."""
+    from training import r7_objective_axes
+    assert r7_objective_axes.AXES == ("physical_constraints", "derivative_matching")
+    source = Path(r7_objective_axes.__file__).read_text(encoding="utf-8")
+    assert "r7_physical_constraints import constraint_term" in source
+    assert "r7_derivative_matching import matching_term" in source
+
+
+def test_the_c2_axis_requires_the_normalization_channels_and_scales():
+    """Without all three the denormalisation or the unit would be an unregistered hidden variable."""
+    from training.r7_derivative_matching import matching_term
+    with pytest.raises(ValueError, match="requires the store's normalization"):
+        matching_term(None, {}, {"autoregression": {"derivative_matching": "c2"}})
+    with pytest.raises(ValueError, match="must be absent or 'c2'"):
+        matching_term(None, {}, {"autoregression": {"derivative_matching": "c1"}})
+
+
+def test_the_runner_has_one_dispatch_point_not_one_per_axis():
+    """R-051 keeps the runner near its cap, so both axes share a single hook."""
+    runner = Path(matching.__file__).parent.joinpath("r7_long_rollout_runner.py").read_text(
+        encoding="utf-8")
+    assert runner.count("r7_objective_axes import auxiliary_term") == 1
+    assert "r7_derivative_matching import" not in runner
+    assert "r7_physical_constraints import" not in runner

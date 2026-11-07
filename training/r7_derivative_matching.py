@@ -100,3 +100,47 @@ def derivative_matching_terms(prediction, target, channel_names, latitude, longi
     return {"divergence": divergence, "vorticity": vorticity,
             "weights": dict(resolved), "scales": dict(scales),
             "total": divergence + vorticity}
+
+
+def matching_term(result, moved, contract):
+    """Stage C2's derivative match on the *last* forecast, or ``None`` when the axis is off.
+
+    ``None`` is returned before constructing anything, so a run with the axis unset keeps the
+    registered arithmetic bit-for-bit -- a "weight 0" path would still build a graph and still
+    change the numbers.
+
+    The target is the batch's own ``atmos_target`` for the same window, i.e. the last physical
+    step's analysis field. Both sides are denormalised with the store's declared constants: the
+    training batch carries no normalization (the dataset normalises inside ``__getitem__``), so
+    the caller must pass them in the contract and their digest is frozen in the protocol. Only
+    the last forecast is matched, one application per update, so the single-factor claim is
+    about one application rather than a dose (decision 0095).
+    """
+    axis = contract["autoregression"].get("derivative_matching")
+    if axis is None:
+        return None
+    if axis != "c2":
+        raise ValueError(f"derivative_matching must be absent or 'c2', got {axis!r}")
+    import numpy as np
+
+    from .r7_physical_constraints import denormalize
+    normalization = contract["autoregression"].get("normalization")
+    channels = contract["autoregression"].get("channels")
+    scales = contract["autoregression"].get("derivative_scales")
+    if not normalization or not channels or not scales:
+        raise ValueError("the c2 axis requires the store's normalization, channel order and "
+                         "the derivative scales")
+    mean = torch.as_tensor(np.asarray(normalization["mean"], dtype=np.float32))
+    std = torch.as_tensor(np.asarray(normalization["std"], dtype=np.float32))
+    forecast = result.forecasts[:, -1]
+    device = forecast.device
+    physical = denormalize(forecast, (mean.to(device), std.to(device)), tuple(channels))
+    target = moved.get("atmos_target")
+    if target is None:
+        raise ValueError("the c2 axis requires atmos_target in the batch")
+    observed = denormalize(target, (mean.to(device), std.to(device)), tuple(channels))
+    latitude, longitude = moved.get("latitude"), moved.get("longitude")
+    if latitude is None or longitude is None:
+        raise ValueError("the c2 axis requires latitude and longitude in the batch")
+    return derivative_matching_terms(physical, observed, tuple(channels), latitude, longitude,
+                                     scales=dict(scales))

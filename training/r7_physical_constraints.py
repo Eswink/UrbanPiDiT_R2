@@ -192,6 +192,11 @@ def constraint_term(result, moved, contract):
     the cost by the step count and mix "does the constraint help" with "how often is it
     applied"; decision 0092 fixes one application per update, which is what the brief's
     single-factor claim needs.
+
+    **Unreachable from any live protocol (decision 0094).** The axis is retained because the
+    contract key and its refusal are part of the registered record, but 0094 measured that the
+    divergence term charges the analysis field 10.2x more than the model, so the round was not
+    opened. ``training/r7_objective_axes`` is the only dispatcher that calls this.
     """
     axis = contract["autoregression"].get("physical_constraints")
     if axis is None:
