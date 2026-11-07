@@ -91,6 +91,24 @@
 
 - 2026-11-08 建立：状态 `prepared`，未冻结、未开跑，0 GPU-h。
 
+- **2026-11-08 `attempt02` 作废（0 GPU-h）**：`seed` 阶段在**第一次更新之前**就失败——
+  `_parent_model` 调用了裸 `arm_spec()`，而它在驱动/协议拆分后只存在于协议模块（`NameError`）。
+  **无读数、无 GPU 时间**。修法：改调 `proto.arm_spec()`，并新增一条**全局名解析**反证测试
+  （反汇编两个模块里每个函数、断言它加载的每个全局都存在）——这类缺陷对 `import` 与任何
+  「不执行该函数」的测试都是不可见的，前两次都是这样漏到 GPU 阶段的。
+
+- **2026-11-08 `attempt03` 作废（0 GPU-h）**：`seed` 阶段在**第一次更新之前**失败——
+  `mask must be [H,W] matching the prediction grid`。根因是**我**照搬了 wide 129×129 配方里的
+  `interior.supervision_mask()`，而该掩码在 wide store 上是 65×65、在**本 store 上只有 1×1**，
+  本 store 的注册配方是 **full grid**（Stage B 的驱动根本不传 mask，其报告写 `supervision.kind
+  == "full_grid"`）。**无读数、无 GPU 时间**。修法：不传 mask，并**断言**训练报告必须是 `full_grid`，
+  使掩码无法在其它身份检查仍全通过的情况下悄悄回来。
+
+- **2026-11-08 `attempt04` 开跑（当前）**：协议 `ac61e3f…`、archive 通过、`prepare` 578.6 s
+  （含驱动内前置检验：dose `0.5702/0.4920/0.4707/0.4300`、`zero_at_target` 全 `0.0`、
+  导出尺度与声明相符）。两卡各一 seed 并行（seed41/42 先跑 **off** 臂），
+  实测 9,308 / 9,287 MiB、util 25%/68%、loss 0.95 → 0.69。
+
 ## §8 下一动作（S3）
 
 冻结后依次 `prepare` → `archive` → `seed 41` → `seed 42` → `seed 43` → `reading`，然后做四件套登记。
