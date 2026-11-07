@@ -285,38 +285,23 @@ def _correlate_on_pixel_grid(progress, stack, variables):
             "correlations": correlations}
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", type=Path, help="write the probe JSON here (default stdout)")
-    # The trained-checkpoint mode is opt-in and takes its inputs explicitly: the checkpoint's
-    # contract pins the manifest and channel digests but does not record the values, so both
-    # must be supplied rather than guessed. Without --checkpoint the probe runs the definition
-    # checks only, which is what a bare CI checkout can do.
-    parser.add_argument("--checkpoint", type=Path,
-                        help="measure a trained model's P and Z states (needs --manifest and --store)")
-    parser.add_argument("--manifest", type=Path, help="the training manifest the checkpoint was fit on")
-    parser.add_argument("--store", type=Path, help="the zarr store, for the channel order")
-    parser.add_argument("--cases", default="1000,9000,17000,25000,29000",
-                        help="comma-separated dataset indices for the trained-state measurement")
-    args = parser.parse_args(argv)
-    # This probe deliberately does NOT load a trained checkpoint: doing so needs a frozen
-    # protocol and model construction that Stage D's brief pins separately. What it can do
-    # without any checkpoint is verify the two *definitions* agree, which is the part that
-    # would silently rot if either module's slot order moved.
+def _definition_body():
+    """The checks answerable from tracked source alone, which run in every checkout.
+
+    Kept apart from :func:`main` because the whole point of these checks is that a bare CI
+    checkout can run them: the static product's presence is a property of *this machine*, so
+    it is reported separately rather than folded in. A clean checkout must not be able to make
+    the probe look broken, and a broken definition must not hide behind a missing product.
+    """
     from model.r7_process_tensor_diagnostics import (
         PROCESS_DIAGNOSTIC_NAMES, compute_process_tensor_diagnostics)
-    body = {"format": "r7-s3-whitebox-probe-v1",
+    return {"format": "r7-s3-whitebox-probe-v1",
             "scientific_claim": False, "test_read": False, "gpu_hours": 0.0,
             "anchored_slots": ANCHORED_SLOTS,
             "diagnostic_targets": list(PROCESS_DIAGNOSTIC_NAMES),
             "n_diagnostic_targets": len(PROCESS_DIAGNOSTIC_NAMES),
             "typed_local_field_count": len(TYPED_LOCAL_FIELD_NAMES),
             "typed_local_field_names": list(TYPED_LOCAL_FIELD_NAMES),
-            # Definition checks are answerable from the tracked source alone, so they run in
-            # every checkout including CI's bare one. The static product's presence is a
-            # property of *this machine*, not of the probe: it is reported separately rather
-            # than folded in, so a clean checkout cannot make the probe look broken and a
-            # broken definition cannot hide behind a missing product.
             "checks": {
                 "eight_diagnostics_declared": len(PROCESS_DIAGNOSTIC_NAMES) == 8,
                 "eight_anchored_slots_declared": ANCHORED_SLOTS == 8,
@@ -326,8 +311,8 @@ def main(argv=None):
                     set(TYPED_LOCAL_FIELD_NAMES) <= set(PROCESS_DIAGNOSTIC_NAMES),
             },
             "limitations": [
-                "no trained checkpoint is loaded here: the P/Z relationship to a specific "
-                "trained model needs Stage D's own frozen protocol, not this definition check",
+                "the definition checks answer whether the two modules agree; they do NOT "
+                "measure a trained model, which needs --checkpoint and is reported separately",
                 "the static product is an untracked outputs/ artifact, so this probe's "
                 "static_product_available flag is False in a bare checkout and True only on a "
                 "machine that has published it; the definition checks are independent of it",
@@ -335,48 +320,64 @@ def main(argv=None):
                 "because the campaign fixes none for either relationship",
                 "the static product must be present; absence is reported, never synthesised",
             ]}
+
+
+def _trained_state_section(body, args, static_ok):
+    """Attach the trained-checkpoint measurement, or record that none was requested."""
+    if args.checkpoint is None:
+        body["trained_state_measured"] = False
+        return
+    if args.manifest is None or args.store is None:
+        raise SystemExit("--checkpoint requires --manifest and --store")
+    import numpy as np
+    import zarr
+    store = zarr.open_group(str(args.store), mode="r")
+    channels = list(store.attrs["channels"])
+    cases = [int(value) for value in str(args.cases).split(",") if value.strip()]
+    measured, progress = _trained_state_measurements(
+        args.checkpoint, args.manifest, channels, cases)
+    measured.update({"checkpoint": str(args.checkpoint), "cases": cases, "channels": channels})
+    # Sidecar for the per-token map; the JSON carries only its summary and correlations.
+    if args.out is not None:
+        sidecar = Path(args.out).with_suffix(".progress.npy")
+        np.save(sidecar, progress)
+        measured["progress_sidecar"] = str(sidecar)
+    if static_ok:
+        # ``_static_fields`` returns identity metadata, not the arrays; the correlation needs the
+        # [K,H,W] stack itself, so it is loaded by the same identity-checked entry point.
+        from model import static_conditioning_r7 as static
+        stack, variables = static.load_static_fields()
+        measured["progress_correlations"] = _correlate_on_pixel_grid(progress, stack, variables)
+    else:
+        measured["progress_correlations"] = None
+    body["trained_state"] = measured
+    # A measurement is not a check: it never enters all_checks, because the campaign fixes no
+    # numeric bar for either relationship.
+    body["trained_state_measured"] = True
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--out", type=Path, help="write the probe JSON here (default stdout)")
+    # The trained-checkpoint mode is opt-in and takes its inputs explicitly: the checkpoint's
+    # contract pins the manifest and channel digests but does not record the values, so both
+    # must be supplied rather than guessed.
+    parser.add_argument("--checkpoint", type=Path,
+                        help="measure a trained model's P and Z states (needs --manifest and --store)")
+    parser.add_argument("--manifest", type=Path, help="the training manifest the checkpoint was fit on")
+    parser.add_argument("--store", type=Path, help="the zarr store, for the channel order")
+    parser.add_argument("--cases", default="1000,9000,17000,25000,29000",
+                        help="comma-separated dataset indices for the trained-state measurement")
+    args = parser.parse_args(argv)
+    body = _definition_body()
     static_ok, static_note = True, "loaded"
     try:
-        fields = _static_fields()
-        body["static_covariates"] = fields
+        body["static_covariates"] = _static_fields()
     except Exception as exc:                      # noqa: BLE001 - reported, never hidden
         static_ok, static_note = False, f"{type(exc).__name__}: {exc}"
     body["static_product_available"] = static_ok
     body["static_note"] = static_note
-    if args.checkpoint is not None:
-        if args.manifest is None or args.store is None:
-            parser.error("--checkpoint requires --manifest and --store")
-        import zarr
-        store = zarr.open_group(str(args.store), mode="r")
-        channels = list(store.attrs["channels"])
-        cases = [int(value) for value in str(args.cases).split(",") if value.strip()]
-        measured, progress = _trained_state_measurements(
-            args.checkpoint, args.manifest, channels, cases)
-        body["trained_state"] = measured
-        body["trained_state"]["checkpoint"] = str(args.checkpoint)
-        body["trained_state"]["cases"] = cases
-        body["trained_state"]["channels"] = channels
-        # Sidecar for the per-token map; the JSON carries only its summary and correlations.
-        import numpy as _np
-        sidecar = Path(args.out).with_suffix(".progress.npy") if args.out else None
-        if sidecar is not None:
-            _np.save(sidecar, progress)
-            body["trained_state"]["progress_sidecar"] = str(sidecar)
-        if static_ok:
-            # ``_static_fields`` returns identity metadata, not the arrays; the correlation needs
-            # the [K,H,W] stack itself, so it is loaded here by the same identity-checked entry
-            # point rather than re-derived.
-            from model import static_conditioning_r7 as static
-            stack, variables = static.load_static_fields()
-            body["trained_state"]["progress_correlations"] = _correlate_on_pixel_grid(
-                progress, stack, variables)
-        else:
-            body["trained_state"]["progress_correlations"] = None
-        # A trained-state measurement is a measurement, not a check: it is reported and never
-        # folded into all_checks, because the campaign fixes no numeric bar for either relation.
-        body["trained_state_measured"] = True
-    else:
-        body["trained_state_measured"] = False
+    _trained_state_section(body, args, static_ok)
     body["all_checks"] = all(body["checks"].values())
     text = json.dumps(body, indent=2, ensure_ascii=False, allow_nan=False)
     if args.out is None:
@@ -386,8 +387,6 @@ def main(argv=None):
             handle.write(text + "\n")
         print(f"wrote {args.out}: all_checks={body['all_checks']}")
     return 0 if body["all_checks"] else 1
-
-
 
 if __name__ == "__main__":
     sys.exit(main())
