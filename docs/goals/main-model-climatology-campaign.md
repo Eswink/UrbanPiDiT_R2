@@ -3087,3 +3087,49 @@ brief `docs/goals/s3-throughput-physics-c2.md` 的进度块（含**恢复第一�
 它能同时抓 1/2/3 类中的两类，本块只处理了 C2 驱动里的三处，同类写法在仓内多处在用；
 `readings()` 的合成树测试只覆盖 (b) 全真的路径，**未**覆盖「constraint 项缺失 ⇒ (b) 为假」的分支；
 `attempt05` 的 `per_seed_seconds` 尚未按本轮实测 1.136/1.147 s/update 重算。
+
+### 2026-11-08 Stage D1.d **执行完毕**：缓冲对账 + 更正 0097 的一处夸大（0 GPU-h）
+
+**状态** `stage-d1d-reconciled`；GPU-h **0.0000**（累计 **475.854695**，未变）；
+`scientific_claim: false`、`test_read: false`、`r = 0`。**无独立 index record**：
+本轮不产生科学读数，且其为**接线工程的最后一步**，登记在决策 0099 与本节；
+若将来「静态协变量是否有用」开轮，那条才有 record。
+
+**做了什么**：新增 `tools/reconcile_r7_static_parent.py`（248 行）与
+`tests/test_reconcile_r7_static_parent.py`（129 行，**7 项**）。
+它把**注册父**补齐成 `static_conditioning=True` 臂可**严格**加载的状态字典：
+父 **155** 张量、`parent_static_keys == []`；补齐后 **157** 张量、
+`reconciled_state_digest 4e56d823…`、`strict_load_of_reconciled_passed true`、
+`bare_parent_into_on_arm_failed true`、`strict_false_would_leave_missing [field, projection]`、
+`static.field_equals_published_stack true`、`static_identity 8671ed7c…`（与 0069 登记值逐字相同）、
+`reconciled_state_sha256 29af995b…`、`gpu_hours 0.0`（构造性：全程 CPU）。
+
+**为什么现在能做**：`attempt04` 已作废（0098）、`attempt05` 0 GPU-h 作废，当前在跑的
+`attempt06` 闭包 **95 项**；新工具在 `tools/` 下、**不在**闭包内，且
+`model_code_digest 59340710…` 与 `training_code_digest e7674118…` 写入前后**均未变**
+（**执行前核过**，不是事后声称）⇒ 对在跑轮**零影响**、**不需重跑或重冻**。
+
+**更正 0097（本节最重要的内容）**：0097 说 `strict=False` 会「**静默丢弃**」两个缓冲区。
+实测**不是**——`field` 由已发布栈构建、`projection` 由 `manual_seed(0)` 构建，
+故新构造的臂**本来就带正确数值**：`strict=False` 加载裸父之后两者**仍等于**已发布值
+（`torch.equal` True），且三次独立构造的 `projection` 校验和均为 `−1.35186005`。
+**真正的危险是「未经验证」而非「位错」**。这个更正**改变了工具该断言什么**：
+既然是未验证，就必须**逐位断言** `field` 等于 `load_static_fields()` 的栈、
+两个方向都试 `strict=True`、并把 `strict=False` 的实测结果写进 receipt，
+而不是「补上值就算完」。0097 正文**不改**（留痕），加了一句前向指针由 0099 承担更正，
+理由写在 0099 的代价第 1 条（这是**第二次**「ADR 内未实测的机制性断言后来被实测更正」，
+前一次是 0092→0094）。
+
+**反证**：7 项测试里有 6 项是反证（缓冲必须等于已发布栈、on 臂多出的键恰为那两个、
+父键集恰等于 off 臂、补齐后 strict 必须过、裸父必须失败否则说明缺口不存在须报错、
+输出目录排他、`strict=False` 的 missing 与实测值均入 receipt）。
+**实测把 `field` 缓冲乘以 2 后**，端到端测试**失败**——不是只测「receipt 说得对」。
+
+**未做（如实登记）**：**仍未建**拦 `strict=False` 的自动守卫（要改 `training/`，
+在 `attempt06` 校验 `training_code_digest` 的窗口内不可做，已在 0099 列为未决）；
+工具**只覆盖「补缓冲区」**，若将来 `on` 臂多出的是**参数**则对账语义要重写；
+**干净克隆不能复现**（父与静态产物都在 `outputs/`，缺产物时测试具名 skip、不造合成父）；
+`reconciled_state.pt` 若被下一轮直接使用，还需一个准确的 `initialization.description` 措辞。
+
+**下一动作**：等 `attempt06` 两个 seed 跑完 → `reading` → 按 §4 的 (a)–(d) 求值 → 四件套登记。
+**恢复第一条命令** = `.venv/bin/python tools/r7_round.py state`。
