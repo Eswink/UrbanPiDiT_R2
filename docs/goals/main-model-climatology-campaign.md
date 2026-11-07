@@ -2991,6 +2991,19 @@ CI 日志下载 403（项目契约已记），故按既有纪律在**干净工�
 **CI 已确认**：`0d8f749` 的 **R7 CPU CI** run **`42384532703`** 结论 **`success`**
 （`80408e7` 的 run `42384296757` 被后续推送取消，取消**不算通过**，故以 tip 为准）。
 
+**（三）`a3e79a3` 的 CI 也红了：C2 驱动 598 行超 R-021 的 400 行目标。** 同一纪律处置：
+按仓库既有接缝拆成 `r7_s3_derivative_matching_c2_protocol`（常量、前置检验、freeze/prepare/validate，
+399 行）与 `study_r7_s3_derivative_matching_c2`（训练与读数，268 行），**不改记录阈值**；
+R-021 回到 **135**。拆分后前置仍通过且数字不变（dose `0.5702/0.4920/0.4707/0.4300`、
+`zero_at_target` 全 `0.0`、导出尺度与声明值相符）。
+**同一轮修掉一个会让 C2 首次更新就崩的缺陷**：runner 用**硬编码的 C1 项名**记录指标
+（`divergence/humidity/dew_point/total`），而 C2 返回 `divergence/vorticity` ⇒ 首个 update 会在
+`humidity` 上 `KeyError`。改为记录**当前轴返回的所有张量项**，并加两条反证（项是张量、
+元数据不是）。另修两处：`preflight` 109 行拆成三段；出口 (b) 原先只查前置（测的是**父**不是
+训练后的臂），现在**还要求** on 臂训练报告里逐步的约束项存在且严格为正。
+**CI 已确认**：`7c26b44` 的 run **`42387551472`** 结论 **`success`**；
+干净工作树全量 **5,568 passed / 27 skipped / 0 failed**。
+
 **未做**：未改 `model/process_forecast_r7.py` 的文档陈述（仍只是记录不符）；
 C2 协议仍未冻结（ADR 0095 要求先把前置测量以可复算形式写进驱动）——**该前置已实现并实跑通过**：
 `scripts/study_r7_s3_derivative_matching_c2.py` 的 `preflight()` **调用模块本身**在钉住的父上
