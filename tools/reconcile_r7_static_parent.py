@@ -32,7 +32,8 @@ construction: the only tensor work is a ``load_state_dict`` on CPU.
 Usage::
 
     .venv/bin/python tools/reconcile_r7_static_parent.py \
-        --checkpoint outputs/r7_s3_position_retention_parent_migrated_20261103_attempt01/seed41/parent_update_0001600.pt \
+        --checkpoint outputs/r7_s3_position_retention_parent_migrated_20261103_attempt01/\
+seed41/parent_update_0001600.pt \
         --out outputs/r7_static_parent_reconcile_20261108_attempt01
 """
 from __future__ import annotations
@@ -100,13 +101,11 @@ def _published_buffers():
     return built, provenance
 
 
-def reconcile(checkpoint: Path, out: Path) -> dict:
+def _load_parent(checkpoint: Path):
+    """Read the checkpoint and assert it is an off-arm parent written by this exact revision."""
     import torch
-    from training.r7_experiment import make_model, model_code_digest
+    from training.r7_experiment import model_code_digest
 
-    checkpoint, out = Path(checkpoint).resolve(), Path(out).resolve()
-    if out.exists():
-        raise FileExistsError(f"refusing to overwrite {out}; every attempt gets its own directory")
     payload = torch.load(checkpoint, map_location="cpu", weights_only=True)
     if payload.get("format") != "r7-local-v1":
         raise ValueError(f"unexpected checkpoint format: {payload.get('format')!r}")
@@ -118,26 +117,31 @@ def reconcile(checkpoint: Path, out: Path) -> dict:
         # exactly what 0075/0083 handle. Reported, not repaired.
         raise RuntimeError(f"parent checkpoint was written under {recorded_code}, this tree is "
                            f"{current_code}; this tool reconciles buffers, not code revisions")
-
     spec = payload["contract"]["model"] if "model" in payload.get("contract", {}) else None
     if spec is None:
         raise ValueError("checkpoint carries no contract.model spec to rebuild the arm from")
     spec = dict(spec)
     if spec.get("static_conditioning"):
         raise RuntimeError("the parent already carries static_conditioning; nothing to reconcile")
+    return payload, parent_state, recorded_code, current_code, spec
 
-    buffers, provenance = _published_buffers()
-    if not provenance["field_equals_published_stack"]:
-        raise RuntimeError("the module's field buffer differs from the published stack; refusing "
-                           "to install buffers that are not the published product")
 
-    # Both arms, built exactly as the training path builds them.
+def _probe_arms(spec, parent_state, buffers, make_model):
+    """Build both arms and run the three load probes; return what each proved.
+
+    Each probe gets a **fresh** arm: ``load_state_dict`` mutates the module, so a probe reusing an
+    already-populated arm reports "nothing dropped" and would hide the hazard it exists to show.
+    """
+    import torch
+
+    def fresh_on_arm():
+        with torch.random.fork_rng(devices=[]):
+            return make_model("process", dict(spec, static_conditioning=True))
+
     with torch.random.fork_rng(devices=[]):
         off_arm = make_model("process", dict(spec))
-    with torch.random.fork_rng(devices=[]):
-        on_arm = make_model("process", dict(spec, static_conditioning=True))
-    off_keys, on_keys = set(off_arm.state_dict()), set(on_arm.state_dict())
-    added = sorted(on_keys - off_keys)
+    off_keys = set(off_arm.state_dict())
+    added = sorted(set(fresh_on_arm().state_dict()) - off_keys)
     if added != sorted(BUFFER_KEYS):
         raise RuntimeError(f"the on arm adds {added}, not the two buffers this tool knows about")
     if sorted(set(parent_state)) != sorted(off_keys):
@@ -146,52 +150,45 @@ def reconcile(checkpoint: Path, out: Path) -> dict:
         raise RuntimeError(f"the parent is not exactly the off-arm key set; missing={missing[:5]} "
                            f"extra={extra[:5]}")
 
-    # Each probe gets a **fresh** arm: load_state_dict mutates the module, so a probe reusing an
-    # already-populated arm reports "nothing dropped" and would hide the hazard it exists to show.
-    def fresh_on_arm():
-        with torch.random.fork_rng(devices=[]):
-            return make_model("process", dict(spec, static_conditioning=True))
-
     armed = {**parent_state, **{key: buffers[key].detach().clone() for key in BUFFER_KEYS}}
     try:
         fresh_on_arm().load_state_dict(armed, strict=True)
-        strict_ok = True
         strict_error = None
     except RuntimeError as error:
-        strict_ok = False
         strict_error = str(error)
+    if strict_error is not None:
+        raise RuntimeError(f"the reconciled state dict did not load strictly: {strict_error}")
     try:
         fresh_on_arm().load_state_dict(parent_state, strict=True)
-        unwrapped_ok = True
-        unwrapped_error = None
+        unwrapped_ok, unwrapped_error = True, None
     except RuntimeError as error:
-        unwrapped_ok = False
-        unwrapped_error = str(error)
-    if not strict_ok:
-        raise RuntimeError(f"the reconciled state dict did not load strictly: {strict_error}")
+        unwrapped_ok, unwrapped_error = False, str(error)
     if unwrapped_ok:
         raise RuntimeError("the bare parent loaded into the on arm, so the two-buffer gap this "
                            "tool exists to close is not present; re-read decision 0097 before "
                            "trusting this receipt")
 
-    # A strict=False load is exactly the silent-drop hazard decision 0097 forbids; record what it
-    # would have swallowed so the receipt shows why the strict path is the only acceptable one.
+    # A strict=False load is the hazard decision 0097 forbids; record what it would swallow.
     # Direction matters: an off parent into an on arm leaves the two buffers *missing* (the model
-    # has keys the state dict lacks), so the first element is the one that carries the hazard.
+    # has keys the state dict lacks), so the first element carries the hazard.
     dropped, surprise = fresh_on_arm().load_state_dict(parent_state, strict=False)
     if sorted(dropped) != sorted(BUFFER_KEYS):
         raise RuntimeError(f"strict=False left {sorted(dropped)} missing, expected exactly the two "
                            f"buffers (unexpected={sorted(surprise)})")
-
     probe = fresh_on_arm()
     probe.load_state_dict(parent_state, strict=False)
     probe_state = probe.state_dict()
-    strict_false_values = {key: bool(torch.equal(probe_state[key], buffers[key]))
-                           for key in BUFFER_KEYS}
+    still_published = {key: bool(torch.equal(probe_state[key], buffers[key])) for key in BUFFER_KEYS}
+    return {"armed": armed, "added": added, "unwrapped_error": unwrapped_error,
+            "dropped": sorted(dropped), "surprise": sorted(surprise),
+            "still_published": still_published}
 
-    on_arm.load_state_dict(armed, strict=True)
-    reconciled = on_arm.state_dict()
-    receipt = {
+
+def _receipt(payload, parent_state, recorded_code, current_code, provenance, buffers, probes,
+             checkpoint):
+    """The evidence record: every number here was measured above, none is retyped."""
+    reconciled = probes["armed"]
+    return {
         "format": "r7-static-parent-reconcile-v1",
         "scientific_claim": False,
         "test_read": False,
@@ -213,22 +210,22 @@ def reconcile(checkpoint: Path, out: Path) -> dict:
                               buffers[key].detach().cpu().contiguous().numpy().tobytes()
                           ).hexdigest()}
                     for key in BUFFER_KEYS},
-        "on_arm_added_keys": added,
+        "on_arm_added_keys": probes["added"],
         "reconciled_state_digest": _state_digest(reconciled),
         "reconciled_tensor_count": len(reconciled),
-        "strict_load_of_reconciled_passed": strict_ok,
-        "bare_parent_into_on_arm_failed": not unwrapped_ok,
-        "bare_parent_error": (unwrapped_error or "").split("\n")[0][:400],
-        "strict_false_would_leave_missing": sorted(dropped),
-        "strict_false_unexpected": sorted(surprise),
+        "strict_load_of_reconciled_passed": True,
+        "bare_parent_into_on_arm_failed": True,
+        "bare_parent_error": (probes["unwrapped_error"] or "").split("\n")[0][:400],
+        "strict_false_would_leave_missing": probes["dropped"],
+        "strict_false_unexpected": probes["surprise"],
         "strict_false_buffer_values": {
             "measured": "a strict=False load of the bare parent leaves both buffers equal to the "
                         "constructed published values, so the loss is verification rather than "
                         "corruption; recorded because decision 0097 originally said 'drops'",
             "field_still_equals_published":
-                strict_false_values["backbone.static_conditioning_pathway.field"],
+                probes["still_published"]["backbone.static_conditioning_pathway.field"],
             "projection_still_equals_published":
-                strict_false_values["backbone.static_conditioning_pathway.projection"],
+                probes["still_published"]["backbone.static_conditioning_pathway.projection"],
         },
         "limitations": [
             "This shows the on arm can be initialized from the registered parent plus the published "
@@ -237,9 +234,27 @@ def reconcile(checkpoint: Path, out: Path) -> dict:
             "No training, evaluation or reading is produced here; gpu_hours is zero by construction.",
         ],
     }
+
+
+def reconcile(checkpoint: Path, out: Path) -> dict:
+    import torch
+    from training.r7_experiment import make_model
+
+    checkpoint, out = Path(checkpoint).resolve(), Path(out).resolve()
+    if out.exists():
+        raise FileExistsError(f"refusing to overwrite {out}; every attempt gets its own directory")
+    payload, parent_state, recorded_code, current_code, spec = _load_parent(checkpoint)
+    buffers, provenance = _published_buffers()
+    if not provenance["field_equals_published_stack"]:
+        raise RuntimeError("the module's field buffer differs from the published stack; refusing "
+                           "to install buffers that are not the published product")
+    probes = _probe_arms(spec, parent_state, buffers, make_model)
+    receipt = _receipt(payload, parent_state, recorded_code, current_code, provenance, buffers,
+                       probes, checkpoint)
+
     out.mkdir(parents=True)
     state_path = out / "reconciled_state.pt"
-    torch.save(armed, state_path)
+    torch.save(probes["armed"], state_path)
     receipt["reconciled_state_sha256"] = _sha256_file(state_path)
     (out / "receipt.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n",
                                      encoding="utf-8")
