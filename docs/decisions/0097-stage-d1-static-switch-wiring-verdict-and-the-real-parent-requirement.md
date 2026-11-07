@@ -61,6 +61,11 @@ backbone.static_conditioning_pathway.projection  is_buffer True  persistent True
 | off 父 → on 臂 | **RuntimeError**（`Missing key(s)`，缺 2 个） | **静默丢弃 2 个键**（`missing 0 / unexpected 2`） |
 | on 检查点 → off 臂 | **RuntimeError**（多了 2 个 `unexpected`） | 静默丢弃 |
 
+> **后续更正（2026-11-08，决策 0099）**：上表「静默丢弃」容易读成**数据丢失**。实测（0099 ②③）
+> `strict=False` 之后两个缓冲区的**数值仍等于已发布产物**——`field` 由已发布栈构建、`projection`
+> 由 `manual_seed(0)` 构建，故新构造的臂本来就带正确数值。真正的危险是**未经验证**而非位错。
+> 本 ADR 正文其余部分不变，该措辞由 0099 承担更正。
+
 **这条为什么重要**：`scripts/migrate_r7_parent_state.py:105` 用的是
 **`strict=True`**，`training/r7_autoregressive_runner._validate_imported_model`
 喂 `parent_weights` 时也是 **`strict=True`**。因此**注册的那个迁移父
