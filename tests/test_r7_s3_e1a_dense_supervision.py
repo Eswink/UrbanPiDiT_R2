@@ -13,6 +13,7 @@ fail:
 from __future__ import annotations
 
 import importlib
+import json
 import sys
 from pathlib import Path
 
@@ -23,6 +24,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 proto = importlib.import_module("scripts.r7_s3_e1a_dense_supervision_protocol")
+driver = importlib.import_module("scripts.study_r7_s3_e1a_dense_supervision")
 
 
 def test_the_two_vectors_carry_the_same_total_weight():
@@ -83,3 +85,70 @@ def test_the_budget_estimate_is_not_passed_off_as_a_measurement():
     basis = proto.budgets()["estimate_basis"]
     assert "estimate" in basis.lower()
     assert "not a measurement" in basis.lower()
+
+
+def _receipt_tree(tmp_path, climatology):
+    """A two-seed, two-arm receipt tree whose tables carry exactly the five frozen leads."""
+    import csv, hashlib, json
+    def sha(path):
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    for seed in proto.SEEDS:
+        arms = {}
+        for arm in (proto.CONTROL, proto.CANDIDATE):
+            folder_training = tmp_path / f"seed{seed}/{arm}/training"
+            folder_training.mkdir(parents=True)
+            evaluations = {}
+            for lead in driver.LEADS:
+                folder = tmp_path / f"seed{seed}/{arm}/lead_{lead:03d}h"
+                folder.mkdir(parents=True)
+                # Equal rmse on both arms, so the paired delta is 0.0 and (a) holds.
+                with (folder / "boundary_rmse.csv").open("w", newline="", encoding="utf-8") as fh:
+                    writer = csv.DictWriter(fh, fieldnames=["region", "variable", "rmse"])
+                    writer.writeheader()
+                    writer.writerow({"region": "full", "variable": "t2m", "rmse": "2.0"})
+                evaluations[str(lead)] = {
+                    "dir": str(folder),
+                    "boundary_rmse_csv_sha256": sha(folder / "boundary_rmse.csv")}
+            arms[arm] = {"training_dir": str(folder_training), "evaluations": evaluations,
+                         "physical_weights": proto.arm_weights(arm)}
+        (tmp_path / f"seed{seed}_receipt.json").write_text(
+            json.dumps({"seed": seed, "arms": arms}), encoding="utf-8")
+    constants = proto.frozen_constants()
+    return {"protocol_sha256": "0" * 64, "test_read": False,
+            "arms": {arm: constants["arms"][arm] for arm in (proto.CONTROL, proto.CANDIDATE)},
+            "climatology_reference": climatology}
+
+
+def test_the_reading_fills_both_arms_and_the_exit_can_pass(tmp_path):
+    """The attempt04 class of defect: a fill nested in an arm-conditional leaves one arm empty.
+
+    Decision 0098 records three defects that only fired after ten hours of training, one of which
+    was exactly this. This runs the whole reading path on a synthetic tree so the driver cannot
+    repeat it silently, and asserts the (a)-(d) conjunction reaches a verdict.
+    """
+    climatology = {"leads": {str(lead): {"t2m_rmse": 4.0} for lead in driver.LEADS}}
+    result = driver.readings(tmp_path, _receipt_tree(tmp_path, climatology))
+    wanted = sorted(str(lead) for lead in driver.LEADS)
+    for seed in proto.SEEDS:
+        for arm in (proto.CONTROL, proto.CANDIDATE):
+            entry = result["seeds"][str(seed)][arm]
+            assert sorted(entry["rmse"]) == wanted and sorted(entry["skill"]) == wanted
+    exits = result["exit_conditions"]
+    assert exits["all"] is True
+    assert exits["verdict"] == "advance-to-independent-review"
+    assert result["scientific_claim"] is False and result["test_read"] is False
+
+
+def test_the_exit_can_fail_b_and_c(tmp_path):
+    """(b) and (c) must be able to say no, or they prove nothing about the factor having bit."""
+    climatology = {"leads": {str(lead): {"t2m_rmse": 4.0} for lead in driver.LEADS}}
+    body = _receipt_tree(tmp_path, climatology)
+    # Simulate an on arm that trained on the wrong vector: (b) must fail and the branch close.
+    receipt = json.loads((tmp_path / f"seed{proto.SEEDS[0]}_receipt.json").read_text())
+    receipt["arms"][proto.CANDIDATE]["physical_weights"] = list(proto.SPARSE_WEIGHTS)
+    (tmp_path / f"seed{proto.SEEDS[0]}_receipt.json").write_text(json.dumps(receipt))
+    result = driver.readings(tmp_path, body)
+    assert result["exit_conditions"]["b_factor_effective"] is False
+    assert result["exit_conditions"]["all"] is False
+    assert result["exit_conditions"]["verdict"] == \
+        "permanently-close-dense-supervision-in-this-regime"
