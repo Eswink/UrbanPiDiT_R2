@@ -242,3 +242,29 @@
   **1.47 倍**余量（`115200 / 78585`），故 **115,200 / 230,400 的包络继续够用**，
   不因 3% 的速率差改动（改包络会让协议与 `attempt04` 不可比，且没有触发条件）。
   **`prepare` 必须重跑 preflight** —— 它是冻结前置而不是可继承的测量；已启动。
+
+- **2026-11-08 `attempt05` 作废（0 GPU-h，未开跑）**：`prepare` **成功**
+  （preflight 重跑：`zero_at_target` 全 `0.0`、dose `0.5702/0.4920/0.4707/0.4300`，
+  与 `attempt04` **逐位相同**，说明修读数路径没有扰动物理），但 `archive` **拒绝**：
+  `RuntimeError: archive commit differs from freeze`。根因：`code_archive_input` 指向的
+  `outputs/r7_s3_derivative_matching_c2_code.zip` 是 `attempt04` 时代的产物，
+  其 zip 注释是 **`39f2db3`**，而 `attempt05` 冻结的是 **`5106dee`**。
+  **这条检查恰好拦住了一个真实缺陷**：zip 是 `freeze` **读入**的输入，一份过期 zip 会
+  **静默地把错误的代码身份钉进协议**，与「绕过 checkpoint 身份校验」同族；
+  `archive` 的逐文件校验把它变成了硬失败而不是潜在污染。
+  **零 GPU-h**（`prepare` 与 `archive` 都在 CPU 上，且 `prepare` 的前置检验是 CPU 前向）。
+  **顺带发现一个顺序陷阱**：`freeze` 取 **HEAD** 作 `code_commit`，而 zip 又必须由
+  `git archive <commit>` 构建 ⇒ 必须先提交 round-spec、再在**同一 HEAD** 上重建 zip、
+  然后 `freeze`；先建 zip 再提交会立刻让 zip 老一个提交（`f632c2c` 就是这样废掉的）。
+
+- **2026-11-08 `attempt06` 冻结并开跑（当前）**：协议 **`029cbaab…`**、zip `e3f20f3f…`
+  （1746 条目，`git archive` `f632c2c` + 98 个 `.zcode/` 运行态）、**95** 个钉住文件
+  （比 `attempt04` 多的正是 `scripts/r7_s3_curve_point_large_driver.py`——修复后
+  `check_provenance` 从那里引用，故它进了 import 闭包）。
+  `prepare` **passed**（preflight 与 `attempt04`/`attempt05` 三次数值**完全一致**），
+  `archive` **passed**（5.4 s）。两卡各一 seed 并行（seed41/42 先跑 **off** 臂），
+  实测 **9,308 / 9,287 MiB**、util 67%/71%、update 120 时 loss 0.7564 / 0.9511、
+  **1.2788 / 1.2627 s/update**（早期值，随预热与缓存会下降，届时重算）。
+  **注意**：这个早期速率比 `attempt04` 的稳步值（1.136/1.147）更高，故 §5 的
+  1.47 倍包络余量要**在跑稳后复核**；若持续高于约 1.5 s/update 则两臂合计可能逼近
+  `per_seed` 32 h，届时应如实记 `soft_overrun` 而**不**改硬限。
