@@ -141,8 +141,7 @@
   `model_code_digest()` 与 `training_code_digest()`，现在改 `model/**` 或 `training/**`
   会让 C2 已冻结的身份失效。
 
-- **2026-11-08 第三次 CI 红（`0f72dca`）已修，`0f026c1` 绿（run `42399805771`）**：
-  干净工作树 **5,569 passed / 27 skipped / 0 failed** 独立复核。
+- **2026-11-08 第三次 CI 红（`0f72dca`）已修，`0f026c1` 绿（run `42399805771`）**：  干净工作树 **5,569 passed / 27 skipped / 0 failed** 独立复核。
   根因：`scripts/r7_s3_derivative_matching_c2_protocol.py` **404 行**，越过 R-021 的 400 行目标带 4 行，
   使 `size-thresholds.md` 记的 135 与实测 136 不符。
   **处置与前面的 R-020 案例不同，理由必须写明**：该文件的 SHA256 已被在跑的
@@ -155,3 +154,20 @@
   **不动阈值、不动规则级别、不加冻结例外**；该文件在 C2 跑完后应缩回 ≤400 行、计数回到 135。
   **这一条是「先动手、再验证」的一次真实失误，已如实登记**；正确的顺序应是在改任何
   `execution_files_sha256` 成员之前先核对它是否被在跑轮次钉住。
+
+- **2026-11-08 审计项「Stage D1 接线未做」的核对结果：部分成立、部分错误。**
+  审计方依据是 `training/*.py` 对 `static_conditioning`/`static_identity` **零引用**——
+  这条观察对，但推论错：开关经 **spec 字典**流通，`training/r7_experiment.make_model`
+  原样 `**options` 展开，所以「零引用」是**设计**。已写成决策 **0097**（`proposed`、0 GPU-h），
+  关键实测：`make_model('process', spec)` 收该键、参数增量 **0**（off/on 均 3,286,037）、
+  off 不构造张量、on 加项 `(1,1089,192)` 范数 **182.7212** 含非零、`named_parameters()`
+  中静态量 **`[]`**、两个缓冲区两次构造**逐位相同**、`field` 与 `load_static_fields()`
+  **逐位相同**。**真正的缺口**是 on 臂多的 **2 个 persistent buffer**
+  （`field` (8,65,65) / `projection` (16,192)）：`strict=True` **两向都失败**、
+  `strict=False` **静默丢弃**（实测 `missing 0 / unexpected 2`），而注册父的静态键为 **`[]`**
+  ⇒ **注册父不能直接用于任何 on 臂**。同时**证伪目标长文一条预测**：那句「这会改
+  `model_code_sha256` 故必须重做父迁移」**从写下之日起就不成立**（开关代码 `896eabf`
+  2026-10-29 早于父迁移 2026-11-03，改 `False`→`True` 不动 `model/` 任何字节）；
+  缺的是**一次确定性缓冲区对账**（0 GPU-h），不是代码身份迁移。**未执行**——
+  C2 的 94 项闭包含全部 17 个 `training_code_digest` 源文件，等 `reading` 之后再动。
+  本条不改 C2 的任何判据或身份。
