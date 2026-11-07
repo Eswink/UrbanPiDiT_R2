@@ -172,7 +172,7 @@
   C2 的 94 项闭包含全部 17 个 `training_code_digest` 源文件，等 `reading` 之后再动。
   本条不改 C2 的任何判据或身份。
 
-- **2026-11-08 `attempt04` 终止（6.945 GPU-h、零读数，决策 0098）。**
+- **2026-11-08 `attempt04` 终止（6.5555 GPU-h、零读数，决策 0098）。**
   **为何停**：等待期间只读审读 `readings()`/`evaluate_exit()`，发现**三处必然失败**，
   全部在**十小时训练之后**才触发，且全部落在已钉进 `execution_files_sha256` 的两个文件里
   ⇒ 在当前身份下**无法修补**，跑完只能得到零读数 + 约 61 GPU-h 账单：
@@ -187,7 +187,9 @@
   **终止动作**：先逐 PID 核对 `/proc/<pid>/cmdline` 含 `attempt04` 才对本实验自己的
   两个 `seed` worker 发 `SIGTERM`（**未对任何非本实验进程发信号**），
   随后确认两卡 0% / 38 MiB / 17 MiB、`stage-seeds` 父进程同时退出。
-  **记账**：freeze 后 3.472 h 墙钟 × 2 卡 = **6.945 GPU-h，零读数，全额记账**；
+  **记账**：两臂各自记录的 `elapsed_seconds` 之和 **23,599.7 s = 6.5555 GPU-h**
+  （可测的卡占用；墙钟 × 2 卡为 7.8802 GPU-h，但含 prepare 与等待，不采用）。
+  **零读数，全额记账**；
   **不记成 `budget_limited`**（那是时长截断，这是主动作废）。
   两个 `off` 臂的 `progress.jsonl`/checkpoint 留在原地作留痕，**不作为任何结论的证据**。
   **修复只动读数路径**（不动训练、不动判据）：`LEADS = wide.EVALUATION_LEADS` 单一具名常量、
