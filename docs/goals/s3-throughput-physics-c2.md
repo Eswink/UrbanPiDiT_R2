@@ -215,3 +215,16 @@
   **无任何断言或逻辑改动**。**本地复验**：`git show --check --format= HEAD` 现在输出为空。
   **教训（已写进流程）**：CI 的第 8 步用 `git show --check` 检查**待推提交**的空白，
   所以这条应在**提交前**跑，而不是等 CI；拆分/移动文件的提交尤其容易在尾部留下空行。
+
+- **2026-11-08 修复提交的 CI 实测**：`936d16c` 的 `R7 CPU CI` run **`42416263241`
+  = completed / success**。此前两次红（`3218058` 的空白、`7b0c339` 之前的取消）都已解决：
+  **取消不算通过**，故只以 tip 的这次 success 为准。
+  **干净工作树**（`936d16c`，无 `outputs/`）实测
+  `test_r7_s3_derivative_matching_c2` + `test_r7_s3_c2_reading_exit` +
+  `test_check_driver_attributes` + `test_check_conventions` **151 passed / 0 failed**；
+  更早一次全量（`7b0c339` 前的 `80408e7` 世代）为 **5,382 passed / 27 skipped / 0 failed**，
+  7 条 skip 全部是**产物不在干净检出中**的具名原因（`no synthetic fallback`），**没有一条掩盖失败**。
+  `round-guard`（`test_path` 三项 + commit-guard）**passed**。
+  **下一动作**：`attempt05` 重新冻结。**恢复第一条命令**
+  `.venv/bin/python tools/r7_round.py state`，然后 `freeze` → `prepare`（**preflight 必须重跑**）
+  → `archive` → `stage-seeds` → `reading`。
