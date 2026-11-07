@@ -31,6 +31,7 @@ if str(ROOT) not in sys.path:
 
 from scripts import r7_s3_derivative_matching_c2_protocol as proto
 from scripts import r7_s3_curve_point_large_protocol as curve
+from scripts import r7_s3_curve_point_large_driver as curve_driver
 from scripts import r7_s3_position_retention_parent as parent_pins
 from scripts import study_r7_s3_wide_single_factor as wide
 from training import r7_device_selection as devices
@@ -38,6 +39,9 @@ from training import r7_device_selection as devices
 CANDIDATE, CONTROL = proto.CANDIDATE, proto.CONTROL
 SEEDS = proto.SEEDS
 UPDATES, STEPS, BATCH_SIZE = proto.UPDATES, proto.STEPS, proto.BATCH_SIZE
+#: The five scoring leads live on ``wide``; ``curve`` re-exports it but never rebinds the name,
+#: so writing ``curve.EVALUATION_LEADS`` raised AttributeError only when the reading stage ran.
+LEADS = wide.EVALUATION_LEADS
 PER_SEED_SECONDS = proto.budgets()["per_seed_seconds"]
 PLANNED_SECONDS = proto.budgets()["planned_seconds"]
 HARD_CAP_SECONDS = proto.budgets()["hard_cap_seconds"]
@@ -135,14 +139,14 @@ def _train_arm(output, body, arm, seed, deadline, mask):
                "seconds_per_update": round(report["elapsed_seconds"] / UPDATES, 4),
                "derivative_matching": expected_axis, "evaluations": {}}
     prepared = EvaluationPreparation(curve.VAL_MANIFEST, deadline=deadline)
-    for lead in curve.EVALUATION_LEADS:
+    for lead in LEADS:
         destination = output / f"seed{seed}/evaluation/{arm}/lead_{lead:03d}h"
         provenance = evaluate_local(
             str(curve.VAL_MANIFEST), output_dir=destination, checkpoint=checkpoint,
             lead_hours=(lead,), max_samples=10**9, device_name="cuda:0",
             reasoning_steps=curve.REASONING_STEPS,
             boundary_margins=curve.BOUNDARY_MARGINS, deadline=deadline, prepared=prepared)
-        curve.check_provenance(provenance, seed, lead)
+        curve_driver.check_provenance(provenance, seed, lead)
         receipt["evaluations"][str(lead)] = {
             "dir": str(destination), "n_evaluated": provenance["n_evaluated"],
             "elapsed_seconds": provenance["elapsed_seconds"],
@@ -166,7 +170,16 @@ def _seed(output, body, seed, deadline):
 
 
 def readings(output, body):
-    """Score every variable at every lead for both arms and compute the predeclared exit."""
+    """Score every variable at every lead for both arms and compute the predeclared exit.
+
+    Per arm this pins each lead's table by digest and then fills three things: the five rmse
+    values, the five skills, and (on arm only) whether the runner recorded the matching term.
+    The fill must sit outside ``if arm == CANDIDATE`` -- an earlier version nested it inside,
+    which left the off arm with empty ``rmse``/``skill`` and made ``evaluate_exit`` raise
+    ``KeyError('72')`` only after both arms had trained for ten hours. The per-arm ``leads``
+    list is asserted to be exactly the frozen five, so a lead silently vanishing fails here
+    rather than quietly narrowing the comparison.
+    """
     from training.r7_arm_harness import sha256_file
     climatology = body.get("climatology_reference") or curve.climatology_reference()
     result = {"scientific_claim": False, "test_read": False,
@@ -179,13 +192,19 @@ def readings(output, body):
         entry = {}
         for arm in (CONTROL, CANDIDATE):
             arm_receipt = receipt["arms"][arm]
-            table = {"rmse": {}, "skill": {}}
-            for lead in curve.EVALUATION_LEADS:
+            entry[arm] = {"rmse": {}, "skill": {}}
+            for lead in LEADS:
                 folder = Path(arm_receipt["evaluations"][str(lead)]["dir"])
                 if sha256_file(folder / "boundary_rmse.csv") != \
                         arm_receipt["evaluations"][str(lead)]["boundary_rmse_csv_sha256"]:
                     raise RuntimeError(f"seed {seed} arm {arm} lead {lead} table drifted")
-                entry.setdefault(arm, {"rmse": {}, "skill": {}})
+                rmse = wide._region_variable_rmse(folder / "boundary_rmse.csv", curve.REGION, "t2m")
+                denominator = climatology["leads"][str(lead)]["t2m_rmse"]
+                entry[arm]["rmse"][str(lead)] = rmse
+                entry[arm]["skill"][str(lead)] = 1.0 - (rmse / denominator) ** 2
+            if sorted(int(key) for key in entry[arm]["rmse"]) != sorted(LEADS):
+                raise RuntimeError(f"seed {seed} arm {arm} scored {sorted(entry[arm]['rmse'])}, "
+                                   f"not the frozen leads {sorted(LEADS)}")
             if arm == CANDIDATE:
                 # The runner writes constraint_* per update; their presence on the on arm is what
                 # makes "the matching was on" a recorded fact rather than a claim about the config.
@@ -196,10 +215,6 @@ def readings(output, body):
                     "constraint_divergence" in row and "constraint_vorticity" in row
                     and float(row["constraint_divergence"]) > 0.0
                     for row in losses)
-                rmse = wide._region_variable_rmse(folder / "boundary_rmse.csv", curve.REGION, "t2m")
-                entry[arm]["rmse"][str(lead)] = rmse
-                denominator = climatology["leads"][str(lead)]["t2m_rmse"]
-                entry[arm]["skill"][str(lead)] = 1.0 - (rmse / denominator) ** 2
         result["seeds"][str(seed)] = entry
     result["exit_conditions"] = evaluate_exit(result)
     return result

@@ -1,13 +1,11 @@
-"""The Stage C2 protocol layer: constants, the preflight, and the freeze/prepare/validate cycle.
+"""The Stage C2 protocol layer: constants, preflight, freeze/prepare/validate.
 
-Split from ``study_r7_s3_derivative_matching_c2.py`` because R-021's 400-line target is a C-class
-goal the repository tracks, and the single file reached 598 lines. The split follows the shape
-``r7_s3_curve_point_large_protocol`` / ``_driver`` already use: this module owns *what a round is
-frozen to*, the driver owns training and reading.
-
-The preflight lives here because decision 0095 makes it a freeze precondition: no protocol is
-promoted unless the measurement passes. It calls ``training.r7_derivative_matching`` itself
-rather than reimplementing it, so the frozen numbers are the ones the training run will produce.
+Split out of ``study_r7_s3_derivative_matching_c2.py`` (598 lines, over R-021's 400-line target)
+along the same seam ``r7_s3_curve_point_large_protocol`` / ``_driver`` use: this module owns
+*what a round is frozen to*, the driver owns training and reading. The preflight lives here
+because decision 0095 makes it a freeze precondition: no protocol is promoted unless the
+measurement passes. It calls ``training.r7_derivative_matching`` itself rather than
+reimplementing it, so the frozen numbers are the ones the training run will produce.
 """
 from __future__ import annotations
 
@@ -214,11 +212,10 @@ def _preflight_cases(context):
 def preflight(seed):
     """The decision-0095 preflight, run through the module the training run will call.
 
-    Three questions, each answered by measurement rather than by argument:
-
-    1. does ``pred = target`` score exactly zero? (the family property C1 lacked)
-    2. does the trained parent's forecast score above zero? (the term is not inert)
-    3. is the dose the same order as the MSE? (C1's failure was a dose 5 orders too small)
+    Three questions, each answered by measurement rather than argument: does ``pred = target``
+    score exactly zero (the family property C1 lacked); does the trained parent's forecast score
+    above zero (the term is not inert); is the dose the same order as the MSE (C1's failure was
+    a dose 5 orders too small)?
 
     Returns the measurements and raises if any answer is wrong, so a failing preflight leaves no
     protocol behind. Uses the train manifest only.
@@ -233,9 +230,8 @@ def preflight(seed):
     if any(not (DOSE_MIN <= row["dose"] <= DOSE_MAX) for row in rows):
         raise RuntimeError(f"the preflight dose left the declared band [{DOSE_MIN}, {DOSE_MAX}]: "
                            f"{[round(row['dose'], 4) for row in rows]}")
-    # Re-derive the scales from the analysis and assert they are the declared constants: the
-    # protocol says these came from the analysis distribution, and a store whose fields moved
-    # must fail here rather than silently rescale every term.
+    # Re-derive the scales from the analysis and assert they equal the declared constants: a
+    # store whose fields moved must fail here rather than silently rescale every term.
     derived = {"divergence": sum(item["analysis_mean_abs_divergence"] for item in magnitudes)
                / len(magnitudes),
                "vorticity": sum(item["analysis_mean_abs_vorticity"] for item in magnitudes)

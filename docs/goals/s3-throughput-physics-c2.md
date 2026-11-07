@@ -171,3 +171,34 @@
   缺的是**一次确定性缓冲区对账**（0 GPU-h），不是代码身份迁移。**未执行**——
   C2 的 94 项闭包含全部 17 个 `training_code_digest` 源文件，等 `reading` 之后再动。
   本条不改 C2 的任何判据或身份。
+
+- **2026-11-08 `attempt04` 终止（6.945 GPU-h、零读数，决策 0098）。**
+  **为何停**：等待期间只读审读 `readings()`/`evaluate_exit()`，发现**三处必然失败**，
+  全部在**十小时训练之后**才触发，且全部落在已钉进 `execution_files_sha256` 的两个文件里
+  ⇒ 在当前身份下**无法修补**，跑完只能得到零读数 + 约 61 GPU-h 账单：
+  (1) `readings()` 与 `_train_arm()` 都写 `curve.EVALUATION_LEADS`，而该名字只在
+  `study_r7_s3_wide_single_factor` 上，`r7_s3_curve_point_large_protocol` 把它 import 成
+  `wide` **从不重绑** ⇒ **在跑的这一份字节上实测 `AttributeError`**；
+  (2) 同一名字在 `_train_arm` 第 138 行（训练之后、评分之前）；
+  (3) `entry[arm]["rmse"]/["skill"]` 的填充被**缩进在 `if arm == CANDIDATE:` 内**，
+  `off` 臂永远是空字典 ⇒ 合成结果实测 `KeyError('72')`。
+  另发现**第三个同类**：`curve.check_provenance` 实际定义在
+  `scripts/r7_s3_curve_point_large_driver.py:96`，一并修。
+  **终止动作**：先逐 PID 核对 `/proc/<pid>/cmdline` 含 `attempt04` 才对本实验自己的
+  两个 `seed` worker 发 `SIGTERM`（**未对任何非本实验进程发信号**），
+  随后确认两卡 0% / 38 MiB / 17 MiB、`stage-seeds` 父进程同时退出。
+  **记账**：freeze 后 3.472 h 墙钟 × 2 卡 = **6.945 GPU-h，零读数，全额记账**；
+  **不记成 `budget_limited`**（那是时长截断，这是主动作废）。
+  两个 `off` 臂的 `progress.jsonl`/checkpoint 留在原地作留痕，**不作为任何结论的证据**。
+  **修复只动读数路径**（不动训练、不动判据）：`LEADS = wide.EVALUATION_LEADS` 单一具名常量、
+  `curve_driver.check_provenance`、填充移出候选分支、新增「每臂 lead 集合必须恰等于冻结五档」断言。
+  **收尾实测**：两项新测试在 `git stash` 回缺陷版本后**都失败**、修复后 **23 项全过**。
+  **顺带**：`r7_s3_derivative_matching_c2_protocol.py` 404→400（只压 docstring 与三行注释），
+  R-021 计数 **136→135**，`size-thresholds.md` 的 marker 与实测重新一致。
+  **恢复第一条命令**（`attempt05` 必须**重新冻结**，`attempt04` 协议永久作废）：
+  ```
+  .venv/bin/python tools/r7_round.py state
+  ```
+  然后按 §8 的 `freeze` → `prepare`（**preflight 必须重跑**）→ `archive` → `stage-seeds` →
+  `reading` 顺序重开。**注意**：`attempt05` 会**重新**把 400 行的协议钉进
+  `execution_files_sha256`，届时再改该文件仍须按 `size-thresholds.md` 的办法处理。
