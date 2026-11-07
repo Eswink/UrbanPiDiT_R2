@@ -341,3 +341,28 @@
     会在 CI 里断言它们与 `size-thresholds.md` 一致 ⇒ **新增任何 .py 都可能在 CI 上因此变红**。
     本地提交前应跑 `.venv/bin/python tools/check_conventions.py --report` 并核对三个计数，
     而不是只看阻断规则。这条我先前漏了两次。
+
+- **2026-11-08 Stage E1a 的协议层与驱动已就绪（0 GPU-h 已花，待跑）**：
+  决策 0096 只定了设计与判据，**没有代码**；本轮补齐到"可冻结、可跑"为止：
+  - `scripts/r7_s3_e1a_dense_supervision_protocol.py`（**256** 行）：常量、单因子不变式、
+    包络、`freeze`/`prepared_protocol`/`validate_protocol`；
+  - `scripts/study_r7_s3_e1a_dense_supervision.py`（**250** 行）：父加载、两臂训练与评分、
+    `readings`、`evaluate_exit`、`worker`；
+  - `tests/test_r7_s3_e1a_dense_supervision.py`（**154** 行，**11 项**）。
+  **单因子不变式在协议里被断言而不是假设**：两向量长度都 12、**和都为 3.0**
+  （`abs(sum(on)-sum(off)) <= 1e-12`）、`arms_differ_only_in == ["physical_weights"]`；
+  on = `(0.25,)*12`、off = `study_r7_s3_wide_single_factor.PHYSICAL_WEIGHTS` **逐字**。
+  **制度**：`128,528 updates = 16.000498 epoch`（32,131 窗 ÷ batch 4），即 0096 声称的
+  53.6 倍新制度。**包络按最慢实测速率 1.1740 s/update**（不是均值，0090 的教训）：
+  每臂 `42.633 GPU-h`、每 seed 两臂 `306,960 s`、`per_seed 921,600 s = 256 h`、
+  `hard 1,843,200 s = 512 h`、**六臂合计约 255.8 GPU-h**——这正是 0096 申报的超支。
+  **两条在 attempt04 上缺失的守卫，对这两个新模块都跑了且都通过**：
+  `tools/check_driver_attributes.py` 输出 `every imported-module attribute resolves`（exit 0）；
+  反汇编全函数全局名解析 **`unresolved globals: none`**。
+  **读数路径在合成两臂树上真跑过**：两臂 lead 集合都填满、`(a)-(d)` 全真可达
+  `advance-to-independent-review`；并把 **attempt04 的原缺陷重新植入**（把填充缩进到
+  `if arm == CANDIDATE`）后**两项新测试都失败**——覆盖是真的，不是名义上的。
+  **未跑（如实登记）**：`attempt06` 仍占两卡，而 R-054 要求统一父调度串行 ⇒
+  E1a **未冻结、未开跑、0 GPU-h**。它需要的 255.8 GPU-h 是 0096 已申报的超支，
+  **不**因本轮的代码就绪而缩小。**CI**：`c0ccff9` 的 `R7 CPU CI` run **`42426482604`
+  = completed / success**；三个 C 类计数提交前核过（1132 / 67 / 135，未变）。
