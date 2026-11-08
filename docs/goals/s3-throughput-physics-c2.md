@@ -3153,3 +3153,40 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 15340`（47.7%）、`seed42/off 14760`（45.9%），
   速率 1.1041 / 1.1471 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 登记链的两处"看似会失败其实不会"已实测排除（0 GPU-h）**。
+
+  四件套登记的第四环是 `commit-register`，它把 `round-spec.register_paths` 的五条路径
+  一次 `git add --` + `git commit --`。两条我担心的失败路径，实测都不成立：
+
+  **① `docs/R7_CANDIDATE_BRIEF.md` 若本轮不需要更新（`git add` 无新增），commit 会失败吗？**
+  **不会**。`_commit_declared` 在 `git commit` 非零时先判 `_is_nothing_to_commit`
+  （`tools/r7_round_stages.py:472-518`），命中就返回
+  `{"passed": True, "noop": True, "sha": ""}` 而**不是失败**。
+
+  用真实 git 输出与三类真实错误各测一遍：
+
+  ```
+  True   real git nothing-to-commit (English)
+  True   no changes added to commit
+  False  hook rejection (must FAIL, not noop)
+  False  identity error (must FAIL)
+  False  lock (must FAIL)
+  ```
+
+  ⇒ **noop 被正确识别，而 hook 拒绝 / 身份错误 / 锁冲突都不被吞掉**。
+  这一点很重要：如果它把 hook 拒绝也当 noop，"登记成功"就会在 **commit 根本没发生**时被报出来。
+
+  **② `register_paths` 里的 `docs/goals/s3-throughput-physics-c2.md` 就是我一直在追加日志的这份文件**，
+  所以登记时它**必然**有改动，`git add` 一定有内容；真正可能 noop 的只有
+  `R7_CANDIDATE_BRIEF.md`（若 C2 结果不改它）。两种形态都不会卡住登记。
+
+  **③ 顺带确认 `BRIEF_REL` 是死常量**：`tools/r7_round_support.py:27` 定义了
+  `BRIEF_REL = Path("docs/R7_CANDIDATE_BRIEF.md")`，但全文件**再无其他引用**
+  （`grep BRIEF_REL` 只命中定义行）。它不参与任何校验，不会因为 brief 内容而拒绝登记。
+  这不构成缺陷，但记下来，免得下次误以为有 brief 内容门。
+
+  **边界**：本条零读数、零 GPU-h。它证明的是**登记不会因为这两点假失败**，不是 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 15500`（48.2%）、`seed42/off 14920`（46.4%），
+  速率 1.1041 / 1.1468 s/update。三份 receipt 仍未出现。
