@@ -3547,3 +3547,45 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 17780`（55.3%）、`seed42/off 17100`（53.2%），
   速率 1.1034 / 1.1468 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 全套测试跑出一个**我自己造成的回归**：5694 passed、**3 failed**（已修）**。
+
+  这是本轮最重要的一条自检结果，必须原样记下。
+
+  **实测（`pytest tests/`，1416.47 s = 23:36）**：
+
+  ```
+  3 failed, 5694 passed, 3 skipped, 17 warnings in 1416.47s
+  FAILED tests/test_round_receipts.py::test_a_complete_readings_file_passes
+  FAILED tests/test_round_receipts.py::test_a_one_armed_seed_receipt_is_refused
+  FAILED tests/test_round_receipts.py::test_the_cli_exit_code_carries_the_verdict
+  SKIPPED [3] tests/test_real_data_pipeline.py — optional fixture 未跟踪，禁合成 fallback（设计如此）
+  ```
+
+  **① 这**3 个失败是我引入的**，不是既有缺陷。** 决策 0108 把 `check_round_receipts`
+  收紧成"必须含五键且 `exit_conditions` 是对象"时，我更新了
+  `tests/test_check_round_receipts.py`，**漏掉了第二个测试文件** `tests/test_round_receipts.py`。
+  它的三个 fixture 是 `{"exit_conditions": {"all": True}}`、`{}`、`{"ok": True}`——
+  **正是 0108 记录的那种弱假设**（把"能解析"当"完整"）。守卫现在正确拒绝它们，
+  所以**是断言错了，不是代码错了**。
+
+  **② 修法：改 fixture，不放宽守卫。** 引入一个 `COMPLETE_READINGS`（五键齐全、`exit_conditions` 为对象），
+  三个测试都用它。另有一处断言需要**真的改**而不只是换 fixture：那个单臂测试取
+  `report["failed"][0]`，readings 补全后它变成 seed 而非 reading，所以改为显式断言
+  `["seed41"]`。
+
+  **③ 反证**：把 `required_keys` 关掉（回到旧行为），**两个新测试失败**（10 passed / 2 failed）；
+  恢复后两个文件 **12 项全过**。⇒ 测试有判别力，不是"永远通过"。
+
+  **④ 为什么这条值得单独写一段**：**5694 个测试通过**不等于**套件是绿的**。
+  我此前分别跑过 34 项与 137 项都绿，但只有跑**全套**才发现那 3 项。
+  这正是 brief 反复警示的"绿状态陷阱"——局部绿会掩盖另一处的红。
+
+  **⑤ 我此前一条记录的更正**：上一节我写"171 项通过"，那是**真的**，但**不完整**——
+  它不覆盖 `tests/test_round_receipts.py`。**局部测试数不能当作全套结论**，
+  这一点在最终汇报里必须讲清。
+
+  **边界**：本条零读数、零 GPU-h。它登记的是**测试回归与其修复**，不涉及 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 18960`（59.0%）、`seed42/off 18260`（56.8%），
+  速率 1.1041 / 1.1475 s/update。三份 receipt 仍未出现。
