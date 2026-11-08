@@ -3236,5 +3236,47 @@ C-02/C-03 只校验**已存在**的行，看不见「有费用无行」。发现
 会牵连数据契约与大量冻结哈希，记入 0105 未决。修好后是否重开 C2 需新 ADR 用**部署配对**
 重新论证族判别，并重新 freeze；新 attempt 约 44 h，**不能**把 attempt07 当「接近正确」的基线。
 
-**下一动作**：先修 `matching_term` 的配对与前置守卫（含失败反证），再决定是否重开 C2；两者都需要新 ADR。
+### 2026-11-08 C2 目标函数**已修正**（0 GPU-h、零读数，ADR 0106）
+
+**状态** `stage-c2-objective-fixed`；GPU-h **0.0000**（累计 **504.507518**，未变）；
+`scientific_claim: false`、`test_read: false`、`r = 0`；**无 index record**——零读数。
+
+**改了什么**：`training/r7_derivative_matching.py::matching_term` 从读 `moved["atmos_target"]`
+（+6 h）改为读 `moved["physical_targets"][:, -1]`（与 `forecasts[:, -1]` 同为第 12 步 = +72 h），
+字段缺失或步数不符时 **`raise` 而非兜底**——兜底会把「字段缺失」变成静默的跨 lead 配对。
+`scripts/r7_s3_derivative_matching_c2_protocol.py` 的前置守卫增加 `nonzero_for_cross_lead_field`
+（+6 h 场对 +72 h 场，**必须 > 0**），并在它不成立时**拒绝产出 protocol**。
+
+**可行性先核实过**：`r7_derivative_matching.py` **不在** 17 个 `training_code_sha256` 源文件里、
+也不在 `model/**.py` 里 ⇒ `load_checkpoint` 的 `model_code_sha256` 校验不受影响
+⇒ **不需要重做父迁移**；它确实在 95 项 `execution_files_sha256` 里 ⇒ 重跑仍须新 freeze。
+
+**实测（走部署入口 `matching_term` 本身，冻结尺度、冻结 preflight case）**：
+
+逐 case 实测（本行刻意不用 markdown 表格：以 `| case |` 开头的表格行会被
+`tools/check_campaign_state.py` 的账本行正则吃进去，本文件是账本的宿主）：
+
+- case **1000**：项值 **0.0000000000**、梯度范数 **0.0000000**、跨 lead 反例 0.495737
+- case **9000**：项值 **0.0000000000**、梯度范数 **0.0000000**、跨 lead 反例 0.591632
+- case **17000**：项值 **0.0000000000**、梯度范数 **0.0000000**、跨 lead 反例 0.607382
+- case **25000**：项值 **0.0000000000**、梯度范数 **0.0000000**、跨 lead 反例 0.492830
+
+修复前是 0.4957–0.6074、梯度 0.011982（0105）。
+
+**反证**：新增三项判别性测试在**旧代码**上 **3 failed**、恢复修复后 **24 passed**。
+第一项的构造是判别性的：`atmos_target` 设 99.0、`physical_targets[:,-1]` 设另一个场、预测等于后者
+⇒ lead 对齐则精确零、读错字段则非零。**原有 21 项在缺陷代码上也全过**——它们测算子性质，
+**没有一项测「运算符读到哪个字段」**。
+
+**规模计数按实测更新**：协议文件 400→**425** 行（R-021 135→**136**）；工具的 `measure()` 一度 103 行
+（R-020 67→68），拆成 `_measure_case`(57)+`measure`(52) 后**回到 67**；`_measure_case` 一度 9 参数
+（R-023 48→49），并成 `stats` 元组后 **回到 48**。拆分后复跑四个 case：八个量**逐位相同**。
+
+**未做（如实登记）**：修复**未经过任何 GPU 运行验证**——`moved["physical_targets"]` 是否总在 batch 中、
+形状是否恒等于预测的 N，要等下次 `stage-seeds` 才第一次被检验；新反例阈值是裸 `>0`、
+不是从数据导出的下界；`atmos_target` 改名（根因）记未决；**C2 至今未被测过**，
+本轮**不**自行再花约 44 h 重跑。
+
+**下一动作**：是否用修正后的目标函数重开 C2 需新 ADR（族判别要用**部署配对**的 `zero_at_true`）
+＋新 freeze；或按 B 的饱和结论转 E1。
 **恢复第一条命令** = `.venv/bin/python tools/r7_round.py state`。
