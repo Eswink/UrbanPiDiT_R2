@@ -89,16 +89,11 @@ def main(argv: list[str] | None = None) -> int:
         "",
         "---",
         "",
-        "## §2 逐 seed 的 72 h t2m skill（同 seed 配对）",
-        "",
-        "| seed | off | on | Δ(on−off) |",
-        "| --- | --- | --- | --- |",
     ]
-    for s in seeds:
-        off = r["seeds"][s]["off"]["skill"]["72"]
-        on = r["seeds"][s]["on"]["skill"]["72"]
-        lines.append(f"| {s} | {off:+.6f} | {on:+.6f} | {on - off:+.6f} |")
-
+    # ``_risk_tables`` emits the §2 header and the per-seed table itself. An earlier version
+    # inlined that table here as well, so the rendered page carried the §2 heading and the same
+    # three rows twice. Nothing caught it until the renderer was actually run on a
+    # schema-faithful readings.json -- the tests checked the pieces, not the assembled page.
     lines += _risk_tables(r, ex, seeds)
     lines += ["## §3 判决与后续", ""]
     lines += _verdict_lines(ex)

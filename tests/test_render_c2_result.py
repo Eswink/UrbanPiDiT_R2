@@ -96,3 +96,20 @@ def test_a_non_readings_file_is_not_rendered(tmp_path):
                           capture_output=True, text=True, timeout=120)
     assert done.returncode != 0
     assert not result.exists()
+
+
+def test_the_rendered_page_has_no_duplicated_section_heading(tmp_path):
+    """The assembled page must not repeat a section.
+
+    The renderer once emitted the "## §2" heading and its three per-seed rows twice: once
+    inlined in main() and once inside _risk_tables(). Every existing test passed, because they
+    checked individual pieces and the verdict string rather than the page's structure. This test
+    looks at the whole assembled document, which is what a reader actually receives.
+    """
+    code, page = _render(tmp_path, _readings(0.005))
+    assert code == 0
+    headings = [line for line in page.splitlines() if line.startswith("## ")]
+    assert len(headings) == len(set(headings)), (
+        f"duplicate section headings in the rendered page: {headings}")
+    # The per-seed 72 h table must appear exactly once: one header row.
+    assert page.count("| seed | off | on | Δ(on−off) |") == 1

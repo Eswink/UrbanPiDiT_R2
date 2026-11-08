@@ -2447,3 +2447,39 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **边界**：本条零读数、零 GPU-h。上面两个结论都是**算术**（用冻结 protocol 里的
   `per_seed_seconds`/`deadline_perf_counter` 与实测速率），**不是**对已完成的运行时间的实测。
+
+- **2026-11-09 用**合成的 schema 忠实 `readings.json`** 试跑了登记工具，发现并修掉结果页的一处结构缺陷（0 GPU-h）**。
+
+  登记必须在 receipt 一落地就发生，而 `render_c2_result.py` **从未对着任何 `readings.json` 跑过**。
+  用一个与 `readings()` 输出同构的文件（含 `exit_conditions`、三 seed 两臂五 lead 的 `skill`/`rmse`、
+  `preflight.rows` 带新守卫字段）驱动它：
+
+  ```
+  第一次（修复前）: exit 0, 生成 66 行 —— 但 "## §2 ……" 出现了两次
+  修复后          : exit 0, 生成 59 行 —— §1/§2/§3/§4 各一次
+  ```
+
+  **缺陷**：`main()` 里内联了 §2 的标题与那张逐 seed 表，**又**调用了 `_risk_tables()`，
+  后者自己也会发同一个标题和同样三行 ⇒ 读者会看到**重复的一节**。
+
+  **为什么既有测试没抓到**：`tests/test_render_c2_result.py` 原有 3 项检查的是**判决字符串**
+  与**数字来源**（"页面反映 readings 的判决"、"数字来自文件"、"非 readings 文件不渲染"），
+  没有一项检查**整页结构**。这和本会话前面几次的形态一样：**测了零件，没测拼起来的成品**。
+
+  **修法与反证**：删掉 `main()` 里的内联重复，并新增一项检查**整页**的测试
+  （断言所有 `## ` 标题互不重复、且逐 seed 表头恰好出现一次）。反证实测：
+
+  ```
+  旧代码: FAILED test_the_rendered_page_has_no_duplicated_section_heading
+          "5 headings" vs "4 distinct"  (§2 出现两次)
+  修复后: 4 passed
+  ```
+
+  **同时确认**：`build_c2_registration.py` 的接口完整（8 个必需参数 + 2 个可选），
+  `render_c2_result.py` 的调用形式是 `<readings.json> <protocol.json> <out.md>`，
+  两者都能在真实 protocol 上启动 ⇒ 登记链在工具层面已就绪。
+
+  **边界**：本条零读数、零 GPU-h。合成 readings **不是** C2 的结果；它只证明
+  "拿到真 readings 时，结果页与登记记录能正确生成"。
+
+  **进度（明写 update 数）**：`update 3740–3880`（11.6%–12.1%），速率 1.1070/1.1482 s/update。
