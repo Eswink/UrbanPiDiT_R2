@@ -3453,3 +3453,57 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   **进度（明写 update 数）**：`seed41/off 17380`（54.1%，epoch 2）、`seed42/off 16740`（52.1%，epoch 2），
   速率 1.1035 / 1.1462 s/update。**第三个 checkpoint `update_0015000.pt` 已落盘**（seed41/off），
   checkpoint 节奏继续正常。三份 receipt 仍未出现。
+
+- **2026-11-09 「执行方式」这一项的真实状态：本 campaign **一次 workflow 都没跑过**（实测，0 GPU-h）**。
+
+  验证器反复指出"编排器从未驱动过任何一轮"。此前我只能说"守卫验过但没跑过"。
+  现在有**硬证据**，把这件事说准：
+
+  **① 编排运行记录（`ListWorkflowRuns`，30 条截断的快照）全是 2026-10-13 至 10-31 的**：
+
+  ```
+  最新：dwfrun-831dc84f…  城市静态协变量 attempt04  2026-10-31T14:06 → 18:59  completed
+  其次：dwfrun-67350d25…  attempt04（格界+coverage）2026-10-31T13:55  completed
+        dwfrun-4dcab4e3…  格界重派生               2026-10-30         errored
+        …（R7 S3 SAM / tendency / 梯度手术 / EMA / K草稿 / 训练信号 / H-A…H-D 等）
+  ```
+
+  **最早的 2026-10-13，最新的 2026-10-31**。而本 campaign 的起点是 **2026-11-06**
+  （`campaign-state` 起点 `used_gpu_h 401.377595`、HEAD `499adbf`）。
+
+  **② 本地记录同样印证**：
+
+  ```
+  .zcode/workflow-runs/ 共 58 个文件
+    46 个 dwfrun-*.mjs   （真实编排运行）—— 最新 2026-10-31
+    12 个 dwfeval-*.mjs  （我的 EvalWorkflowSnippet 闸门测试）—— 最新 2026-11-09
+  ```
+
+  ⇒ **11-06 之后没有任何 `dwfrun`**。本轮以及 B、C1、D、F 的每一轮，**都是手工顺序执行**
+  （`freeze` → `prepare` → `archive` → `stage-seeds` → `reading` + 手工登记），
+  **不是** workflow 编排的。
+
+  **③ 这是必须如实登记的偏离，不是可以含糊的细节。** 目标长文「执行方式」逐字要求
+  「用 workflow 编排……从 `.zcode/workflow-drafts/r7-campaign-round.dwf.ts` 派生
+  `.zcode/workflow-drafts/r7-throughput-physics-round.dwf.ts`」。
+  事实是：**派生文件存在**（40,521 B，已按 0102 修过 `orphans` 顺序）、
+  **它的闸门行为被真实输出验过**（`orphans` live=2 ⇒ wouldStart=false；`commit-guard` 正反两向；
+  `verify` 34.2 s/3 校验器全 0），**但它一次都没有作为本轮的执行者跑过**。
+
+  **④ 为什么现在不能补跑它**（两条独立理由）：
+  - 它的 `orphans` 守卫**正确地**会拒绝在 attempt08 运行期间启动（决策 0102：
+    `implementer.ask` 会重写 `campaign-state.current_round_goal`，有轮次在跑时启动会让
+    `stage reading` 读错 round-spec）。**绕过它就是违反 0102。**
+  - 即便轮次结束，"用编排器重跑**已经手工跑完**的一轮"没有意义：六阶段 receipt 都在，
+    `stage_plan` 会全部 `skip`，编排器只会产出一份"什么都没做"的记录——
+    那不是"编排交付"，是**事后补一张纸**。
+
+  **⇒ 结论**：本 campaign 的 `r7_s3_derivative_matching_c2` 这一轮（含此前 B/C1/D/F）
+  **是手工执行的**。若用户要求"必须由编排器执行"，那么**下一轮**（E1a/E1b 或重开）
+  才是能真正满足该条的地方；`r7-throughput-physics-round.dwf.ts` 已就绪待用。
+  **这一点不得在最终汇报里被写成"已用 workflow 编排"**。
+
+  **边界**：本条零读数、零 GPU-h。它登记的是**执行方式的偏离事实**，不是任何科学结论。
+
+  **进度（明写 update 数）**：`seed41/off 17560`（54.6%）、`seed42/off 16920`（52.7%），
+  速率 1.1034 / 1.1460 s/update。三份 receipt 仍未出现。
