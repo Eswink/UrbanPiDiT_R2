@@ -152,3 +152,31 @@ def test_brief_orders_only_by_explicit_priority_and_keeps_exclusions(tmp_path):
     assert "Excluded from runnable candidates" in brief
     assert "not a scientific verdict" in brief
     assert "not a scientific score" in brief
+
+
+def test_render_cli_output_round_trips_through_check_brief(tmp_path, capsys):
+    """``--render`` redirected to the brief must satisfy ``--check-brief`` byte for byte.
+
+    The registration step is `--render > docs/R7_CANDIDATE_BRIEF.md`, then verify. That used
+    to fail: ``print(render_brief(...))`` appended a newline to a string that already ends in
+    one, so the redirected file carried TWO trailing newlines while ``check_brief_sync``
+    compares exactly. Measured difference: 1 byte. Every existing test built the brief from
+    ``render_brief()`` directly, so none of them touched the CLI path where the extra byte
+    appears -- which is how it survived until a 44-hour registration step was at stake.
+    """
+    record = make_record(tmp_path)
+    index = tmp_path / "index.jsonl"
+    brief = tmp_path / "brief.md"
+    write_index(index, [record])
+
+    assert main(["--index", str(index), "--root", str(tmp_path), "--render"]) == 0
+    rendered = capsys.readouterr().out
+    assert rendered == render_brief([record]), "the CLI must emit the canonical bytes unchanged"
+    assert rendered.endswith("\n") and not rendered.endswith("\n\n")
+
+    brief.write_text(rendered, encoding="utf-8")
+    assert main(["--index", str(index), "--root", str(tmp_path), "--check-brief", str(brief)]) == 0
+
+    # And the failure it used to produce, pinned: one extra newline must be rejected.
+    brief.write_text(rendered + "\n", encoding="utf-8")
+    assert main(["--index", str(index), "--root", str(tmp_path), "--check-brief", str(brief)]) == 1

@@ -12,6 +12,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import sys
 from typing import Any, Iterable
 
 
@@ -244,7 +245,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if errors else 0
     records, errors = load_index(args.index, root)
     if args.render:
-        print(render_brief(records, errors))
+        # ``render_brief`` already ends with exactly one newline and ``check_brief_sync``
+        # compares byte for byte, so ``print`` here would append a second one and make the
+        # redirected file fail its own check. Write the string as-is.
+        sys.stdout.write(render_brief(records, errors))
     else:
         for error in errors:
             print(f"ERROR {error}")
