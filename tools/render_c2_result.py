@@ -9,13 +9,25 @@ import json
 import sys
 from pathlib import Path
 
+#: Run as a script (``python tools/render_c2_result.py``) the repo root is not on sys.path, so
+#: ``scripts`` would not import. Put it there before reaching for the canonical constant -- the
+#: same bootstrap ``tools/build_c2_registration.py`` carries, and the same reason.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 #: The train-only 48-bucket reference (2000-2021) whose per-lead t2m RMSE is (a)'s denominator.
 #: ``readings()`` does not record its digest -- that field is absent from the C2 driver, which is
 #: pinned for attempt08 -- so the page measures it here instead. Without this the page would name
 #: no denominator bytes at all, and (a) could only be vouched for by an external claim that the
 #: file was not touched. Recorded as a known gap in the C2 brief.
-D2_REFERENCE = (Path(__file__).resolve().parents[1] / "outputs" /
-                "r7_s3_fy_year_coverage_d2_20261023_attempt01" / "reference.json")
+#:
+#: The path is imported from the canonical module rather than spelled out again: ``readings()``
+#: obtains its denominators from ``climatology_reference()``, which reads ``D2_REFERENCE``. A
+#: second hand-written copy of the path could go stale silently, and the page would then name the
+#: digest of a file the reading never divided by -- a denominator claim that looks traceable while
+#: tracing to the wrong bytes. ``tests/test_c2_denominator_binding.py`` fails if the two differ.
+from scripts.r7_s3_fy_year_coverage_climatology import D2_REFERENCE  # noqa: E402
 
 
 def _sha256(path: Path) -> str:

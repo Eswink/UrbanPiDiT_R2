@@ -39,9 +39,11 @@ from tools.verify_r7_evidence_index import (  # noqa: E402
     validate_record,
 )
 
-#: (a) divides each RMSE by this file's per-lead t2m RMSE, so the record names its digest.
-D2_REFERENCE = (ROOT / "outputs" / "r7_s3_fy_year_coverage_d2_20261023_attempt01" /
-                "reference.json")
+#: (a) divides each RMSE by this file's per-lead t2m RMSE, so the record names its digest. The
+#: path comes from the canonical module -- the same constant ``readings()`` reaches through
+#: ``climatology_reference()`` -- so the record cannot name a digest of a file the reading never
+#: used. See the note in ``tools/render_c2_result.py``.
+from scripts.r7_s3_fy_year_coverage_climatology import D2_REFERENCE  # noqa: E402
 
 
 def _git(*args: str) -> str:

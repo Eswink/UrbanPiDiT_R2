@@ -4012,3 +4012,65 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 22620`（70.4%）、`seed42/off 21740`（67.7%），
   速率 1.1044 / 1.1482 s/update，两臂均在 epoch 2。
+
+### 2026-11-09 登记链的两处**可测缺陷**已修掉，(a) 的分母现在只有一个拼法
+
+**状态** `denominator-binding-closed`；GPU-h **0.0000**；零读数。
+
+**先测后改**。这一轮开工前先做了三项只读核对，全部是实测：
+
+| 核对 | 命令/对象 | 实测 |
+| --- | --- | --- |
+| 95 条执行 pin 在 41 个提交之后是否仍相符 | 对 `protocol.json` 的 `execution_files_sha256` 逐条现算 sha256 | **95/95 相符，0 缺失 0 变更** ⇒ seed43 明早 t0+19.7 h 启动时不会因源码漂移被拒 |
+| 轮次硬截止还剩多久 | `deadline_perf_counter` − `time.perf_counter()` | **56.718 h**（perf_counter 是宿主单调钟，跨进程有效） |
+| (a) 的五个分母会不会让 `skill` 变非有限 | `curve.climatology_reference()` 的 `leads[*].t2m_rmse` | 3.918841 / 3.919604 / 3.921682 / 3.925382 / 3.926891，**全部有限且 > 0** |
+
+第三条此前只是一条**推测**（"`1-(rmse/denom)**2` 若分母为 0 会产生 inf，让 `write_exclusive`
+留下半个 `readings.json`"）。现在它被 `scripts/r7_s3_fy_year_coverage_climatology.py` 的
+`climatology_reference()` **在代码层否掉**：该函数每次调用都做字节校验——D2 文件存在、
+`format` 相符、`scientific_claim is False`、每档 `n_evaluated == n_available_windows ==
+VAL_COHORTS`、48 桶、`boundary_rmse_csv` 的 sha256 相符，再把 t2m RMSE 与冻结常量表
+`CLIMATOLOGY_T2M_RMSE` 比到 1e-12。**分母不可能为零，也不可能悄悄换值。**
+
+第四条（本条的主要改动）：`readings()` 的分母来自 `climatology_reference()` →
+`D2_REFERENCE`；而 `render_c2_result.py` 与 `build_c2_registration.py` **各自手写了一遍**
+同一个路径字符串。两份手写路径可以静默漂移，那时结果页会打印一个**校验得过、但指向
+读数从未除过的字节**的摘要——**看起来可追溯，实际追错字节**。这正是 hook 里
+`check_model_digest_impact` 反复警告的那一类。
+
+修法：两个工具改为 `from scripts.r7_s3_fy_year_coverage_climatology import D2_REFERENCE`，
+**只留一个拼法**；新增 `tests/test_c2_denominator_binding.py`（3 条）：
+
+1. 三个导入方拿到的是**同一个 Path**（页面、记录、读数）；
+2. **AST 断言**两个工具不再自己赋值 `D2_REFERENCE`；
+3. 该 attempt 目录名只出现在规范模块里一次。
+
+**反证（不做反证就不算验证）**：把重复路径塞回 `render_c2_result.py` 后，
+`test_c2_denominator_binding.py` **3 项中 2 项失败**；恢复后 **3/3 通过**。
+注意失败的是 AST 与"只出现一次"两条，而**等式那条仍通过**——因为重复值此刻恰好相等。
+这正是第 2、3 条存在的理由：**"今天相等"不是"只有一个来源"**。
+
+**改坏过一次，已修**：`render_c2_result.py` 原本没有 `sys.path` 引导，加 import 后以脚本方式
+调用直接 `ModuleNotFoundError: No module named 'scripts'`——**而登记链正是以脚本方式调它**。
+补上与 `build_c2_registration.py` 相同的 `ROOT` 引导后，脚本路径恢复到正常打印 usage。
+
+**回归与端到端**：
+
+```
+tests/test_c2_denominator_binding.py tests/test_render_c2_result.py
+tests/test_build_c2_registration.py                          -> 12 passed
+/tmp/c2_readchain.py（真代码：validate → readings → guard → render → record）
+     -> CHAIN PASS；页面带 sha256 096c384a25a8a7bb…；gpu_hours=63.905273 ledger_rows=5
+tools/check_conventions.py                                   -> 37 条阻断全 PASS，0 失败
+tools/r7_round.py commit-guard <三个路径>                     -> passed: true, exit 0
+```
+
+**全套测试 3 个失败，不是我的改动**：`tests/test_build_round_code_archive.py` 三项失败，
+原因是归档构建器**正确地**拒绝脏工作区（`M tools/...` `?? tests/...` 正是我未提交的改动）。
+`real_exit=1`（用 `> f 2>&1; echo $?` 取的，**不是**管道的退出码——这一坑本轮又差点踩到：
+`... | tail; echo exit=$?` 打印的是 `tail` 的状态）。提交后重跑这三项已由下面的提交链覆盖。
+
+**边界**：本条仍是零读数、零科学结论；它修的是**登记链的可追溯性**，不是任何 C2 结果。
+
+**进度（明写 update 数）**：`seed41/off 24680`（76.8%，epoch 3）、`seed42/off 23720`（73.8%，epoch 2），
+速率 1.1047 / 1.1489 s/update；seed43 未启动；三份 receipt 不存在。
