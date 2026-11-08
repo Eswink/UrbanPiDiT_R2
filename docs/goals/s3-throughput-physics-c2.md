@@ -3642,3 +3642,63 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 19760`（61.5%）、`seed42/off 19000`（59.1%），
   速率 1.1040 / 1.1481 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 **更正上一条**：`evidence_commit` 应当就是登记提交（HEAD），工具的写法是对的。我上一轮的结论错了。**
+
+  **我错在哪**：上一节我从 B 轮**一个**记录反推，得出"`evidence_commit` = 跑实验的提交（= `experiment_commit`）"。
+  实测全库后发现 B 轮属于**少数派**。证据：
+
+  ```
+  105 条记录中：
+    evidence_commit == experiment_commit : 26
+    evidence_commit != experiment_commit : 79      <-- 主流是"不同"
+  ```
+
+  **决定性的判据是"页面在不在那个 commit 里"**（这才是 `evidence_commit` 的语义）：
+
+  ```
+  evidence_commit 包含结果页 : 93
+  evidence_commit 不含结果页 : 12
+  ```
+
+  ⇒ **主流（93）是"`evidence_commit` 就是登记提交"**，因为页面在那次提交里才出现。
+  再看那 93 条里 `ev != xp` 的有 **76** 条，正是"登记提交 ≠ 实验提交"。
+
+  **主流形态的实例（实测 subject）**：
+
+  ```
+  b2-multiseed-negative
+    evidence_commit  07fc05c3  docs(r7): record the B2 multiseed result, negative as pre-registered
+    experiment_commit 94828da8  feat(r7): B2 controlled multiseed harness on a 36-day segment
+
+  b1-d1-controlled-comparison
+    evidence_commit  d70dfd46  docs(r7): bind the endpoint-convention CI run to its SHA (#64)
+    experiment_commit a295334e  feat(r7): standalone climatology baseline + B1 study harness
+  ```
+
+  **⇒ 结论：`evidence_commit` 是登记提交，`experiment_commit` 是实验提交。**
+  `build_c2_registration` 用 `_git("rev-parse","HEAD")` 取 `evidence_commit`
+  **恰好正确**——前提是**在写完并提交结果页之后**运行它。
+
+  **我上一轮为什么错**：我只查了一条记录（B 轮），恰好落在 12 个例外里，就把例外当成了规则。
+  而且那 12 个例外**不是"惯例形成前的老记录"**：其中 **5 条是本 campaign 自己的**
+  （`stage-a`、`b-p0025`、`b-p1000`、`b-p4000`、`b-p1600`），即本 campaign 一直在用**少数派**写法。
+  这两个事实（我误读一条 + 本 campaign 恰好都在例外里）叠加，才造出上一节那个错误的"先例"。
+
+  **登记时的正确顺序（更正后）**：
+
+  1. 三份 receipt 齐 → `state` → `stage reading` → `check_round_receipts --require-reading`
+  2. 写结果页（`render_c2_result.py`，数字全部来自 `readings.json`）
+  3. **提交结果页**
+  4. **在该提交上**跑 `build_c2_registration` → `evidence_commit` = 第 3 步的提交（含页面），
+     `experiment_commit` = 协议里的 `code_commit`（`2e0aac8`）⇒ **两者不同是正确的**
+  5. 账本行 + campaign §8 + `campaign-state`
+  6. `verify` → `commit-register` → `push-round`
+
+  **不需要改工具。** 上一节写的"第 4 步的分歧我还没解决"**已解决**：
+  工具的写法符合 93 条的主流，是我的先例推断错了。
+
+  **边界**：本条零读数、零 GPU-h。它更正的是**我自己的登记口径错误**，不涉及 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 19760`（61.5%）、`seed42/off 19000`（59.1%），
+  速率 1.1040 / 1.1481 s/update。三份 receipt 仍未出现。
