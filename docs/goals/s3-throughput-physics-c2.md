@@ -2630,3 +2630,29 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 7180`、`seed42/off 6960`（22.3% / 21.7%），
   速率 1.1066 / 1.1405 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 seed43 那个"静默拦路"已确认**不会**在本轮复现（0 GPU-h）**。
+
+  历史事实：年份覆盖轮的 `seed43` 首次启动 **20.76 s 就 exit 1**，报
+  `RuntimeError: incomplete execution source inventory`——因为另一条研究线在这期间**新增了
+  2 个 `data/*.py`**，使活体清单 **195→197**，冻结的 195 条集合与之不再相等（决策 0065）。
+
+  **本轮为什么不同（实测，不是推测）：**
+
+  ```
+  grep "set(body[execution_files_sha256]) == set(execution_files())"  ->  C2 链路: 无匹配
+  C2 的 validate_protocol 实际做法:
+      for name, expected in body["execution_files_sha256"].items():
+          if sha256_file(ROOT / name) != expected: raise "execution source changed"
+  ```
+
+  ⇒ 年份覆盖轮用的是**集合相等**（`set(...) != set(execution_files())`），所以**新增**文件就会失败；
+  C2 用的是**逐条核对已 pin 的条目**，**新增**文件不影响，**改动**已 pin 的文件才失败。
+  两者是不同的契约，容易混为一谈。
+
+  **当前实测**：95 条 pin **changed=0**。且这条校验在 `worker()` 里对
+  **每个 phase / 每个 seed 启动时**都会跑（`study_r7_s3_derivative_matching_c2.py:260`），
+  所以它同时是 seed43 拉起时的守门人。
+
+  **由此得到一条可操作结论**：**加新文件安全，改已 pin 的 95 个文件会当场打断 seed43。**
+  后续任何提交在 attempt08 跑完之前，都**不得**碰这 95 条里的任何一条。
