@@ -113,3 +113,30 @@ def test_the_rendered_page_has_no_duplicated_section_heading(tmp_path):
         f"duplicate section headings in the rendered page: {headings}")
     # The per-seed 72 h table must appear exactly once: one header row.
     assert page.count("| seed | off | on | Δ(on−off) |") == 1
+
+
+def test_the_page_names_the_denominator_bytes_it_used():
+    """(a) is 1 - (rmse/denominator)^2, so the page must name the denominator's digest.
+
+    ``readings()`` does not record it (that field is absent from the C2 driver, which is pinned
+    for attempt08), so the renderer measures it from the file. Without this the page would carry
+    no denominator identity at all and (a) could only be vouched for by an external claim.
+    """
+    from tools.render_c2_result import D2_REFERENCE, _denominator_line, _sha256
+
+    assert D2_REFERENCE.is_file(), f"the D2 reference is missing: {D2_REFERENCE}"
+    line = _denominator_line()
+    # The measured digest must actually appear in the line, not a placeholder.
+    assert _sha256(D2_REFERENCE) in line
+    # And the line must state the boundary that keeps it train-only: 2021 is the last year.
+    assert "2021" in line
+    assert "2023 test" in line
+    # A missing file must degrade to an explicit limitation, never silently print nothing.
+    from tools import render_c2_result as renderer
+    original = renderer.D2_REFERENCE
+    try:
+        renderer.D2_REFERENCE = original.parent / "definitely-absent.json"
+        degraded = renderer._denominator_line()
+    finally:
+        renderer.D2_REFERENCE = original
+    assert "不在盘上" in degraded

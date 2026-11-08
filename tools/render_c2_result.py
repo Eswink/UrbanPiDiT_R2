@@ -4,9 +4,47 @@ Every number in the page is read out of the readings file; nothing is transcribe
 written only when readings.json exists, so a placeholder can never be committed and mistaken
 for a measurement.
 """
+import hashlib
 import json
 import sys
 from pathlib import Path
+
+#: The train-only 48-bucket reference (2000-2021) whose per-lead t2m RMSE is (a)'s denominator.
+#: ``readings()`` does not record its digest -- that field is absent from the C2 driver, which is
+#: pinned for attempt08 -- so the page measures it here instead. Without this the page would name
+#: no denominator bytes at all, and (a) could only be vouched for by an external claim that the
+#: file was not touched. Recorded as a known gap in the C2 brief.
+D2_REFERENCE = (Path(__file__).resolve().parents[1] / "outputs" /
+                "r7_s3_fy_year_coverage_d2_20261023_attempt01" / "reference.json")
+
+
+def _sha256(path: Path) -> str:
+    """Stream a file's SHA256 so a large reference does not have to fit in memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _denominator_line() -> str:
+    """The §4 line naming the denominator's bytes, measured or explicitly unavailable."""
+    if not D2_REFERENCE.is_file():
+        return ("- 72 h skill 的分母是 train-only 的 48 桶 D2 reference；**该文件此刻不在盘上**，"
+                "故本页无法给出它的摘要（本身即一条限制）。")
+    body = json.loads(D2_REFERENCE.read_text(encoding="utf-8"))
+    years = body.get("training_years") or []
+    # ``bucket_count`` lives only in the wrapper ``curve.climatology_reference()`` adds, not in
+    # the file; reading this file directly must use what it actually carries. Measured: the file
+    # has format/leads/n_selected_steps/region/scientific_claim/training_years/val_manifest.
+    steps = body.get("n_selected_steps")
+    return (f"- 72 h skill 的分母是 train-only 的 D2 reference：`sha256 "
+            f"{_sha256(D2_REFERENCE)}`、`n_selected_steps {steps}`、"
+            f"`training_years {years[0]}–{years[-1]}`（{len(years)} 年，**止于 2021**，"
+            f"不含 2022 val 与 2023 test）、`format {body.get('format')}`。"
+            f"**这个摘要是本页现算的**：C2 的 `readings()` "
+            f"不记录分母摘要（该字段在 95 条 pin 之内，本轮无法补），见 brief 的已知缺口条。")
+
 
 
 def _mark(value) -> str:
@@ -106,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         "- `scientific_claim: false`、`test_read: false`、`r = 0`；未读 2023 test。",
         "- 本页所有数字**逐项取自 `readings.json`**，未手抄；`readings.json` 由驱动的 `readings()` 计算。",
         "- 单 seed 单次运行，GPU 训练不保证逐位可复现；checkpoint/源码/数据身份是严格校验的。",
-        "- 72 h skill 的分母是 train-only 的 48 桶 D2 reference；只有 t2m 有注册分母。",
+        _denominator_line(),
         "- 预声明的 (a) 是**保号判据**（均值 Δ ≥ 0），不是效应量判据；一个接近零的正值不代表有意义的改进。",
     ]
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
