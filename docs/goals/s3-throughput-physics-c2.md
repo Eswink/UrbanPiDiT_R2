@@ -1909,3 +1909,36 @@ attempt06 的 commit 与 HEAD 之间共 37 个文件变动
 
 **round-spec 已改指新归档**，且此改动与 zip 的 comment **在同一 HEAD 上**
 （先提交 spec，再确认 zip comment == 该 HEAD，然后才 `freeze`）——顺序不能反。
+
+### attempt07 已启动并开训（六臂重跑，两卡并行）
+
+**完整启动链（逐 stage 实测，全部成功）**
+
+```
+state    current_round_goal = docs/goals/s3-throughput-physics-c2.md   ✓ 核对通过
+freeze   protocol_sha256 9e58196eb97bd74dd1e2441c2b9606c4488b01ef8d4badc6be5121eae2575cbc
+         per_seed 115,200 s / hard 230,400 s / seeds [41,42,43]
+prepare  592.9 s  → protocol.json（promote 后协议 a211b1e9d29cac0e30948173…）
+         usable_windows 32,131 / window_sha256 e8f22c303c98fc94… / 11 条排除
+         train_data_identity 81307008b572e3ff… / 95 个钉住文件 / preflight 4 行
+archive  5.86 s   → code_commit 11086f503290e6c842d542adaa7538d9889ce840
+         code_zip_sha256 1f2d0ce77c10f66339fff7532822021b9b215df6852378ab83ac20c533796646
+stage-seeds  → seed41/seed42 的 off 臂同时开训
+         卡0 9,308 MiB / 64%  卡1 9,287 MiB / 36%
+         update 100 时 1.349 / 1.324 s/update（含预热，低于 attempt06 早期的 1.279/1.263 → 需继续观察）
+```
+
+**与 attempt06 的同一性核对（这是「重跑」而非「换配方」的凭据）**：
+`usable_windows`、`window_sha256`、`train_data_identity`、`per_seed/hard`、95 个钉住文件数量
+**五项全部相同**；不同的只有 `protocol_sha256`（含 perf_counter，结构性必变）与 `code_commit`
+（HEAD 前进，且 37 个改动文件里**没有**任何钉住执行源）。
+
+**为什么 `archive` 这次能过而 attempt06 的旧归档不能**：`stage archive` 会校验
+**zip comment == `code_commit`**；我先把 round-spec 指向新归档并在同一 HEAD 上重建了 zip
+（comment `11086f503290…` == HEAD），再 `freeze`。**顺序是「先提交 spec、再确认 zip comment
+== 该 HEAD、然后 freeze」**——反过来就会在 archive 阶段炸。
+
+**成本预告**：每 seed 两臂约 21.8 h；三 seed 在两卡上 = seed41+42 并行 ~21.8 h，再 seed43 ~21.8 h
+⇒ 约 **43.5 h**。attempt06 已作废的 23.684603 GPU-h **照记**，不与本轮混算。
+
+**本条零读数**：六臂刚起步（update 100），`readings.json` 不存在，(a)–(d) 未求值。
