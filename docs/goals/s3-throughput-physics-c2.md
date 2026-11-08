@@ -1000,3 +1000,42 @@
 
   **边界**：这证明「在真实评分目录上循环体不会因键缺失/枚举不符/分母缺失而抛错」，
   **不证明** C2 的六臂会跑完，**不**构成读数。C2 的 receipt 树仍不存在。
+
+- **2026-11-08 on 臂的**整条 arm 路径**（含 checkpoint 发布→重载）已在一个 3-update 实跑上走通（0 GPU-h；零读数）**。
+
+  此前分别验证过：(b) 写入端（一次 `_update`）、把合同里的 `clip` 绑定、父权重的 `strict=True` 加载。
+  **没有**验证过的是 `_train_arm` 在**训练之后**那一串断言，以及
+  **checkpoint 发布 → `load_checkpoint(expected=signature)` 重载**这条往返。后者若失败，
+  on 臂会在**第一个 checkpoint（约 1.5 h）**炸掉。故实跑 `fine_tune_long_rollout`、
+  `updates=3`、`checkpoint_every=3`（强制端点即 checkpoint），其余全部走生产路径：
+
+  ```
+  train+checkpoint took 228s
+  updates_this_run     : 3
+  contract.steps       : 4          （推理步；physical_steps 由 physical_weights 定 12）
+  contract.batch_size  : 4
+  data_identity frozen : True
+  axis in contract     : c2
+  AXIS SURVIVED _bind  : True       ← _contract 的 _bind 没有覆盖掉 on 臂的轴键
+  supervision.kind     : full_grid
+  CHECKPOINT EXISTS    : True  sha: e1b4f0c2673cfdaa…
+  CONSTRAINT KEYS      : ['constraint_divergence','constraint_total','constraint_vorticity']
+  ALL ROWS POSITIVE    : True
+  ```
+
+  **为什么「AXIS SURVIVED `_bind`」值得单列**：`_contract()` 用 `_bind(autoregression, {...})`
+  写入一堆注册字段。若 `_bind` 采用「整字典替换」而非「逐键合并」，on 臂的
+  `derivative_matching` 会被**静默抹掉**，于是 on 臂实际跑的是 off 目标——**一个把整轮
+  变成「两臂相同」的失败模式，而且训练、checkpoint、评分全都不会报错**。
+  实测该键在 `_contract` 之后仍为 `'c2'`，故这条不成立。
+
+  **checkpoint 往返**：`_publish_checkpoint` 之后紧跟 `load_checkpoint(checkpoint, expected=signature)`；
+  后者现场重算 `model_code_digest()` 并校验 `signature == canonical_digest(contract)`。
+  该路径在 3-update 运行中**实际执行且通过**（checkpoint 文件落盘、sha 可读）。
+
+  **我自己的第三个探测错误（同样一度像缺陷）**：首次跑用 `warmup=curve.WARMUP`（=10）
+  而 `updates=3` ⇒ `_validate_options` 抛
+  `warmup cannot exceed the frozen update endpoint`。**是我给的 updates 太小**，不是代码错。
+
+  **边界**：3 updates ≠ 32,132；本块证明**这些断言与往返在真实路径上会通过**，
+  **不**证明整轮收敛、不证明 skill、不构成读数。括号内 GPU-h 为 0（CPU 实跑）。
