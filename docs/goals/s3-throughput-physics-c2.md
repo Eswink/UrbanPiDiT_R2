@@ -2986,3 +2986,47 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 13300`（41.4%）、`seed42/off 12780`（39.8%），
   速率 1.1040 / 1.1491 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 off 臂的"没有 c2 轴"已由**盘上 checkpoint**证明，不再只是声明（0 GPU-h）**。
+
+  出口 (c) 要求 off 路径与注册算术**逐位等价**。此前它的依据是 dispatcher 的 `None` 早退与单测；
+  现在多了一条**运行中产物**的证据：两个 off 臂都已在 5,000 与 10,000 step 落了 checkpoint，
+  且它们**能被当前代码加载**（`load_checkpoint` 会校验 `model_code_sha256`）。
+
+  **实测（`seed41/off/update_0010000.pt`，57,788,535 B）**：
+
+  ```
+  load_checkpoint OK
+  top keys      ['contract','cursor','epoch','format','model','model_code_sha256',
+                 'optimizer','rng','signature','updates']
+  updates       10000
+  signature     427b9487ca7f5d50ef966d53...
+  ```
+
+  **checkpoint 记录的 contract 与冻结协议逐项核对**：
+
+  ```
+  checkpoint model_code_sha256  59340710623ca24c...
+  protocol   model_code_sha256  59340710623ca24c...   MATCH: True
+  contract.autoregression.derivative_matching   None          <-- off 臂确实没有 c2 轴
+  contract.autoregression.physical_weights  [1.0,0.5,0.0,0.5,0.0,0.0,0.0,0.5,0.0,0.0,0.0,0.5]
+  contract.total_updates  32132      contract.batch_size  4
+  ```
+
+  ⇒ **三件事同时被盘上文件证明**：
+  1. off 臂的 `derivative_matching` 是 **`None`**，不是"权重 0"或"项关闭"的近似；
+  2. 物理权重是**注册稀疏向量逐字**；
+  3. 训练规模是 **32,132 updates × batch 4**，与 brief 一致。
+
+  **这为什么比之前的证据强**：`None` 是**写进 checkpoint 的契约**，随后任何重放/加载都会带着它；
+  它不是"我发出一份不含该键的 spec"的自述，而是 run 自己落盘的身份。
+
+  **checkpoint 节奏也实测正常**：两个臂各有 5,000（01:31 / 01:34）与 10,000（03:03 / 03:10）
+  两份，间隔约 90 分钟，57.8 MB/份，与 `checkpoint_every=5,000` 相符。
+  ⇒ 没有"到读数时才发现 checkpoint 从未写成功"这一类故障。
+
+  **边界**：本条零读数、零 GPU-h。(c) 仍需在真 on 臂跑完后由 `evaluate_exit` 正式求值——
+  这里证明的是**off 臂的盘上契约正确**，不是 (c) 已被判为真。
+
+  **进度（明写 update 数）**：`seed41/off 13520`（42.1%）、`seed42/off 13000`（40.5%），
+  速率 1.1041 / 1.1494 s/update。三份 receipt 仍未出现。
