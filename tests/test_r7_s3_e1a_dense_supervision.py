@@ -152,3 +152,30 @@ def test_the_exit_can_fail_b_and_c(tmp_path):
     assert result["exit_conditions"]["all"] is False
     assert result["exit_conditions"]["verdict"] == \
         "permanently-close-dense-supervision-in-this-regime"
+
+
+def test_the_two_vectors_produce_different_objectives_at_the_same_dose():
+    """Same total weight, different allocation, therefore a different loss -- measured.
+
+    The protocol asserts the sums match, which alone would leave open the possibility that the two
+    arms optimise the same objective. ``training_long_rollout`` applies each weight to that step's
+    own loss and adds them sequentially, so two different vectors differ whenever the per-step
+    losses differ. This plugs a synthetic per-step vector into exactly that arithmetic.
+    """
+    import torch
+    from training.r7_long_rollout import validate_physical_weights
+
+    sparse = validate_physical_weights(proto.SPARSE_WEIGHTS)
+    dense = validate_physical_weights(proto.DENSE_WEIGHTS)
+    per_step = torch.tensor([0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6])
+
+    def total(weights):
+        loss = weights[0] * per_step[0]
+        for weight, step_loss in zip(weights[1:], per_step[1:]):
+            loss = loss + weight * step_loss
+        return float(loss)
+
+    assert abs(total(sparse) - total(dense)) > 1e-9, (
+        "the two arms would optimise the same objective; the round would compare nothing")
+    # And the guard that makes the comparison interpretable: identical dose.
+    assert abs(sum(sparse) - sum(dense)) < 1e-12
