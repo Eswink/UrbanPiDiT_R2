@@ -13,7 +13,16 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 RENDER = ROOT / "tools/render_c2_result.py"
-PROTOCOL = ROOT / "outputs/r7_s3_derivative_matching_c2_20261108_attempt06/protocol.json"
+#: The renderer only reads code_commit, model_code_sha256, training_code_sha256 and
+#: protocol_sha256 out of the protocol, so the fixture is built here rather than read from
+#: ``outputs/`` -- that directory is git-ignored (.gitignore:31) and absent in CI, where a
+#: dependency on it would turn the suite red.
+PROTOCOL_FIELDS = {
+    "code_commit": "0" * 40,
+    "model_code_sha256": "1" * 64,
+    "training_code_sha256": "2" * 64,
+    "protocol_sha256": "3" * 64,
+}
 LEADS = (6, 12, 24, 48, 72)
 
 
@@ -41,11 +50,18 @@ def _readings(bump: float) -> dict:
                                             else "permanently-close-derivative-matching-branch")}}
 
 
+def _protocol(tmp_path: Path) -> Path:
+    """Write the minimal protocol the renderer needs, inside the test's own tmp_path."""
+    path = tmp_path / "protocol.json"
+    path.write_text(json.dumps(PROTOCOL_FIELDS), encoding="utf-8")
+    return path
+
+
 def _render(tmp_path: Path, readings: dict) -> tuple[int, str]:
     source = tmp_path / "readings.json"
     source.write_text(json.dumps(readings), encoding="utf-8")
     result = tmp_path / "RESULT.md"
-    done = subprocess.run([sys.executable, str(RENDER), str(source), str(PROTOCOL), str(result)],
+    done = subprocess.run([sys.executable, str(RENDER), str(source), str(_protocol(tmp_path)), str(result)],
                           capture_output=True, text=True, timeout=120)
     return done.returncode, (result.read_text(encoding="utf-8") if result.exists() else "")
 
@@ -76,7 +92,7 @@ def test_a_non_readings_file_is_not_rendered(tmp_path):
     source = tmp_path / "readings.json"
     source.write_text("{\"exit_conditions\": {}}", encoding="utf-8")
     result = tmp_path / "RESULT.md"
-    done = subprocess.run([sys.executable, str(RENDER), str(source), str(PROTOCOL), str(result)],
+    done = subprocess.run([sys.executable, str(RENDER), str(source), str(_protocol(tmp_path)), str(result)],
                           capture_output=True, text=True, timeout=120)
     assert done.returncode != 0
     assert not result.exists()

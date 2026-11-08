@@ -15,7 +15,15 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "tools/build_c2_registration.py"
-PROTOCOL = ROOT / "outputs/r7_s3_derivative_matching_c2_20261108_attempt06/protocol.json"
+#: The builder reads code_commit, protocol_sha256, train_data_identity and source_sha256 from the
+#: protocol. Built here rather than read from ``outputs/``, which is git-ignored (.gitignore:31)
+#: and absent in CI; depending on it would turn the suite red on a clean checkout.
+PROTOCOL_FIELDS = {
+    "code_commit": "a" * 40,
+    "protocol_sha256": "b" * 64,
+    "train_data_identity": "c" * 64,
+    "source_sha256": "d" * 64,
+}
 EVIDENCE = ROOT / "docs/R7_S3_THROUGHPUT_PHYSICS_B_P1600_RESULT.md"
 
 EXITS_CLOSED = {"a_72h_skill_mean_delta": False, "b_matching_bit": True,
@@ -25,7 +33,7 @@ EXITS_CLOSED = {"a_72h_skill_mean_delta": False, "b_matching_bit": True,
 
 
 def _fixtures(tmp_path: Path) -> tuple[Path, Path]:
-    protocol = json.loads(PROTOCOL.read_text(encoding="utf-8"))
+    protocol = dict(PROTOCOL_FIELDS)
     (tmp_path / "protocol.json").write_text(json.dumps(protocol), encoding="utf-8")
     (tmp_path / "stage_ledger.jsonl").write_text(
         json.dumps({"phase": "prepare", "elapsed_seconds": 3600.0}) + "\n"
