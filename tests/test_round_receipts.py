@@ -14,6 +14,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+#: A readings document shaped like ``readings()`` emits. The guard requires these five keys and
+#: an object under ``exit_conditions`` (decision 0108): parseability is not completeness, and an
+#: earlier fixture -- ``{"exit_conditions": {"all": True}}`` -- encoded exactly that weak
+#: assumption, so it asserted the very defect the guard exists to catch.
+COMPLETE_READINGS = {"scientific_claim": False, "test_read": False,
+                     "protocol_sha256": "a" * 64, "seeds": {},
+                     "exit_conditions": {"all": True}}
+
 
 def _guard():
     """Load tools/check_round_receipts.py by path (tools/ is not a package)."""
@@ -49,7 +57,7 @@ def test_a_truncated_readings_file_is_not_a_finished_stage(tmp_path):
 def test_a_complete_readings_file_passes(tmp_path):
     """The other direction: a well-formed receipt must not be rejected."""
     guard = _guard()
-    folder = _attempt(tmp_path, readings=json.dumps({"exit_conditions": {"all": True}}))
+    folder = _attempt(tmp_path, readings=json.dumps(COMPLETE_READINGS))
     report = guard.check(folder, [41], require_reading=True)
     assert report["passed"] is True
     assert report["checked"] == 4
@@ -58,9 +66,11 @@ def test_a_complete_readings_file_passes(tmp_path):
 def test_a_one_armed_seed_receipt_is_refused(tmp_path):
     """A missing arm is half a paired comparison; refusing it here beats a KeyError later."""
     guard = _guard()
-    folder = _attempt(tmp_path, readings=json.dumps({}), arms=("off",))
+    folder = _attempt(tmp_path, readings=json.dumps(COMPLETE_READINGS), arms=("off",))
     report = guard.check(folder, [41], require_reading=True)
     assert report["passed"] is False
+    # The seed is the only failure: the readings file itself is complete in this fixture.
+    assert [item["stage"] for item in report["failed"]] == ["seed41"]
     assert "expected 2 arms" in report["failed"][0]["reason"]
 
 
@@ -78,5 +88,5 @@ def test_the_cli_exit_code_carries_the_verdict(tmp_path):
     guard = _guard()
     folder = _attempt(tmp_path, readings='{"half": ')
     assert guard.main(["--attempt", str(folder), "--require-reading", "--quiet"]) == 1
-    (folder / "readings.json").write_text(json.dumps({"ok": True}), encoding="utf-8")
+    (folder / "readings.json").write_text(json.dumps(COMPLETE_READINGS), encoding="utf-8")
     assert guard.main(["--attempt", str(folder), "--require-reading", "--quiet"]) == 0
