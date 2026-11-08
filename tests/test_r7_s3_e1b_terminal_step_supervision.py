@@ -132,3 +132,41 @@ def test_a_mislabelled_arm_closes_the_branch(tmp_path):
     assert result["exit_conditions"]["all"] is False
     assert result["exit_conditions"]["verdict"] == \
         "permanently-close-final-only-supervision-in-this-regime"
+
+
+def test_final_only_cuts_the_intermediate_drafts_gradient_exactly():
+    """The factor is real, measured by gradient rather than inferred from the branch name.
+
+    Reading ``recursive_losses`` shows a separate ``final_only`` branch, but a branch that merely
+    *looks* different would leave a round comparing two identical objectives. So this asserts the
+    property that makes the comparison meaningful: under ``final_only`` every non-final draft
+    receives an *exact* zero gradient and only the last one moves, while under the registered
+    ``deep`` form all five do. Exact zeros, not a tolerance -- the branch genuinely skips them.
+    """
+    import torch
+    from training.r7_recursive_losses import (DRAFT_SUPERVISION_DEEP,
+                                              DRAFT_SUPERVISION_FINAL_ONLY,
+                                              deep_supervised_forecast_mse)
+    torch.manual_seed(0)
+    batch, steps, channels, height, width = 2, 5, 3, 4, 4
+    target = torch.randn(batch, channels, height, width)
+    drafts = target.unsqueeze(1).repeat(1, steps, 1, 1, 1) + 0.1 * torch.randn(
+        batch, steps, channels, height, width)
+    latitude = torch.linspace(50.0, 45.0, height)
+
+    def per_draft_gradient(mode):
+        leaf = drafts.clone().requires_grad_(True)
+        deep_supervised_forecast_mse(leaf, target, latitude, draft_supervision=mode).backward()
+        return leaf.grad.abs().sum(dim=(0, 2, 3, 4))
+
+    final = per_draft_gradient(DRAFT_SUPERVISION_FINAL_ONLY)
+    assert bool(final[:-1].sum() == 0), f"intermediate drafts moved: {final.tolist()}"
+    assert float(final[-1]) > 0
+    deep = per_draft_gradient(DRAFT_SUPERVISION_DEEP)
+    assert bool((deep > 0).all()), f"the registered form should touch every draft: {deep.tolist()}"
+    # And the two objectives are numerically different on the same inputs.
+    a = deep_supervised_forecast_mse(drafts, target, latitude,
+                                     draft_supervision=DRAFT_SUPERVISION_DEEP)
+    b = deep_supervised_forecast_mse(drafts, target, latitude,
+                                     draft_supervision=DRAFT_SUPERVISION_FINAL_ONLY)
+    assert not bool(torch.isclose(a, b))
