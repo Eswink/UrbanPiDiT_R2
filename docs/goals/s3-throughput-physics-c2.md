@@ -4196,3 +4196,33 @@ t0+19.7 h 启动时 `validate_protocol` 会直接 `RuntimeError: execution sourc
 
 **进度（明写 update 数）**：`seed41/off 25400`（79.0%，ep3）、`seed42/off 24420`（76.0%，ep3）；
 seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 seed43 会不会**卡在余量门**或**把整轮终止**？——代码路径逐行核对（不启动任何进程）
+
+**状态** `scheduler-path-audited`；GPU-h **0.000000**；零读数。
+
+seed43 要等 seed41 或 seed42 的整张卡空出才启动。这条路径上有一处**真实的终止风险**，
+所以逐行核对 `tools/r7_round_stages.py::run_seeds`（只读，未触碰任何进程）：
+
+| 情形 | 代码位置 | 行为 | 对 seed43 的含义 |
+| --- | --- | --- | --- |
+| worker 退出后取结果 | `:429-435` `future.result()` | 先 `free.append(device)` 再取 record | 卡已释放，CUDA 上下文随进程消失 |
+| 余量不足 | `:322-324` 在**启动 worker 之前**返回 `status="headroom-blocked"` | 立即返回，**不启动** | 不会耗掉 GPU 时间 |
+| 被阻塞且窗口内 | `:437-439` `pending.insert(0, seed)` + `retry=True` | 一小时后重试（`wait_seconds=3600`，`:369`） | 可等待，不终止 |
+| **真正的阶段失败** | `:440-441` `elif not record["passed"]: stop = True` | **停止启动后续 seed** | 这才是会让 seed43 永不启动的那条 |
+
+**门限数值（实测自 protocol）**：seed43 需要卡上 **8.91（est peak）+ 0.50（margin）+ 6.00（邻居保留）
+= 15.41 GiB 空闲**，而每卡 24 GiB、当前各占 9.5 GiB。由于探测发生在**前一个 worker 进程退出之后**，
+届时该卡只剩邻居占用，15.41 GiB 够得着。**这是代码路径 + 当前占用的推断，不是实测启动**；
+真正的验证是 seed43 实际被拉起时 `seed43_process.json` 里的 `gate`。
+
+**为什么现在核对**：这一条一旦踩错，代价是**两个已跑 seed（约 44 GPU-h）之后整轮停在第三个 seed 上**。
+`stop = True` 只由真失败触发，`headroom-blocked` 永远走重试分支——这两条是**不同的**分支，
+容易在读代码时混为一谈。
+
+**本轮状态核对（实测）**：`current_round_goal = docs/goals/s3-throughput-physics-c2.md`
+⇒ 与目标一致，`stage reading` 会解析到对的 attempt 目录（第三个坑）。
+`head 739003b`、`ledger_rows 88`、`index_records 105`、`used_gpu_h 504.507518`。
+
+**进度（明写 update 数）**：`seed41/off 25860`（80.5%，ep3，余约 1.9 h）、
+`seed42/off 24860`（77.4%，ep3，余约 2.3 h）；seed43 未启动；三份 receipt 不存在。
