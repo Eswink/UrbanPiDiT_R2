@@ -408,3 +408,23 @@
   3. 待推提交的**空白**（CI 在编译步跑 `git show --check`）。
   **反证实测**：把一个**已加入索引**的 `scripts/probe_misc_thing.py` 放进去，脚本
   **exit=1**；移除后 **exit=0**。未跟踪的同类文件不触发（阻断按已跟踪集合计，符合既有语义）。
+
+- **2026-11-08 读数阶段的**前瞻核验**（不等到 40 h 后再发现缺件）**：
+  对**在跑的** `attempt06` 逐项实测了 `reading` 会需要的一切：
+  1. `validate_protocol` **PASS**（协议 `029cbaab…`）；
+  2. **气候态**能解析——`climatology_reference()` 读
+     `outputs/r7_s3_fy_year_coverage_d2_20261023_attempt01/reference.json`
+     （`sha256 096c384a…`，`72 h t2m_rmse = 3.926891361747`）；
+     **注意协议里并不内嵌该块**，`readings()` 走的是
+     `body.get("climatology_reference") or curve.climatology_reference()` 的**回退分支**，
+     所以外部文件必须存在——已确认存在且在 D2 常量校验下通过；
+  3. `LEADS = (6, 12, 24, 48, 72)` 且 `is wide.EVALUATION_LEADS`（0098 那次
+     `AttributeError` 的修正仍在位）；
+  4. 三份 `seed{41,42,43}_receipt.json` **仍未生成**（训练中，符合预期）；
+  5. `evaluate_exit` 在形状合法的合成结果上**可运行**并给出
+     `verdict = advance-to-independent-review`。
+  **另用真实的 Stage B 输出验证了打分链路**：
+  `_region_variable_rmse(..., 'full', 't2m') = 2.173250…`、
+  对其 72 h 气候态得 skill `0.693717…`——即 `readings()` 的取数、区域名与分母三者
+  在**真实表**上确实对得上，不是只在合成 fixture 上自洽。
+  结论：**读数路径已核验就绪，只差 receipt**。
