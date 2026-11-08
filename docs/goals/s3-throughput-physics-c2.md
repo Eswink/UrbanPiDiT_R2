@@ -1662,3 +1662,47 @@
 
   **仍未做**：§2 的 8-case **模型对真值**比较（10.2× 本身）需要模型前向 + `atlas_target`，
   GPU 被 C2 占用，**未重跑** ⇒ 10.2× 既未确认也未否定。本工具只覆盖分析场一侧。
+
+- **2026-11-08 我自己刚推的提交曾是**CI 红的**；用**真实浅克隆**复现并修好（0 GPU-h；零读数）**。
+
+  **怎么发现的**：本地跑测试全绿并不能证明 CI 绿。`tests/test_render_c2_result.py` 与
+  `tests/test_build_c2_registration.py` 都读了
+  `outputs/r7_s3_derivative_matching_c2_20261108_attempt06/protocol.json`，而
+  **`.gitignore:31` 排除了 `outputs/`** ⇒ CI 的干净检出里**没有这个文件**，
+  于是这两个文件的 5 项**必红**。本地永远看不到，因为文件在我这儿存在。
+
+  **修法**：两个测试改为在**各自 `tmp_path`** 里构造所需的最小 protocol 字典。
+  它们真正需要的字段只有 —— 渲染器：`code_commit`/`model_code_sha256`/`training_code_sha256`/
+  `protocol_sha256`；记录构建器：`code_commit`/`protocol_sha256`/`train_data_identity`/
+  `source_sha256`。用 fixture **不削弱**断言，只去掉对 Git 忽略目录的依赖。
+
+  **两种「干净树」不等价（这条我踩了第二次才分清）**：
+
+  | 方式 | 有 `.git` | 有 `outputs/` | 结果 |
+  | --- | --- | --- | --- |
+  | `git archive HEAD \| tar -x` | **无** | 无 | 28 passed / **1 failed** —— 失败原因是 `git rev-parse HEAD` 报 `not a git repository`，**不是** CI 的真实条件 |
+  | `git clone --depth 1 file://…` | **有** | 无 | **29 passed / 1 skipped** ← **这才是 CI 的形状** |
+
+  CI 用 `actions/checkout` 且 `fetch-depth: 0`（白空格那步需要父提交），所以它**有 `.git`**。
+  用 `git archive` 模拟会把「没有 `.git`」误判成失败。
+
+  **一个 1 skipped 是正确的**：`test_reproduce_c1_preflight.py` 的 store 相关用例在
+  `outputs/…/cache.zarr` 不存在时 `skipif`，而 store 同样是 Git 忽略的运行态
+  ⇒ 在 CI 里**跳过是设计**，不是掩盖。
+
+  **我在这轮里犯的一个真错误（必须记）**：为模拟「没有 `outputs/`」，
+  我一度把**正在被两个训练 worker 写入的** attempt06 目录 `mv` 到 `/tmp`。
+  **这是危险的**：那两个 worker 属于 attempt06（seed41/seed42 的 on 臂），
+  目录被移走可能让它们的写入失败或写入错误路径。
+  我在数秒内移回，并**逐项核对无损伤**：两 worker 的 `update` 继续增长
+  （seed41 4,260 / seed42 5,380）、调度器 pid 1817511 存活、`update_0005000.pt` 完好。
+  **正确做法是 `git archive`/`git clone`，而不是动活体目录**——我之后就是这么做的。
+  **不声称「没影响」**：我只能证明移回后状态正常、进度未中断，无法排除移动瞬间的
+  I/O 竞争；后续 checkpoint（每 5,000 步还有 `load_checkpoint(expected=signature)` 校验）
+  会是最先暴露损伤的地方，届时如实登记。
+
+  **另一条已做的 CI 本地复核**（因为匿名 API 取 check-runs 返回的是 GitHub 错误页，
+  不是我该当作证据的 JSON）：`git show --check --format= HEAD`（exit 0）、
+  `tools/check_conventions.py`（37 条阻断，failing=0）、
+  `python -m compileall data model training scripts …`（exit 0）三项**本地复跑通过**。
+  这**不等于** CI 一定绿（CI 还跑全量 pytest 与 wheel 安装），但覆盖了我改动会触发的那三项。
