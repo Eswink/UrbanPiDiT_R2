@@ -4074,3 +4074,54 @@ tools/r7_round.py commit-guard <三个路径>                     -> passed: tru
 
 **进度（明写 update 数）**：`seed41/off 24680`（76.8%，epoch 3）、`seed42/off 23720`（73.8%，epoch 2），
 速率 1.1047 / 1.1489 s/update；seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 (b) 会不会是**记录缺陷**而不是物理结论？——我怀疑过，实测**否**掉了
+
+**状态** `b-recording-path-cleared`；GPU-h **0.0000**；零读数。
+
+(b) 要求**每一行** loss 都有 `constraint_divergence` 且**严格 > 0**，否则整支永久关闭。
+这是一个 64 GPU-h 的判决，所以"这个键到底会不会出现"必须现在就问，而不是等读数阶段。
+
+**我怀疑的缺陷（现在已否掉）**：`training/r7_long_rollout_runner.py:279` 只记录
+`isinstance(value, torch.Tensor)` 的项：
+
+```python
+metrics.update({f"constraint_{name}": float(value.detach())
+                for name, value in constraint.items()
+                if isinstance(value, torch.Tensor)})
+```
+
+我读 `divergence_matching` 的签名时看到一个 `float(weight) * (...).mean()`，**推断**返回值是
+Python float、会被这个过滤器整条滤掉 ⇒ 键永不出现 ⇒ (b) 在真·物理腿上被判假。**推断错了**：
+
+```
+divergence_matching(...) return type: Tensor | isTensor: True
+derivative_matching_terms(...) -> KEYS THE RUNNER WOULD RECORD:
+    ['constraint_divergence', 'constraint_total', 'constraint_vorticity']
+```
+
+`float * Tensor` 仍是 Tensor，import 时我以为它是标量。**"我读了签名"不等于"我看过类型"**。
+
+**第二个怀疑：`total > 0` 能否在训练中成立**。(b) 用的是**每一行** `all(...)`，只要某一步
+恰好为 0 就整条假。实测该量只在 `pred == target` **逐位相等**时为 0：
+
+| ‖pred−target‖ 尺度 | div | vort | total > 0 |
+| --- | --- | --- | --- |
+| 0 | 0.000e+00 | 0.000e+00 | **False** |
+| 1e-12 | 1.167e-34 | 4.423e-35 | True |
+| 1e-06 | 1.368e-22 | 1.050e-22 | True |
+
+真实训练一步之后预测与目标不可能逐位相等；且 float64 下要下溢到 0 需要散度差 < 1.5e-154×scale，
+**等于要求两个场逐位相同**。⇒ `> 0` 不是脆判据。
+
+**第三个怀疑：有没有 update 在 `constraint is None` 下跑过**（那样的行没有键 ⇒ `all()` 假）。
+冻结协议实测：`on` 臂 `derivative_matching='c2'`、`physical_constraints`/`gradient_surgery`/`sam_rho`
+全 `None`；`off` 臂 `derivative_matching=None`。`auxiliary_term` 只在**所有**轴都 None 时返回 None，
+而 `on` 臂的轴是整轮固定值 ⇒ **每一条 on 臂 update 都会带这三个键**。
+
+**边界与教训**：本条**没有**修改任何代码——三处怀疑全部由实测否掉，改代码反而会引入新风险。
+它证明的是 (b) 的**记录通路**可靠，**不是** (b) 会为真：`constraint_divergence > 0` 几乎必然成立，
+但 (a)（72 h skill 配对均值不退化）才是真正会被物理结果决定的那条。
+
+**进度（明写 update 数）**：`seed41/off 24860`（77.4%，epoch 3，余约 2.2 h）、
+`seed42/off 23920`（74.4%，epoch 2，余约 2.6 h）；seed43 未启动；三份 receipt 不存在。
