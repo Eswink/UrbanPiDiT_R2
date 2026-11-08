@@ -462,3 +462,30 @@
 
   **仍缺**：三份 `seed{41,42,43}_receipt.json`（训练中）与 `readings.json`；
   (a)–(d) 未求值；四件套登记未做。**本块不构成任何读数，也不得据此声称 C2 通过或失败。**
+
+- **2026-11-08 四件套登记路径的**前置**核验（0 GPU-h；不含任何读数）**。
+  读数仍未产生（两臂在 46–48%）。下列每一项都是**在真实校验器上实跑**的结果，
+  目的是让「读出来之后再登记」那一步变成算术而不是试错：
+
+  1. **index record 的形状已被真实校验器接受**：用本轮的**真** `protocol_sha256`
+     （`029cbaab6227…`）与真 `train_data_identity`（`81307008…`）构造一条 C2 形状的记录，
+     追加到索引副本上跑 `verify_r7_evidence_index.py`，结果 **exit 0 / PASS 106 records**。
+     这次试跑同时暴露了两个必须知道的硬规则（我第一次写错、被校验器抓住）：
+     `evidence_sha256` **不能是 null**，必须是**已存在文件**的完整小写 SHA256；
+     `evidence_path` **必须在校验时存在**。
+     ⇒ 所以**证据页必须先写、后登记**，不能反过来。
+  2. **账本算术已定**：`tools/r7_round.py ledger-plan` 在真实主计划上给出
+     `rows_before=86`、`previous_total=475.854695`；若本轮记 63.7 GPU-h 则
+     `new_total=539.554695`。**新行的 cumulative 必须等于这个 new_total**，
+     否则 C-02 会失败（`check_campaign_state.py` 逐行核 cumulative 与总和）。
+     注意 `cap_gpu_h=20.0` 与 `remaining` 是**会计量**，按决策 0030 不阻断。
+  3. **`reading` 阶段的余量门已核**：`tools/r7_round_stages.py` 把 `reading` 与 `seed`
+     一起过 `gpu_headroom`，门槛是 `estimated_peak 9,126 MiB + margin 512 MiB +
+     neighbour_reserve 6,144 MiB = 15,782 MiB`，而卡是 24,576 MiB ⇒
+     即使邻居臂在跑也能过。这一条若没核，读数会在训练结束后**卡在余量门**上。
+  4. **162 MB 级的 `training_report.json` 不会拖垮读数**：本轮 16 epoch 的同类报告实测
+     **152.4 MB**，`read_text + json.loads` 合计 **2.7 s**、峰值 RSS **435 MB**，
+     128,528 行逐 update 记录可正常解析。(b) 判据要读的正是这份文件。
+
+  **仍缺**：`readings.json`、(a)–(d) 求值、四件套登记本身。**本块零读数**，
+  不得据此声称 C2 通过或失败。
