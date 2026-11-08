@@ -3071,3 +3071,44 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 13520`（42.1%）、`seed42/off 13000`（40.5%），
   速率 1.1041 / 1.1494 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 round 硬截止余量实测：预计完成 26.4 h，截止还剩 59.36 h，富余约 33 h**。
+
+  这是"本轮**不会**因时长被截断"的量化依据。按冻结协议实测：
+
+  ```
+  deadline_perf_counter = 2697871.176461216
+  now                   = 2484175.77954356
+  remaining             = 59.36 h  (213,695 s)
+  per_seed_seconds      = 115,200 s (32.0 h)
+  ```
+
+  **一个容易误读的地方（已查清）**：`reading` 阶段的时限**不是** `per_seed_seconds`。
+  `run_stage` 的写法是
+
+  ```python
+  limit = min(deadline, now() + per_seed) if phase == "seed" else deadline
+  ```
+
+  ⇒ seed 阶段取 `min(round 硬截止, now + 32 h)`，而 **reading 用的是 `deadline` 本身**（round 硬截止）。
+  所以 reading 有**整个剩余窗口**可用，不会被 32 h 卡住。
+
+  **按当前实测速率外推**（1.1040 / 1.1480 s/update，seed41/off 14,280、seed42/off 13,740）：
+
+  ```
+  seed41: off 剩 5.5 h + on 9.9 h                    => 15.3 h
+  seed42: off 剩 5.9 h + on 10.2 h                   => 16.1 h
+  seed43: 一张卡空出(~5.9 h)后两臂 ~20.5 h            => 26.4 h
+  预计完成：26.4 h 后；截止余量 59.36 h ⇒ 富余 +33.0 h
+  ```
+
+  **这是估计，不是实测**：速率来自两个 off 臂至今的 `elapsed_seconds/update`，
+  on 臂会略慢（多一项匹配的前向/反向开销），seed43 我用 1.148 s/update 取了偏保守值。
+  即使整体再慢 30%，26.4 h → 34.3 h，仍在 59.36 h 之内。
+  ⇒ **`budget_limited`（时长截断）在当前轨迹上不是风险**；若真发生，按预声明记
+  `budget_limited`、全额记账、**不算通过**。
+
+  **边界**：本条零读数、零 GPU-h。它只回答"会不会被时限砍断"，**不**涉及 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 14280`（44.4%）、`seed42/off 13740`（42.8%），
+  速率 1.1040 / 1.1480 s/update。三份 receipt 仍未出现。
