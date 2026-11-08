@@ -2203,3 +2203,30 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **边界**：本条零读数。`readings.json` 仍不存在，(a)–(d) 未对真实数据求值。
   上面的 `b=True` 来自**合成 receipt**，只证明读数路径的形状正确，**不是 C2 的结果**。
+
+- **2026-11-09 CI 复核：C2 修正后的第一个**已确认绿**的 run；attempt08 训练中（零读数）**。
+
+  用匿名只读 API 逐个 commit 查 `pytest` 的 `conclusion`（本仓 API 读可用、写 401，见 AGENTS.md）：
+
+  ```
+  commit 7a062fb (docs: prove the C2 reading path runs and can say no)
+    pytest: completed / success        <-- 本轮第一个已确认的绿
+  其余 17 条实验 workflow: completed / skipped （commit-message 标签门控，设计行为，不是失败）
+  ```
+
+  **这条要连同边界一起读**：它证明的是**工程**（约定检查、测试套件、索引/账本一致性）在那棵树上是绿的，
+  **不**证明 C2 有任何科学结论——`readings.json` 仍不存在。`3be1127` 的 run 在写这条时仍是
+  `in_progress`，**未确认，不得读成绿也不得读成红**。
+
+  **进度（明写 update 数）**：
+
+  ```
+  update  780: seed41/off 1.1315 s/u, seed42/off 1.1444 s/u
+  update 1120: 1.1396 / 1.1482 附近
+  update 1400: seed41/off 1.1192 s/u, seed42/off 1.1327 s/u
+  update 1640: seed41/off 在跑, seed42/off 1600
+  ```
+
+  速率稳定在 **1.12–1.15**，与 Stage F 菜单采用的 1.1469 和两次整臂实测的 1.1360 一致。
+
+  **边界**：本条零读数、零 GPU-h（只读 API 查询）。三份 receipt 仍未出现。
