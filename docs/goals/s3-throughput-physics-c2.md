@@ -970,3 +970,33 @@
 
   **本块不声称**：seed43 会成功、余量一定够、或 `stop` 一定不会触发。
   它只把「谁会 pop seed43、什么会让它掉队」写成可核的机制 + 当前数字。
+
+- **2026-11-08 `readings()` 的**循环体**已在一个真实 seed 树上逐行跑通（0 GPU-h；零读数）**。
+
+  此前验证了「(b) 写入端」「(a) 的分子分母」「(c) 的逐位一致」，但 `readings()` 的
+  **循环体**（pin digest → 读 rmse → 除分母 → 断言五个 lead）从未在一个**真实评分目录**上
+  完整走一遍。本轮用同一 store、同一评分器、同一 `_region_variable_rmse` 的 Stage B `p1000`
+  真实目录走通：
+
+  ```
+  lead  6: sha256=True rmse=2.247392 skill=+0.671116
+  lead 12: sha256=True rmse=2.775950 skill=+0.498421
+  lead 24: sha256=True rmse=2.519487 skill=+0.587257
+  lead 48: sha256=True rmse=3.196400 skill=+0.336932
+  lead 72: sha256=True rmse=3.600570 skill=+0.159293
+  LEADS assertion (sorted keys == frozen leads): PASSED
+  ```
+
+  顺带核实两个**键名/枚举**层面的前提（它们只会以 `KeyError`/空集的形式失败）：
+  - 真实 `boundary_rmse.csv` 的 `region` 列含 `full`，与 `curve.REGION == "full"` 一致；
+  - `variable` 列含 `t2m`；
+  - 列名实测为 `region, margin_cells, n_grid_points, full_area_fraction, lead_hours, variable, unit, rmse, n_initializations`。
+  - `evaluate_local` 在 `r7_evaluate.py:283` 写 `boundary_rmse.csv`，即 receipt 里 pin 的就是它。
+
+  **另一条只读核对（reading 阶段的时间闸）**：`worker()` 在 reading 分支**之前**有
+  `deadline <= body["deadline_perf_counter"]` 的守卫；`run_stage` 对**非 seed** 相位传
+  `limit = deadline`（不做 `now()+per_seed` 的收缩）⇒ 守卫取等号，**通过**。
+  实测当前 `deadline_perf_counter - now = 54.71 h`，远未到期。
+
+  **边界**：这证明「在真实评分目录上循环体不会因键缺失/枚举不符/分母缺失而抛错」，
+  **不证明** C2 的六臂会跑完，**不**构成读数。C2 的 receipt 树仍不存在。
