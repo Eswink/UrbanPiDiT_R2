@@ -86,85 +86,91 @@ def _denormalise(field, mean, std):
     return field * std.view(shape) + mean.view(shape)
 
 
-def run(protocol_path: Path, cases, out_path: Path) -> dict:
-    """One rollout per case; the same constraint bundle on prediction and on target."""
+def _measure_case(model, dataset, curve, case, stats) -> dict:
+    """One rollout for one window, then the same constraint bundle on three target pairings."""
     import numpy as np
     import torch
-    import zarr
     from torch.utils.data import default_collate
 
     from training.r7_long_rollout import training_long_rollout
     from training.r7_physical_constraints import physical_constraint_terms
 
-    model, dataset, curve, model_code = _load(protocol_path)
-    store = zarr.open_group(str(curve.STORE), mode="r")
-    channels = list(store.attrs["channels"])
-    mean = torch.as_tensor(np.asarray(store["normalization_mean"][:]), dtype=torch.float32)
-    std = torch.as_tensor(np.asarray(store["normalization_std"][:]), dtype=torch.float32)
-    latitude = np.asarray(store["latitude"][:])
-    longitude = np.asarray(store["longitude"][:])
+    channels, mean, std, latitude, longitude = stats
+    started = time.time()
+    batch = default_collate([dataset[case]])
+    # No ``no_grad`` here: the guard inside ``training_long_rollout`` rejects it. The forecast is
+    # detached below, so no graph survives the measurement.
+    result = training_long_rollout(model, batch, curve.REASONING_STEPS,
+                                   physical_weights=curve.PHYSICAL_WEIGHTS,
+                                   supervision_mask=None)
+    prediction = _denormalise(result.forecasts[:, -1].detach(), mean, std)
+    # Three "truth" fields. C1's page compared a +72 h forecast against the +6 h analysis field,
+    # and the size of the claim depends on which target it is compared with, so this measures all
+    # of them rather than picking one and arguing:
+    #   * ``atmos_target``     -- the +6 h field named in ADR 0094's text. This is the pairing that
+    #                             reproduces the page (10.2x), and it mixes two lead times.
+    #   * ``72h``              -- the +72 h field this rollout's last step is actually scored
+    #                             against, i.e. the lead-matched partner of the prediction.
+    #   * ``lead_matched``     -- each forecast step against its OWN target, then averaged, so
+    #                             every comparison is at one lead time.
+    target_short = _denormalise(batch["atmos_target"], mean, std)
+    target_long = _denormalise(batch["physical_targets"][:, -1], mean, std)
+    # Identical function, identical names, identical coordinates: only the field differs.
+    model_terms = physical_constraint_terms(prediction, channels, latitude, longitude)
+    short_terms = physical_constraint_terms(target_short, channels, latitude, longitude)
+    long_terms = physical_constraint_terms(target_long, channels, latitude, longitude)
 
-    rows = []
-    for case in cases:
-        started = time.time()
-        batch = default_collate([dataset[case]])
-        # No ``no_grad`` here: the guard inside ``training_long_rollout`` rejects it. The forecast
-        # is detached on the next line, so no graph survives the measurement.
-        result = training_long_rollout(model, batch, curve.REASONING_STEPS,
-                                       physical_weights=curve.PHYSICAL_WEIGHTS,
-                                       supervision_mask=None)
-        prediction = _denormalise(result.forecasts[:, -1].detach(), mean, std)
-        # Three "truth" fields. C1's page compared a +72 h forecast against the +6 h analysis
-        # field, and the size of the claim depends on which target it is compared with, so the
-        # script measures all of them rather than picking one and arguing:
-        #   * ``atmos_target``     -- the +6 h field named in ADR 0094's text. This is the pairing
-        #                             that reproduces the page (10.2x) and it mixes two lead times.
-        #   * ``72h``              -- the +72 h field this rollout's last step is actually scored
-        #                             against, i.e. the lead-matched partner of the prediction.
-        #   * ``lead_matched``     -- each forecast step against its OWN target, then averaged, so
-        #                             every comparison is at one lead time.
-        target_short = _denormalise(batch["atmos_target"], mean, std)
-        target_long = _denormalise(batch["physical_targets"][:, -1], mean, std)
-        # Identical function, identical names, identical coordinates: only the field differs.
-        model_terms = physical_constraint_terms(prediction, channels, latitude, longitude)
-        short_terms = physical_constraint_terms(target_short, channels, latitude, longitude)
-        long_terms = physical_constraint_terms(target_long, channels, latitude, longitude)
+    matched = _lead_matched(result.forecasts, batch["physical_targets"], stats, curve)
+    row = {"case": case, "seconds": round(time.time() - started, 1), **matched}
+    for name in ("divergence", "humidity", "dew_point", "total"):
+        row[f"model_{name}"] = float(model_terms[name])
+        row[f"analysis_atmos_target_{name}"] = float(short_terms[name])
+        row[f"analysis_72h_{name}"] = float(long_terms[name])
+    for label, terms in (("atmos_target", short_terms), ("72h", long_terms)):
+        row[f"ratio_{label}"] = (float(terms["total"]) / row["model_total"]
+                                 if row["model_total"] else None)
+    return row
 
-        # Lead-matched: physical_constraint_terms over [B,C,H,W] needs a 400-dim batch, so this
-        # steps over the N axis. ``forecasts`` is [B,N,C,H,W] and ``physical_targets`` matches it.
-        forecasts = result.forecasts.detach()
-        physical = batch["physical_targets"]
-        matched_model, matched_truth = [], []
-        matched_model_div, matched_truth_div = [], []
-        for step in range(forecasts.shape[1]):
-            m = physical_constraint_terms(
-                _denormalise(forecasts[:, step], mean, std), channels, latitude, longitude)
-            t = physical_constraint_terms(
-                _denormalise(physical[:, step], mean, std), channels, latitude, longitude)
-            matched_model.append(float(m["total"]))
-            matched_truth.append(float(t["total"]))
-            # The headline claim is about the divergence term specifically, so match that too.
-            matched_model_div.append(float(m["divergence"]))
-            matched_truth_div.append(float(t["divergence"]))
 
-        row = {"case": case, "seconds": round(time.time() - started, 1),
-               "lead_matched_model_total": float(np.mean(matched_model)),
-               "lead_matched_analysis_total": float(np.mean(matched_truth)),
-               "lead_matched_ratio": (float(np.mean(matched_truth)) / float(np.mean(matched_model))
-                                      if np.mean(matched_model) else None),
-               "lead_matched_model_divergence": float(np.mean(matched_model_div)),
-               "lead_matched_analysis_divergence": float(np.mean(matched_truth_div)),
-               "lead_matched_divergence_ratio": (
-                   float(np.mean(matched_truth_div)) / float(np.mean(matched_model_div))
-                   if np.mean(matched_model_div) else None)}
-        for name in ("divergence", "humidity", "dew_point", "total"):
-            row[f"model_{name}"] = float(model_terms[name])
-            row[f"analysis_atmos_target_{name}"] = float(short_terms[name])
-            row[f"analysis_72h_{name}"] = float(long_terms[name])
-        for label, terms in (("atmos_target", short_terms), ("72h", long_terms)):
-            row[f"ratio_{label}"] = (float(terms["total"]) / row["model_total"]
-                                     if row["model_total"] else None)
-        rows.append(row)
+def _lead_matched(forecasts, physical, stats, curve) -> dict:
+    """Every forecast step against its own target, then averaged over the N axis.
+
+    ``physical_constraint_terms`` reads [..., C, H, W], so the N axis is stepped explicitly.
+    ``forecasts`` is [B,N,C,H,W] and ``physical`` matches it step for step.
+    """
+    import numpy as np
+
+    from training.r7_physical_constraints import physical_constraint_terms
+
+    channels, mean, std, latitude, longitude = stats
+    forecasts = forecasts.detach()
+    model_total, truth_total, model_div, truth_div = [], [], [], []
+    for step in range(forecasts.shape[1]):
+        m = physical_constraint_terms(
+            _denormalise(forecasts[:, step], mean, std), channels, latitude, longitude)
+        t = physical_constraint_terms(
+            _denormalise(physical[:, step], mean, std), channels, latitude, longitude)
+        model_total.append(float(m["total"]))
+        truth_total.append(float(t["total"]))
+        # The headline claim is about the divergence term specifically, so match that too.
+        model_div.append(float(m["divergence"]))
+        truth_div.append(float(t["divergence"]))
+    model_mean, truth_mean = float(np.mean(model_total)), float(np.mean(truth_total))
+    model_div_mean, truth_div_mean = float(np.mean(model_div)), float(np.mean(truth_div))
+    return {
+        "lead_matched_model_total": model_mean,
+        "lead_matched_analysis_total": truth_mean,
+        "lead_matched_ratio": (truth_mean / model_mean) if model_mean else None,
+        "lead_matched_model_divergence": model_div_mean,
+        "lead_matched_analysis_divergence": truth_div_mean,
+        "lead_matched_divergence_ratio": (truth_div_mean / model_div_mean)
+                                         if model_div_mean else None,
+    }
+
+
+def _summarise(rows, cases, model_code) -> dict:
+    """The report: every pairing's means and its agreement count, keyed so nothing is dropped."""
+    import numpy as np
 
     report = {
         "checkpoint_updates": 128528,
@@ -175,26 +181,26 @@ def run(protocol_path: Path, cases, out_path: Path) -> dict:
         "forward_mode": "train (dropout=0.0, no BatchNorm => identical to eval)",
         "cases": list(cases),
         "rows": rows,
+        "mean_model_total": float(np.mean([r["model_total"] for r in rows])),
+        "mean_model_divergence": float(np.mean([r["model_divergence"] for r in rows])),
+        "page_claim": PAGE_CLAIM,
     }
-    for label in ("atmos_target", "72h"):
-        ratios = [r[f"ratio_{label}"] for r in rows if r[f"ratio_{label}"] is not None]
-        report[f"mean_analysis_{label}_total"] = float(
-            np.mean([r[f"analysis_{label}_total"] for r in rows]))
+    for label in ("atmos_target", "72h", "lead_matched"):
+        # ``_lead_matched`` names its fields ``lead_matched_*`` while the other two pairings are
+        # named ``*_atmos_target``/``*_72h``, so the two key shapes differ for exactly one label.
+        # Building either name mechanically raises KeyError on that label -- the bug a refactor
+        # introduced and ``test_summarise_consumes_the_row_shape`` now pins.
+        matched = label == "lead_matched"
+        ratio_key = "lead_matched_ratio" if matched else f"ratio_{label}"
+        total_key = "lead_matched_analysis_total" if matched else f"analysis_{label}_total"
+        ratios = [r[ratio_key] for r in rows if r[ratio_key] is not None]
+        report[f"mean_analysis_{label}_total"] = float(np.mean([r[total_key] for r in rows]))
         report[f"mean_{label}_ratio"] = float(np.mean(ratios)) if ratios else None
         report[f"{label}_ratio_range"] = ([float(min(ratios)), float(max(ratios))]
                                           if ratios else None)
         report[f"all_cases_worse_{label}"] = all(r > 1.0 for r in ratios) if ratios else None
-    report.update({
-        "mean_model_total": float(np.mean([r["model_total"] for r in rows])),
-        "mean_model_divergence": float(np.mean([r["model_divergence"] for r in rows])),
-        "mean_lead_matched_model_total": float(np.mean([r["lead_matched_model_total"] for r in rows])),
-        "mean_lead_matched_analysis_total": float(
-            np.mean([r["lead_matched_analysis_total"] for r in rows])),
-        "page_claim": PAGE_CLAIM,
-    })
-    matched = [r["lead_matched_ratio"] for r in rows if r["lead_matched_ratio"] is not None]
-    report["mean_lead_matched_ratio"] = float(np.mean(matched)) if matched else None
-    report["all_cases_worse_lead_matched"] = all(r > 1.0 for r in matched) if matched else None
+    report["lead_matched_model_total"] = float(
+        np.mean([r["lead_matched_model_total"] for r in rows]))
     report["mean_lead_matched_model_divergence"] = float(
         np.mean([r["lead_matched_model_divergence"] for r in rows]))
     report["mean_lead_matched_analysis_divergence"] = float(
@@ -204,6 +210,24 @@ def run(protocol_path: Path, cases, out_path: Path) -> dict:
     report["mean_lead_matched_divergence_ratio"] = float(np.mean(div_ratios)) if div_ratios else None
     report["all_cases_worse_lead_matched_divergence"] = (
         all(r > 1.0 for r in div_ratios) if div_ratios else None)
+    return report
+
+
+def run(protocol_path: Path, cases, out_path: Path) -> dict:
+    """One rollout per case; the same constraint bundle on prediction and on three targets."""
+    import numpy as np
+    import torch
+    import zarr
+
+    model, dataset, curve, model_code = _load(protocol_path)
+    store = zarr.open_group(str(curve.STORE), mode="r")
+    stats = (list(store.attrs["channels"]),
+             torch.as_tensor(np.asarray(store["normalization_mean"][:]), dtype=torch.float32),
+             torch.as_tensor(np.asarray(store["normalization_std"][:]), dtype=torch.float32),
+             np.asarray(store["latitude"][:]),
+             np.asarray(store["longitude"][:]))
+    rows = [_measure_case(model, dataset, curve, case, stats) for case in cases]
+    report = _summarise(rows, cases, model_code)
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return report
 
