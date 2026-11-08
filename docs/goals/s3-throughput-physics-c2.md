@@ -2941,3 +2941,48 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   （换一份分母 ⇒ 该字段变化 ⇒ 测试失败），与曲线驱动对齐。
 
   **边界**：本条零读数、零 GPU-h。它是**可追溯性缺口**，不是 (a) 的结论。
+
+- **2026-11-09 用户下一步要跑的**整条链**已被真实代码端到端跑通（0 GPU-h、零读数）**。
+
+  此前验的都是**分段**（登记工具、守卫、闸门各自）。这次把 attempt08 的**真实 protocol.json**
+  与一份合成 receipt 树拼起来，按用户指定的顺序**整链执行**，用的是**驱动自己的代码**
+  （`readings()`、`evaluate_exit`、`check_round_receipts` CLI、`render_c2_result`、
+  `build_c2_registration`），不是重实现：
+
+  ```
+  [1] validate_protocol OK; protocol_sha256=a3ca9fe7b36bb9e6...
+  [2] readings() OK: seeds=['41','42','43'], all=True, verdict=advance-to-independent-review
+      delta_72h={'41': 0.001223, '42': 0.001223, '43': 0.001223}
+  [3] check_round_receipts exit=0
+  [4] render exit=0; wrote RESULT.md (3636 bytes)
+  [5] record built; validate_record errors=[]
+      gpu_hours=63.905273 ledger_rows=5 denominator=096c384a25a8a7bb...
+  CHAIN PASS: validate -> readings -> guard -> render -> record, all real code
+  ```
+
+  **① 顺带量到 `gpu_hours` 的口径确实是"六条 seed 行之和"**：合成树里放了
+  prepare 601.479 + archive 5.505 + 三条 seed 各 76,484 s（两臂合计），
+  得 **63.905273 GPU-h**、`ledger_rows=5`。这与 brief §5 的 **63.7 GPU-h（估计）**
+  同量级 ⇒ 记账口径与预算估计自洽。**这是对口径的验证，不是对真实耗时的测量。**
+
+  **② 链能说"不"**（两个反证，都是真实 CLI）：
+
+  ```
+  A) readings.json 去掉 exit_conditions -> guard exit=1（拒绝）
+  B) exit_conditions = {}              -> guard exit=0（通过）
+  ```
+
+  B **不是新缺陷**：它是决策 0108 已经写明并接受的已知缺口（守卫查键存在、不查值有意义），
+  这里只是**再次证实它仍然如此**，没有扩大。A 证明守卫真的读那五个键。
+
+  **③ 我的合成树第一版缺 `prepared_protocol.json` 与 `archive_receipt.json`，守卫当场拒绝**
+  （`exit=1`、两条 `missing`）。那是**守卫按设计工作**，不是缺陷；补上（从真实 attempt 复制，
+  内容不是测量）之后才通过。**这条写下来是因为它正是"半截登记"会被拦住的位置。**
+
+  **边界**：本条**零读数、零 GPU-h**。合成 receipt 的 RMSE 是**编造的**，
+  所以 `all=True` / `verdict=advance-to-independent-review` / `delta_72h=0.001223`
+  **全部不是 C2 的结果**，只证明这条判定链**在该形状的输入上不崩、且能拒绝坏输入**。
+  真实 (a)–(d) 仍要等六个臂跑完。
+
+  **进度（明写 update 数）**：`seed41/off 13300`（41.4%）、`seed42/off 12780`（39.8%），
+  速率 1.1040 / 1.1491 s/update。三份 receipt 仍未出现。
