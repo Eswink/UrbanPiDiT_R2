@@ -1776,3 +1776,99 @@ seed42 失败  ⇒ stop = True  ⇒ seed43 永不启动
 **本条不改任何判据**：六臂未齐、`readings.json` 未产出、(a)–(d) 未求值。
 **这不是「触授权边界」，也不是「达已冻结科学停止条件」，而是「我把一次本可避免的操作事故
 写进了执行链」**——按目标长文，这类必须如实登记而不是掩盖。
+
+## 处置决定：(B) 立即中止 attempt06 —— 依据是实测的**跨 attempt 复用不可能**
+
+**我先验证了选项 A 的前提，结论是它是错的。**
+
+选项 A 假设「让 seed41 跑完，新 attempt 可复用它的 receipt」。实测三条：
+
+```
+① REUSE_PROTOCOL_FIELDS（18 项，tools/r7_round_support.py:58-76）含 protocol_sha256
+② protocol_sha256 的 body 里含 started_perf_counter（attempt06 = 2403730.636991041）
+   ⇒ 任何两次 freeze 的 digest 必然不同
+③ 即使把新 attempt 的 freeze 参数**逐字照抄** attempt06（同一 archive、同一 code_commit、
+   同一 started/deadline 包络），实测 digest 仍不同：
+     new  856eff438da4bb64054450a8ced1c35d
+     prev 029cbaab62270cc99da3df49e2205953
+   reuse_decision → "protocol drift: ['protocol_sha256', 'train_data_identity', 'val_data_identity']"
+   reusable = NONE
+```
+（`train_data_identity`/`val_data_identity` 在 `freeze` 时是 `None`、由 `prepare` 填，
+所以那两项是我这次探测的**比较时序**造成的噪声；**但 `protocol_sha256` 的漂移是结构性的**，
+它已经足以让 reuse 判 NONE。）
+
+⇒ **seed41 已跑完或将要跑完的 12.8 h 工作，对任何新 attempt 都不可复用。**
+
+**成本对比（用本轮实测速率算，不是估计旧数）**
+
+```
+每 seed 两臂 = off 10.74 h + on 11.03 h = 21.8 h
+(A) 等 seed41 跑完再新 attempt 重跑 3 seed：~8.8 + 2×21.8 = 52.3 h
+(B) 现在中止，新 attempt 重跑 3 seed      ：2×21.8        = 43.5 h
+B 省 ~8.8 h GPU 与 ~8.8 h 墙钟
+```
+
+**因此选 (B)**：继续让 seed41 跑完只会产出一份**注定不可复用**的 receipt，
+pure waste。这不是「不甘心停」，而是「A 的前提已被实测推翻」。
+
+**执行边界（R-054）**：只对**本实验自己的**进程发信号，逐个先核对 `/proc/<pid>/cmdline`
+含 `r7_s3_derivative_matching_c2_20261108_attempt06`；**不对任何邻居进程发信号**。
+产物一律**不删除**，留作失败留痕。
+
+**这不是「触授权边界」**：本地实验的时长与节点推进已按决策 0030 下放；
+中止本实验自己的 attempt 属于执行范围内的排障，且已如实登记。
+
+### attempt06 已按 (B) 主动中止：实测成本与留痕
+
+**执行记录（R-054 合规）**
+
+逐个先读 `/proc/<pid>/cmdline` 核对属于本实验，再发 `SIGTERM`；发完复核无残留：
+
+```
+TERM -> 1817511  (r7_round.py stage-seeds，调度器)
+TERM -> 1817520  (seed41 的 seed worker)
+TERM -> 2230970 / 2230971 / 2230972 / 2230973  (该 worker 的 4 个 dataloader 子进程)
+survivors: 无
+GPU 释放：卡0 38 MiB / 0%，卡1 17 MiB / 0%
+邻居未受影响：~/Projects/yeruian/paper2_c2_gate_v2_reassessment 的两个 c2_debug_oracle（19 d）仍在跑
+```
+
+**产物一律未删**（`progress.jsonl`、`update_0005000.pt`、`failed_attempt.json` 缺失的事实本身
+就是 seed42 失败的证据）。
+
+**成本：账本记不全，必须按臂自报的 elapsed 求**
+
+`stage_ledger.jsonl` 只有 3 行：
+
+```
+prepare  success   0.165 h
+archive  success   0.002 h
+seed42   failed   12.767 h      ← 我造成的那次失败
+合计              12.934085 GPU-h
+```
+
+**但账本漏了 seed41**——它被 TERM 时调度器已死，没机会写行。按各臂 `progress.jsonl`
+最后一行的 `elapsed_seconds` 实测：
+
+```
+seed41 off  37,092.1 s = 10.303 h   (update 32132，跑完)
+seed41 on    6,023.4 s =  1.673 h   (update 5160，被中止)
+seed42 off  36,054.1 s = 10.015 h   (update 32132，跑完)
+seed42 on    6,095.0 s =  1.693 h   (update 5380，失败前)
+合计        85,264.6 s = 23.684603 h
+```
+
+⇒ **attempt06 的真实 GPU 占用 = 23.684603 GPU-h**（两臂在两卡并行，故各臂 elapsed 之和
+即卡占用等价时长）。**登记时必须用 23.684603，不能用账本的 12.934085**——
+后者会因为「seed41 无行」而系统性低估 **10.75 GPU-h**。
+这是本轮新的、必须记住的记账陷阱：**被强行中止 attempt 时，账本行可能少于实际占用的臂**。
+
+**作废分类**：**零读数、全额记账、产物留痕**。两个 off 臂虽跑完 32,132 updates 并完成五档评分，
+但**没有 receipt**（`_seed` 在两臂后才写）⇒ 按 `reuse-plan` 规则不可复用，**也不得**被引作
+任何 C2 结论的证据。
+
+**下一步**：新 attempt（attempt07）从**三个 seed 全部重跑**开始（跨 attempt 复用已实证不可能），
+预计 **~43.5 h**（两卡并行：seed41+42 同时 ~21.8 h，再 seed43 ~21.8 h）。
+开跑前必须：`tools/r7_round.py state` 核对 `current_round_goal` → `freeze`（用**开跑那一刻的 HEAD**
+重建 `code.zip`）→ `prepare` → `archive` → `stage-seeds` → `stage reading`。
