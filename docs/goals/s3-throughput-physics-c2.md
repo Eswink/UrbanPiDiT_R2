@@ -428,3 +428,37 @@
   对其 72 h 气候态得 skill `0.693717…`——即 `readings()` 的取数、区域名与分母三者
   在**真实表**上确实对得上，不是只在合成 fixture 上自洽。
   结论：**读数路径已核验就绪，只差 receipt**。
+
+- **2026-11-08 读数前的最后一批只读核验（0 GPU-h，不改任何冻结量）**。
+  本轮仍未产生 `readings.json`；下列各项是**在这份正在跑的字节上**实测的，
+  目的是把「跑完才发现」的失败面继续压小：
+
+  1. **95 个钉住文件仍逐字节匹配**：`validate_protocol(attempt06)` 通过，
+     `protocol_sha256 = 029cbaab62270cc9…`、`execution_files_sha256` 计 **95** 项。
+     这一条最关键——我在本轮开跑后提交了若干笔（其中含 `9eedd35`），若动到任何被钉的
+     文件，`reading` 会在 40+ 小时后以 `execution source changed` 失败。实测**没有**。
+  2. **打分链路在真实表上再核一次**：用 Stage B 第四点的真实 `boundary_rmse.csv` 走
+     `_region_variable_rmse(..., 'full', 't2m')` 与注册气候态分母，
+     五个 lead（6/12/24/48/72 h）得 `+0.774599/+0.670925/+0.692904/+0.465420/+0.260668`；
+     其中 72 h `+0.260668` 与该轮登记的 `+0.2607` 相符 ⇒ 区域名（`full`）、
+     变量名（`t2m`）与分母三者对得上。
+  3. **预声明 (b) 的机制在位**：`training/r7_long_rollout_runner.py` 在
+     `constraint is not None` 时把每个张量项写成 `constraint_<name>`，
+     而 `r7_derivative_matching.derivative_matching_terms` 返回的键是
+     `divergence`/`vorticity`/`weights`/`scales`/`total` ⇒ `constraint_divergence`
+     与 `constraint_vorticity` 会被逐步记录，`readings()` 的 (b) 判据有数据可读。
+     注意：`total` 也会被记成 `constraint_total`，**不影响** (b) 的两项检查。
+  4. **包络够用**：本轮冻结 `per_seed_seconds = 115,200 s`（32 h）、
+     `hard_cap_seconds = 230,400 s`（64 h）。按实测 1.15 s/update 估，
+     每 seed 两臂 ≈ 21.97 h；seed41/42 并行、seed43 在首个卡释放后启动，
+     预计 seed43 于 **≈44.1 h** 结束、`reading` **≈45 h**，距 64 h 硬上限约 **19.9 h**。
+     这是**估计**（由本轮实测速率外推），不是实测。
+  5. **驱动方式的一个事实（会影响交接，不是缺陷）**：本轮的六个臂当前由
+     **`nohup .venv/bin/python tools/r7_round.py stage-seeds`**（pid 1817511）驱动，
+     **不是** workflow run。所以 `stage-seeds` 返回后**不会自动**触发 `reading`；
+     `reading` 必须在六份 receipt 齐备后**显式**跑一次。
+     恢复/续跑命令因此是：`.venv/bin/python tools/r7_round.py state` →
+     `.venv/bin/python tools/r7_round.py stage reading`。
+
+  **仍缺**：三份 `seed{41,42,43}_receipt.json`（训练中）与 `readings.json`；
+  (a)–(d) 未求值；四件套登记未做。**本块不构成任何读数，也不得据此声称 C2 通过或失败。**
