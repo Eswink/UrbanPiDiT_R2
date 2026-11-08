@@ -3589,3 +3589,56 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 18960`（59.0%）、`seed42/off 18260`（56.8%），
   速率 1.1041 / 1.1475 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 登记时 `evidence_commit` 该指向哪个提交：既有先例实测是**实现/运行提交**，不是 HEAD（0 GPU-h）**。
+
+  这是一个我差点弄错的**登记正确性**问题。`build_c2_registration.py:97` 用
+  `_git("rev-parse", "HEAD")` 取 `evidence_commit`。而到登记那一刻，HEAD 会是
+  **一堆 docs 提交**（本轮已有 31 个），不是跑实验的代码提交。
+
+  **既有先例（B 轮）实测**：
+
+  ```
+  record s3-throughput-physics-b-p1600
+  evidence_commit  : 84f63d7f36e079ed957fd0451fe9592f7eedff50
+  experiment_commit: 84f63d7f36e079ed957fd0451fe9592f7eedff50      <- 相同
+  evidence_commit 的 subject: "feat(r7): run Stage B point 4 (16 epoch / 128,528 updates) at batch 4"
+  结果页首次出现在           : de0ecfa3 "docs(r7): register Stage B point 4 (16 epoch) and the saturation verdict"
+  页面存在于 evidence_commit 内: False
+  ```
+
+  ⇒ **`evidence_commit` = 跑实验那次提交（也是 `experiment_commit`），不是登记提交。**
+  结果页在**其后**的登记提交里才出现，所以"页面不在 evidence_commit 内"是**正常的**，
+  不是缺陷。
+
+  **对 C2 的含义（实测）**：
+
+  ```
+  本轮实现/运行的 code_commit（冻结协议里的）  = 2e0aac8
+  is_ancestor_of_HEAD                          = YES
+  2e0aac8..HEAD 的提交数                       = 44
+  ```
+
+  ⇒ 若在**当前 HEAD** 上跑 `build_c2_registration`，`evidence_commit` 会被记成一个 docs 提交，
+  而它在 B 轮先例里应当等于 `code_commit`。**这不是图纸缺陷，是调用时机问题**：
+  应当在**运行结束、结果页写就之后**，用一个显式的 HEAD 位置去建记录，使
+  `evidence_commit` 落在能代表"这次运行的代码"的提交上。
+
+  **登记时的正确顺序（据此定）**：
+  1. 三份 receipt 齐 → `state` → `stage reading` → `check_round_receipts --require-reading`
+  2. 写结果页（`render_c2_result.py`，数字全部来自 `readings.json`）
+  3. **提交结果页**（这是登记提交的开始）
+  4. 跑 `build_c2_registration` —— 若它取 HEAD 会得到第 3 步的提交；
+     **若要与 B 轮严格一致（= `code_commit`）**，则须在参数上显式指定而非依赖 HEAD
+     （`build()` 目前没有该参数，这是**已知的工具局限**，记在此处不擅自改）
+  5. 账本行 + campaign §8 + `campaign-state`
+  6. `verify` → `commit-register` → `push-round`
+
+  **诚实标注**：上面第 4 步的分歧（HEAD vs `code_commit`）我**还没解决**。
+  两个选项各有理由（B 轮用 `code_commit`；工具用 HEAD），而**改工具**会动登记链的行为，
+  在有读数之前不先动它。**登记前必须把这一条定下来并写进记录**，不能含糊过去。
+
+  **边界**：本条零读数、零 GPU-h。它是**登记正确性**的核对，不涉及 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 19760`（61.5%）、`seed42/off 19000`（59.1%），
+  速率 1.1040 / 1.1481 s/update。三份 receipt 仍未出现。
