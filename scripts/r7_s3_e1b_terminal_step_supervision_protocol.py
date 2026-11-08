@@ -37,7 +37,7 @@ from scripts import r7_s3_position_retention_parent as parent_pins
 from scripts import study_r7_s3_wide_single_factor as wide
 from training import r7_device_selection as devices
 
-FORMAT = "r7-s3-e1b-final-only-supervision-protocol-v1"
+FORMAT = "r7-s3-e1b-terminal-step-supervision-protocol-v1"
 CANDIDATE, CONTROL = "final_only", "deep"
 SEEDS = (41, 42, 43)
 
@@ -66,8 +66,8 @@ MEASURED_SECONDS_PER_UPDATE = 1.1740
 MEASURED_ON = "p0025 batch-4 long run, the slowest of the four Stage B point measurements"
 SCORING_ALLOWANCE_SECONDS = 2588.1
 
-ENTRY_FILES = ("scripts/study_r7_s3_e1b_final_only_supervision.py",)
-CODE_ARCHIVE = ROOT / "outputs/r7_s3_e1b_final_only_supervision_code.zip"
+ENTRY_FILES = ("scripts/study_r7_s3_e1b_terminal_step_supervision.py",)
+CODE_ARCHIVE = ROOT / "outputs/r7_s3_e1b_terminal_step_supervision_code.zip"
 
 
 def budgets():
@@ -149,7 +149,7 @@ def frozen_constants():
                       "internal_deep_supervision": True,
                       "description": "registered deep form, linspace(1,2,5) normalized"},
         },
-        "factor": {"name": "draft supervision organisation",
+        "factor": {"name": "terminal-step supervision organisation",
                    "control": "deep (registered, 73.333% non-final mass)",
                    "treatment": "final_only",
                    "arms_differ_only_in": ["draft_supervision"]},

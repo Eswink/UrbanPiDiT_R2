@@ -22,8 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-proto = importlib.import_module("scripts.r7_s3_e1b_final_only_supervision_protocol")
-driver = importlib.import_module("scripts.study_r7_s3_e1b_final_only_supervision")
+proto = importlib.import_module("scripts.r7_s3_e1b_terminal_step_supervision_protocol")
+driver = importlib.import_module("scripts.study_r7_s3_e1b_terminal_step_supervision")
 
 
 def test_the_arms_are_exactly_the_two_declared_modes():

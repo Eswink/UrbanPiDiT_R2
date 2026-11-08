@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts import r7_s3_e1b_final_only_supervision_protocol as proto
+from scripts import r7_s3_e1b_terminal_step_supervision_protocol as proto
 from scripts import r7_s3_curve_point_large_protocol as curve
 from scripts import r7_s3_curve_point_large_driver as curve_driver
 from scripts import r7_s3_position_retention_parent as parent_pins
