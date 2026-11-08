@@ -3266,3 +3266,47 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 16360`（50.9%，**已进入 epoch 2**）、
   `seed42/off 15760`（49.0%），速率 1.1038 / 1.1458 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 评分表的**写→读闭环**用真实 accumulator 跑通（0 GPU-h）**。
+
+  (a) 的每个数字都来自 `boundary_rmse.csv` 的一行，而读数阶段用 `_region_variable_rmse(path, "full", "t2m")`
+  去读。这条链有两个可能断的地方：CSV 里**没有** `region=full` 行（读不到就 raise），
+  或者列名不对。用**真实** `BoundaryRMSEAccumulator` + `BOUNDARY_MARGINS` 实跑：
+
+  ```
+  channels count: 17 | first three: ['t2m','u10','v10']
+  CSV header: region,margin_cells,n_grid_points,full_area_fraction,lead_hours,variable,unit,
+              rmse,n_initializations
+  t2m row   : full,0,4225,0.9999999999999999,72,t2m,normalized,0.09930267172967602,2
+
+  _region_variable_rmse(path, 'full', 't2m') = 0.099302672
+  missing region raises: interior_32/t2m missing from ...
+  ```
+
+  **① 闭环成立**：`region=full`、`variable=t2m`、`n_grid_points=4225`（全 65×65），
+  读者能取到值；**缺区域时 raise**（不是静默返回 0）——这一点很重要，静默 0 会让 skill 变成 1.0。
+
+  **② 一处容易被误读成缺陷的地方，已查清**：`BOUNDARY_MARGINS=(1,)` 却得到
+  `margin_cells=0`。看 `boundary_masks`（`training/r7_boundary_metrics.py:17-21`）：
+
+  ```python
+  result=[('full', 0, torch.ones(h,w,dtype=torch.bool))]        # full 的 margin 记为 0
+  for m in sorted(margins):
+      result.extend([(f'interior_{m}', m, interior), (f'edge_{m}', m, ~interior)])
+  ```
+
+  ⇒ `margin_cells=0` 是 **full 区域的定义**（full 没有 margin），不是"margin 丢了"；
+  同一个 CSV 里还会有 `interior_1` 与 `edge_1` 两行。`(1,)` 确实生效了。
+
+  **③ `full_area_fraction=0.9999999999999999` 而不是精确 1.0**：来自 `cos(lat)` 权重的浮点累加。
+  **不影响判据**，因为 `_region_variable_rmse` 只读 `rmse` 列，不读这个分数。
+
+  **④ 我第一次调用失败两次，都是我的错**：先给了 `[B,C,H,W]`（要 `[B,L,C,H,W]`），
+  再给了 `variables=['t2m']` 但 `C=17`（`(l,c)` 必须等于 `(len(lead_hours), len(variables))`）。
+  正确形态是 `[B,1,17,65,65]` + 17 个通道名。**记下来，免得下次再撞。**
+
+  **边界**：本条零读数、零 GPU-h。上面那个 `0.099302672` 是**随机张量**的 RMSE，
+  **不是**任何模型的分数。它证明的是**表能写、能读、缺了就 raise**，不是 (a)。
+
+  **进度（明写 update 数）**：`seed41/off 16540`（51.5%）、`seed42/off 15920`（49.5%），
+  速率 1.1038 / 1.1459 s/update。三份 receipt 仍未出现。
