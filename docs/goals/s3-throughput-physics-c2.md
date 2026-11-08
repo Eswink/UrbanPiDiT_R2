@@ -2281,3 +2281,47 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **边界**：本条零读数、零 GPU-h。三份 receipt 仍未出现；`readings.json` 不存在。
   上面三项证明的是**流程能走完**，不是 C2 的任何科学结论。
+
+- **2026-11-09 出口 (b) 的**三个可测前提**在真实数据上验掉（0 GPU-h）**。
+
+  (b) 要求 on 臂**每一个 loss 行**都有 `constraint_divergence`/`constraint_vorticity` 且**严格为正**。
+  这条判据有三个可能崩的地方，逐个用真实文件量过：
+
+  **① 恒零/非有限会不会误判？不会。** 两项都是**差的平方的均值**：
+
+  ```
+  divergence_matching: weight * mean(((∇·pred − ∇·target)/scale)^2)
+  vorticity_matching:  weight * mean(((∇×pred − ∇×target)/scale)^2)
+  ```
+
+  要得到恰好 0.0 需要**全部 4,225 个格点**的导数完全相同——真实预报对真实分析场不可能，
+  且代码里**没有 clamp 或 round**。⇒ 单行恰好为 0 而使整支永久关闭的概率可以忽略。
+
+  **② 报告会不会截断 loss 行？不会。** 用**跑满**的 attempt06 `seed41/off` 实测：
+
+  ```
+  report bytes      91,727,233 (87.5 MiB)
+  losses rows       32132
+  updates_this_run  32132
+  truncated?        False
+  row keys          ['epoch','gradient_norm','l12','l6','loss','lr','per_step_losses','samples','update']
+  ```
+
+  ⇒ `all()` 真的覆盖全部 32,132 个 update，不是只看了前若干行。on 臂每行多约 3 个 float
+  （`constraint_divergence`/`constraint_vorticity`/`objective`），投影约 **91 MiB**。
+
+  **③ 解析会不会撞上 reading stage 的时限？不会。** 实测：
+
+  ```
+  parse 87.5 MiB report : 0.89 s
+  scan 32132 rows       : 0.003 s
+  6 reports (3 seeds x 2 arms) projected: 5.4 s  (0.09 min)
+  ```
+
+  与冻结时 63+ h 的余量相比差三个数量级 ⇒ 解析不是风险。
+
+  **进度（明写 update 数）**：`update 2040–2100` 时两个 off 臂在 6.3%–6.5%，
+  速率 1.11–1.14 s/update。
+
+  **边界**：本条零读数、零 GPU-h。三份 receipt 仍未出现。
+  上面三条证明的是 **(b) 的前提成立**，**不是 (b) 成立**——(b) 仍要等真实 on 臂跑完才有值。
