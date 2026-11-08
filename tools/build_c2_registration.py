@@ -39,6 +39,10 @@ from tools.verify_r7_evidence_index import (  # noqa: E402
     validate_record,
 )
 
+#: (a) divides each RMSE by this file's per-lead t2m RMSE, so the record names its digest.
+D2_REFERENCE = (ROOT / "outputs" / "r7_s3_fy_year_coverage_d2_20261023_attempt01" /
+                "reference.json")
+
 
 def _git(*args: str) -> str:
     """Run a read-only git command and return its stripped output."""
@@ -110,6 +114,12 @@ def build(
             "all_exits_true": bool(exits["all"]),
             "exit_verdict": exits["verdict"],
             "delta_72h": {seed: round(value, 6) for seed, value in exits["delta_72h"].items()},
+            # (a) is 1 - (rmse/denominator)^2, so the record names the denominator it divided by.
+            # ``readings.json`` does not carry this (the C2 driver is pinned for attempt08 and its
+            # ``readings()`` never wrote the digest), so the record measures it here; without it
+            # the registered number could not be traced to the bytes it depends on.
+            "climatology_reference_sha256": _sha256(D2_REFERENCE)
+            if D2_REFERENCE.is_file() else None,
             "test_read": bool(readings["test_read"]),
         },
         "reason": reason,

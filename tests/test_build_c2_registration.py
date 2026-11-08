@@ -103,3 +103,31 @@ def test_a_non_candidate_needs_an_exclusion_reason(tmp_path):
         capture_output=True, text=True, timeout=300)
     assert done.returncode != 0
     assert not out.exists()
+
+
+def test_the_record_names_the_denominator_that_exit_a_divides_by(tmp_path):
+    """(a) is 1 - (rmse/denominator)^2; the registered record must trace the denominator bytes.
+
+    ``readings.json`` carries no such digest -- the C2 driver is pinned for attempt08 and its
+    ``readings()`` never wrote one -- so the record measures it. Without this the registered
+    delta_72h could not be traced to the file it depends on.
+    """
+    import json
+    from tools.build_c2_registration import D2_REFERENCE, build
+    from tools.verify_r7_evidence_index import _sha256, validate_record
+
+    readings_path, protocol_path = _fixtures(tmp_path)
+    # build() stores str(evidence_path) and hashes it relative to cwd, so the page must be a
+    # repository-relative path that exists -- the same contract the CLI documents.
+    record = build(
+        readings_path=readings_path, protocol_path=protocol_path,
+        evidence_path=Path("docs/R7_S3_THROUGHPUT_PHYSICS_B_P1600_RESULT.md"),
+        record_id="s3-derivative-matching-c2-result", outcome_class="negative",
+        candidate_state="not-candidate", priority=60, reason="test",
+        limitations=["synthetic"], excluded_reason="test exclusion",
+    )
+    assert validate_record(record, ROOT, 1) == []
+    recorded = record["metrics"]["climatology_reference_sha256"]
+    assert D2_REFERENCE.is_file(), f"the D2 reference is missing: {D2_REFERENCE}"
+    assert recorded == _sha256(D2_REFERENCE), (
+        "the record's denominator digest does not match the reference on disk")
