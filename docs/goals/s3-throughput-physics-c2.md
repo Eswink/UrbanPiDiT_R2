@@ -1039,3 +1039,45 @@
 
   **边界**：3 updates ≠ 32,132；本块证明**这些断言与往返在真实路径上会通过**，
   **不**证明整轮收敛、不证明 skill、不构成读数。括号内 GPU-h 为 0（CPU 实跑）。
+
+- **2026-11-08 两个 off 臂到达冻结端点、评分已开始；逐 lead 实测速率首次可得（0 GPU-h 新增；零读数）**。
+
+  **训练端实测（不是估计）**：seed42 的 `training_report.json` 落盘后直接读：
+
+  ```
+  rows / updates_this_run : 32,132 / 32,132     （恰等于冻结的 UPDATES）
+  batch_size / steps      : 4 / 4
+  derivative_matching     : None                （off 臂应如此）
+  supervision.kind        : full_grid
+  constraint_* keys       : 无                    （off 臂应如此）
+  loss 首/末              : 1.3261 -> 0.6665
+  elapsed_seconds         : 36,059.8 s = 10.017 h
+  final checkpoint        : update_0032132.pt
+  ```
+
+  ⇒ `_train_arm` 的三条身份断言（`updates_this_run == UPDATES`、`batch_size == 4`、
+  `autoregression.derivative_matching == None`）与 `supervision == full_grid` 在**真实产物**上成立。
+  **「off 臂没有 `constraint_*` 键」是本轮 (b) 判据的关键对照**：它证明 (b) 的键只由 on 臂产生，
+  不是 runner 无条件写入的装饰。
+
+  **评分端实测**（`provenance.json` 的 `elapsed_seconds`，逐 lead）：
+
+  ```
+  seed42 off  lead 006h: 226.9 s   n_evaluated 1458
+  seed42 off  lead 012h: 297.7 s   n_evaluated 1457
+  ```
+  两个 `n_evaluated` 与冻结 cohort（1,458 / 1,457 / 1,455 / 1,451 / 1,447）**逐字相同**。
+  单 lead 227–298 s ⇒ 五 lead 约 **22–25 min/臂**（预算 `scoring_allowance_seconds = 2,588.1`
+  是按 5 lead 合计给的，实测落在其中）。
+
+  **cgroup 层旁证**：两 worker 的 `/proc/<pid>/io` `rchar` 以 **~3 GB / 20 s** 单调增长
+  （seed41 894.7 GB、seed42 981.0 GB 时仍在涨），说明「评分前那段 CPU 时间」是在
+  `EvaluationPreparation` 里逐条 `validate_record` + 扫 store 建 climatology（`r7_evaluate.py:39-57`
+  实测行号），**不是卡死**。这段时间 GPU 利用率会掉到 0–10%，**不要误判为挂起**。
+
+  **由此修正完成时间表（仍是估计，但基于本轮实测速率）**：
+  每 seed = off 训练 10.02 h + off 评分 ~0.4 h + on 训练 ~10.0 h + on 评分 ~0.4 h ≈ **20.8 h**。
+  seed41/42 的 off 臂已跑完，故 seed41/42 尚需 ~10.4 h 各自；seed43 尚未起步，需 ~20.8 h。
+
+  **边界**：本条只证明**两个 off 臂的训练产物合格、评分速率实测、cohort 相符**。
+  六臂未跑完，`readings.json` 不存在，**(a)–(d) 未求值**。
