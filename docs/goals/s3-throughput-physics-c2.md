@@ -627,3 +627,33 @@
   `expected_exclusions`，它按设计**拒绝**并列出 11 条年界排除（`t12…t72_outside_train_split`）。
   这是我调用少参数，不是代码错；补上冻结值后 32,131 窗通过。记下来是因为那条报错文字很长，
   容易被误读成「数据集坏了」。
+
+- **2026-11-08 目标指定的那条命令本身已只读核验；并补记出口 (c) 的**真实依据**（0 GPU-h）**。
+
+  **① 命令解析正确**（`stage-plan` 是只读的，不 spawn、不写）：
+  ```
+  phase=reading  receipt=.../attempt06/readings.json
+  already_done=false  already_running=false  running_pids=[]  skip=false
+  attempt_dir = outputs/r7_s3_derivative_matching_c2_20261108_attempt06
+  goal        = docs/goals/s3-throughput-physics-c2.md
+  ```
+  ⇒ 目标长文写的 `state` → `stage reading` 这条路径**指向正确的 attempt 与 goal**，
+  不会落到别的轮次上。此刻 `already_running=false` 只是因为还没有 reader 在跑，
+  **不代表** seed 已完成——三份 `seed*_receipt.json` 仍缺（`check_round_receipts.py` exit 1）。
+
+  **② 出口 (c) 是硬编码 `c = True`，其依据必须讲清楚，否则登记时会被误读成「测过」。**
+  `evaluate_exit` 里 `c_off_path_unchanged` 字面写成 `True`，注释说由「dispatcher 的早期
+  `None` 与其反证测试」保证。**实测这条链条是成立的**：
+  - `training/r7_objective_axes.auxiliary_term` 在**构造任何东西之前**就
+    `if not enabled: return None`（第 35–36 行），off 臂因此逐位走注册算术；
+  - 该行为的反证测试已存在（`tests/test_r7_s3_derivative_matching_c2.py:205,208,216`）；
+  - 但**真正绑定到本轮**的是 `_train_arm` 第 122–127 行：它拿
+    `report["contract"]["autoregression"].get("derivative_matching")` 与冻结的
+    `body["arms"][arm]["derivative_matching"]` **精确比较**，不相等即 `RuntimeError`。
+    实测四种组合：off↔`None`、on↔`"c2"` 通过；**交叉（off 报 `c2`、on 报 `None`）都会 raise**。
+
+  ⇒ 所以 (c) 不是「读数里算出来的一个数」，而是**训练阶段已经拒绝过的性质**：
+  任何一手臂用错算术，那个 seed 根本产不出 receipt。**这条在登记时必须这么写**，
+  不得写成「(c) 经读数验证」——它没有读数来源。
+
+  **仍缺**：`readings.json`、(a)–(d) 在真实读数上的求值、四件套登记。**本块零读数。**
