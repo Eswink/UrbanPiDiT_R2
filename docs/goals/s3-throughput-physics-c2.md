@@ -2402,3 +2402,48 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   都跑完并对 72h skill 求差。
 
   **进度（明写 update 数）**：`update 3180–3300`（9.9%–10.3%），速率 1.1083/1.1494 s/update。
+
+- **2026-11-09 时限的两处核对：worker 守卫不会误杀 seed43；硬上限只有速率 >1.674 s/u 才会截断（0 GPU-h）**。
+
+  **① worker 的 deadline 守卫不可能误杀最后的 seed。** 驱动里有
+  `if seed not in SEEDS or deadline - time.perf_counter() > PER_SEED_SECONDS: raise`。
+  seed43 要等一张卡空出才启动，看上去可能"剩余时间超过 per_seed"而立刻失败。逐点算过：
+
+  ```
+  per_seed_seconds  115,200 s = 32.0 h
+  stage 传的 limit = min(round_deadline, now + per_seed)      <- 有 min
+  所以 deadline - now <= per_seed 恒成立
+                    limit-now(h)  > per_seed?  guard fires?
+  seed43 starts  0h      32.00        False        False
+  seed43 starts 20h      32.00        False        False
+  seed43 starts 30h      32.00        False        False
+  seed43 starts 32h      30.65        False        False
+  ```
+
+  `min()` 把剩余时间**封顶在 per_seed**，守卫因此永不触发。**这不是"看起来没问题"，
+  是把四种启动时刻都算过**。
+
+  **② 硬上限只在速率 >1.674 s/update 时才截断。** 三 seed 两卡的墙钟由**载两张 seed 的那张卡**
+  决定（seed41 两臂 + seed43 两臂 = 4 个臂）。按二分实测截断阈值：
+
+  ```
+  round deadline            62.64 h
+  card A must finish 4 arms in that window
+  => truncation only if s/update exceeds ~1.674
+     measured now 1.1077 (seed41) / 1.1507 (seed42) -- 1.46x headroom
+  ```
+
+  速率敏感性（**估计**，每臂 = 32,132 × rate + 0.72 h 评分）：
+
+  ```
+  1.10 s/u -> card A 42.15 h   1.13 -> 43.22   1.15 -> 43.94   1.20 -> 45.72   1.30 -> 49.29
+  全部 < 62.64 h
+  ```
+
+  ⇒ 即使速率恶化到 1.30（比实测慢 13%），仍在硬上限内。**只有硬上限因时长截断**，
+  软包络（per_seed 32 h）在 1.15 s/u 下每臂约 11 h，soft overrun = 0。
+
+  **进度（明写 update 数）**：`update 3420–3540`（10.6%–11.0%），速率 1.1077/1.1507 s/update。
+
+  **边界**：本条零读数、零 GPU-h。上面两个结论都是**算术**（用冻结 protocol 里的
+  `per_seed_seconds`/`deadline_perf_counter` 与实测速率），**不是**对已完成的运行时间的实测。
