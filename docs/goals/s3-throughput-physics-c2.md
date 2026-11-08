@@ -546,3 +546,27 @@
   checkpoint 按决策 0087 每 5,000 步落一个（57.8 MB/个，已见 5000/10000/15000 三个），
   `/data` 剩 **874 G**（75% 已用），按每 seed 两臂各 ~6 个 checkpoint 计不会撑爆磁盘。
   `fine_tune_started.json` 38.5 MB 说明逐 update 记录确实在写。
+
+- **2026-11-08 Stage D 的两半在**一次**核对里全部对上原始证据（0 GPU-h；与 C2 读数无关）**。
+  之前我只复核了 D1.d；本次把四个可证伪点逐个追到**原始产物/原始 ADR**，不是追到摘要：
+
+  | 目标长文的 D 要求 | 原始证据 | 实测值 |
+  | --- | --- | --- |
+  | `static_identity` 绑进 `protocol_sha256` 而**不是** `data_identity` | `docs/R7_STATIC_COVARIATES_WIRING.md:39` | `48c09621…` → `a52465be…`；`data_identity_unchanged=true`；`carries_the_static_identity=false` |
+  | 「报告称四出口已过而 0069 仍 proposed」的漂移 | `docs/decisions/0069*.md` 头部 | **已修**：2026-11-05 由 `proposed` 改 `accepted` |
+  | 缓冲区不对称（父 155 / on 臂 157） | `outputs/r7_static_parent_reconcile_20261108_attempt02/receipt.json` | `155→157`、`strict_load_of_reconciled_passed=true`、`bare_parent_into_on_arm_failed=true`、`static_identity 8671ed7c…`（与 0069 登记值相同）、`field_equals_published_stack=true`、`gpu_hours=0.0` |
+  | P 态 8 槽位 vs 8 诊断目标 | `docs/R7_S3_WHITEBOX_TRAINED_STATE_RESULT.md` | 已测（8 槽位）；见下 |
+  | Z 态逐位置求解进度 vs 地形/海陆静态场 | 同上 §3 | **|ρ| ≤ 0.43**，方向一致为**负**（`lc_built_frac` ρ=−0.3030/Pearson、`pop_density` −0.2279、`built_surface` −0.3118） |
+
+  **两处方法学细节值得单独记**（它们决定上面两行能不能信）：
+  1. Z 态在 **33×33 token 网格**、静态场在 **65×65 像素网格**；产物**不重采样**而是把每个 token
+     与其覆盖的像素块均值比较，映射写进 `probe.json` 的 `mapping` 字段，**网格不同会报错而不是静默广播**。
+     这正是 E-195 那类「三处镜像实现拼接无 mask」缺陷的反面做法。
+  2. 白盒页自己写明了上限：进度场动态范围只有 **0.065**（min 0.3792 / max 0.4439），
+     故 **|ρ|≤0.43 最多解释约 18% 方差**，**不得**据此说「求解器在城市上更省力」或「忽略城市」。
+
+  **一处探测笔误（不是缺陷）**：我先按顶层键读 `field_equals_published_stack` / `static_identity`，
+  得到 `None`——它们在 receipt 的 **`static` 子字典**里。按实际结构重读后全部对上。
+  记下来是因为「读到 None 就以为缺字段」是这条链路上最容易被误报成缺陷的形态。
+
+  **本块与 C2 读数无关**，不构成 C2 结论；六个臂仍在跑。
