@@ -1151,3 +1151,42 @@
   **边界**：本条证明 off→on 切换未 OOM、on 臂速率实测、以及我先前估计偏低的原因。
   **不**证明 on 臂会跑完、**不**证明 (b) 成立（`constraint_*` 键要等 on 臂写 report 才可见），
   **不**构成读数。
+
+- **2026-11-08 `readings()` 在**本轮真实 CSV + 真实 91 MB report** 上双向跑通；(b) 的判别力被实测证明（0 GPU-h 新增；零读数）**。
+
+  此前 `readings()` 只在 Stage B 的评分树与合成树上跑过。本块用**本轮 seed42 真实评分产物**
+  （`evaluation/off/lead_00{6,12,24,48,72}h/boundary_rmse.csv`）与**本轮真实的 91,726,814 字节
+  `training_report.json`** 造两棵 receipt 树，跑**生产的** `readings()`：
+
+  **变体 (i)：on 臂的 training_dir 指向一个**含 constraint 键**的 report**
+
+  ```
+  (a)=True (b)=True (c)=True (d)=True  all=True
+  verdict = advance-to-independent-review
+  on 臂 72 h skill（三个 seed）= 0.243277 / 0.243277 / 0.243277
+  delta_72h = {'41': 0.0, '42': 0.0, '43': 0.0}
+  ```
+  （三个 seed 与两臂都指向**同一份**真实 CSV，故 Δ 恰为 0.0、skill 恰相同——这是**副本口径**的结果，
+  不是「两臂真的等价」。）
+
+  **变体 (ii)：on 臂的 training_dir 指向**真实的那份 off report**（91 MB、无 constraint 键）**
+
+  ```
+  (b)=False  all=False  verdict = permanently-close-derivative-matching-branch
+  constraint_terms_recorded = [False, False, False]
+  elapsed 3.3 s（读 91 MB report 的实测耗时）
+  ```
+
+  **为什么变体 (ii) 才是关键**：如果**真实的 off report** 也能让 (b) 为真，那么 (b) 就
+  **不具备判别力**——它会在任何 report 上都通过，于是「匹配生效了」这个结论永远无法被证伪。
+  实测 (ii) 使 (b) 为假 ⇒ **(b) 确实只在 on 臂的 report 带那两个键时才成立**。
+  这与 §前面「(b) 写入端」的实测合起来，构成 (b) 的**完整双向证据**：该写的会写、
+  不该写的不会被误认。
+
+  **顺带得到一个本轮的真实数字**：off 臂 72 h t2m skill **0.243277**（由本轮评分器产出、
+  经 `readings()` 的分母计算），与 Stage B 第四点的 0.260668 同量级但不同——
+  **不同 config（C2 是本轮注册配方、从迁移父出发）不可直接相比**，此处只作为「评分链路产出可信量级」的旁证。
+
+  **边界**：变体 (i) 的 on 臂 report 是**小合成文件**（真实 on report 还不存在），
+  故它只验证了 `readings()` 的 (b) 分支逻辑，**不**构成 on 臂真的记录了 constraint 键的证据——
+  后者要等 on 臂跑完写出真 report。**本条零读数、(a)–(d) 仍未在六臂齐备时求值。**
