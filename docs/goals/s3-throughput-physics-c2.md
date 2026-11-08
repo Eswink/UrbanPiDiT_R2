@@ -1517,3 +1517,41 @@
   **边界**：本条只做**预算与合规性核对**，零 GPU-h、零读数。
   它**不**证明 E1 值得跑、**不**证明 E1 会通过任何出口；E1a/E1b 仍是 **0 GPU-h 未跑**，
   且按 R-054 串行排在 attempt06 之后。
+
+- **2026-11-08 四件套登记的**校验器约束**已逐条读出；其中一条会把「账本行 vs index record」卡到 1e-4（0 GPU-h；零读数）**。
+
+  读 `tools/check_campaign_state.py` 的实现（不是凭印象），登记时必须同时满足：
+
+  | 规则 | 内容 | 代码位置 |
+  | --- | --- | --- |
+  | **C-02** | 账本各行 `gpu_hours` 之和 == `campaign-state.used_gpu_h`（容差 `1e-3`） | `check_ledger:171-176` |
+  | **C-02** | `cap_gpu_h − used_gpu_h` == `remaining_gpu_h` | `:174` |
+  | **C-02** | 每行的 `cumulative` == 逐行累加和（容差 `1e-3`） | `:178-182` |
+  | **C-03** | 每行 `evidence` 至少引一个 `docs/...md`，且**该文件必须存在** | `:184-187` |
+  | **C-03** | 行里若引 `record:<id>`，该 record 必须存在；且其 `metrics.gpu_hours` 与行内 `gpu_hours` 之差 **≤ `1e-4`** | `:201-214` |
+
+  **两个容差不同且外紧内松**：`TOLERANCE = 1e-3`（账本内部），`RECORD_TOLERANCE = 1e-4`
+  （账本行 ↔ index record）。⇒ **同一轮的 GPU-h 必须用同一个数字写两处**，
+  且精度到 **1e-4 h = 0.36 s**。这是本轮唯一一条会把「两个都对但写法不同」判红的地方。
+
+  **本会话已备好的机制正好对上这条**：`tools/build_c2_registration.py` 的 `gpu_hours`
+  取自 `stage_ledger.jsonl` 的 `Σ elapsed_seconds / 3600`、**保留 6 位小数**；
+  只要**账本行也用这个数**（而不是另行四舍五入到 2 位），差值为 **0**。
+  实测演练（用 attempt06 当前 2 行 + 一个**虚构**的后续用量）：
+
+  ```
+  record gpu_hours 128.833445  vs  ledger row 128.833445  diff 0.00e+00  (tolerance 1e-4) OK
+  ```
+
+  **⚠️ 那个 128.83 h 是虚构演练，绝不能当实数用。** 它的唯一作用是证明
+  「同源同精度 ⇒ 差值为 0」这条算术关系成立。**真实 GPU-h 必须在六臂跑完后从
+  `stage_ledger.jsonl` 读取**，不许外推、不许估计。
+
+  **另外两条会顺手踩到的**：
+  - **C-03 要求 `evidence` 里的 `docs/...md` 真的存在** ⇒ 若账本行先写、证据页后渲染，
+    会红。次序必须是**先证据页、再账本行**（与 §前面那条 `register_paths` 的次序一致）。
+  - `current_evidence` 指针等由 `check_campaign_state.py` 单独校验（`failures=0 notes=10`
+    是当前基线），登记后**必须重跑 `tools/r7_round.py verify`** 而不是只看 exit 0 就放心。
+
+  **边界**：本条零读数、零 GPU-h。它只把**登记会被怎么判**写成可核的清单；
+  六臂未跑完，**四件套一项未登记**。
