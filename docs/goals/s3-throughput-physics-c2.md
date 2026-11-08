@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-derivative-matching-c2", "code_archive": "outputs/r7_s3_derivative_matching_c2_code_attempt07.zip", "commit_message": "feat(r7): run Stage C2 derivative-domain target matching on/off, three seeds", "commit_paths": ["scripts/study_r7_s3_derivative_matching_c2.py", "scripts/r7_s3_derivative_matching_c2_protocol.py", "training/r7_derivative_matching.py", "training/r7_objective_axes.py", "training/r7_long_rollout_runner.py", "tests/test_r7_s3_derivative_matching_c2.py", "docs/goals/s3-throughput-physics-c2.md", "docs/decisions/0095-stage-c2-derivative-domain-target-matching.md", "docs/decisions/README.md", "tests/test_r7_s3_c2_reading_exit.py", "tests/test_check_driver_attributes.py", "tools/check_driver_attributes.py", "docs/decisions/0098-stage-c2-attempt04-stopped-three-reading-stage-defects.md"], "control_record": null, "device_mode": "dual", "driver": "scripts/study_r7_s3_derivative_matching_c2.py", "hard_cap_seconds": 230400.0, "output_stem": "r7_s3_derivative_matching_c2_20261108", "planned_seconds": 115200.0, "register_message": "docs(r7): register Stage C2 derivative-matching readings", "register_paths": ["docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-throughput-physics-c2.md"], "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_derivative_matching_c2.py", "tests/test_r7_s3_c2_reading_exit.py", "tests/test_check_driver_attributes.py"]} -->
+<!-- round-spec: {"arm": "s3-derivative-matching-c2", "code_archive": "outputs/r7_s3_derivative_matching_c2_code_attempt08.zip", "commit_message": "feat(r7): run Stage C2 derivative-domain target matching on/off, three seeds", "commit_paths": ["scripts/study_r7_s3_derivative_matching_c2.py", "scripts/r7_s3_derivative_matching_c2_protocol.py", "training/r7_derivative_matching.py", "training/r7_objective_axes.py", "training/r7_long_rollout_runner.py", "tests/test_r7_s3_derivative_matching_c2.py", "docs/goals/s3-throughput-physics-c2.md", "docs/decisions/0095-stage-c2-derivative-domain-target-matching.md", "docs/decisions/README.md", "tests/test_r7_s3_c2_reading_exit.py", "tests/test_check_driver_attributes.py", "tools/check_driver_attributes.py", "docs/decisions/0098-stage-c2-attempt04-stopped-three-reading-stage-defects.md"], "control_record": null, "device_mode": "dual", "driver": "scripts/study_r7_s3_derivative_matching_c2.py", "hard_cap_seconds": 230400.0, "output_stem": "r7_s3_derivative_matching_c2_20261108", "planned_seconds": 115200.0, "register_message": "docs(r7): register Stage C2 derivative-matching readings", "register_paths": ["docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-throughput-physics-c2.md"], "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_derivative_matching_c2.py", "tests/test_r7_s3_c2_reading_exit.py", "tests/test_check_driver_attributes.py"]} -->
 
 本文件是 Stage C2 的**唯一执行源**；机器可读的 `round-spec` 在上方。
 上游是不可变记录：`docs/goals/s3-throughput-and-physics-campaign.md`（Stage C2）、
@@ -15,7 +15,7 @@
 
 ## §1 Objective（这一轮问的是什么）<!-- 实测 1206 字符 -->
 
-> 在 `/data/esw/UrbanPiDiT_R2` 的 `r7/weather-reasoning` 上跑 S3 Stage C2：判据与相位以本文件 `docs/goals/s3-throughput-physics-c2.md` 为准、设计依据是决策 0095 与 0084 §6。单因子 on/off、 三 seed 配对（41/42/43）、treatment 清单（32,131 窗）、batch 固定 4、注册 recipe（K=4/depth=4/ dim=192/LR 2e-5/warmup 10/12 物理步全 BPTT），**恰好 32,132 updates（4 epoch）**，从 `59340710…` 修订下的迁移父出发。on 臂在注册目标上加**唯一一项**：最后一个 6 h 预报的导数域目标匹配 `w_div·mean(((∇·pred−∇·target)/s_div)²) + w_vort·mean(((∇×pred−∇×target)/s_vort)²)`， `w = 0.1/0.1`、`s_div = 2.5665e-05`、`s_vort = 3.5089e-05 s^-1`；off 臂**不含**该键， 其契约与注册路径逐字相同。预声明出口 (a)–(d)：72 h t2m skill 相对**同代码身份** off 臂的 配对均值不退化、两项匹配在 on 臂逐步记录且严格为正、off 路径逐位等价、无判据被改； **任一假即永久关闭「导数域目标匹配」这一支**，不调权重、不换项、不加 seed。桥 (e) 逐 seed 断言父身份（`model_code_sha256` + 155 张量 `state_digest`）。**前置检验已在驱动内实跑通过** （调用模块本身，非重实现）：4 个 train case 的 `pred = target` **精确 0.0**、on 臂 dose `0.5702/0.4920/0.4707/0.4300`（在预声明带 `[0.1, 10]` 内）、由分析场重导出的尺度与声明值相符。 预算按 Stage B 第四点**实测** 1.1096 s/update 重算：训练 `35,654 s` + 评分 `2,588.1 s` = `38,242 s ≈ 10.62 GPU-h`/arm，两臂 × 三 seed ⇒ **约 63.7 GPU-h**（**估计**）； 包络 `per_seed = planned = 115,200 s`（32 h）、`hard = 230,400 s`。 `scientific_claim: false`、`test_read: false`、`r = 0`，不读 2023 test、不重建 store、 不改任何冻结判据、不自宣科学通过或 goal 完成。
+> 在 `/data/esw/UrbanPiDiT_R2` 的 `r7/weather-reasoning` 上跑 S3 Stage C2：判据与相位以本文件 `docs/goals/s3-throughput-physics-c2.md` 为准、设计依据是决策 0095 与 0084 §6。单因子 on/off、 三 seed 配对（41/42/43）、treatment 清单（32,131 窗）、batch 固定 4、注册 recipe（K=4/depth=4/ dim=192/LR 2e-5/warmup 10/12 物理步全 BPTT），**恰好 32,132 updates（4 epoch）**，从 `59340710…` 修订下的迁移父出发。on 臂在注册目标上加**唯一一项**：最后一个 6 h 预报的导数域目标匹配 `w_div·mean(((∇·pred−∇·target)/s_div)²) + w_vort·mean(((∇×pred−∇×target)/s_vort)²)`， `w = 0.1/0.1`、`s_div = 2.5665e-05`、`s_vort = 3.5089e-05 s^-1`；off 臂**不含**该键， 其契约与注册路径逐字相同。预声明出口 (a)–(d)：72 h t2m skill 相对**同代码身份** off 臂的 配对均值不退化、两项匹配在 on 臂逐步记录且严格为正、off 路径逐位等价、无判据被改； **任一假即永久关闭「导数域目标匹配」这一支**，不调权重、不换项、不加 seed。桥 (e) 逐 seed 断言父身份（`model_code_sha256` + 155 张量 `state_digest`）。**前置检验已在驱动内实跑通过** （调用模块本身，非重实现；**attempt08 起为修正后配对的实测**）：4 个 train case 的 `pred = target` **精确 0.0**、跨 lead 反例 `0.495737/0.591632/0.607382/0.492830` 全部 **> 0**（守卫有判别力）、on 臂 dose `0.365767/0.410860/0.392699/0.288887`（在预声明带 `[0.1, 10]` 内）、由分析场重导出的尺度与声明值相符。**旧值 `0.5702/0.4920/0.4707/0.4300` 已作废**：它们来自 attempt04–07 那个**跨 lead 配对**的缺陷实现（预测算的是 +72h 预测对 +6h 分析场，见决策 0105/0106）；两个数都留在此处以便审计，判据不变。 预算按 Stage B 第四点**实测** 1.1096 s/update 重算：训练 `35,654 s` + 评分 `2,588.1 s` = `38,242 s ≈ 10.62 GPU-h`/arm，两臂 × 三 seed ⇒ **约 63.7 GPU-h**（**估计**）； 包络 `per_seed = planned = 115,200 s`（32 h）、`hard = 230,400 s`。 `scientific_claim: false`、`test_read: false`、`r = 0`，不读 2023 test、不重建 store、 不改任何冻结判据、不自宣科学通过或 goal 完成。
 
 ## §2 冻结的配方（与 Stage B 第三点逐字相同，唯一差别是 on 臂的那一项）
 
@@ -2079,3 +2079,37 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   **为何停（§6 要求）**：已达「确无可安全独立推进的工作」——C2 的两臂必须用修正后的目标函数重跑，
   而那需要先修 `matching_term` 与前置守卫、再重新 freeze，属于新 ADR 的范围，不是本 attempt 的补丁。
   **恢复第一条命令** = `.venv/bin/python tools/r7_round.py state`。
+
+- **2026-11-08 attempt08 立项（ADR 0107）：用修正后的目标函数**第四次**开 C2；前置按部署配对实测通过**。
+
+  `tools/reproduce_c2_cross_lead_defect.py`（走 `matching_term` 本身）+ `proto.preflight(41)`：
+
+  ```
+  preflight PASSED with the fixed pairing
+  case   1000: total=0.341183 zero_at_target=0.0 cross_lead_cex=0.495737 mse=0.932790 dose=0.365767
+  case   9000: total=0.465680 zero_at_target=0.0 cross_lead_cex=0.591632 mse=1.133428 dose=0.410860
+  case  17000: total=0.363079 zero_at_target=0.0 cross_lead_cex=0.607382 mse=0.924575 dose=0.392699
+  case  25000: total=0.412200 zero_at_target=0.0 cross_lead_cex=0.492830 mse=1.426856 dose=0.288887
+  ```
+
+  四条都对：部署配对下真值处为 0、反例全 > 0（守卫能失败）、项非惰性、剂量在带内。
+  **剂量与 §1 旧值不同**（0.5702/0.4920/0.4707/0.4300）：旧值来自跨 lead 的缺陷配对，
+  已在 §1 标注作废、两数并存以便审计，**判据不变**。
+
+  **判据 (a)–(d) 与桥 (e) 一字不改。** 修正目标函数不是放宽判据：任一假仍**永久关闭**该支。
+
+  **预登记而不预设结果**：修正后 on 臂不再被推向错误答案，但它仍是**只训 4 epoch** 的父模型
+  加一项约束，而 Stage B 判定该父模型**远未饱和**（Δ=+0.030124>0.01）。**若 (a) 为假，按预声明该支
+  永久关闭**——那将是关于物理信息轴的**真结论**（终于不是 bug 造成的）。其适用边界写成一句话：
+  本测试回答的是「4 epoch 的模型能否靠导数匹配获益」，**不是**「充分训练后导数匹配是否有用」，
+  不得外推。
+
+  **预算（估计，非实测）**：按 Stage B 第四点 1.1096 s/update 折算 ≈ **63.7 GPU-h**，三 seed 两卡约
+  **46 h** 墙钟；attempt07 的 off 臂实测 1.125–1.161 s/update，按 1.161 折算则约 **66.5 GPU-h**。
+  包络沿用 `per_seed=planned=115,200 s`（32 h）、`hard=230,400 s`（64 h）；超软记 `soft_overrun`，
+  只有硬上限因时长截断。
+
+  **不复用 attempt04/06/07 任何产物**（三轮都无完整 seed receipt；attempt07 的 identity 里
+  `matching_term` 还是有缺陷的版本，复用会破坏 (a) 的「同代码身份」前提）。
+
+  **边界**：本条零读数。开轮花费记在 attempt08 的账本行，本条不预支任何 GPU-h。
