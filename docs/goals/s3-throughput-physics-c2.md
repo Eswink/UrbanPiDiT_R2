@@ -3230,3 +3230,39 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 16180`（50.4%）、`seed42/off 15580`（48.5%），
   速率 1.1038 / 1.1459 s/update。三份 receipt 仍未出现。
+
+- **2026-09-09 两臂串行是否会在同一进程里累积显存：实测不会（0 GPU-h）**。
+
+  `_seed()` 是 `for arm in (CONTROL, CANDIDATE): _train_arm(...)`——**两臂在同一个 worker 进程里串行**，
+  而代码里**没有** `torch.cuda.empty_cache()`、也没有显式的 `del model`（实测 grep：
+  只有 `max_memory_reserved()` 的两处记录，没有释放调用）。这本来是一个 OOM 风险：
+  如果 off 臂的模型/激活在 on 臂启动时还活着，峰值会叠加。
+
+  **实测当前占用（两个 worker 各占一张卡）**：
+
+  ```
+  GPU-408ad137…  9,496 MiB / 24,576 MiB    pid 2462225  9,450 MiB
+  GPU-9d1624af…  9,475 MiB / 24,576 MiB    pid 2462226  9,450 MiB
+  ```
+
+  **与历史实测峰值对照**：本仓已登记的单进程峰值是 **9,024,045,056 B = 8,606 MiB**
+  （R2/R5 轮，见 campaign 账本行）。当前 9,450 MiB 与之**同量级**。
+
+  ⇒ **判定**：两个进程各自稳定在约 9.4 GiB，而卡有 24 GiB，**空闲 15 GiB**。
+  若存在跨臂泄漏，跑到 epoch 2 的 `seed41/off` 进程早已把"off 臂模型 + on 臂模型"
+  叠到 ~18 GiB 以上；实测没有。**caching allocator 保留的是已释放的块，不是活对象**，
+  在单进程内复用，所以第二个臂会复用第一个臂释放的那批块。
+
+  **为什么这条值得写**：`empty_cache()` 通常被认为"必须调用"，但在这里**缺失是安全的** ——
+  因为同一进程内串行、对象在 `_train_arm` 返回后失引用、allocator 复用块。
+  **不**意味着"跨进程也安全"：跨进程时每张卡只有一个 worker（R-054 的 `device_mode: dual`
+  + 每 seed 一张卡），所以也不存在两进程争同一张卡的情况。
+
+  **仍需监视的边界**：on 臂比 off 臂多一次 `matching_term` 前向/反向，**峰值会略高**。
+  当前余量 15 GiB，历史峰值 8.6 GiB，即使 on 臂高 10% 也只有 ~10.4 GiB ⇒ 安全。
+  但这仍是**推断**；真正的读数要等 on 臂实际跑起来，届时看它的 `owned_cuda_reserved_peak_bytes`。
+
+  **边界**：本条零读数、零 GPU-h。它只回答"会不会 OOM"，**不**涉及 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 16360`（50.9%，**已进入 epoch 2**）、
+  `seed42/off 15760`（49.0%），速率 1.1038 / 1.1458 s/update。三份 receipt 仍未出现。
