@@ -3915,3 +3915,33 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 21400`（66.6%）、`seed42/off 20600`（64.1%），
   速率 1.1044 / 1.1480 s/update，两臂均在 epoch 2。
+
+- **2026-11-09 六 Stage 交付物的**清单化审计**：只缺 C2 结果页一项（0 GPU-h，只读）**。
+
+  按 objective 逐项核对硬盘上的实物（不是凭记忆）：
+
+  | Stage | 交付物 | 状态 |
+  | --- | --- | --- |
+  | A 吞吐前置 | `docs/R7_S3_THROUGHPUT_PHYSICS_STAGE_A_RESULT.md` | **在** |
+  | B 学习曲线 + 饱和判定 | `docs/R7_S3_THROUGHPUT_PHYSICS_B_P1600_RESULT.md` | **在** |
+  | C1 preflight veto | `docs/R7_S3_PHYSICAL_CONSTRAINTS_C1_PREFLIGHT_RESULT.md` | **在** |
+  | **C2 导数域匹配** | `docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md` | **缺**（这正是等读数的那一项） |
+  | D 接线 | `docs/R7_STATIC_COVARIATES_WIRING.md`（`record:s3-urban-static-covariates-wiring`） | **在** |
+  | D 白盒化 | `docs/R7_S3_WHITEBOX_TRAINED_STATE_RESULT.md`（`record:s3-whitebox-trained-state`） | **在** |
+  | F 成本菜单 | `docs/R7_S3_STAGE_F_COST_MENU.md` | **在** |
+
+  **一处我自己的核对错误（记下来）**：我第一次按猜的文件名
+  `docs/R7_S3_URBAN_STATIC_COVARIATES_WIRING_RESULT.md` 去查，得到 `MISS`，
+  差点判成"Stage D 也缺"。实际文件名是 `docs/R7_STATIC_COVARIATES_WIRING.md`。
+  ⇒ **猜路径不算核对**；这次是靠 `ls docs/ | grep` 加 index record 才对上的。
+  这条与之前"`head` 的 exit code 不是工具的"是同一类：**看起来对不等于验过**。
+
+  **⇒ 结论**：六个 Stage 里 **A/B/C1/D/F 的交付物都在盘上且已登记**，
+  **唯一空缺是 C2 的结果页**——因为它需要三个 seed 两臂的真实读数，
+  而那六份 receipt 还不存在。
+  **E1a/E1b 的 brief 在两份都在**，但它们的**结果页**不存在（从未开轮）。
+
+  **边界**：本条零读数、零 GPU-h。它核对的是**文件存在性**，不是任何判据的真假。
+
+  **进度（明写 update 数）**：`seed41/off 21600`（67.2%）、`seed42/off 20780`（64.7%），
+  速率 1.1044 / 1.1481 s/update，两臂均在 epoch 2。
