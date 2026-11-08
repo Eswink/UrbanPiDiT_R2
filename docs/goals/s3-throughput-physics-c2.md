@@ -3507,3 +3507,43 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 17560`（54.6%）、`seed42/off 16920`（52.7%），
   速率 1.1034 / 1.1460 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 本轮相关测试套件的实测结果（0 GPU-h；全套另跑中）**。
+
+  objective 要求汇报"验证与精确 CI"。本地实测（不是 CI，是我这台机器上跑的）：
+
+  ```
+  tests/test_r7_s3_derivative_matching_c2.py
+  tests/test_r7_s3_c2_reading_exit.py
+  tests/test_check_driver_attributes.py
+      -> 34 passed in 4.70s
+
+  tests/test_r7_round_stages.py
+  tests/test_check_campaign_state.py
+  tests/test_build_c2_registration.py
+  tests/test_render_c2_result.py
+  tests/test_check_round_receipts.py
+  tests/test_verify_r7_evidence_index.py
+      -> 137 passed in 2.55s
+  ```
+
+  **合计 171 项通过**，覆盖：C2 的读数与出口逻辑、驱动属性解析、round 六阶段调度、
+  campaign-state 算术、登记记录构建、结果页渲染、receipt 守卫、证据索引校验。
+
+  **为什么现在跑**：本轮我改了三个**不在 pin 里**的登记工具
+  （`render_c2_result.py`、`build_c2_registration.py`、`tests/test_build_c2_registration.py`），
+  并修了两份 E1 brief。这 171 项是"改动没破坏既有契约"的直接证据。
+
+  **诚实边界**：
+  1. 这是**本地 pytest**，**不是 CI**。CI 的 pytest 结论要等 push 后的 run，
+     而按 `ci.yml` 的 `concurrency: cancel-in-progress: true`，同一分支的新 push 会取消前一次
+     ⇒ **只有最后一个提交的 run 可能给出结论**。本 campaign 最近一次已确认绿是 `7a062fb`。
+  2. 我还启动了**全套** `pytest tests/`（会超过 10 min，在后台跑）；它的结果尚未拿到，
+     **拿到之前不得声称"全套通过"**。
+  3. `pytest-timeout` 插件**未安装**（`--timeout=600` 报 unrecognized argument），
+     所以没有单测级超时保护；慢测试只能靠外层 `timeout`。
+
+  **边界**：本条零读数、零 GPU-h，不涉及 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 17780`（55.3%）、`seed42/off 17100`（53.2%），
+  速率 1.1034 / 1.1468 s/update。三份 receipt 仍未出现。
