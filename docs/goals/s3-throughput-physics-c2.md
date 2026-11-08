@@ -3030,3 +3030,44 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 13520`（42.1%）、`seed42/off 13000`（40.5%），
   速率 1.1041 / 1.1494 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 单因子隔离在**契约层**实证：两臂只差恰好 4 个键，共享键逐字相同（0 GPU-h）**。
+
+  用真实 protocol 调驱动自己的 `_arm_contract()`，把两臂的 `autoregression` 做集合差：
+
+  ```
+  off keys : ['excluded_sample_ids','physical_steps','physical_weights','window_sha256']   (4 个)
+  on  keys : ['channels','derivative_matching','derivative_scales','excluded_sample_ids',
+              'normalization','physical_steps','physical_weights','window_sha256']          (8 个)
+
+  只在 on 里的键（即 c2 轴负载）: ['channels','derivative_matching','derivative_scales','normalization']
+  只在 off 里的键            : 无
+  两臂共享的 4 个键是否逐字相同: True
+  off 是否携带 derivative_matching: False
+  ```
+
+  ⇒ **这是"单因子"能给出的最强形态**：off 臂的契约不是"同一套键、权重为 0"，而是**根本没有那四个键**；
+  共享的四个键（步数、物理权重、窗口摘要、排除清单）**逐字相等**。
+  因此两臂的差异**只能**来自 c2 轴，不可能来自"某个共同键被顺手改了"。
+
+  **on 臂的四个依赖键都在，且值与声明相符**：
+
+  ```
+  derivative_matching  'c2'
+  normalization        mean/std 取自 body["store_constants"]（17 通道）
+  channels             ['t2m','u10','v10','mslp','z850','t850','q850','u850', ...]（17 个）
+  derivative_scales    {'divergence': 2.5665e-05, 'vorticity': 3.5089e-05}
+  ```
+
+  两个尺度与 brief §1 声明的 `s_div = 2.5665e-05`、`s_vort = 3.5089e-05` **逐字一致**。
+  这四个键正是 `matching_term` 在构造任何张量之前就要读的（缺任一个都 raise），
+  所以"on 臂跑到 GPU 上才发现少了 normalization"这类故障已排除。
+
+  **与上一节的关系**：上一节是 **off 臂的 checkpoint**（盘上、跑过 10,000 步）证明它没 c2 轴；
+  本节是**两臂契约的结构差**。两条独立证据指向同一结论，但都**不是** `evaluate_exit` 的判决——
+  (b)/(c) 仍要在真 on 臂跑完后正式求值。
+
+  **边界**：本条零读数、零 GPU-h。
+
+  **进度（明写 update 数）**：`seed41/off 13520`（42.1%）、`seed42/off 13000`（40.5%），
+  速率 1.1041 / 1.1494 s/update。三份 receipt 仍未出现。
