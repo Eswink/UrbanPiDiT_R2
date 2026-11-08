@@ -180,3 +180,32 @@ def test_render_cli_output_round_trips_through_check_brief(tmp_path, capsys):
     # And the failure it used to produce, pinned: one extra newline must be rejected.
     brief.write_text(rendered + "\n", encoding="utf-8")
     assert main(["--index", str(index), "--root", str(tmp_path), "--check-brief", str(brief)]) == 1
+
+
+def test_a_zero_padded_short_sha_is_rejected_as_a_fabricated_commit(tmp_path):
+    """A 40-character string is not automatically a commit.
+
+    Measured in this repository: two records were indexed with ``687175d`` and ``fbe5876``
+    padded out to 40 characters with zeros. Both pass a shape check and neither names an
+    object (``git cat-file -t`` fails), so the index pointed at nothing while validating
+    clean. The guard must reject the padding and must not reject genuine commits that happen
+    to end in a zero -- ``...a63d0`` and ``...dff50`` are real ones in the checked-in file.
+    """
+    from tools.verify_r7_evidence_index import _is_zero_padded_short_sha
+
+    for fabricated in ("687175d" + "0" * 33, "fbe5876" + "0" * 33):
+        assert _is_zero_padded_short_sha(fabricated) is True
+
+    genuine = (
+        "687175d9b014714fc0745053520c5521004b596a",  # ends in 'a'
+        "fbe587608a2867c77c93ea001054537bee0b24fb",  # ends in 'b'
+        "61e9e609eb82602e0e1381026581a855b18a63d0",  # ends in '0' but is real
+        "84f63d7f36e079ed957fd0451fe9592f7eedff50",  # ends in '0' but is real
+    )
+    for value in genuine:
+        assert _is_zero_padded_short_sha(value) is False
+
+    record = make_record(tmp_path)
+    record["evidence_commit"] = "687175d" + "0" * 33
+    errors = validate_record(record, tmp_path, 1)
+    assert any("zero-padded" in error for error in errors), errors

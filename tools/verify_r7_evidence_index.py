@@ -59,6 +59,18 @@ def _string_list(value: Any) -> bool:
     return isinstance(value, list) and bool(value) and all(_nonempty(item) for item in value)
 
 
+def _is_zero_padded_short_sha(value: str) -> bool:
+    """True when ``value`` is a short SHA followed by a run of zeros out to 40 characters.
+
+    Catches one real fabrication: a 7-character commit abbreviated for prose and then padded
+    to satisfy a length check, giving ``687175d`` plus 33 zeros. The test is that a short
+    non-zero prefix is followed by nothing but zeros -- not merely that the string ends in a
+    zero. Two genuine commits in this file legitimately end in ``0`` (``...a63d0``,
+    ``...dff50``), and a first version of this check rejected both.
+    """
+    return re.fullmatch(r"[0-9a-f]{6,11}0{29,34}", value) is not None
+
+
 def _json_scalars(value: Any) -> bool:
     if isinstance(value, (str, int, float, bool)) or value is None:
         return True
@@ -98,6 +110,13 @@ def validate_record(record: Any, root: Path, line_number: int) -> list[str]:
         value = record.get(key)
         if not isinstance(value, str) or COMMIT_RE.fullmatch(value) is None:
             errors.append(f"{where}: {key} must be a full lowercase 40-character SHA")
+        elif _is_zero_padded_short_sha(value):
+            # A 40-character string is not automatically a commit. ``687175d`` padded with
+            # 33 zeros passes the shape check and names no object at all, so an index written
+            # that way silently points at nothing; two records in this file were written that
+            # way before this guard existed. Refuse the padding itself.
+            errors.append(f"{where}: {key} looks like a short SHA zero-padded to 40 "
+                          f"characters, which is a fabricated commit id")
     for key in ("protocol_sha256", "data_identity", "source_sha256"):
         if not _digest_or_none(record.get(key)):
             errors.append(f"{where}: {key} must be a full SHA256 or null")
