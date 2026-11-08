@@ -2230,3 +2230,54 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   速率稳定在 **1.12–1.15**，与 Stage F 菜单采用的 1.1469 和两次整臂实测的 1.1360 一致。
 
   **边界**：本条零读数、零 GPU-h（只读 API 查询）。三份 receipt 仍未出现。
+
+- **2026-11-09 训练开始后、评分之前，把三处「要等十小时才知道对错」的环节逐个验掉（0 GPU-h）**。
+
+  attempt04 的教训是缺陷只在训练跑完之后才触发。attempt08 每个 seed 的流程是
+  **训练 ~10 h → `evaluate_local` × 5 lead → `check_provenance`**，所以这三处必须在训练还没跑完时验。
+
+  **① 评分调用的签名能绑上**（不运行，只 `inspect.signature(...).bind(...)`，用驱动**逐字**传的 kwargs）：
+
+  ```
+  evaluate_local BINDS the driver's kwargs: OK
+  check_provenance BINDS (provenance, seed, lead): OK
+  EvaluationPreparation(self, manifest, *, step_hours=6, deadline=None)   -> 绑上
+  ```
+
+  `evaluate_local` 的完整签名有 20 个关键字参数，驱动只传 8 个（其余取默认），
+  其中 `max_samples=10**9`、`reasoning_steps=4`、`boundary_margins=(1,)`、
+  `device_name="cuda:0"`、`prepared=` 都与形参同名 ⇒ 不会在训练结束后才 `TypeError`。
+
+  **② 设备钉扎使 `cuda:0` 就是本 seed 的卡**（`worker_environment` 设 `CUDA_VISIBLE_DEVICES`）：
+
+  ```
+  frozen uuids: ['GPU-408ad137-…', 'GPU-9d1624af-…']     (2 张)
+  seed_order:   rotation, offset = position % len(uuids)
+                => seed41->card0, seed42->card1, seed43 等一张卡空出
+  ```
+
+  训练与评分**同一张卡顺序执行**，不与另一 seed 的臂交叉，所以评分不会去占用邻居的卡（R-054）。
+
+  **③ 桥 (e) 的父身份断言在盘上成立**（这是每个 seed 一启动就跑的检查，跑不过就当场失败）：
+
+  ```
+  ENDPOINT: 1600
+  seed 41: sha256 matches True (e81e4904b65c65da…), state_digest 7c416ccb4054cf7e… (64 chars)
+  seed 42: sha256 matches True (7e2cd4cc0d07565e…), state_digest 857d880466f76500…
+  seed 43: sha256 matches True (ee33f690653c625d…), state_digest 61fdac58b7bfacf8…
+  All three parent pins resolve and their sha256 matches on disk: True
+  ```
+
+  更强的证据：**两个 seed 的 worker 此刻正在训练** ⇒ 它们已经依次通过了
+  `pinned_parent` → `load_checkpoint`（`model_code_sha256 59340710…` 相符）→
+  `state_digest == MIGRATED_PARENT_STATE_DIGEST[seed]` 三道断言。
+
+  **进度（明写 update 数）**：
+
+  ```
+  update 1780: seed41/off 1.1145 s/u, seed42/off 1.1351 s/u
+  update 1880: seed41/off 1.1135 s/u, seed42/off 1.1366 s/u  (5.9% / 5.7%)
+  ```
+
+  **边界**：本条零读数、零 GPU-h。三份 receipt 仍未出现；`readings.json` 不存在。
+  上面三项证明的是**流程能走完**，不是 C2 的任何科学结论。
