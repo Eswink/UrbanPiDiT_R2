@@ -3190,3 +3190,43 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 15500`（48.2%）、`seed42/off 14920`（46.4%），
   速率 1.1041 / 1.1468 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 更正上一条的完成时间估计：不是 26.4 h，是 35.2 h（我的估算错了，实测调度逻辑）**。
+
+  **错在哪**：上一条我写"seed43 一张卡空出(~5.9 h)后两臂 ~20.5 h ⇒ 26.4 h"。
+  那个 5.9 h 是**一个 off 臂**跑完的时间。但 `run_seeds` 的调度单位是**一个 seed**，
+  不是"一个臂"：
+
+  ```python
+  pending = [seed for seed in spec["seeds"] if not stage_receipt(output,"seed",seed).is_file()]
+  free, records, stop = list(uuids), [], False
+  ...
+  while pending and free and not stop:      # 只有某张卡完全空闲才 pop 下一个 seed
+  ```
+
+  而 `_seed()` 内部是 `for arm in (CONTROL, CANDIDATE): _train_arm(...)` —— **两臂串行、同一个 worker**
+  （`study_r7_s3_derivative_matching_c2.py::_seed`）。⇒ 一张卡要等那个 seed **两臂都跑完**才空出。
+
+  **修正后的推算**（按各 seed 自己的实测速率，seed43 取 1.1460）：
+
+  ```
+  seed41 在卡 A 上还需：(32132−16180) + 32132 条 update ⇒ 14.7 h
+  seed42 在卡 B 上还需：(32132−15580) + 32132 条 update ⇒ 15.5 h
+  seed43 两臂合计：2×32132 条 ⇒ 20.5 h
+
+  第一张卡在 14.7 h 空出 ⇒ seed43 从那时起跑 ⇒ 完成于 14.7+20.5 = 35.2 h
+  ⇒ 全轮预计 35.2 h（不是 26.4 h）
+  ```
+
+  **余量仍够**：round 截止还剩 **58.79 h**，`58.79 − 35.2 = +23.6 h` 富余。
+  即使整体再慢 30%（35.2 → 45.8 h），仍有 12.9 h 余量 ⇒ `budget_limited` 仍不是风险。
+
+  **这条更正为什么必须写**：26.4 h 与 35.2 h 差 8.8 h，若按前者安排检查节奏，
+  会在"以为该出结果"的时候发现还需一天。**估算错误也要如实登记**，
+  且这次的根因是**我没读调度器的粒度就外推**，不是数据不确定。
+
+  **边界**：本条零读数、零 GPU-h。35.2 h 仍是**估计**（按当前速率线性外推，
+  未计 on 臂略慢于 off 臂、未计评分阶段 2,588.1 s/arm）。
+
+  **进度（明写 update 数）**：`seed41/off 16180`（50.4%）、`seed42/off 15580`（48.5%），
+  速率 1.1038 / 1.1459 s/update。三份 receipt 仍未出现。
