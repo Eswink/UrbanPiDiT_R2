@@ -925,3 +925,48 @@
   `r7_round_stages.py` 等）不影响本轮身份，而任何 `model/` 或那 13 个文件的一个字节都会。
   本会话的四次提交全部只改 `docs/`（`git show --stat` 可核），故对齐是**预期**结果；
   实测的意义在于**确认**而非推测。
+
+- **2026-11-08 seed43 的**排队机制**已读通：它会在两张卡各自空出后被 pop，但有两条可能静默丢它的路径（0 GPU-h；零读数）**。
+
+  **为什么要读这段**：`seed43` 是唯一**从未开始**的 seed，也是最后的排队者。
+  它的失败不会有 `readings.json` 以外的任何征兆（`stage_seeds.log` 实测 **0 字节**，
+  调度器不写日志）。若它被静默跳过，六臂就永远只能是四臂。
+
+  **机制（`tools/r7_round_stages.py:406-447`，实测定位行号）**：
+  `while (pending and not stop) or running:` ⇒ 每有一个 worker 结束就 `free.append(device)`，
+  下一轮内层 `while pending and free` 立刻 `pending.pop(0)`。`pending` 只排除
+  **已有 seed receipt 的** seed（`:393`）。所以 seed43 会在 seed41 或 seed42 任一臂走完
+  （`_seed` 写完 `seed{41,42}_receipt.json` 后该 stage 进程退出）时被 pop。
+  **每 seed 两臂都在同一 worker 进程里**（`_parent_model` → `for arm in (CONTROL, CANDIDATE)`），
+  所以「一个 seed 完成」= 该卡空出。
+
+  **两条可能丢它的路径（如实列出）**：
+  1. **`stop = True`（`:441`）**：**任一** record `not passed` ⇒ 停止 pop 新 seed，
+     已在跑的留着跑完。⇒ **seed41 或 seed42 失败会阻止 seed43 起步**，即使另一张卡空闲。
+     这不是缺陷（避免连败烧卡），但意味着「一个 seed 失败」的解不是「等 seed43」，而是
+     **必须换新 attempt 重跑**。
+  2. **`wait_seconds=3600`（`:369`）**：headroom-blocked 的 seed 只重试 **1 h**；
+     超过就 `now() < deadlines[seed]` 为假 ⇒ 不再 insert 回 pending ⇒ 该 seed 静默掉队。
+
+  **用当前实测数字算这条余量**（`gate_candidates` 的 `required` 口径：
+  `max(est, owned_peak) + margin + reserve`）：
+
+  ```
+  estimated_peak_bytes   =  9,569,304,576  (9,126 MiB)
+  headroom_margin_bytes  =    536,870,912    (512 MiB)
+  neighbour_reserve      =  6,442,450,944  (6,144 MiB)
+  REQUIRED               = 16,548,626,432 (15,782 MiB = 15.41 GiB)
+  卡0  total=24,576MiB  free=14,629MiB  BLOCK  short_by=1,153MiB
+  卡1  total=24,576MiB  free=14,650MiB  BLOCK  short_by=1,132MiB
+  ```
+  ⇒ **当前两卡都 BLOCK，这是预期的**：此刻每卡正跑一个 arm，`required` 是**再加一整臂**
+  的预算。当某张卡的 arm 结束时，该卡的占用回落，`free` 才会 ≥ 15,782 MiB。
+
+  **一个容易误读的点（已核实）**：`_train_arm` 里 `device_name="cuda:0"` 是**硬编码**的，
+  而两个 seed 明明跑在不同卡上。这不矛盾：`worker_environment(device=uuid)` 设
+  `CUDA_VISIBLE_DEVICES=<uuid>`（`:220`），于是进程内的 `cuda:0` **就是**被分配的那张卡。
+  如果哪天有人把 `CUDA_VISIBLE_DEVICES` 从 worker 环境里去掉，两臂都会挤到物理 0 号卡上
+  ——那时才会出现「显存翻倍、OOM」的假象。本块只记录，不改任何代码。
+
+  **本块不声称**：seed43 会成功、余量一定够、或 `stop` 一定不会触发。
+  它只把「谁会 pop seed43、什么会让它掉队」写成可核的机制 + 当前数字。
