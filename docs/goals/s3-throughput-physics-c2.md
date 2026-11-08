@@ -677,3 +677,33 @@
 
   **本块仍为零读数**：它证明「已经写出来的 checkpoint 能被评分器装载」，
   **不**证明任何 lead 的 RMSE 或 skill。六臂仍在跑。
+
+- **2026-11-08 完整评分链路在**真实 checkpoint** 上端到端跑通（CPU-only、0 GPU-h、**不占卡**）**。
+  这是读数阶段最后一段没被跑过的路：以前只在真实**已产出的表**上验证取数，没有从
+  checkpoint 走到表。本次从**正在写的** checkpoint 一路跑到 `boundary_rmse.csv` 再喂进读数函数。
+
+  实测（`device_name="cpu"`、`max_samples=10**9`、`lead_hours=(6,)`、真 checkpoint
+  `seed41/.../update_0015000.pt`）：
+
+  | 环节 | 实测 |
+  | --- | --- |
+  | `evaluate_local` 产表 | `boundary_rmse.csv` 存在，**51 行**，列 `region/rmse/variable/unit/lead_hours/n_grid_points/n_initializations/margin_cells/full_area_fraction` |
+  | 区域 | `full`（**4225** 点）、`interior_1`（3969）、`edge_1`（256）——与 `check_provenance` 要求的 65×65 一致 |
+  | **cohort** | `n_evaluated = 1458` = 冻结 `VAL_COHORTS["6"]` **逐字相同** |
+  | `check_provenance(41, 6)` | **PASS**（split=val、无 `test_read`、cohort 相符、`full` 4225） |
+  | `_region_variable_rmse(full, t2m)` | **2.172394** |
+  | 注册气候态分母 | 3.918841 |
+  | 由此算出的 skill | **+0.692700** |
+
+  **这**不是** C2 的读数，必须连同一句一起引用**：它用**一个** checkpoint（off 臂第 15,000 步）、
+  **一个** lead（6 h）、**没有**同代码 on/off 配对、**没有**三 seed，且跑在 CPU 上。
+  它证明的是「**评分器能从真实 checkpoint 产出读数函数要吃的表，且 cohort 与冻结值相符**」，
+  **不**证明 C2 的 (a)–(d) 任何一条。
+
+  **过程中有一次「被闸门拒绝」值得记**：先用 `max_samples=1` 跑，`check_provenance`
+  以 `seed 41 lead 6 cohort differs from the frozen one` **拒绝**——因为 `n_evaluated=1` ≠ 1458。
+  **那是闸门正确工作，不是缺陷**；同时 `provenance` 里 `n_available_windows=1458` 已预告
+  全 cohort 可得。去掉 cap 重跑后 1458 通过。这次拒绝正好反证了 cohort 检查**不是摆设**。
+
+  **对在跑轮次的干扰为零**：全程 `device_name="cpu"`，期间 `nvidia-smi` 显示两卡仍由
+  `attempt06` 占用（9,496/9,475 MiB、util 19%/18%），未 spawn 任何 GPU 进程、未对任何进程发信号（R-054）。
