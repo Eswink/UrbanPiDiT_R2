@@ -1364,3 +1364,41 @@
 
   **边界**：本条零读数、零 GPU-h，只把「最后一步的两个静默面 + 一个已备的检测」写清。
   六臂仍在跑，`readings.json` 仍不存在。
+
+- **2026-11-08 编排器的 `orphans` 守卫**首次真正执行**（此前只做过语法检查），四个分支全部按 0102 的「宁可停」行事（0 GPU-h；零读数）**。
+
+  0102 的最大未验证面原文是「不能声称这个 560+ 行 draft 通过了类型检查 / 整文件可编译性只有提交给
+  `CreateWorkflow` 时才第一次被验证」。会话里后来补了 `tools/check_workflow_syntax.py`（Node 22
+  `--experimental-strip-types` 强制解析），但那**只剥类型、不执行任何逻辑**——
+  守卫**是否会在有轮次在跑时真的停**，从未被跑过。本轮用 `EvalWorkflowSnippet`
+  （不产生 run、不写 journal）把守卫的判定逻辑**照原样**跑在**活体仓库状态**上：
+
+  **① 真实状态（attempt06 正在跑）**：
+
+  ```
+  world.run(".venv/bin/python", ["tools/r7_round.py", "orphans"])
+  → orphans exit=0  decision=stop  running=2
+  ```
+
+  ⇒ 守卫**真的会停**，且认出 2 个存活 stage worker（seed41/seed42 的 on 臂）。
+  这不是读代码推断，是执行结果。
+
+  **② 四个分支同一份逻辑各跑一次**（避免「只在停的方向被证明」）：
+
+  | 输入 | 期望 | 实测 |
+  | --- | --- | --- |
+  | `{"running": []}`、exit 0 | proceed | **proceed** |
+  | `{"running": [{...}]}`、exit 0 | stop / 1 | **stop, runningCount=1** |
+  | `not json`、exit 0 | stop（不宽容） | **stop**（"输出无法解析"） |
+  | 空输出、exit 3 | stop（不宽容） | **stop**（"探测失败 exit 3"） |
+
+  四支全对，且**只有「空列表 + exit 0」这一种组合才放行**——与 0102 Decision 第 1 条
+  「`running` 非空 / 输出不可解析 / 探测非 0，一律停」逐条对应。
+
+  **顺带确认一条工具事实**：`EvalWorkflowSnippet` 里 **没有 `phase`**（第一次尝试因
+  `Cannot find name 'phase'` 被拒），也没有 `agent`/`report`/`artifact`/`hole`。
+  这与 skill §16.6 一致。**记下来**以免下次又把 `phase` 写进 snippet 白跑一次。
+
+  **边界（重要）**：本块证明**守卫的判定逻辑**在真实输入与三种构造输入上都正确，
+  **不**证明整个 560+ 行 draft 可编译或可跑通——那仍然只有 `CreateWorkflow` 第一次提交时才会被验证。
+  按 0102，**现在不能跑它**（正是因为有轮次在跑）。六臂仍在跑、`readings.json` 仍不存在。
