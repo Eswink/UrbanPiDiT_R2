@@ -2700,3 +2700,46 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   ⇒ 记为**已知缺陷**，不改，随下一轮的 ADR 处理。
 
   **边界**：本条零读数、零 GPU-h；它**不是** (b) 的结果，(b) 仍要等真实 on 臂跑满。
+
+- **2026-11-09 读数与评分路径的**最后两处未验环节**也验掉（0 GPU-h）**。
+
+  到这一步，"跑完之后才会炸"的每一环都有了实测证据。本轮补的两处：
+
+  **① 评分的前置断言会接受 C2 的评测**（`check_provenance` 对每个 seed×lead 都跑）。
+  它要求 `n_evaluated == n_available_windows == VAL_COHORTS[lead]`、`split == "val"`、
+  没有 `test_read` 键、`lead_hours == [lead]`、且 `regions["full"].n_grid_points == 4225`。
+  实测 C2 驱动绑定的常量确实可取到：
+
+  ```
+  driver.LEADS       = (6, 12, 24, 48, 72)
+  curve.REGION       = full
+  VAL_COHORTS        = {'6': 1458, '12': 1457, '24': 1455, '48': 1451, '72': 1447}
+  curve.VAL_MANIFEST = .../store/manifests_treatment/val.jsonl   (存在)
+  ```
+
+  ⇒ 评分阶段不会因为**常量未绑定**而在十小时后抛 `AttributeError`——这正是 attempt04
+  的死法（`readings` 与 `_train_arm` 都读 `curve.EVALUATION_LEADS`，而该模块不绑定它）。
+
+  **② 训练报告的终态断言与 receipt 的键**（`_train_arm` 在训练后立刻断言）：
+  `updates_this_run == 32,132`、`contract.steps == K`、`batch_size == 4`、
+  `data_identity` 相符、`contract.autoregression.derivative_matching` 等于该臂的声明值、
+  `supervision.kind == "full_grid"`。任一不满足就 `RuntimeError` **当场**失败，
+  而不是写出一份"看起来完整"的 receipt。⇒ 这两个臂若跑完，receipt 里的
+  `updates`/`batch_size`/`derivative_matching` 都是被断言过的值，不是抄进协议的。
+
+  **③ 训练数值健康**（两个 off 臂共 890 行 progress，实测）：
+
+  ```
+  seed41/off rows=452  nonfinite=0  loss 0.9278 -> 1.0969 (min 0.5160 max 1.2707) lr 1.671e-05
+  seed42/off rows=438  nonfinite=0  loss 0.9296 -> 0.5729 (min 0.4852 max 1.2768) lr 1.690e-05
+  ```
+
+  没有 NaN/Inf，没有梯度爆炸（最后一步 grad norm 6.891 / 4.760），lr 按 warmup+cosine 正常下降。
+  **这不代表 (a) 会成立**——off 臂的 loss 下降与 72 h skill 是两件事。
+
+  **边界**：本条零读数、零 GPU-h。三份 receipt 仍未出现；上面验的都是"路径能走通、断言在位、
+  数值没坏"，**不是** C2 的任何出口结果。
+
+  **进度（明写 update 数）**：`seed41/off 9620`（29.9%）、`seed42/off 9280`（28.9%），
+  速率 1.1043 / 1.1443 s/update。按当前速率**估计**：off 臂还剩 6.9 / 7.3 h，
+  两个 seed 各自跑完两臂还需 **16.8 / 17.5 h**（估计，非实测）。
