@@ -4157,3 +4157,42 @@ seed43（用较慢速率）on+off=10.27 h + 评分 1.44 h = 11.69 h，从第一�
 
 **进度（明写 update 数）**：`seed41/off 25120`（78.2%，ep3）、`seed42/off 24160`（75.2%，ep3）；
 seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 (c) 与 (d) **恒为真**：伪造全部 skill 也能拿到 "advance" —— 只记录不修（文件在 pin 内）
+
+**状态** `exit-discrimination-measured`；GPU-h **0.000000**；零读数。
+
+读数前置核查的第四条：(c)(d) 到底带不带信息。做法是用**完全伪造**的 readings 走驱动自己的
+`evaluate_exit`（真代码，不碰数据）：
+
+```
+三 seed 的 off/on skill['72'] 全部设为 0.5（配对差 0）
+-> a=True  b=True  c=True  d=True  all=True
+-> verdict = advance-to-independent-review
+```
+
+**含义**：四条"预声明出口"里只有 **(a) 与 (b) 会失败**。(c) 在驱动里是字面量 `c = True`；
+(d) 只读 `scientific_claim` 与 `test_read`——两个字段是 `readings()` 自己写进去的常量。
+把两个恒真项与两个真判据并列成"四项出口全真"，会让一页什么都没证成的东西看起来像
+四次独立确认。这与 0105 的 `derivative_matching_terms(target, target, …)`、0108 的
+"守卫只查能解析"是同一族缺陷：**自证式检查**。
+
+**为什么本轮不修**：`scripts/study_r7_s3_derivative_matching_c2.py` **在 attempt08 的 95 条
+执行 pin 之内**（实测 `in pins: True`）。改 `evaluate_exit` 会改变它的 sha256，seed43 在
+t0+19.7 h 启动时 `validate_protocol` 会直接 `RuntimeError: execution source changed`，
+已跑的两个 seed（约 44 GPU-h）作废。**所以只记录、不修**；修它属于 attempt08 之后的
+一次独立变更，须新 ADR。
+
+**修的是能修的那一层**：结果页（不在 pin 内）原来写 (c)"由 dispatcher 的 None 早退与逐位比对支撑"
+——**那句话夸大了支撑**，因为磁盘上根本没有比对。改为明写"该行不由读数证明、`c = True` 是常量"，
+并在 §4 限制里加一条把上面那次伪造实测写出来。新增 `test_the_page_says_c_and_d_cannot_discriminate`。
+
+**反证**：把该句改回"由 dispatcher 验证" ⇒ 该测试 **1 failed**；恢复 ⇒ **6 passed**。
+三件套合计 **13 passed**；端到端链重跑 **CHAIN PASS**（页面 4240 bytes，分母摘要 `096c384a…`）。
+
+**这对最终判决的口径影响**：如果 (a) 与 (b) 都真而 (c)(d) 也真，**不得**把它写成"四出口全真
+⇒ 强结论"。能说的是：(a) 72 h 配对均值不退化、(b) 约束项在训练中确实在动；**(c)(d) 未提供证据**。
+这一句必须进结果页与最终汇报。
+
+**进度（明写 update 数）**：`seed41/off 25400`（79.0%，ep3）、`seed42/off 24420`（76.0%，ep3）；
+seed43 未启动；三份 receipt 不存在。

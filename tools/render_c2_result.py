@@ -131,7 +131,9 @@ def main(argv: list[str] | None = None) -> int:
         f"`constraint_terms_recorded`："
         + "、".join(f"{s}={r['seeds'][s]['on'].get('constraint_terms_recorded')}" for s in seeds)
         + f" | {_mark(ex['b_matching_bit'])} |",
-        f"| (c) | off 路径与注册算术**逐位等价** | 由 dispatcher 的 `None` 早退与逐位比对支撑 | {_mark(ex['c_off_path_unchanged'])} |",
+        f"| (c) | off 路径与注册算术**逐位等价** | **该行不由读数证明**：驱动里"
+        f"`c = True` 是常量，所以它恒为真、不携带信息（见 §4 限制条）；真正支撑它的是"
+        f"dispatcher 的 `None` 早退与其反证测试，不在本页 | {_mark(ex['c_off_path_unchanged'])} |",
         f"| (d) | 无判据被改动 | `scientific_claim={r['scientific_claim']}`、"
         f"`test_read={r['test_read']}` | {_mark(ex['d_no_criterion_changed'])} |",
         "",
@@ -156,6 +158,10 @@ def main(argv: list[str] | None = None) -> int:
         "- `scientific_claim: false`、`test_read: false`、`r = 0`；未读 2023 test。",
         "- 本页所有数字**逐项取自 `readings.json`**，未手抄；`readings.json` 由驱动的 `readings()` 计算。",
         "- 单 seed 单次运行，GPU 训练不保证逐位可复现；checkpoint/源码/数据身份是严格校验的。",
+        "- **(c) 与 (d) 恒为真，不构成判别**：驱动 `evaluate_exit` 里 `c = True` 是常量，`d` 只读"
+        "`scientific_claim`/`test_read` 两个本页自己写的字段。实测把三 seed 的 skill 全部伪造成 0.5，"
+        "四项仍全真、判决仍是 `advance-to-independent-review`。**真正带信息的是 (a) 与 (b)。** "
+        "该文件在 attempt08 的 95 条执行 pin 之内，改它就是让 seed43 拒绝启动，故本轮只记录、不修。",
         _denominator_line(),
         "- 预声明的 (a) 是**保号判据**（均值 Δ ≥ 0），不是效应量判据；一个接近零的正值不代表有意义的改进。",
     ]

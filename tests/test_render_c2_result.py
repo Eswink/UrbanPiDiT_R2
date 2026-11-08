@@ -140,3 +140,21 @@ def test_the_page_names_the_denominator_bytes_it_used():
     finally:
         renderer.D2_REFERENCE = original
     assert "不在盘上" in degraded
+
+
+def test_the_page_says_c_and_d_cannot_discriminate(tmp_path):
+    """(c) is the literal True and (d) reads two flags the page itself writes.
+
+    Rendering them as ordinary exits, alongside (a) and (b), would let a page that fails
+    nothing still look like four independent confirmations. Measured: fabricating every
+    seed's skill as 0.5 leaves all four true and the verdict at
+    ``advance-to-independent-review`` -- so a reader has to be told which two carry
+    information. The driver is inside attempt08's 95 execution pins, so the fix here is the
+    page's honesty, not the driver's logic.
+    """
+    code, page = _render(tmp_path, _readings(0.005))
+    assert code == 0
+    text = page
+    assert "该行不由读数证明" in text
+    assert "恒为真，不构成判别" in text
+    assert "真正带信息的是 (a) 与 (b)" in text
