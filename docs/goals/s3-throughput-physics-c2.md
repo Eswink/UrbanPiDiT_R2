@@ -657,3 +657,23 @@
   不得写成「(c) 经读数验证」——它没有读数来源。
 
   **仍缺**：`readings.json`、(a)–(d) 在真实读数上的求值、四件套登记。**本块零读数。**
+
+- **2026-11-08 评分前的**加载闸门**已在**在跑的真实 checkpoint** 上跑通（0 GPU-h；零读数）**。
+  `evaluate_local` 在给任何 lead 打分之前要先过三关（`training/r7_evaluate.py:169-180`），
+  任何一关不过，**30 次评分（3 seed × 2 臂 × 5 lead）会全部失败**，而且是在训练**之后**才失败。
+  用一个正在写的 checkpoint（`seed41/.../update_0015000.pt`）实测三关全过：
+
+  | 检查 | 实测 |
+  | --- | --- |
+  | checkpoint 的 `data_identity` == manifest 的 train identity | **`81307008…` == `81307008…` → True** |
+  | 该 identity 也等于冻结协议的 `train_data_identity` | **True** |
+  | `make_model(contract['kind'], contract['model'])` 可构造 | **3,286,037 参数** |
+  | `load_state_dict(saved['model'], strict=True)` | **missing `[]` / unexpected `[]`**，两侧均 **155** 张量 |
+
+  另记录 checkpoint 的真实结构（不是猜测）：顶层键
+  `format / signature / contract / model / optimizer / updates / epoch / cursor / rng / model_code_sha256`，
+  其中 `model_code_sha256 = 59340710…`（与本轮冻结值一致）、`updates = 15000`。
+  决策 0087 的 checkpoint 策略在真实文件上确实生效（5000/10000/15000 各一份）。
+
+  **本块仍为零读数**：它证明「已经写出来的 checkpoint 能被评分器装载」，
+  **不**证明任何 lead 的 RMSE 或 skill。六臂仍在跑。
