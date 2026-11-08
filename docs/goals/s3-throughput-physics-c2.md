@@ -2787,3 +2787,47 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   **16.8 / 17.5 h**，seed43 在第一张卡空出后开始、需约 **20 h**。
   ⇒ 三份 receipt 齐备大约在 **28–38 h** 之后。**这是按当前速率外推的估计，不是承诺**；
   速率会随共驻与 I/O 波动。
+
+- **2026-11-09 编排器的两个确定性闸门在**真实命令输出**上验过（0 GPU-h、无子代理、未写任何轮次产物）**。
+
+  目标长文要求 workflow **自跑** `commit-guard`（提交前）与 `verify`（登记后）、
+  **不依赖 hook 兜底**。此前只验证过它的 `orphans` 守卫读的是真实 schema；这次用
+  `EvalWorkflowSnippet`（同步、不持久化、无 agent）把**三个**闸门都在本仓真实输出上跑了一遍。
+
+  **① `orphans` 守卫：真实文档让它在跑轮次时拒绝启动，且两个方向都测过。**
+
+  ```
+  real orphans: exit=0  live=2  liveSeeds=[41,42]
+  guardFires=true   wouldStart=false
+  合成空文档   -> syntheticEmptySaysGo=true    (能放行)
+  合成单条文档 -> syntheticOneSaysStop=true    (能拒绝)
+  ```
+
+  ⇒ 它不是"永远拒绝"的假实现：**真实文档**（2 个存活 seed）拒绝启动，
+  恰好是决策 0102 要的语义——`implementer.ask` 会改 `campaign-state` 指针，
+  有轮次在跑时启动会让 `stage reading` 读错 round-spec。
+
+  **② `commit-guard`：合规路径通过，缺操作数时是 usage error 而不是静默通过。**
+
+  ```
+  commit-guard(docs/goals/s3-throughput-physics-c2.md)  exit=0  passed=true  failing=0
+  commit-guard(无参数)                                  exit=2  error 存在  passed 不为 true
+  ```
+
+  **③ `verify` 实测**：
+
+  ```
+  verify exit=0  passed=true  validators=3  allZero=true   (耗时 34.2 s)
+  ```
+
+  **④ 一条实测到的超时事实（有用，不是抱怨）**：把 `verify` 与 `commit-guard` 塞进**同一个**
+  snippet 会撞 60 s 默认上限（sandbox `Interrupted`）。单独跑 `verify` 要 **34.2 s**、
+  `commit-guard` 要 **33.9 s**。编排器给 `round-guard` 的是 900 s、给 `verify` 的是 240 s
+  ⇒ **都够**，但这也说明**不要**把这两条串在同一个 60 s 预算里。
+
+  **边界**：本条零读数、零 GPU-h。它证明的是**编排器所依赖的闸门行为与它读的字段对得上**，
+  **不是**编排器已经驱动过任何一轮——编排器仍未实跑，因为 `orphans` 守卫在当前状态下
+  （正确地）拒绝启动。
+
+  **进度（明写 update 数）**：`seed41/off 10760`（33.5%）、`seed42/off 10360`（32.2%），
+  速率 1.1048 / 1.1487 s/update。三份 receipt 仍未出现。
