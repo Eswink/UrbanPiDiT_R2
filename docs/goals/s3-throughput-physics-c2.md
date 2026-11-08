@@ -774,3 +774,45 @@
   **如果 on 臂 OOM，正确的判断不是「显存估计错了」，而是「两臂之间需要一次 `empty_cache()`」**——
   但那要改被钉的驱动，届时必须用新的 attempt（不能改 attempt06 的字节）。
   本块**不**改任何代码、**不**声称该风险已排除。
+
+- **2026-11-08 出口 (b) 的**写入端**首次在真实数据上跑通（0 GPU-h；零读数）**。
+
+  **动机**：`readings()` 判 (b) 读 `training_report.json` 的 `losses` 行里的
+  `constraint_divergence` / `constraint_vorticity`。我此前只读过**读端**代码。
+  全仓检索 `outputs/`：**没有任何文件含 `constraint_divergence`** ——
+  即**从未有生产运行写过这两个键**。若 on 臂跑完 10 h 后这两键没落盘，
+  `stage reading` 会在 40 h 之后把 (b) 判假，而那是**永久关闭该分支**的判决。
+  故必须在 on 臂**开跑前**证实写入端。
+
+  **实测**（真实 `train.jsonl`、冻结 `excluded_sample_ids`/`window_sha256`、真实父权重、
+  一行真实 batch，走**生产函数** `_update`，未重实现任何算术）：
+
+  ```
+  physical_steps = 12   （注意：不是 reasoning steps 4）
+  dataset         32,131 窗, window_sha256=e8f22c303c98fc…（与冻结值相同）
+  batch           18 个键，含 atmos_target / latitude / longitude / physical_targets
+  _update         11.7 s（CPU）
+  METRIC KEYS     ['constraint_divergence','constraint_total','constraint_vorticity',
+                   'gradient_norm','l12','l6','loss','objective','per_step_losses']
+    constraint_divergence = 0.2517849802970886   > 0
+    constraint_vorticity  = 0.20149314403533936  > 0
+  ⇒ 出口 (b) 的单行判据成立
+  ```
+
+  **写入端的机理解释**（为什么不只是「碰巧」）：`r7_long_rollout_runner.py:279` 用
+  `constraint.items()` **动态**取名，只保留 `isinstance(value, torch.Tensor)` 的项。
+  `derivative_matching_terms` 返回 `divergence/vorticity/weights/scales/total`，
+  其中 `weights`/`scales` 是 **dict**（被过滤掉），故恰好落成
+  `constraint_divergence`/`constraint_vorticity`/`constraint_total` 三个标量。
+  这也解释了为什么写端清单与读端键名**天然一致**，无需硬编码列表。
+
+  **我自己的两个探测错误（记下来，因为它们都曾伪装成「代码缺陷」）**：
+  1. 先按 `c2.STEPS`（=4，**推理**步）构造数据集 ⇒ 数据集按 4 物理步只排除 3 个样本，
+     与冻结的 11 个不符而报错。**是我少给了 physical_steps=12**，不是数据集或协议错。
+  2. 第一次 `_update` 探测手工拼 contract 缺 `clip` ⇒ `KeyError`。生产路径里 `clip`
+     由 `_contract()` 从函数参数绑定，**不经 `_arm_contract`**。
+
+  **本块证据边界（如实写）**：只证明**一个真实 update** 写出了这两键且为正、
+  且证明读端键名与之匹配。**不**证明 32,132 步全程都有（那要 on 臂真跑完）、
+  **不**构成任何 skill 读数、**不**判 (a)/(c)/(d)。六臂仍在跑；两个 off 臂此时
+  80.7% / 83.0%（1.1530 / 1.1209 s/update）。
