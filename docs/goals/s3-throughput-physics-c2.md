@@ -1402,3 +1402,48 @@
   **边界（重要）**：本块证明**守卫的判定逻辑**在真实输入与三种构造输入上都正确，
   **不**证明整个 560+ 行 draft 可编译或可跑通——那仍然只有 `CreateWorkflow` 第一次提交时才会被验证。
   按 0102，**现在不能跑它**（正是因为有轮次在跑）。六臂仍在跑、`readings.json` 仍不存在。
+
+- **2026-11-08 登记序列的**次序依赖**已逐条核实：`register_paths` 五项里有且只有证据页缺，且 `commit-register` 没有存在性预检（0 GPU-h；零读数）**。
+
+  读 round-spec 的 `register_paths` 并逐个 `Path.exists()`：
+
+  ```
+  MISSING docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md   ← 由 render_c2_result.py 从 readings.json 生成
+  EXISTS  docs/R7_EVIDENCE_INDEX.jsonl
+  EXISTS  docs/R7_CANDIDATE_BRIEF.md
+  EXISTS  docs/goals/main-model-climatology-campaign.md
+  EXISTS  docs/goals/s3-throughput-physics-c2.md
+  ```
+  13 个 `commit_paths` **全部存在**（实现提交那一步已完成）。
+
+  **为什么次序是硬的**：`commit_register` → `_commit_declared` 只做
+  `git add -- <全部 paths>`，**没有任何 `is_file()` 预检**（`grep` 计数 0）。而 git 的
+  semantics 是：**一个 pathspec 匹配不到就整条 `git add` 失败**。实测：
+
+  ```
+  $ git add -- docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md
+  fatal: pathspec 'docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md' did not match any files
+  ```
+  随后 `git status --porcelain` 为空 ⇒ **一个文件都没进暂存区**。
+  ⇒ 若先跑 `commit-register` 再渲染证据页，会得到「注册提交什么都没提交」而只有一条
+  「pathspec 不匹配」的报错；若反过来（先渲染再注册）则一次成功。
+
+  **因此正确次序（写下来以免临场搞错）**：
+
+  ```
+  1. check_round_receipts.py --require-seeds 41 42 43        （三份 receipt 齐备且可解析）
+  2. tools/r7_round.py state                                  （current_round_goal 仍指本 brief）
+  3. tools/r7_round.py stage reading                          （产出 readings.json）
+  4. check_round_receipts.py --require-reading                （readings.json 不是半截文件）
+  5. tools/render_c2_result.py readings.json protocol.json docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md
+  6. build_c2_registration.py → 追加 index record → 重渲染 R7_CANDIDATE_BRIEF.md
+  7. 账本行（ledger-plan 核算术）、campaign §8 进度块、campaign-state
+  8. tools/r7_round.py verify                                 （三个校验器全 0）
+  9. tools/r7_round.py commit-register → push-round
+  ```
+
+  **一次顺手踩到的老坑（第二次）**：`git add ... | head -3` 的 `$?` 是 **`head` 的 0**，
+  不是 `git` 的 1。**管道会吞掉真实退出码**——本会话第一次是 `tail`，这次是 `head`。
+  凡是要判 exit code 的检查，**不要接管道**。
+
+  **边界**：本条只核对**次序与文件存在性**，零读数。六臂仍在跑，`readings.json` 仍不存在。
