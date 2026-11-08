@@ -2325,3 +2325,48 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **边界**：本条零读数、零 GPU-h。三份 receipt 仍未出现。
   上面三条证明的是 **(b) 的前提成立**，**不是 (b) 成立**——(b) 仍要等真实 on 臂跑完才有值。
+
+- **2026-11-09 **修正后的目标函数在真实数据上端到端跑通**（CPU-only，0 GPU-h）**。
+
+  on 臂要等 ~10 h 的 off 训练之后才开始，所以这是开跑前能做的最强验证：真实 store、真实
+  **已钉父 checkpoint**、**驱动自己的 `_arm_contract()`**、一次真实 rollout、走
+  `r7_objective_axes.auxiliary_term` 分发，并对 `loss + constraint["total"]` 真做一次 backward。
+
+  ```
+  parent: .../seed41/parent_update_0001600.pt
+
+  --- arm=off ---
+    derivative_matching: None
+    normalization present: False | channels: 0
+    auxiliary_term -> None  (off arm: no tensor constructed)
+
+  --- arm=on ---
+    derivative_matching: c2
+    normalization present: True | channels: 17
+    auxiliary_term tensor keys: ['divergence', 'total', 'vorticity']
+    constraint_divergence = 0.193444
+    constraint_vorticity  = 0.147739
+    both strictly positive: True
+    backward OK, grad norm = 3.890289e+01
+  ```
+
+  四个结论：
+
+  1. **on 臂真的产出 (b) 要读的两个键**，且**都严格为正**——不是"配置上开了"而是"数值上非零"。
+  2. **off 臂返回 `None`**，即 `auxiliary_term` 在构造任何张量**之前**就返回 ⇒ 注册算术逐字不变，
+     这正是出口 (c) 的依据（`None` 由 dispatcher 的早期返回保证，不是"权重 0"路径）。
+  3. **归一化与通道名在真实协议里是有的**，只是位置在 `body["store_constants"]` 而不是顶层——
+     我第一次探针按顶层找，得到 `normalization present: False`，**那是我的探针错，不是协议缺字段**。
+     驱动的 `_arm_contract()` 从 `store_constants` 取 `mean/std/channels`（17 个），on 臂把它们写进契约。
+  4. **反向传播成功**（grad norm 3.89e+01），所以这一项真的接进了梯度图，不是装饰。
+
+  **顺带验掉的一处**：`default_collate` 后的真实 batch 含 18 个键，其中
+  `physical_targets (1,12,17,65,65)`、`atmos_target (1,17,65,65)`、`latitude`、`longitude` 齐备，
+  `physical_targets` 的 N=12 与 rollout 的 N=12 相符 ⇒ `matching_term` 的两条 `raise`
+  在 GPU 路径上不会触发。且实测 `atmos_target == physical_targets[:,0]` 为 **True**——
+  这就是 0104/0105 那个跨 lead 假设的再次确认。
+
+  **进度（明写 update 数）**：`update 2300–2360`（7.2%–7.3%），速率 1.1106/1.1424 s/update。
+
+  **边界**：本条**零读数**、零 GPU-h。它证明目标函数**能跑且非零**，**不**证明 (b) 成立、
+  更不证明 (a) 成立——那要等真实 on 臂跑满 32,132 updates 之后。
