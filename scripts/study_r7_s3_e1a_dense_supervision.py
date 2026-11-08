@@ -41,6 +41,12 @@ PLANNED_SECONDS = proto.budgets()["planned_seconds"]
 HARD_CAP_SECONDS = proto.budgets()["hard_cap_seconds"]
 
 
+def freeze(output, *, started, deadline, code_archive, code_commit, code_sha256):
+    """The wrapper's entry point; without it ``load_driver`` refuses the round."""
+    return proto.freeze(output, started=started, deadline=deadline, code_archive=code_archive,
+                        code_commit=code_commit, code_sha256=code_sha256)
+
+
 def _parent_model(seed, body):
     """Load the pinned migrated parent under this revision, asserting its identity."""
     import torch

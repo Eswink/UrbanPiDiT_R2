@@ -179,3 +179,36 @@ def test_the_two_vectors_produce_different_objectives_at_the_same_dose():
         "the two arms would optimise the same objective; the round would compare nothing")
     # And the guard that makes the comparison interpretable: identical dose.
     assert abs(sum(sparse) - sum(dense)) < 1e-12
+
+
+def test_the_driver_exposes_the_wrapper_interface_and_freezes_end_to_end(tmp_path):
+    """The round must be freezable by ``r7_round.py freeze``, or it can never run.
+
+    Found by executing the wrapper rather than by reading the driver: ``load_driver`` asserts the
+    five names in ``DRIVER_REQUIRED_NAMES`` and raised
+    ``RoundError: ... does not expose ['freeze']; refusing to guess`` for both E1 drivers. The
+    code was otherwise complete and tested, so without this the round would have failed at
+    ``freeze`` -- before any GPU time, but only after someone trusted "code-ready" and scheduled it.
+    """
+    import importlib.util
+
+    from training.r7_experiment import canonical_digest
+
+    stages = importlib.util.spec_from_file_location(
+        "r7_round_stages_e1a_probe", ROOT / "tools/r7_round_stages.py")
+    module = importlib.util.module_from_spec(stages)
+    stages.loader.exec_module(module)
+    driver = module.load_driver("scripts/study_r7_s3_e1a_dense_supervision.py", ROOT)
+    for name in module.DRIVER_REQUIRED_NAMES:
+        assert hasattr(driver, name), f"the wrapper needs {name}"
+
+    body = driver.freeze(tmp_path / "attempt", started=1000.0,
+                         deadline=1000.0 + driver.HARD_CAP_SECONDS,
+                         code_archive=tmp_path / "code.zip", code_commit="0" * 40,
+                         code_sha256="0" * 64)
+    assert body["protocol_sha256"] == canonical_digest(
+        {key: value for key, value in body.items() if key != "protocol_sha256"})
+    assert body["recipe"]["updates"] == proto.UPDATES
+    assert body["scientific_claim"] is False and body["test_read"] is False and body["r"] == 0
+    assert body["arms"][proto.CANDIDATE]["physical_weights"] == list(proto.DENSE_WEIGHTS)
+    assert body["arms"][proto.CONTROL]["physical_weights"] == list(proto.SPARSE_WEIGHTS)

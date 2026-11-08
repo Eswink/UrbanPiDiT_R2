@@ -170,3 +170,34 @@ def test_final_only_cuts_the_intermediate_drafts_gradient_exactly():
     b = deep_supervised_forecast_mse(drafts, target, latitude,
                                      draft_supervision=DRAFT_SUPERVISION_FINAL_ONLY)
     assert not bool(torch.isclose(a, b))
+
+
+def test_the_driver_exposes_the_wrapper_interface_and_freezes_end_to_end(tmp_path):
+    """The round must be freezable by ``r7_round.py freeze``, or it can never run.
+
+    Found by executing the wrapper: ``load_driver`` asserts the five names in
+    ``DRIVER_REQUIRED_NAMES`` and raised ``RoundError: ... does not expose ['freeze']`` for this
+    driver too. Both E1 rounds were otherwise complete, so the failure would have surfaced only
+    when someone finally tried to schedule them.
+    """
+    import importlib.util
+
+    from training.r7_experiment import canonical_digest
+
+    stages = importlib.util.spec_from_file_location(
+        "r7_round_stages_e1b_probe", ROOT / "tools/r7_round_stages.py")
+    module = importlib.util.module_from_spec(stages)
+    stages.loader.exec_module(module)
+    driver = module.load_driver("scripts/study_r7_s3_e1b_terminal_step_supervision.py", ROOT)
+    for name in module.DRIVER_REQUIRED_NAMES:
+        assert hasattr(driver, name), f"the wrapper needs {name}"
+
+    body = driver.freeze(tmp_path / "attempt", started=1000.0,
+                         deadline=1000.0 + driver.HARD_CAP_SECONDS,
+                         code_archive=tmp_path / "code.zip", code_commit="0" * 40,
+                         code_sha256="0" * 64)
+    assert body["protocol_sha256"] == canonical_digest(
+        {key: value for key, value in body.items() if key != "protocol_sha256"})
+    assert body["recipe"]["updates"] == proto.UPDATES
+    assert body["scientific_claim"] is False and body["test_read"] is False and body["r"] == 0
+    assert body["factor"]["arms_differ_only_in"] == ["draft_supervision"]
