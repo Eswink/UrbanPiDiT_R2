@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-derivative-matching-c2", "code_archive": "outputs/r7_s3_derivative_matching_c2_code_attempt05.zip", "commit_message": "feat(r7): run Stage C2 derivative-domain target matching on/off, three seeds", "commit_paths": ["scripts/study_r7_s3_derivative_matching_c2.py", "scripts/r7_s3_derivative_matching_c2_protocol.py", "training/r7_derivative_matching.py", "training/r7_objective_axes.py", "training/r7_long_rollout_runner.py", "tests/test_r7_s3_derivative_matching_c2.py", "docs/goals/s3-throughput-physics-c2.md", "docs/decisions/0095-stage-c2-derivative-domain-target-matching.md", "docs/decisions/README.md", "tests/test_r7_s3_c2_reading_exit.py", "tests/test_check_driver_attributes.py", "tools/check_driver_attributes.py", "docs/decisions/0098-stage-c2-attempt04-stopped-three-reading-stage-defects.md"], "control_record": null, "device_mode": "dual", "driver": "scripts/study_r7_s3_derivative_matching_c2.py", "hard_cap_seconds": 230400.0, "output_stem": "r7_s3_derivative_matching_c2_20261108", "planned_seconds": 115200.0, "register_message": "docs(r7): register Stage C2 derivative-matching readings", "register_paths": ["docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-throughput-physics-c2.md"], "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_derivative_matching_c2.py", "tests/test_r7_s3_c2_reading_exit.py", "tests/test_check_driver_attributes.py"]} -->
+<!-- round-spec: {"arm": "s3-derivative-matching-c2", "code_archive": "outputs/r7_s3_derivative_matching_c2_code_attempt07.zip", "commit_message": "feat(r7): run Stage C2 derivative-domain target matching on/off, three seeds", "commit_paths": ["scripts/study_r7_s3_derivative_matching_c2.py", "scripts/r7_s3_derivative_matching_c2_protocol.py", "training/r7_derivative_matching.py", "training/r7_objective_axes.py", "training/r7_long_rollout_runner.py", "tests/test_r7_s3_derivative_matching_c2.py", "docs/goals/s3-throughput-physics-c2.md", "docs/decisions/0095-stage-c2-derivative-domain-target-matching.md", "docs/decisions/README.md", "tests/test_r7_s3_c2_reading_exit.py", "tests/test_check_driver_attributes.py", "tools/check_driver_attributes.py", "docs/decisions/0098-stage-c2-attempt04-stopped-three-reading-stage-defects.md"], "control_record": null, "device_mode": "dual", "driver": "scripts/study_r7_s3_derivative_matching_c2.py", "hard_cap_seconds": 230400.0, "output_stem": "r7_s3_derivative_matching_c2_20261108", "planned_seconds": 115200.0, "register_message": "docs(r7): register Stage C2 derivative-matching readings", "register_paths": ["docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-throughput-physics-c2.md"], "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_derivative_matching_c2.py", "tests/test_r7_s3_c2_reading_exit.py", "tests/test_check_driver_attributes.py"]} -->
 
 本文件是 Stage C2 的**唯一执行源**；机器可读的 `round-spec` 在上方。
 上游是不可变记录：`docs/goals/s3-throughput-and-physics-campaign.md`（Stage C2）、
@@ -1872,3 +1872,40 @@ seed42 on    6,095.0 s =  1.693 h   (update 5380，失败前)
 预计 **~43.5 h**（两卡并行：seed41+42 同时 ~21.8 h，再 seed43 ~21.8 h）。
 开跑前必须：`tools/r7_round.py state` 核对 `current_round_goal` → `freeze`（用**开跑那一刻的 HEAD**
 重建 `code.zip`）→ `prepare` → `archive` → `stage-seeds` → `stage reading`。
+
+### attempt07 的 `code_archive` 已换新，且**在同一个 HEAD 上**重建
+
+**为什么必须换**：`tools/r7_round.py:141-143` 的 `freeze` 取 **当前 HEAD** 作 `code_commit`，
+但 `code_sha256` 取自**归档文件本身**；而 `_archive` 阶段会校验
+**zip 的 comment 必须等于 `code_commit`**。旧归档
+`code_attempt05.zip` 的 comment 是 `f632c2cb…`，HEAD 已是 `194e4b02…` ⇒
+若继续用它，`archive` 阶段会以 `RuntimeError("archive commit differs from freeze")` 失败。
+这正是目标长文点名的三个坑之一（「code.zip 必须带 commit 注释」）的**时序**形态：
+不仅要有注释，注释还必须等于**开跑那一刻**的 HEAD。
+
+**换法（不是随便换一个文件名）**：
+
+```
+tools/build_round_code_archive.py --commit HEAD --out outputs/r7_s3_derivative_matching_c2_code_attempt07.zip
+git_archive_entries 1675 + extra_entries 101 = 1776 entries
+comment == HEAD (194e4b02e72095df392b75329955f741d049aeca): True
+code_zip_sha256 e0209a5c49b89e426acfcbae5bf6ee5b90751611cd274469c57af7d263ef9b94
+```
+
+**关键核对：换归档**不会**改变任何执行源**（否则就不是「同一轮重跑」而是「换配方」）：
+
+```
+attempt06 的 commit 与 HEAD 之间共 37 个文件变动
+⇒ 其中**属于 95 个钉住执行源的：0 个**（全部是 docs/、tests/、tools/）
+⇒ 新 zip 里 95 个钉住文件**全部在场**，且每个 `.py` 的 sha256 与 attempt06 的钉值**逐一致**
+```
+
+⇒ 这是**同一个配方、同一份数据、同一份执行代码**的重跑；变的只有归档的注释（必须随 HEAD 走）
+和 `protocol_sha256`（含 perf_counter，结构性必变）。
+
+**一个谨慎点**：`extra_entries` 从 99 增到 101（`.zcode/` 运行态多了两个草稿/run 条目）。
+`.zcode/` **不在** `execution_files_sha256` 的钉定范围（`grep` 该清单无 `.zcode/` 前缀），
+故不影响任何身份判定；它们只是随归档留下的编排痕迹。
+
+**round-spec 已改指新归档**，且此改动与 zip 的 comment **在同一 HEAD 上**
+（先提交 spec，再确认 zip comment == 该 HEAD，然后才 `freeze`）——顺序不能反。
