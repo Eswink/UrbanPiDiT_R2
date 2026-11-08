@@ -3112,3 +3112,44 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 14280`（44.4%）、`seed42/off 13740`（42.8%），
   速率 1.1040 / 1.1480 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 用户那条三步链里，第 3 步**为什么不可省**：编排器看不见半截 `readings.json`（0 GPU-h）**。
+
+  这是本轮守卫链的真正价值，实测出来的：
+
+  ```
+  plan for a HALF-written readings.json:
+    already_done = True
+    skip = True
+    already_running = False
+
+  => skip == True -> 编排器会跳过 reading 阶段，整轮以"没有判决"结束
+
+  check_round_receipts --require-reading -> REFUSED
+    reading | truncated or invalid JSON (Expecting ',' delimiter at char 26)
+  ```
+
+  **机制**：`stage_plan` 只用 `receipt.is_file()` 判断完成
+  （`tools/r7_round_stages.py:132-133`，注释也写明"a missing receipt is not enough to spawn"，
+  但**没有**说"一个存在但半截的 receipt 会怎样"）。而 `write_exclusive` 是
+  `open("x")` + `json.dump(..., allow_nan=False)`：非有限值在**写入过程中**抛错，
+  留下一个**存在但不完整**的文件。两者组合 ⇒ reading 崩过一次之后，
+  **编排器永久认为它已完成**，`stage reading` 再也不会重跑。
+
+  ⇒ **所以用户指定的顺序是对的**：`stage reading` 之后必须跑
+  `check_round_receipts --attempt ... --require-reading`，因为**只有它能区分
+  "文件在" 与 "判决在"**。这一步不是形式主义，它是这条链上唯一能发现该故障的检查。
+
+  **同时必须说清它的边界**（决策 0108 已登记）：它查**五个键存在**且 `exit_conditions`
+  是对象，**不查**值是否有意义——`exit_conditions: {}` 仍会通过。
+  今天再次实测确认了这个缺口仍然存在（`exit=0`），没有扩大。
+
+  **若真遇到半截文件，正确做法**（不在本轮执行，因为还没有读数）：
+  **不能**直接删 `readings.json` 重跑——那会绕过"排他创建"的意图。
+  应当先把半截文件**改名留证**（例如 `readings.json.partial-<时间戳>`），
+  再重跑 `stage reading`，并在 §8 记录这次作废的原因与字节数。
+
+  **边界**：本条零读数、零 GPU-h。它证明的是**守卫分工**，不是 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 15340`（47.7%）、`seed42/off 14760`（45.9%），
+  速率 1.1041 / 1.1471 s/update。三份 receipt 仍未出现。
