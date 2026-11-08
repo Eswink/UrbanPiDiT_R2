@@ -3702,3 +3702,43 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 19760`（61.5%）、`seed42/off 19000`（59.1%），
   速率 1.1040 / 1.1481 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 `register_paths` **不含** `docs/decisions/`：ADR 0109 会被漏提交（0 GPU-h）**。
+
+  实测 `round-spec` 的两份清单**分工不同、覆盖不同**：
+
+  ```
+  commit_paths  (13 条, 跑前)   含 docs/decisions/0095-…md、docs/decisions/README.md、
+                                      docs/decisions/0098-…md      <- 都是**跑前就存在**的决策
+  register_paths (5 条, 跑后) 【没有任何 docs/decisions/ 路径】
+  ```
+
+  ⇒ **跑完之后要写的 ADR 0109 与 `docs/decisions/README.md` 的那一行，不在 `register_paths` 里。**
+  而 `_commit_declared` 的行为是 `git add -- <列出的路径>` + `git commit -- <同样的路径>`：
+
+  ```
+  git add -- docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md docs/R7_EVIDENCE_INDEX.jsonl
+             docs/R7_CANDIDATE_BRIEF.md docs/goals/main-model-climatology-campaign.md
+             docs/goals/s3-throughput-physics-c2.md
+  => docs/decisions/0109-*.md 不会被 stage
+  ```
+
+  ⇒ **如果不处理，ADR 会留在工作树里没人提交**，而 objective 明确要求"每轮写新 ADR"。
+
+  **处置（不改 `round-spec`，因为它是冻结协议的一部分）**：
+  登记时**先用普通 `git add docs/decisions/0109-*.md docs/decisions/README.md` + 单独提交**，
+  再跑 `commit-register` 提交那五条。两者顺序无冲突，因为 ADR 是**独立的一份记录**，
+  不依赖结果页的 digest。
+
+  **为什么不改 `round-spec`**：`protocol.json` 已冻结（`protocol_sha256 a3ca9fe7…`），
+  而 `round-spec` 在 brief 里、brief 在 `register_paths` 中——改它会动到已冻结内容的口径。
+  **更重要的**：登记链的行为不该在有读数之前改。上面那个"先单独提交 ADR"的做法
+  完全在现有工具的能力内，不需要动任何代码。
+
+  **顺带确认**：工作树当前 **clean**（`git status --short` 空），所以登记之前不会有
+  意外未提交的改动混进来。
+
+  **边界**：本条零读数、零 GPU-h。它登记的是**登记覆盖缺口**与处置方式，不涉及 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 20160`（62.7%）、`seed42/off 19380`（60.3%），
+  速率 1.1043 / 1.1485 s/update。三份 receipt 仍未出现。
