@@ -3349,3 +3349,37 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 16820`（52.3%，epoch 2）、`seed42/off 16200`（50.4%，epoch 2），
   速率 1.1038 / 1.1459 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 `evaluate_exit` 的**三条判决路径**在真实函数上双向验过（0 GPU-h）**。
+
+  此前只验过"这条链不崩"。这次直接调**驱动自己的 `evaluate_exit`**，把三种输入喂进去：
+
+  ```
+  baseline all-good                   : all=True  | b=True   -> advance-to-independent-review
+  (a) 假（on 更差 −0.004）             : all=False            -> permanently-close-…
+  (b) 假（on 臂未记录 constraint_*）   : all=False | b=False  -> permanently-close-…
+  (b) 假（preflight total = 0.0）      : all=False | b=False  -> permanently-close-…
+  ```
+
+  **① 两个方向都走通了**：`all=True` 只在四项全真时出现；任一假立刻落到
+  `permanently-close-derivative-matching-branch`。这不是"只能通过"或"只能拒绝"的单向实现。
+
+  **② (b) 有两条独立的关闭路径**，两条都实测有效：
+  - on 臂的 `constraint_terms_recorded` 为假（术语没记录）
+  - preflight 的某行 `total == 0.0`（`all(row["total"] > 0.0 …)` 失败）
+
+  **③ 一处键类型的坑已排除**：`delta_72h` 的键是**字符串** `['41','42','43']`，
+  而 renderer 用 `sorted(r["seeds"], key=int)` 得到的也是字符串。
+  实测 `all lookups resolve: True` ⇒ 不会出现 `KeyError: '41'` vs `KeyError: 41` 那类静默不匹配。
+
+  **④ 仍然必须说清的边界**：上面所有数字（±0.004 的 delta）都是**我编造的合成 skill**，
+  用来驱动判决分支，**不是**任何模型的分数。它们证明的是**判决逻辑双向有效**，
+  **不是** (a) 会为真或为假。**真实判决要等六个臂。**
+
+  **⑤ 我仍未做的事**：没有预写结果 ADR（编号已确认为 0109，但内容要等读数）。
+  没有把 `all=True` 当作任何喜讯——它只是我构造的输入。
+
+  **边界**：本条零读数、零 GPU-h。
+
+  **进度（明写 update 数）**：`seed41/off 17020`（53.0%）、`seed42/off 16400`（51.0%），
+  速率 1.1037 / 1.1457 s/update。三份 receipt 仍未出现。
