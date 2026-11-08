@@ -1706,3 +1706,73 @@
   `tools/check_conventions.py`（37 条阻断，failing=0）、
   `python -m compileall data model training scripts …`（exit 0）三项**本地复跑通过**。
   这**不等于** CI 一定绿（CI 还跑全量 pytest 与 wheel 安装），但覆盖了我改动会触发的那三项。
+
+## 事故记录：我移动了活体 attempt 目录，导致 seed42 的 on 臂失败
+
+- **2026-11-08 19:00 前后 · 我的操作失误 · 后果：attempt06 无法按原计划完成六臂**
+
+**发生了什么（逐条实测）**
+
+1. 为验证「CI 的干净检出里没有 `outputs/`」，我把**正在被两个训练 worker 写入的**
+   `outputs/r7_s3_derivative_matching_c2_20261108_attempt06` 用 `mv` 移到 `/tmp/hold_attempt06`，
+   数秒后移回。当时我以为「移回就没事」。**这个判断是错的。**
+2. 移回后我核对过「进度仍在增长」（seed41 4,260 / seed42 5,380），据此写下「无损伤」。
+   **那个核对不充分**：它只证明文件还能读到，没有证明**worker 后续的写入能成功**。
+3. **实测后果**（`stage_ledger.jsonl` 最后一行）：
+
+   ```
+   seed: 42  status: failed  exit_code: 1  elapsed: 45,962.3 s = 12.767 h
+   stderr_tail:
+     FileNotFoundError: [Errno 2] No such file or directory:
+       '.../seed42/training/on/failed_attempt.json'
+   ```
+
+   时间线对齐：`progress.jsonl` 最后一行 **18:58:43**、`mv` 在 **~18:58:5x**、
+   ledger 记 `recorded_at 18:59:28`。worker 在**写 `failed_attempt.json` 时**
+   路径不存在 —— 因为它持有的是**被移动的 inode**，`mv` 回来后它看到的目录已不是原来那个。
+4. **seed41 存活**且继续推进（`update=4,680`，19:07 仍在写）。⇒ 只有 seed42 的 worker 落在那次移动上。
+
+**为什么这件事比「一个臂失败」更严重**
+
+`tools/r7_round_stages.py:440-441`：任一 record `not passed` ⇒ `stop = True` ⇒
+**不再 pop 新的 seed**。而 `seed43` 从未开始（`pending` 里还有它）。因此：
+
+```
+seed42 失败  ⇒ stop = True  ⇒ seed43 永不启动
+⇒ 六臂不可能齐备 ⇒ 三份 receipt 不可能齐备 ⇒ readings.json 不可能产出
+```
+
+**这不是「再等 9 小时就好」**——按现在的 attempt06，它**永远不会**产出读数。
+
+**我做了什么、没做什么**
+
+- **没有**对任何进程发信号（R-054）。seed41 的 worker 与调度器仍在跑，由它们自然结束。
+- **没有**删除任何产物。seed42 的 `progress.jsonl`、`update_0005000.pt`、
+  `training_report.json`（若有）全部**留在原地**作留痕。
+- **没有**尝试「把 seed42 接着跑」——`resume_permitted: false` 是冻结语义，
+  且本轮明禁断点续跑。
+
+**正确的做法（我当时就该用的）**：`git archive HEAD | tar -x -C /tmp/…`（无 `.git`，
+不适合需要 git 的测试）或 **`git clone --depth 1 file://…`（CI 的真实形状）**。
+我之后正是用 `git clone` 完成了那次核验，结论是 **29 passed / 1 skipped**。
+**即：这次核验本来完全不需要碰活体目录。**
+
+**损失（可算的部分）**
+
+- seed42 的 on 臂：**12.767 h** 墙钟全额损失（`elapsed_seconds 45,962.3`）。
+- seed42 的 off 臂**已完成且五档评分完好**（2,571.2 s，cohort 1,458/1,457/1,455/1,451/1,447）
+  —— 但它**没有 receipt**（`_seed` 在两臂后才写），故按 `reuse-plan` 的「只复用完整
+  seed receipt」规则，它**不会被**下一个 attempt 复用。
+- seed41 的 on 臂仍在跑，其能否完成与 receipt 是否写出，取决于它是否也踩到同一个 inode 问题
+  —— **尚未知**。
+
+**下一步（需要决定，不是我能自选的）**
+
+- **(A)** 让 seed41 跑完，然后**新 attempt**（attempt07）从 seed42/seed43 重新开始，
+  两卡并行 ⇒ 约再需 **1 轮 on+off ≈ 21–22 h**（seed42 与 seed43 并行）。
+- **(B)** 立刻停掉 attempt06（需对**本实验自己的**进程发信号，处置权在我，但要记为主动中止）。
+- **(C)** 其他。
+
+**本条不改任何判据**：六臂未齐、`readings.json` 未产出、(a)–(d) 未求值。
+**这不是「触授权边界」，也不是「达已冻结科学停止条件」，而是「我把一次本可避免的操作事故
+写进了执行链」**——按目标长文，这类必须如实登记而不是掩盖。
