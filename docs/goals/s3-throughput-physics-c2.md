@@ -3815,3 +3815,49 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 20540`（63.9%）、`seed42/off 19740`（61.4%），
   速率 1.1044 / 1.1486 s/update。两个 off 臂各 3 个 checkpoint（5k/10k/15k）。
+
+- **2026-11-09 守卫在**当前真实的部分状态**上两种调用形式都实测拒绝（0 GPU-h）**。
+
+  此前验过守卫对**合成**坏输入的反应；这次直接对**真实 attempt 目录的当前状态**跑，
+  确认它在"还没跑完"时会明确拒绝而不是沉默通过。
+
+  **① `--require-reading`（真实 exit code，不用 `head` 掩掉）**：
+
+  ```
+  $ r7_round.py 的守卫：tools/check_round_receipts.py --attempt outputs/…attempt08 --require-reading --quiet
+  exit = 1
+  {"passed": false, "checked": 3,
+   "failed": [{"stage":"reading","path":"…/readings.json","exists":false,
+               "ok":false,"reason":"missing"}]}
+  ```
+
+  ⇒ 精确指向缺失的 `readings.json`。
+
+  **② `--require-seeds 41 42 43`**：
+
+  ```
+  exit = 1
+  passed: False | checked: 5
+    seed41 | missing
+    seed42 | missing
+    seed43 | missing
+  ```
+
+  ⇒ 三个 seed **逐条**报缺失，`checked` 从 3 变 5（多了三条 seed 检查）。
+
+  **一处我自己差点误读的地方（记下来）**：我第一次用
+  `... --quiet | head -3; echo "exit=$?"`，看到 `exit=0`。
+  **那个 0 是 `head` 的退出码，不是工具的**。改写成
+  `> file 2>&1; echo "exit=$?"` 才拿到**真实的 1**。
+  ⇒ **凡是"看到 exit=0 就想放心"的地方，都要确认 0 不是管道末端命令的**。
+  这条与 objective 反复强调的"不能拿代理信号当完成证据"是同一类错误。
+
+  **③ 顺带确认 `checked` 的语义**：不加 `--require-seeds` 时 `checked=3`
+  （prepare / archive / reading 三个 stage receipt）；加了三个 seed 后 `checked=5`。
+  ⇒ 它数的是**实际被检查的条目**，不是"该有的条目"，所以 `checked` 小**不代表**通过。
+
+  **边界**：本条零读数、零 GPU-h。它证明的是**守卫在真实的部分状态上会拒绝**，
+  不是 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 21240`（66.1%）、`seed42/off 20440`（63.6%），
+  速率 1.1044 / 1.1482 s/update，两臂均在 epoch 2。
