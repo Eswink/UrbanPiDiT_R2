@@ -2113,3 +2113,43 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   `matching_term` 还是有缺陷的版本，复用会破坏 (a) 的「同代码身份」前提）。
 
   **边界**：本条零读数。开轮花费记在 attempt08 的账本行，本条不预支任何 GPU-h。
+
+- **2026-11-09 attempt08 已冻结、已准备、已归档、已在训练（ADR 0107 的执行）**。
+
+  ```
+  freeze   -> attempt08, protocol_sha256 bb50ac07fb891f33329a5a84bae87fa3a7d3b75826bdadff28abe0d6627104ec
+  prepare  -> 601.479 s success；冻结协议 protocol_sha256 a3ca9fe7b36bb9e65d11f42a7e7f3026ce6390f934b8a45001842af320b4c764
+  archive  -> 5.505 s success；code.zip cec5edce4c660239e0510d8a71059d734bf7ede67e69083f1fbaaaae406d8653
+              code_commit 2e0aac88aeb9c658d29dd3e791e27d8fce3f207c（= freeze 时的 HEAD，comment 相符）
+  stage-seeds -> 已启动，seed41/seed42 两个 off 臂在跑
+  ```
+
+  **前置在驱动内实跑通过**，冻结协议里记的就是修正后的值：
+
+  ```
+  case   1000: total=0.341183 zero_at_target=0.0 cross_lead_cex=0.495737 dose=0.365767
+  case   9000: total=0.465680 zero_at_target=0.0 cross_lead_cex=0.591632 dose=0.410860
+  case  17000: total=0.363079 zero_at_target=0.0 cross_lead_cex=0.607382 dose=0.392699
+  case  25000: total=0.412200 zero_at_target=0.0 cross_lead_cex=0.492830 dose=0.288887
+  ```
+
+  **在跑的就是修正后的代码**（不是"我以为"）：`training/r7_derivative_matching.py` 的
+  `execution_files_sha256` 针值 `91c8344abdac…` 与**工作树**和 **code.zip 内**三方一致，
+  且该文件里 `targets = moved.get("physical_targets")` 为真、`target = moved.get("atmos_target")` 为假。
+
+  **实测进度与速率（明写取样 update 数，避免把预热当稳态）**：
+
+  ```
+  update  80: seed41/off 1.3279 s/u, seed42/off 1.2940 s/u   （预热期，不作稳态结论）
+  update 100: seed41/off 1.3279 s/u, seed42/off 1.2940 s/u
+  ```
+
+  **时间（估计，不是实测）**：按 1.30 s/update 折算，每臂 32,132 updates ≈ 11.6 h，
+  每 seed 两臂 ≈ 23.2 h，三 seed 两卡（2 并行 + 1）≈ **46.4 h 墙钟**。
+  attempt07 的 off 臂稳定后实测 1.125–1.161 s/update，若本轮也回落到那个区间则更短。
+  包络 `per_seed = planned = 115,200 s`（32 h）、`hard = 230,400 s`（64 h）；
+  冻结时硬的余量 **63.72 h**。超软记 `soft_overrun`，只有硬上限因时长截断。
+
+  **边界**：本条零读数。`readings.json` 不存在，(a)–(d) 未求值，四件套登记未做。
+  不得据此声称 C2 通过或失败。下一步=等三份 `seed{41,42,43}_receipt.json` →
+  `stage reading` → `check_round_receipts --require-reading` → 渲染 → 四件套登记。
