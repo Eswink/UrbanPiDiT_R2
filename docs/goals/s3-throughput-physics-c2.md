@@ -2370,3 +2370,35 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **边界**：本条**零读数**、零 GPU-h。它证明目标函数**能跑且非零**，**不**证明 (b) 成立、
   更不证明 (a) 成立——那要等真实 on 臂跑满 32,132 updates 之后。
+
+- **2026-11-09 出口 (a) 的**配对前提**在真实参数上验掉：两个臂走完全相同的样本序列（0 GPU-h）**。
+
+  (a) 是**同 seed 配对差**（on skill − off skill，三 seed 均值 ≥ 0）。配对要成立，两个臂必须
+  **按同一顺序看同一批样本**，否则差值里混进了数据顺序的差异，而不只是那一项约束。
+
+  索引顺序由 `_ordered_indices` 决定：`randperm(seed + epoch)[cursor:]`。用**冻结协议的参数**
+  实测（`total_updates=32132`、`batch_size=4`、usable windows **32,131**、seed 41）：
+
+  ```
+  index stream identical for off vs on contract: True
+  draw sizes identical: True
+  stream length: 128524 | distinct indices: 32131
+  ```
+
+  ⇒ 两个臂的索引流**逐元素相同**（128,524 个索引，覆盖全部 32,131 个窗），
+  且**每次 draw 的长度也相同**（epoch 边界处最后一批是 3 个样本，两边一致）。
+  因此 (a) 的配对差只反映 `derivative_matching` 这一个轴。
+
+  **两个臂在冻结协议里的唯一差别也确认了**：
+
+  ```
+  on : {derivative_matching: "c2", updates: 32132, steps: 4, batch_size: 4}
+  off: {derivative_matching: null, updates: 32132, steps: 4, batch_size: 4}
+  ```
+
+  updates/steps/batch 三项完全相同 ⇒ 排除"偷跑更多算力"这类混杂。
+
+  **边界**：本条零读数、零 GPU-h。它证明**配对是干净的**，**不是** (a) 成立——(a) 要等两臂
+  都跑完并对 72h skill 求差。
+
+  **进度（明写 update 数）**：`update 3180–3300`（9.9%–10.3%），速率 1.1083/1.1494 s/update。
