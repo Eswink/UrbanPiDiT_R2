@@ -707,3 +707,27 @@
 
   **对在跑轮次的干扰为零**：全程 `device_name="cpu"`，期间 `nvidia-smi` 显示两卡仍由
   `attempt06` 占用（9,496/9,475 MiB、util 19%/18%），未 spawn 任何 GPU 进程、未对任何进程发信号（R-054）。
+
+- **2026-11-08 四件套登记**全链路干跑通过**（0 GPU-h；仍是零读数）**。
+  在一个 `docs/` 完整副本上模拟 C2 的全部登记动作，再跑**两个真实校验器**：
+
+  ```
+  index    -> exit 0 | PASS evidence index: 106 records
+  campaign -> exit 0 | campaign_state node=S3 failures=0 notes=11
+  ```
+
+  干跑内容：新 index record（用**本轮真** `protocol_sha256` / `train_data_identity`）、
+  §7 账本追加一行（`63.7` / `cumulative 539.554695`）、`campaign-state` 更新
+  （`used_gpu_h=539.554695`、`remaining=-519.554695`）。**两个校验器都接受**。
+  ⇒ 「跑完 → 读数 → 四件套登记」这条链里**没有剩余的工具层未知**。
+
+  **三次失败的干跑更值得记**（都是我的探针错，不是登记链错，但都会在 44 小时后
+  伪装成「链坏了」）：
+  1. `evidence_path` 用**绝对路径**的临时目录 → `evidence_path does not exist`
+     （校验器按 **repo root** 解析记录里的相对路径，探针把文件写在别处）；
+  2. `check_campaign_state.py` 接受的是**仓库相对**路径，传绝对路径直接被拒：
+     `campaign path must be repository-relative, not absolute`（`_campaign_path` 第 309 行）；
+  3. 只复制 `docs/goals/` 而不复制整个 `docs/` → 90 条 `C-03` 失败，全是**历史行**引用的
+     证据页不在沙箱里。**那是沙箱不全，不是登记链坏**；补齐 `docs/` 全树后 failures=0。
+
+  **本块零读数**：它证明登记**机制**可用，**不**证明 C2 的 (a)–(d)。六臂仍在跑。
