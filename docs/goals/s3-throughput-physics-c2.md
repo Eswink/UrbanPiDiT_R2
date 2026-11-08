@@ -1226,3 +1226,85 @@
 
   **边界**：本条只记录**四个已完成/在跑的臂**。`readings.json` 不存在、(a)–(d) 未求值、
   **一份 receipt 都没有**（`_seed` 在两臂都跑完后才写）。
+
+- **2026-11-08 E1a/E1b 的 `code_archive` 原本**不存在**——我先前的「freezable now」是**错的**；现已补齐并实测（0 GPU-h；零读数）**。
+
+  **发现路径**：核对 E1 能否在 C2 之后立刻开跑，去读两份 brief 的 `round-spec`，其中的
+  `code_archive` 指向：
+
+  ```
+  outputs/r7_s3_e1a_dense_supervision_code.zip    MISSING
+  outputs/r7_s3_e1b_terminal_step_supervision_code.zip   MISSING
+  ```
+
+  **为什么这是硬阻塞（不是「以后补」）**：`tools/r7_round.py:146` 在 `freeze` 之前就执行
+  `support.sha256_file(archive)`；文件不存在时它**直接抛**：
+
+  ```
+  FileNotFoundError: [Errno 2] No such file or directory:
+    '.../outputs/r7_s3_e1a_dense_supervision_code.zip'
+  ```
+
+  ⇒ **`freeze` 根本进不去**。而目标长文把「`code.zip` 必须带 commit 注释否则 archive 拒绝启动」
+  列为三个必避坑之一——我此前只核了「注释」这一半，**没核「文件在不在」**，
+  于是把「代码可冻结（缺 `freeze` 入口那条已修）」误当成了「现在就能冻结」。
+  **这是本会话里我第三次把「结构上可行」写成「现在可跑」**（前两次：+0.4% 的 on 臂开销、
+  把 CPU 单函数耗时当 GPU 影响上界）。记下来：**「某入口存在」≠「该入口的输入齐备」**。
+
+  **补齐方式**（用仓内既有的、与 R2 归档同形的构建器 `tools/build_round_code_archive.py`，
+  **不新造格式**）：
+
+  ```
+  git_archive_entries 1672  +  extra_entries 99  =  1771 entries
+  e1a: code_zip_sha256 66c497966c2a2a14…  content_digest b8252d70a630e34c…
+  e1b: code_zip_sha256 7bd046c700ebbf26…  content_digest b8252d70a630e34c…
+  comment == HEAD (8387b1e7393f6b7b8566e057a7c8a65a41c83c72): True
+  ```
+
+  两个 zip 的 **`content_digest_sha256` 相同**（同一棵树）但 **`code_zip_sha256` 不同**
+  ——后者含 zip 内各条目的时间戳，故**不能拿它当「内容相同」的判据**。这一点很重要：
+  `_archive` 校验的是 `code_zip_sha256`（整文件哈希）与 zip **comment**，不校验 content digest。
+
+  **实测两条关键前提**：
+  1. **`freeze` 现在通过**：`protocol_sha256 = 7524cd87331a4b71…`、
+     `per_seed_seconds 921,600 / hard_cap_seconds 1,843,200`（= 256 h / 512 h）。
+  2. **两个 zip 都含 E1 的执行源**（逐条 `namelist()` 核对）：
+     `scripts/study_r7_s3_e1a_dense_supervision.py`、
+     `scripts/study_r7_s3_e1b_terminal_step_supervision.py`、
+     `training/r7_long_rollout_runner.py`、`data/r7_long_rollout_dataset.py` 四项**全在**。
+
+  **一个必须记住的时序陷阱**：归档的 comment 钉在 **HEAD `8387b1e`**。
+  我**此后每提交一次**，HEAD 就前进，**这两个 zip 的 comment 就不再等于 HEAD**。
+  故 E1 真正开跑前，必须在**开跑那一刻的 HEAD** 上重新构建 zip（这是目标长文那句
+  「先提交 round-spec、再在同一 HEAD 上重建 zip、然后 freeze」的确切含义）。
+  **本块的两个 zip 只是一次可行性验证，不是可交付的开跑归档。**
+
+  **边界**：本条 0 GPU-h、零读数。E1a/E1b **仍未跑**（各约 255.8 GPU-h，R-054 让它们排在
+  attempt06 之后），且**不**因本条而「已就绪」——开跑前还需按那一刻的 HEAD 重建归档。
+
+- **2026-11-08 补齐归档后 E1a 的 `freeze` → `prepare` 已**整条实跑通过**（213 s，0 GPU-h；零读数）**。
+
+  **实跑链**（真实归档、真实 `train.jsonl`、生产函数，未重实现）：
+
+  ```
+  freeze  -> preparation_protocol.json, per_seed 921,600 s / hard 1,843,200 s
+  prepare -> 213 s
+  usable_windows      : 32,131
+  train_windows       : 32,131 窗、11 条排除、window_sha256 e8f22c303c98fc94…（与 C2 冻结值相同）
+  train_data_identity : 81307008b572e3ff…（与冻结 store 身份相同）
+  prepared_protocol   : protocol_sha256 2386956d9fad9aac…
+  ```
+
+  **两处容易误判为缺失败的地方（已核实是设计，不是缺陷）**：
+  1. **`preflight` 键为空**——E1a 的「前置」不是 `preflight` 字段，而是 `train_windows`
+     （`r7_s3_e1a_dense_supervision_protocol.py:206-212` 用 `preflight_long_rollout_windows`
+     算 32,131 并断言等于冻结的 `USABLE_WINDOWS`）。C2 才有 `preflight` 键。
+     **两个 round 的 schema 不同，不能拿 C2 的字段形状去要求 E1a。**
+  2. **`protocol_sha256` 每次 freeze 都不同**（本次 `2942ff63…` / `2386956d…`，先前一次探测是
+     `7524cd87…`）。这不是不确定：`freeze` 把 `started_perf_counter`/`deadline_perf_counter`
+     写进 body 并参与 digest，故**同一代码、同一归档、两次 freeze 的 digest 必然不同**。
+     ⇒ 不能用「digest 与上次不同」判为「被改动」。
+
+  **边界**：本条证明 **E1a 的启动链（归档 → freeze → prepare）在真实数据上可用**，
+  **不**证明训练能跑、不构成任何 E1 读数。E1a/E1b 各约 255.8 GPU-h，
+  **R-054 让它们串行排在 attempt06 之后**，且开跑前必须按**当时的 HEAD** 重建 zip（见上块时序陷阱）。
