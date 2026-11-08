@@ -2858,3 +2858,48 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 11860`（36.9%）、`seed42/off 11400`（35.5%），
   速率 1.1045 / 1.1478 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 72 h skill 的分母链路验完：五个 lead 齐、身份可追溯（0 GPU-h）**。
+
+  (a) 判的是 `skill = 1 − (rmse/denominator)²`，所以**分母**是判据的一部分。实测：
+
+  **① 协议里没有 `climatology_reference` 字段**（`body.get(...)` 为 None），
+  所以 `readings()` 会走 `body.get("climatology_reference") or curve.climatology_reference()` 的**回退分支**。
+  这条回退必须真的产出五个分母，否则 reading 会在 `KeyError` 上崩——实测它产出了：
+
+  ```
+  leads = ['6','12','24','48','72']
+    6h t2m_rmse = 3.9188406572176904
+   12h t2m_rmse = 3.9196037113045894
+   24h t2m_rmse = 3.921682294513083
+   48h t2m_rmse = 3.9253820690090073
+   72h t2m_rmse = 3.926891361747067
+  ```
+
+  五个全部有限、为正。
+
+  **② 分母文件的身份可追溯**（不是"某个盘上的文件"，是可核对的摘要）：
+
+  ```
+  path            .../outputs/r7_s3_fy_year_coverage_d2_20261023_attempt01/reference.json
+  declared sha256 096c384a25a8a7bb020e0bc3eb0759e8de25ba9e96c692dd9a8ac63be6dfd37f
+  on-disk sha256  096c384a25a8a7bb020e0bc3eb0759e8de25ba9e96c692dd9a8ac63be6dfd37f
+  matches         True
+  bucket_count    48
+  training_years  2000..2021 (22 年)
+  ```
+
+  ⇒ 这是 **train-only** 的 48 桶参考，且**逐字节**与声明摘要相符；它**不**含 2022 val
+  或 2023 test 年（`training_years` 止于 2021），所以用它做分母不构成对 test 的读取。
+
+  **③ 一处必须写明的不对称**：分母**不在**冻结协议里，只在**盘上**（协议无该字段）。
+  这意味着 `readings()` 每次运行都会重新解析那份 `reference.json`；
+  若该文件在跑轮期间被改写，(a) 的分母会**静默变化**而协议摘要不变。
+  实测它**没有**变化（sha256 相符），但这道保护来自**文件未被改动**，
+  **不是**来自任何 pin —— 与 `execution_files_sha256` 的 95 条不同，这份参考**没有**被 pin。
+
+  **边界**：本条零读数、零 GPU-h。它证明分母链路完整且当下身份相符，
+  **不是** (a) 的结果，也不代表 skill 会是正值。
+
+  **进度（明写 update 数）**：`seed41/off 12040`（37.5%）、`seed42/off 11600`（36.1%），
+  速率 1.1045 / 1.1472 s/update。三份 receipt 仍未出现。
