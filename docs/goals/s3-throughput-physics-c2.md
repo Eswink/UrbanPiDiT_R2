@@ -508,3 +508,27 @@
   **这份演练不产生任何数字结论**：三臂用的是同一张 Stage B 表，Δ 恒为 0；它证明的是
   「读数函数在真实文件形状上能跑完并把 (a)–(d) 算出来」，**不是** C2 通过或失败。
   真实读数必须等六个臂的 receipt。
+
+- **2026-11-08 `check_provenance` 在真实 provenance 上核验（0 GPU-h；零读数）**。
+  这是**每跑完一个臂、每评一个 lead 都会调用**的闸门（`_train_arm` 第 130 行），
+  所以它若在真实文件上不通过，会在**一个臂已经训练完之后**把结果丢掉。
+
+  实测：用 Stage B 第四点**真实生成的** `provenance.json`（seed41、五档 lead）
+  逐个调用 `check_provenance`：**6/12/24/48/72 h 全部 PASS**。
+  并做了**反证**——五个条件都能真的报错（只验通过等于没验）：
+
+  | 改动 | 结果 |
+  | --- | --- |
+  | `split = "test"` | `did not stay on val` |
+  | 出现 `test_read` 键 | `did not stay on val` |
+  | `n_evaluated` 改 1 | `cohort differs from the frozen one` |
+  | `lead_hours` 改 `[48]` | `cohort differs from the frozen one` |
+  | `full` 区域 `n_grid_points` 改 1 | `full region is not 65x65` |
+
+  **并记一处探测笔误（不是代码缺陷）**：我先写了 `proto.REGION` 去读 C2 的协议模块，
+  得到 `AttributeError`——`REGION` 与 `FULL_GRID_POINTS` 在
+  `scripts/r7_s3_curve_point_large_driver` 里（`check_provenance` 用的正是它），
+  C2 协议模块名字叫 `c2.REGION` 存在于 curve 协议而非驱动。实测两者值一致
+  （`full` / `4225`），所以闸门读到的常量与打分表一致。
+
+  **本块仍为零读数**，不构成 C2 结论。六个臂尚未跑完。
