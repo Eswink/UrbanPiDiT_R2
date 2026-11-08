@@ -4125,3 +4125,35 @@ derivative_matching_terms(...) -> KEYS THE RUNNER WOULD RECORD:
 
 **进度（明写 update 数）**：`seed41/off 24860`（77.4%，epoch 3，余约 2.2 h）、
 `seed42/off 23920`（74.4%，epoch 2，余约 2.6 h）；seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 用实测速率精算到 receipt 的时间与账本结构（把估计收紧，不是把估计当实测）
+
+**状态** `schedule-refined`；GPU-h **0.000000**（账本仍 2 行：prepare 601.479 s + archive 5.505 s
+= **0.168607**）；零读数。
+
+早前的 35.2 h 是用"一臂 5.9 h"这种粗口径推的。改用**实测速率**重算（公式与输入全部写出，
+任何人都可复算）：
+
+```
+score_per_arm = 2588.1 s = 0.72 h   (protocol.budgets.scoring_allowance_seconds，取自 Stage B 实测)
+seed41/off 25120/32132, 1.1049 s/u -> off 剩 2.15 h + on 9.86 h + 两臂评分 1.44 h = 卡在 13.45 h 后空出
+seed42/off 24160/32132, 1.1491 s/u -> 同上 = 14.24 h
+seed43（用较慢速率）on+off=10.27 h + 评分 1.44 h = 11.69 h，从第一张卡空出时启动
+=> 三份 receipt 齐备 ≈ 13.45 + 11.69 = 25.15 h
+=> round 硬截止还剩 56.72 h ⇒ 余量 ≈ 31.57 h
+```
+
+**这是估计，不是实测完成时刻**：速率会随 epoch 边界、checkpoint 落盘、共驻波动变化；
+`elapsed_seconds` 已含这些，但未来仍可能漂移。**余量 31.57 h 足以吸收 ±2 倍漂移**，所以不再改协议。
+
+**账本结构已核实（这段是实测代码，不是推测）**：`tools/r7_round_stages.py:342-359` 里 seed 行是
+在 `run(...)` **返回之后**才 `_append_stage_ledger`，而 `_seed()` 把**两臂训练 + 两臂五档评分**
+全做完才返回 ⇒ **一条 seed 账本行 = 一整个 seed 的全部算力**，六行齐备才等于六条数据齐全。
+所以 `gpu_hours` 必须等**全部六行**，不能见到三行就取数——这与用户的指示一致。
+
+**整轮成本投影（估计）**：`3 × (2×32132×rate + 2×2588.1)` ≈ **65.6 GPU-h**
+（seed41 21.16 / seed42 21.95 / seed43 21.95，用各自实测速率）。**不得**把这个数写进登记记录；
+记录的 `gpu_hours` 由 `build_c2_registration.py` 从账本**现算**。
+
+**进度（明写 update 数）**：`seed41/off 25120`（78.2%，ep3）、`seed42/off 24160`（75.2%，ep3）；
+seed43 未启动；三份 receipt 不存在。
