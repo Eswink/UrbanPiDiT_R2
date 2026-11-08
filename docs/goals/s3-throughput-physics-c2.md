@@ -2038,3 +2038,44 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   **边界**：本条 0 GPU-h、纯 CPU、零读数，不改任何冻结判据，不构成 C2 或 S3 的科学结论。
   attempt07 未受影响：两个 off 臂在 update 6,060 / 5,880 处速率 1.126 / 1.162 s/update。
   提交 `a34f3f9`、`026afc2`，已在干净 clone（无 `outputs/`）上验证 146 项测试通过。
+
+- **2026-11-08 attempt07 作废：冻结的 on 臂目标函数**惩罚正确答案**（ADR 0105，4.968110 GPU-h、零读数）**。
+
+  在等 receipt 期间做读数阶段前置核查，问「C2 这一项在真值处是否为零」——答案是否。
+
+  ```
+  forecasts shape           (1, 12, 17, 65, 65)  => [:,-1] 是第 12 步 = +72 h
+  physical_targets[:,0] == atmos_target : True    => atmos_target 是 +6 h
+  ```
+
+  `matching_term` 的 docstring 说目标是「**最后一个** physical step 的分析场」，实际取的是第一个。
+  用**冻结的**尺度在**冻结的**四个 preflight case 上：**完美 +72 h 预测**的项值
+  **0.495737 / 0.591632 / 0.607382 / 0.492830**，同一场对它自己的 +72 h 真值 **0.0**；
+  case 1000 上 `gradient norm d(C2)/d(forecast) = 0.011982`，MSE 在同一点 **0.0**
+  ⇒ **优化器被推离正确的 +72 h 场**。
+
+  **前置守卫为何没拦住**：`r7_s3_derivative_matching_c2_protocol.py:192` 的
+  `derivative_matching_terms(target, target, …)` 把 target 与**自己**比，恒零、与真实配对无关，
+  而 docstring 与 0095 第 (1) 条都记成「`pred = target` 时精确零」⇒ **按构造通过**。
+  同文件 `:188-189` 早已把 `forecasts[:,-1]` 与 `atmos_target` 配在一起算 `live`，
+  跨 lead 在 preflight 里一直是显式的，只是没人与 `zero_at_target` 对着读。
+
+  **为何停**：预声明「任一出口假 ⇒ 永久关闭该支」。让一个有缺陷的目标函数产生那个 false，
+  等于把 bug 写成物理结论（0084 §6）。停下代价 4.968110 GPU-h；跑完要再花约 35 h 得到不可解释的读数。
+
+  **终止动作**：先 `SIGTERM` 编排器 `stage-seeds`(pid 2290400) 以**阻止 seed43 拉起**，
+  再对 10 个 worker 逐个核对 `/proc/<pid>/cmdline` 含 `attempt07` 后发 `SIGTERM`；
+  **未对任何非本实验进程发信号**（R-054）。两卡 **0% / 38 MiB / 17 MiB**。
+
+  **成本**：两臂 `elapsed_seconds` 之和 **17,885.2 s = 4.968110 GPU-h**。
+  **顺带补记 attempt06 的 23.684603 GPU-h**——它此前只在进度块里、**账本无对应行**；
+  C-02/C-03 只校验已存在的行，看不见「有费用无行」，这是机械检查的盲区。
+  累计 **475.854695 → 504.507518**（三次作废合计 **35.208213 GPU-h**）。
+
+  **未做**：C2 **没有被测过**——不是「测了失败」。修法（正确配对 `physical_targets[:,-1]` +
+  有判别力的守卫反证）见 0105；改在跑字节被禁（已冻进 95 项）。复算工具
+  `tools/reproduce_c2_cross_lead_defect.py`，12 项测试含 AST 反证。
+
+  **为何停（§6 要求）**：已达「确无可安全独立推进的工作」——C2 的两臂必须用修正后的目标函数重跑，
+  而那需要先修 `matching_term` 与前置守卫、再重新 freeze，属于新 ADR 的范围，不是本 attempt 的补丁。
+  **恢复第一条命令** = `.venv/bin/python tools/r7_round.py state`。
