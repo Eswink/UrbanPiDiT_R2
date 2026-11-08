@@ -2483,3 +2483,35 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   "拿到真 readings 时，结果页与登记记录能正确生成"。
 
   **进度（明写 update 数）**：`update 3740–3880`（11.6%–12.1%），速率 1.1070/1.1482 s/update。
+
+- **2026-11-09 CI 的一个**读法**更正：`8dd386b3` 的 `cancelled` 是我自己取消的，不是失败（0 GPU-h）**。
+
+  逐个 commit 查 `pytest` 的 `conclusion` 时看到：
+
+  ```
+  4591ceca  pytest: in_progress
+  8dd386b3  pytest: completed / cancelled
+  ```
+
+  **必须先查清再解读**。查 `.github/workflows/ci.yml`：
+
+  ```
+  concurrency:
+    group: r7-ci-${{ github.event_name }}-...-${{ github.ref_name }}
+    cancel-in-progress: true
+  ```
+
+  ⇒ 同一分支上**新 push 会取消上一次仍在跑的 run**。`8dd386b3` 之后我推了 `4591cec`，
+  于是前者被后者取消。**这是配置的正常行为，不是测试失败**。
+
+  **为什么必须写下这条**：`cancelled` 在别处可能是真信号（决策 0045/ci-and-verification 都强调
+  「取消或被排队的运行不算通过」）。把它读成"绿"是错的，**读成"红"同样是错的**——
+  正确说法是**它从未给出结论**，因此这一棵树**没有** CI 证据。
+  当前 `4591cec` 的 run（id 42504757330）仍 `in_progress`，**同样未确认**。
+
+  **仍未确认的还有**：`3be1127`、`6d6f73a`、`3fe12ab`、`04a97dd`、`fb70feb` 都没有已确认的
+  pytest 结论（最近的已确认绿仍是 `7a062fb`）。
+
+  **进度（明写 update 数）**：`update 4680–4820`（14.6%–15.0%），速率 1.1073/1.1429 s/update。
+
+  **边界**：本条零读数、零 GPU-h。
