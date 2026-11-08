@@ -2743,3 +2743,47 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   **进度（明写 update 数）**：`seed41/off 9620`（29.9%）、`seed42/off 9280`（28.9%），
   速率 1.1043 / 1.1443 s/update。按当前速率**估计**：off 臂还剩 6.9 / 7.3 h，
   两个 seed 各自跑完两臂还需 **16.8 / 17.5 h**（估计，非实测）。
+
+- **2026-11-09 为什么现在停在"等读数"，以及恢复的第一条命令。**
+
+  按目标长文的三条停机条件核对：
+
+  | 条件 | 是否触发 | 依据 |
+  | --- | --- | --- |
+  | 触授权边界 | **否** | 本轮只用本地免费 GPU；无付费/租卡/独占/main 合并/force/多年度下载 |
+  | 达已冻结科学停止条件 | **否** | 三份 seed receipt 都还没出现，没有读数可判，(a)–(d) 未被求值 |
+  | 确无可安全独立推进的工作 | **是（本会话已到此为止）** | 见下 |
+
+  **"没有可安全独立推进的工作"的实测依据（不是判断，是清单）：**
+
+  1. **E1（R5 训练信号族）不能在 attempt08 期间跑**：R-054 要求 GPU 由统一父调度**串行**，
+     两张卡已被 seed41/seed42 各占 9287–9308 MiB / 24576 MiB，再起一个训练臂就是共驻争用，
+     会把本轮 1.10 s/update 变成 ≥1.25（Stage F 已量到争用是 1.09×）。
+  2. **E2（容量轴）不动**：需要用户**具名授权** + 一个**取代决策 0048** 的新 ADR，两样都没有。
+  3. **E3（H-C）不动**：只能按决策 0077 的唯一形态，且应先有 C2 的读数。
+  4. **不能改 pinned 代码**：95 条 `execution_files_sha256` 里任何一条变动都会让 seed43
+     启动时抛 `execution source changed`（本轮已实测该契约）。这排除了"顺手修 (b) 的弱检查"。
+  5. **读数路径的每一环都已验过**：登记链两个分支（`01af926`）、账本与 campaign-state
+     预演（`dc14d31`）、seed43 的 inventory 契约（`bf9ca0e`）、(b) 的弱检查已量并记为已知缺陷
+     （`5ee4fee`）、评分前置常量与训练终态断言、890 行非 NaN 实测（`06a89c6`）。
+     ⇒ 再找"跑完之后才炸"的地方，收益已经很低。
+
+  **恢复的第一条命令**（三个 receipt 齐备后，逐条按序执行）：
+
+  ```
+  cd /data/esw/UrbanPiDiT_R2
+  .venv/bin/python tools/r7_round.py state
+  ```
+
+  ⇒ 必须确认 `current_round_goal` 仍为 `docs/goals/s3-throughput-physics-c2.md`（本轮实测为是），
+  否则 `stage reading` 会去解析另一份 brief 的 round-spec、读错 attempt 目录
+  （这是目标长文列出的三个坑之一）。
+
+  其后：`stage reading` → `tools/check_round_receipts.py --attempt
+  outputs/r7_s3_derivative_matching_c2_20261108_attempt08 --require-reading` →
+  按预声明求值 (a)–(d) → 四件套登记。
+
+  **估计（非实测）**：off 臂还剩 **6.9 / 7.3 h**，两个 seed 各跑完两臂还需
+  **16.8 / 17.5 h**，seed43 在第一张卡空出后开始、需约 **20 h**。
+  ⇒ 三份 receipt 齐备大约在 **28–38 h** 之后。**这是按当前速率外推的估计，不是承诺**；
+  速率会随共驻与 I/O 波动。
