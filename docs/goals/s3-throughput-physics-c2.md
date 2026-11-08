@@ -3978,3 +3978,37 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 22400`（69.7%）、`seed42/off 21540`（67.0%），
   速率 1.1043 / 1.1481 s/update，两臂均在 epoch 2；seed41/off 已有 **4 个 checkpoint**（5k/10k/15k/20k）。
+
+- **2026-11-09 E1a/E1b 的"除 GPU 之外全部就绪"已用测试实证（0 GPU-h）**。
+
+  E1 是 B 判定 `unsaturated` 之后的**实质缺口**（不是可略项）。它的 255.8 GPU-h 规模意味着
+  "能不能起来"必须现在就说清。实测：
+
+  ```
+  pytest tests/test_r7_s3_e1a_dense_supervision.py
+         tests/test_r7_s3_e1b_terminal_step_supervision.py   -> 24 passed in 1.78s
+  ```
+
+  **两个驱动各有完整的读数路径测试**（`test_the_reading_fills_both_arms_and_the_exit_can_pass`），
+  覆盖的正是 attempt04 那一类"fill 被嵌进 arm 条件分支 ⇒ 一臂为空 ⇒ 十小时后 KeyError"的缺陷。
+  加上前几节已实测的：
+
+  | 前置 | 实测结果 |
+  | --- | --- |
+  | `load_driver` 五个必需名 | E1a/E1b 都通过 |
+  | 同剂量论证 | 两个向量和都是 3.0、长度 12、内容不同 |
+  | `prepare` 的窗口断言 | `usable_windows = 32131` == 冻结常量，11 条排除 |
+  | 父 checkpoint | 三个都在盘、sha256 逐个相符 |
+  | 桥 (e) `state_digest` | 41/42/43 = `7c416ccb…`/`857d8804…`/`61fdac58…`，与 C2 brief 逐字相同 |
+
+  ⇒ **E1a/E1b 缺的只有 GPU 时间**（R-054 串行，被 attempt08 占着），
+  **不是缺代码、缺协议、缺前置**。这一点在最终汇报里必须讲准：
+  "E 未做"是因为**串行约束**，不是因为没准备好。
+
+  **一处我不打算做的事**：不为了"让 E1 看起来完成了"而在 attempt08 期间起任何 GPU 进程。
+  R-054 要求统一父调度串行；两卡各占 9.4 GiB 已是本轮的全部算力预算。
+
+  **边界**：本条零读数、零 GPU-h。它证明的是 E1 的**就绪状态**，不是任何 E1 结果。
+
+  **进度（明写 update 数）**：`seed41/off 22620`（70.4%）、`seed42/off 21740`（67.7%），
+  速率 1.1044 / 1.1482 s/update，两臂均在 epoch 2。
