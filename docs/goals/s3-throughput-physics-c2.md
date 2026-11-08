@@ -3742,3 +3742,45 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 20160`（62.7%）、`seed42/off 19380`（60.3%），
   速率 1.1043 / 1.1485 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 登记算术与账本行格式的**最终预演**（0 GPU-h）**。
+
+  **① 算术（用真实的 campaign 现值）**：
+
+  ```
+  campaign used_gpu_h 现值          504.507518
+  C2 预估 gpu_hours（估计，待六条 seed 行实测替换）  ~63.7
+  登记后 used_gpu_h                 568.207518
+  登记后 remaining_gpu_h            20.0 − 568.207518 = −548.207518
+  ```
+
+  `remaining` 为负是**本 campaign 的既定语义**（`budget_mode: per-node-hard-cap-summed`，
+  `cap_gpu_h 20.0` 是**单节点**硬帽而非总量），`check_campaign_state` 当前 `failures=0` 已含
+  一个 −484.507518 的负值 ⇒ **负 remaining 不是失败**，不得报成"超支"。
+
+  **② 账本行的列格式（用真实正则实测）**：
+
+  ```
+  行：| S3 Stage C2 `attempt08`（…） | **63.7** | 568.207518 | `docs/R7_S3_…_RESULT.md`（record:s3-…-result） |
+  解析： name = S3 Stage C2 `attempt08`（…）
+         gpu  = 63.7
+         cum  = 568.207518
+  缺尾部 | 的行： 不解析（False）      <- 重要：否则会静默漏掉一行
+  ```
+
+  ⇒ 行必须以 `|` **结尾**；`gpu` 允许 `**加粗**`（正则剥掉）；`cum` 必须是**运行和**
+  （上一节已证：新行必须在**表末**，否则后面每一行都差这个数）。
+
+  **③ 一处实测到的协议事实（不是缺陷）**：`protocol.json` 里 **`seeds` 为 `None`**，
+  驱动 `run_seeds` 的 seed 列表来自 `round-spec.seeds = [41,42,43]`。
+  ⇒ 登记时引"三个 seed"要引 **round-spec**，不是协议字段；`per_seed_seconds 115200`（32 h）
+  与 `hard_cap_seconds 230400`（64 h）都在协议里，可引协议。
+
+  **④ `gpu_hours` 的取数时机（重申，因为它是最容易写错的一处）**：
+  必须等**六条 seed ledger 行**全部落盘后取 `stage_ledger.jsonl` 之和。
+  当前只有 2 行、合计 0.168607 GPU-h——那是"还没记账"，**不是本轮成本**。
+
+  **边界**：本条零读数、零 GPU-h。63.7 是**估计**，登记时必须用实测替换。
+
+  **进度（明写 update 数）**：`seed41/off 20340`（63.3%）、`seed42/off 19560`（60.9%），
+  速率 1.1043 / 1.1489 s/update。三份 receipt 仍未出现。
