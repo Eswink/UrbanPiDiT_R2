@@ -570,3 +570,37 @@
   记下来是因为「读到 None 就以为缺字段」是这条链路上最容易被误报成缺陷的形态。
 
   **本块与 C2 读数无关**，不构成 C2 结论；六个臂仍在跑。
+
+- **2026-11-08 本编排器**不得**在 attempt06 在跑时启动（实测的次序缺陷，0 GPU-h）**。
+  目标长文要求「用 workflow 编排」。在考虑跑一次 `dryRun` 时，我核了它的执行次序，
+  发现一条**会让 `stage reading` 读错 round-spec** 的缺陷：
+
+  | 行 | 内容 |
+  | --- | --- |
+  | 391 | `implementer.ask(IMPLEMENT_ASK(plan))` —— **先执行** |
+  | 432 | `if (dryRun) { ... break; }` —— **后**早退 |
+  | 202（prompt 内） | `"2) **把 campaign-state.current_round_goal 改成 " + plan.goalPath` |
+
+  ⇒ **连 `dryRun` 都会**让实现者子代理去重写 `campaign-state` 指针。
+  当前指针是 `docs/goals/s3-throughput-physics-c2.md`；一旦被重指，
+  `tools/r7_round.py stage reading` 会去解析**另一份** brief 的 `round-spec`，
+  从而定位到错的 attempt 目录——正是目标长文点名的第三个坑（「跑 stage 前先核对
+  `current_round_goal`」）在编排器一侧的镜像。
+
+  **已加硬前置**（第 401 行起）：在 `implementer.ask` 之前先跑
+  `tools/r7_round.py orphans`；**只要有存活 stage worker 就直接停、不动任何文件**，
+  解析失败或探测失败也停（不宽容）。实测该前置现在**确实触发**：
+
+  ```
+  running: [{'phase':'seed','seed':41,'running':True,'pids':[1817520,...]},
+            {'phase':'seed','seed':42,'running':True,'pids':[1817521,...]}]
+  ```
+
+  **两件必须如实说的事**：
+  1. **我改坏过一次这个文件**：第一次编辑把 `if (plan.blocked) { ... }` 的收尾三行截掉了，
+     立刻自查发现（大括号失衡、第 388 行语句被切断）并补回；现在大括号与方括号均平衡，
+     新增的 guard 块自身 `(`/`)` 与 `{}` 均平衡。
+  2. **我**不能**声称这个 560+ 行的 draft 通过了类型检查**：仓内没有 TS 编译器，
+     `npx typescript` 离线不可用。所以本块只断言「我改的这段结构平衡、位置正确、
+     触发条件实测成立」，**不**断言整个文件可编译。首次真正编译会在它被提交给
+     `CreateWorkflow` 时发生。
