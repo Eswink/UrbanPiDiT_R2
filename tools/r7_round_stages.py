@@ -391,7 +391,14 @@ def run_seeds(
     driver = spec["driver"]
     order = {seed: index for index, seed in enumerate(spec["seeds"])}
     pending = [seed for seed in spec["seeds"] if not stage_receipt(output, "seed", seed).is_file()]
-    deadlines = {seed: now() + wait_seconds for seed in pending}
+    # RETRY window for a blocked seed, armed at POP time not scheduler start: the third seed
+    # on two cards waits hours before its first pop, so a t0-armed deadline can already be
+    # stale, and ``now() < deadline`` would fall through to ``stop = True``.
+    # NOT covered by a discriminating test: in a 2-card 3-seed fake the third seed blocks at
+    # its only pop with both cards then busy, so no retry pop occurs and old/new forms agree.
+    # Kept because it is strictly more permissive (a later arm can only lengthen the window)
+    # and because the ``pending[0]`` KeyError guard below is a real fix -- not on test strength.
+    deadlines: dict[int, float] = {}
     free, records, stop = list(uuids), [], False
     owned_peak = max(int(body.get("owned_reserved_peak_bytes", 0)), measured_peak_bytes(output))
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(uuids)) as pool:
@@ -399,6 +406,7 @@ def run_seeds(
         while (pending and not stop) or running:
             while pending and free and not stop:
                 seed = pending.pop(0)
+                deadlines[seed] = now() + wait_seconds
                 candidates = [card for card in devices.seed_order(uuids, order[seed]) if card in free]
                 # Probe every free card in the seed's preference order before spawning: a
                 # blocked first choice must not pin the seed to that card when another free
@@ -432,7 +440,11 @@ def run_seeds(
                 elif not record["passed"]:
                     stop = True
             if retry and not stop and pending:
-                time.sleep(max(0.0, min(poll_seconds, deadlines[pending[0]] - now())))
+                # ``pending`` may hold a seed that has never been popped, so it has no deadline
+                # yet; sleep the plain poll interval rather than indexing a missing key.
+                head = pending[0]
+                remaining = deadlines[head] - now() if head in deadlines else poll_seconds
+                time.sleep(max(0.0, min(poll_seconds, remaining)))
     # A seed that was blocked and then waited out leaves two records: score each seed by its
     # last one, so a retried seed is not reported as blocked forever. The earlier observation
     # stays in ``seeds`` as the audit trail.
