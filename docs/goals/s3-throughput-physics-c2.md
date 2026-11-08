@@ -2903,3 +2903,41 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 12040`（37.5%）、`seed42/off 11600`（36.1%），
   速率 1.1045 / 1.1472 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 C2 的 readings **不记录分母身份**：同仓先例有，本轮不能补（0 GPU-h）**。
+
+  上一节证明了分母（`D2_REFERENCE`）当下 sha256 相符。但**它会不会在跑轮期间被换掉**，
+  本轮产物**无法自证**——因为 `readings()` 没有把分母摘要写进 `readings.json`。
+
+  **同仓对照（实测计数）**：
+
+  ```
+  scripts/study_r7_s3_derivative_matching_c2.py   "climatology_reference_sha256" 出现  0 次
+  scripts/r7_s3_curve_point_driver.py            "climatology_reference_sha256" 出现  1 次
+  ```
+
+  曲线驱动在它的 `readings()` 里显式写：
+
+  ```python
+  "climatology_reference_sha256": sha256_file(D2_REFERENCE),
+  ```
+
+  而 C2 的 `readings()` 只写 `protocol_sha256`、`factor`、`derivative_matching`、`preflight`、`seeds`、
+  `exit_conditions`——**没有分母摘要**。⇒ 事后审计 C2 的 (a) 时，只能靠
+  "分母文件当时没被动过"这一**外部**事实，不能靠 `readings.json` 内部的自证。
+
+  **为什么现在不补**：`scripts/study_r7_s3_derivative_matching_c2.py` **在** 95 条
+  `execution_files_sha256` pin 里（实测 `PINNED`）。改它会让 seed43 启动时
+  `validate_protocol` 抛 `execution source changed`，整轮作废。而且 `readings.json` 一旦生成
+  就带着当时的代码身份，事后补字段会造出"读数与代码不符"的第二类漂移。
+  ⇒ **本轮如实带着这个缺口登记，并在结果页的 limitations 里写明**。
+
+  **顺带确认一件好事**：分母的**生成代码**是 pinned 的
+  （`scripts/r7_s3_fy_year_coverage_climatology.py` **在** 95 条里），所以
+  "分母是怎么算出来的"是固定的；缺的只是"这次用的是哪一份字节"的摘要。
+
+  **下一轮应做的**（记为待办，不在本轮）：在 `readings()` 里加
+  `"climatology_reference_sha256": sha256_file(D2_REFERENCE)`，并加一条反证测试
+  （换一份分母 ⇒ 该字段变化 ⇒ 测试失败），与曲线驱动对齐。
+
+  **边界**：本条零读数、零 GPU-h。它是**可追溯性缺口**，不是 (a) 的结论。
