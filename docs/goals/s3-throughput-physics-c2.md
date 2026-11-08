@@ -2656,3 +2656,47 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **由此得到一条可操作结论**：**加新文件安全，改已 pin 的 95 个文件会当场打断 seed43。**
   后续任何提交在 attempt08 跑完之前，都**不得**碰这 95 条里的任何一条。
+
+- **2026-11-09 出口 (b) 的措辞与实现有一处**不等价**，已量到、但**不能**在本轮改（0 GPU-h）**。
+
+  brief 里的 (b) 是「**两项**导数匹配在 on 臂逐步记录且**严格为正**」。实测读数的判定式
+  （`study_r7_s3_derivative_matching_c2.py:214-217`）只对 **divergence** 取了 `> 0.0`，
+  `vorticity` **只要求键存在**。用真实判定式逐例跑：
+
+  ```
+  True   both positive (the intended case)        divergence=0.19 vorticity=0.15
+  True   vorticity == 0.0  (degenerate)           divergence=0.19 vorticity=0.0
+  True   vorticity NEGATIVE (impossible)          divergence=0.19 vorticity=-0.15
+  False  divergence == 0.0
+  False  divergence negative
+  ```
+
+  ⇒ **(b) 的实现比它的文字弱一项。**
+
+  **② 为什么这条在**本轮**不会翻转判决（三条独立理由，不靠推测）：**
+
+  1. **构造上非负**：`vorticity_matching` 返回 `weight * mean(((∇×pred − ∇×target)/scale)²)`，
+     权重 `0.1 > 0`、`scale > 0`（函数内有 `scale <= 0` 的 raise），平方的均值 **≥ 0**。
+     要得到恰好 `0.0` 需要 **4,225 个格点**的涡度**全部**相同——真实预报对真实分析场不可能。
+  2. **在真实数据上实测远离 0**：冻结 preflight 四行（真实 store、已钉父）的 `vorticity` 是
+     `0.147739 / 0.155131 / 0.159561 / 0.100613`，`>0` 全真；`divergence` 是
+     `0.193444 / 0.310548 / 0.203519 / 0.311587`，`>0` 也全真。**最小值 0.10，不是 1e-9 量级。**
+  3. **键名确实对得上**（不是"读一个不存在的键"）：runner 按**返回字典自身的键**写
+     `f"constraint_{name}"`（`r7_long_rollout_runner.py:279`），`matching_term` 经
+     `derivative_matching_terms` 返回的键正是 `divergence`/`vorticity`
+     ⇒ 落盘名就是 `constraint_divergence`/`constraint_vorticity`，与读数读的名字一致。
+     且这两个值都是 **tensor**（runner 只记录 `isinstance(value, torch.Tensor)` 的项），
+     所以不会被过滤掉。
+
+  ⇒ **本轮 (b) 不会因为这条弱检查而给出错误的"真"。** 但**下一轮**若还要用这条判据，
+  应当把它收紧成对两项都取 `> 0`（或写成「两项都是平方均值，断言 `>= 0` 且两项之和 `> 0`」），
+  并配一个 `vorticity = 0.0` 必须判假的测试。
+
+  **③ 为什么现在不改：`training/r7_derivative_matching.py` 与
+  `scripts/study_r7_s3_derivative_matching_c2.py` **都在** attempt08 的 95 条
+  `execution_files_sha256` pin 里**（实测 `PINNED`）。在轮次运行中改它们，会让 seed43 启动时的
+  `validate_protocol` 当场抛 `execution source changed`——这正是上一节说的那条契约。
+  而且 **(b) 是冻结判据**，中途改判定式属于"改冻结判据"，明令禁止。
+  ⇒ 记为**已知缺陷**，不改，随下一轮的 ADR 处理。
+
+  **边界**：本条零读数、零 GPU-h；它**不是** (b) 的结果，(b) 仍要等真实 on 臂跑满。
