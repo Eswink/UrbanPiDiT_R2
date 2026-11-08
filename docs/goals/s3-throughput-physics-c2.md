@@ -1308,3 +1308,59 @@
   **边界**：本条证明 **E1a 的启动链（归档 → freeze → prepare）在真实数据上可用**，
   **不**证明训练能跑、不构成任何 E1 读数。E1a/E1b 各约 255.8 GPU-h，
   **R-054 让它们串行排在 attempt06 之后**，且开跑前必须按**当时的 HEAD** 重建 zip（见上块时序陷阱）。
+
+- **2026-11-08 `stage reading` **不看** seed receipt 是否齐备；而 `readings.json` 一旦被写成半截，就会被永久当成「已完成」（0 GPU-h；零读数）**。
+
+  这是本轮最后一步的两个**静默失败**面，此前只核过其中一半。
+
+  **① `stage_plan` 只查目标 receipt 自身。** 实测：此刻**零份 seed receipt**，
+  但 `stage-plan reading` 仍返回
+
+  ```
+  "already_done": false, "already_running": false, "skip": false
+  ```
+  ⇒ **`stage reading` 会照常 spawn**。`stage_plan`（`tools/r7_round_stages.py:114-143`）
+  的实现是 `receipt = stage_receipt(output, phase, seed); done = receipt.is_file()`，
+  **没有任何「先决 seed 是否齐备」的检查**。所以「等六臂跑完再 reading」这条纪律**只由执行者承担**，
+  工具不会替我挡。这不是缺陷（runner 的设计是「每个 artefact 排他创建，重跑会响」），
+  但它意味着：**我若在 on 臂跑完前手滑跑一次 `stage reading`，不会有任何东西阻止它。**
+
+  **② 半截 `readings.json` 会被永久当成「已完成」——已实测确认这条路径存在。**
+  `wide.write_exclusive`（`study_r7_s3_wide_single_factor.py:101-103`）是
+
+  ```python
+  with Path(path).open("x", encoding="utf-8") as handle:
+      json.dump(body, handle, indent=2, ensure_ascii=False, allow_nan=False)
+  ```
+
+  先 `open("x")` **建文件**，再 `json.dump(...allow_nan=False)`。若 body 里出现 NaN/Inf，
+  dump 抛 `ValueError`，**但文件已经建了**。实测：
+
+  ```
+  dump raised: Out of range float values are not JSON compliant: nan
+  file exists after failure: True
+  size: 19 bytes; contents: '{\n  "a": 1,\n  "b": '
+  parseable as JSON: NO (Expecting value)
+  ```
+
+  而 `stage_plan` 判完成用的是 `receipt.is_file()` ——**19 字节的坏文件也算 done**，
+  于是此后每次 `stage reading` 都 `skip: true`，**永远不会重算**。
+
+  **③ 一件已确认的缓解（不是靠运气）**：`worker()` 第 267 行是
+  `wide.write_exclusive(output / "readings.json", readings(output, body))`，
+  即 **`readings(...)` 先求值、再调用 `write_exclusive`**。所以「缺 receipt / 评分表漂移 /
+  分母缺失」这类错误会在**文件被创建之前**抛出，**不会**留下半截文件。
+  真正能留半截的只有「`readings()` 返回后、`json.dump` 中途因 NaN 失败」这一种——
+  即必须已经有一个非有限的浮点被算出来。
+
+  **④ 已备好的检测（人工，不是自动闸）**：`tools/check_round_receipts.py` 对该坏文件实测
+
+  ```
+  {'ok': False, 'reason': 'truncated or invalid JSON (Expecting value at char 19)', 'bytes': 19}
+  ```
+  精确报出字符偏移。**但 `stage reading` 自己不会调用它**——所以正确的动作顺序是：
+  `stage reading` 之后**先跑 `check_round_receipts.py --require-reading`**，再看 exit code，
+  而不是看到 `readings.json` 存在就当成功。
+
+  **边界**：本条零读数、零 GPU-h，只把「最后一步的两个静默面 + 一个已备的检测」写清。
+  六臂仍在跑，`readings.json` 仍不存在。
