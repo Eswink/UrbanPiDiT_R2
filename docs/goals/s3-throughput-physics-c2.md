@@ -2831,3 +2831,30 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 10760`（33.5%）、`seed42/off 10360`（32.2%），
   速率 1.1048 / 1.1487 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 登记时 GPU-h 的取数口径已确认：现在读 ledger 会低估 (0 GPU-h)**。
+
+  `tools/build_c2_registration.py::_gpu_hours_from_ledger` 把 `stage_ledger.jsonl` 的
+  `elapsed_seconds` 逐行求和。而 seed 的 ledger 行是在 **`run(...)` 返回之后**才写的
+  （`r7_round_stages.py:333-359`：先 `elapsed = now() - started`，再 `_append_stage_ledger`）。
+
+  **当前实测：ledger 只有 2 行，合计 606.984 s = 0.168607 GPU-h。**
+
+  ```
+  prepare  seed=None  success  601.479 s
+  archive  seed=None  success    5.505 s
+  ```
+
+  三个 seed 的行**一行都还没有**——因为两个在训、一个还没启动。
+
+  ⇒ **登记时不能拿"现在的 ledger 之和"当本轮成本**。正确的取数时机是
+  六个 seed 行（3 seed × 两臂，每个 seed 一行）全部落盘之后；
+  届时 `gpu_hours` 才是训练+评分的真实占用，与 brief §5 的 **63.7 GPU-h（估计）** 对比。
+  **若登记时只看到 0.168607，那是"还没记账"，不是"本轮只花了 0.17 GPU-h"。**
+
+  **为什么现在写这条**：`build_c2_registration.py` 的预演（提交 `01af926`）就是在只有这 2 行
+  的时候跑的，得到的 `gpu_hours=0.168607`、`ledger_rows=2` 是**正确的当时读数**，
+  但它**不是**本轮的最终成本。两个数字都对，若混用就会得出"整轮几乎免费"的错误结论。
+
+  **进度（明写 update 数）**：`seed41/off 11860`（36.9%）、`seed42/off 11400`（35.5%），
+  速率 1.1045 / 1.1478 s/update。三份 receipt 仍未出现。
