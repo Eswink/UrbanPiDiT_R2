@@ -839,3 +839,34 @@
   就足以把 (a) 判假，而 (a) 假 ⇒ 按预声明**永久关闭「导数域目标匹配」这一支**。
   这是判据原本的设计（保号而非比较幅度），**本块不主张放宽**；
   记录它是为了让 40 h 后的判决不被误读成「效果不明显所以重跑」。
+
+- **2026-11-08 出口 (c) 从**硬编码 `True`** 变成**可复算的实测**（0 GPU-h；零读数）**。
+
+  `evaluate_exit` 里 (c) 是 `c = True`，注释把它托付给「dispatcher 的早退 None 与它的反证测试」。
+  这是四个出口里**唯一没有任何数值依据**的一条，而它同样是 (a)–(d) 合取的一部分。
+  下面把它实测掉（不依赖 store、不训练）：
+
+  ```
+  三种「off 形态」的合同，同 seed、同输入、同参数：
+    ① 完全不带 axis 键（注册形态）
+    ② derivative_matching = None
+    ③ physical_constraints = None 且 derivative_matching = None
+  ⇒ 三者 loss / objective / 梯度 全部【逐位相同】：
+       objective bit-identical = True  (×3)
+       grad      bit-identical = True  (×3)
+       objective IS result.loss = True (×3)
+  ```
+
+  **关键点是 `same_tensor=True` 而不只是数值相等**：dispatcher 在**构造任何东西之前**返回 `None`
+  （`r7_objective_axes.py` 的 `if not enabled: return None`），于是 runner 走
+  `objective = result.loss`（**同一个张量对象**），而不是 `result.loss + 0.0`。
+  后者会新增一个加法节点、改变反向图的求和顺序，因而可能在低位产生差异——
+  这正是「weight 0 路径」被拒绝的原因。
+
+  **为什么这是实测而不是结构断言**：结构断言（`is None`）只能说明**返回了 None**；
+  本块进一步跑了 backward 并**逐位比较梯度**，把「off 臂与注册算术逐位等价」从
+  「代码结构如此」推进到「在该算例上梯度逐位一致」。
+
+  **证据边界（如实写）**：这是**小算例**（8 维向量、两次乘法）上的逐位一致，
+  **不是** 32,132 步 3,286,037 参数训练全程的逐位比对。后者要靠 off 臂与历史上同配方
+  运行的读数比对，本块**不声称**。但它把 (c) 从「没有依据的 True」变成「有可复算依据的 True」。
