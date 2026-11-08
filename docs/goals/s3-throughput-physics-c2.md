@@ -870,3 +870,33 @@
   **证据边界（如实写）**：这是**小算例**（8 维向量、两次乘法）上的逐位一致，
   **不是** 32,132 步 3,286,037 参数训练全程的逐位比对。后者要靠 off 臂与历史上同配方
   运行的读数比对，本块**不声称**。但它把 (c) 从「没有依据的 True」变成「有可复算依据的 True」。
+
+- **2026-11-08 一个**命名碰撞**的核对：「on 臂」在本文件里指两件不同的事（0 GPU-h；零读数）**。
+
+  § 前面（0097 那块）写过「on 臂多的 2 个 persistent buffer（`field`/`projection`）、
+  注册父不能直接用于任何 on 臂（155→157）」。而**本轮 C2 的 on 臂实测是 155 张量**。
+  两者不矛盾，但读者极易把它们当成同一件事，故在此钉死：
+
+  ```
+  C2 的 "on" = derivative_matching 轴开（0053 的目标项）
+      proto.arm_spec() 里 static_conditioning **不存在**
+      ⇒ 模型结构不变 ⇒ 155 张量，与父逐键同形
+  D  的 "on" = static_conditioning 开（Stage D 的静态协变量）
+      ⇒ 两个 persistent buffer ⇒ 157 张量 ⇒ 那才是「父不能直接用」的那条
+  ```
+
+  **实测（本轮真实父 + 真实 on 臂模型，走 `_parent_model` 与 `_validate_imported_model` 的同一路径）**：
+
+  ```
+  parent loaded tensors : 155
+  model tensors         : 155
+  template tensors      : 155
+  same key set          : True     same shapes: True
+  parent keys missing   : []
+  model keys not in parent: []
+  model.load_state_dict(state, strict=True) -> PASSED
+  ```
+
+  ⇒ **C2 的 on 臂不会被 `strict=True` 的父加载挡住**。这是 on 臂开跑前要确认的第二件事
+  （第一件是出口 (b) 的写入端，已在上块实测）。**本块只证明加载与结构**，
+  不证明训练数值、不构成读数。
