@@ -3861,3 +3861,57 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 21240`（66.1%）、`seed42/off 20440`（63.6%），
   速率 1.1044 / 1.1482 s/update，两臂均在 epoch 2。
+
+- **2026-11-09 `R7_CANDIDATE_BRIEF.md` 是**自动生成**的、且 `verify` 会校验同步（0 GPU-h）**。
+
+  这是登记链上最后一个未验的环节，补上：
+
+  **① brief 里带派生计数**：开头写 `Records: 105; human-review candidates: 2`。
+  ⇒ C2 加入 index 后若**不重渲染 brief**，这个计数会**陈旧**。
+
+  **② `verify` 真的会查这个同步**：
+
+  ```
+  $ tools/verify_r7_evidence_index.py --index docs/R7_EVIDENCE_INDEX.jsonl \
+        --check-brief docs/R7_CANDIDATE_BRIEF.md
+  PASS evidence index and brief: 105 records          (exit 0)
+  ```
+
+  ⇒ 它就是 `r7_round.py verify` 三个校验器中的第三个。**不重渲染会让 verify 变红**，
+  进而 `commit-register` 之前的那道闸门过不去。
+
+  **③ 重渲染的正确命令与它的保真性（实测）**：
+
+  ```
+  $ tools/verify_r7_evidence_index.py --index docs/R7_EVIDENCE_INDEX.jsonl --render > docs/R7_CANDIDATE_BRIEF.md
+  ```
+
+  **保真性实测**：在**当前**（105 条）状态下把 `--render` 的输出与已提交的 brief 做 `diff`：
+
+  ```
+  BYTE-IDENTICAL to the checked-in brief
+  ```
+
+  ⇒ 重渲染是**纯派生**、不会引入无关格式改动。所以登记时**只需重跑这条命令**，
+  不需要手改 brief，也不需要担心"手改引入漂移"。
+
+  **④ 于是登记链的完整顺序（最终版，全部有实测依据）**：
+
+  ```
+  1. state            -> 核对 current_round_goal（须仍是本 brief）
+  2. stage reading    -> 产出 readings.json（六臂跑完后）
+  3. check_round_receipts --require-reading（+ --require-seeds 41 42 43）
+  4. render_c2_result.py  -> 写结果页（数字全部来自 readings.json）
+  5. 提交结果页
+  6. 单独提交 ADR 0109 + docs/decisions/README.md（在 register_paths 之外）
+  7. build_c2_registration（evidence_commit=HEAD, experiment_commit=2e0aac8）
+  8. 账本行【表末】+ campaign §8 + campaign-state
+  9. verify_r7_evidence_index --render > R7_CANDIDATE_BRIEF.md   <- 本步补上
+ 10. r7_round.py verify（三个校验器，含 brief 同步）
+ 11. commit-register -> push-round
+  ```
+
+  **边界**：本条零读数、零 GPU-h。它证明 brief 的**生成性与同步检查**，不涉及 (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 21400`（66.6%）、`seed42/off 20600`（64.1%），
+  速率 1.1044 / 1.1480 s/update，两臂均在 epoch 2。
