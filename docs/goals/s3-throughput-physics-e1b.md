@@ -112,11 +112,15 @@
   **恢复第一条命令** = `.venv/bin/python tools/r7_round.py state`；
   然后需先把 `campaign-state.current_round_goal` 指向本文件，再
   `freeze` → `prepare` → `archive` → `stage-seeds` → `reading`。
-  **本轮不启动**：C2 的 `attempt06` 正在跑（钉 95 文件与 `model_code_sha256`），
+  **本轮不启动**：C2 的 `attempt08` 正在跑（钉 95 文件与 `model_code_sha256`），
   R-054 要求 GPU 串行，且 E1b 的训练前置是 C2 结束（决策 0096 的 `执行前置`）。
+
+  > **2026-11-09 更正**：此前这里写的是「`attempt06` 正在跑」。**`attempt06` 已在决策 0105
+  > 中作废**（目标函数跨 lead，23.684603 GPU-h 全额记账）；当时的在跑轮次是
+  > **`attempt08`**（决策 0107 重开、修正后配对）。指令本身不变，只是轮次名更新。
 
 ## §8 下一动作（S3）
 
-1. 等 `attempt06` 六臂跑完 → `stage reading` → C2 的 (a)–(d) 求值 → 四件套登记。
+1. 等 `attempt08` 六臂跑完 → `stage reading` → C2 的 (a)–(d) 求值 → 四件套登记。
 2. 之后由用户/复核者裁定是否把 `current_round_goal` 切到 E1a 或本文件。
 3. E1a 与 E1b **各自一轮**，顺序不可合并；先跑哪个由用户/复核者定。
