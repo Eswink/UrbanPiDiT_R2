@@ -3784,3 +3784,34 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 20340`（63.3%）、`seed42/off 19560`（60.9%），
   速率 1.1043 / 1.1489 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 登记前的**最终状态快照**（0 GPU-h，只读）**。
+
+  登记链的每一环都已在 35 个提交里实测过，再往下找"跑完之后才炸"的地方收益接近零。
+  作为**登记起点的基线**，把当前状态钉下来：
+
+  **① 五个登记目标的存在性（实测）**：
+
+  ```
+  MISSING  docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md   <- 结果页尚不存在（这正是"无读数"的证据）
+  exists   docs/R7_EVIDENCE_INDEX.jsonl                  (105 条记录)
+  exists   docs/R7_CANDIDATE_BRIEF.md
+  exists   docs/goals/main-model-climatology-campaign.md
+  exists   docs/goals/s3-throughput-physics-c2.md
+  ```
+
+  **② 工作树 clean、HEAD = `22d2c77c42ec6ad7262b2a75bdd389d48b63b37c`**。
+  ⇒ 登记时若出现预期外的改动，一定是新产生的，不会与既有改动混淆。
+
+  **③ 五项登记算术/格式要素都已实测（不再重复，只列指针）**：
+  - `gpu_hours` 取数时机 = 六条 seed 行全落盘（今天是 2 行 / 0.168607，是"未记账"）
+  - 账本行必须在**表末**（`cumulative` 是运行和）、必须以 `|` 结尾
+  - `remaining_gpu_h` 为负是 `per-node-hard-cap-summed` 的既定语义
+  - `evidence_commit` = 登记提交（HEAD），`experiment_commit` = `2e0aac8`
+  - ADR 0109 在 `register_paths` **之外**，须单独提交
+
+  **④ 仍然没有的东西（不得在汇报里含糊）**：三份 `seed*_receipt.json`、
+  `readings.json`、(a)–(d) 的任何求值、ADR 0109、四件套的任何一件。
+
+  **进度（明写 update 数）**：`seed41/off 20540`（63.9%）、`seed42/off 19740`（61.4%），
+  速率 1.1044 / 1.1486 s/update。两个 off 臂各 3 个 checkpoint（5k/10k/15k）。
