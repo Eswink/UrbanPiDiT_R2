@@ -2153,3 +2153,53 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   **边界**：本条零读数。`readings.json` 不存在，(a)–(d) 未求值，四件套登记未做。
   不得据此声称 C2 通过或失败。下一步=等三份 `seed{41,42,43}_receipt.json` →
   `stage reading` → `check_round_receipts --require-reading` → 渲染 → 四件套登记。
+
+- **2026-11-09 等待期间把**读数阶段**在真实 receipt 形状上跑通，并证明它能说"不"（0 GPU-h）**。
+
+  attempt04 的作废原因是三处只在训练十小时之后才触发的读数路径缺陷，所以这次在 GPU 花钱之前先把
+  `readings()` 驱动一遍。两件事分别验证：
+
+  **① 读数路径能跑完。** 用**生产写入器自己的列名**（`BoundaryRMSEAccumulator.rows()` 实测为
+  `region,lead_hours,variable,unit,rmse,n_initializations`）造真实形状的 `boundary_rmse.csv`、
+  真实 `sha256` 钉、真实气候态与含 `constraint_*` 的 `training_report.json`：
+
+  ```
+  readings() COMPLETED
+  exit_conditions: {"a_72h_skill_mean_delta": true, "b_matching_bit": true,
+                    "c_off_path_unchanged": true, "d_no_criterion_changed": true,
+                    "all": true, "delta_72h": {"41": 0.0, "42": 0.0, "43": 0.0},
+                    "verdict": "advance-to-independent-review"}
+  constraint_terms_recorded: {'41': True, '42': True, '43': True}
+  ```
+
+  **② 它必须能说"不"**（只验"真"等于没验）——同一路径上做三次对照：
+
+  ```
+  with_terms        b=True  all=True  verdict=advance-to-independent-review
+  without_terms     b=False all=False verdict=permanently-close-derivative-matching-branch
+  preflight_inert   b=False all=False verdict=permanently-close-derivative-matching-branch
+  ```
+
+  ⇒ (b) 在 on 臂**缺 `constraint_*`** 时返回 False，在 preflight 项为 0（惰性）时也返回 False，
+  并把 verdict 翻成**永久关闭**。读数函数对这两个失败模式是**双向可判别**的。
+
+  **第一次尝试是错的，记下来**：我最初手写 `boundary_rmse.csv` 的表头，`readings()` 报
+  `KeyError: 'region'`——**是我的 fixture 错，不是代码错**。改为先读生产写入器 `rows()` 的键名
+  再发 CSV 才成立。这与 0103 的教训同型：**fixture 必须先由真实生产者定义**。
+
+  **顺带**：15 个读数路径上的名字在真实模块上逐个解析，13 个模块级 + 2 个函数内
+  （`EvaluationPreparation`/`evaluate_local`，`study_r7_s3_derivative_matching_c2.py:111`）
+  全部可用——attempt04 那类 `AttributeError` 的隐患已排除。
+
+  **进度（明写 update 数）**：
+
+  ```
+  update 480: seed41/off 1.1527 s/u, seed42/off 1.1591 s/u
+  update 640: seed41/off 1.1396 s/u, seed42/off 1.1482 s/u   ← 已回落到 attempt07 的水平
+  ```
+
+  速率从预热的 1.3279/1.2940 落到 1.1396/1.1482，与 attempt07 稳定后的 1.125–1.161 一致。
+  **仍按估计记账**：1.14 s/update ⇒ 每臂约 10.2 h，三 seed 两卡约 41 h 墙钟（**估计**）。
+
+  **边界**：本条零读数。`readings.json` 仍不存在，(a)–(d) 未对真实数据求值。
+  上面的 `b=True` 来自**合成 receipt**，只证明读数路径的形状正确，**不是 C2 的结果**。
