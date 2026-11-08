@@ -159,3 +159,50 @@
 1. 等 `attempt08` 六臂跑完 → `stage reading` → C2 的 (a)–(d) 求值 → 四件套登记。
 2. 之后由用户/复核者裁定是否把 `current_round_goal` 切到本文件并开 E1a。
 3. 若 E1a 的 (a) 为真，**必须**预注册分离束内成分的实验，不得把整束当结论（目标长文 Stage C1 同理）。
+
+## §9 开轮前置的实测核对（2026-11-09，0 GPU-h；本轮**未启动**）
+
+E1a 估计 **255.8 GPU-h**，所以"能不能起来"必须在开轮前用实测回答，而不是等冻结时才发现。
+下面三项都是**真实文件、真实调用**的结果：
+
+**① `prepare` 阶段是 CPU-only，且它的窗口断言会通过。**
+
+`prepared_protocol()` 不碰 GPU（读 manifest、算 hash、跑 `preflight_long_rollout_windows`）。
+实测：
+
+```
+TRAIN_MANIFEST  .../store/manifests_treatment/train.jsonl
+USABLE_WINDOWS (frozen) 32131
+preflight usable_windows 32131
+MATCH: True
+excluded count: 11
+```
+
+⇒ `usable_windows != curve.USABLE_WINDOWS` 那条 `RuntimeError` 不会触发。
+
+**② 三个父 checkpoint 都在盘上，且摘要逐字相符。**
+
+E1a 复用 R5 的迁移父（与 C2 同一组）：
+
+```
+seed41: exists=True digest_match=True 13,228,745 B
+seed42: exists=True digest_match=True 13,228,745 B
+seed43: exists=True digest_match=True 13,228,745 B
+all three pins resolve: True
+```
+
+**③ 桥 (e) 的逐 seed `state_digest` 是**字典**，三个值都是 64 字符**（此前 brief 只写"155 张量
+`state_digest`"，没写它按 seed 分开）：
+
+```
+41: 7c416ccb4054cf7e077788a43b02917e6a2dcf2503058152a7f0ab4b0ab70707
+42: 857d880466f76500ed74c534e757732ae9eff4c2b3f0bbc0fa74b895fcae3623
+43: 61fdac58b7bfacf828e1eae4968817b1cbd46616442c6d16ac0fbbb63e294e1b
+```
+
+三个值与 C2 brief §7 记录的值**逐字相同**（`7c416ccb…` / `857d8804…` / `61fdac58…`）
+⇒ 两轮共用同一个父，桥 (e) 的比对基准没有漂移。
+
+**边界**：本条**零读数、零 GPU-h**，且**本轮未启动**。它只证明 E1a 的 `prepare` 与父身份
+**在盘上成立**，不证明 E1a 会通过任何出口，也不代表它可以现在开轮——R-054 要求 GPU 串行，
+attempt08 正在跑（`orphans` 实测 2 个存活 seed）。
