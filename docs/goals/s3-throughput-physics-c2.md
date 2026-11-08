@@ -900,3 +900,28 @@
   ⇒ **C2 的 on 臂不会被 `strict=True` 的父加载挡住**。这是 on 臂开跑前要确认的第二件事
   （第一件是出口 (b) 的写入端，已在上块实测）。**本块只证明加载与结构**，
   不证明训练数值、不构成读数。
+
+- **2026-11-08 checkpoint 往返的**代码身份**在 on 臂开跑前仍然对齐（0 GPU-h；零读数）**。
+
+  `load_checkpoint` 在第 128 行**现场重算** `model_code_digest()`，并在
+  `checkpoint['signature'] != expected` 时抛错。训练循环在每个 checkpoint
+  （每 5,000 步 + 端点）都 `load_checkpoint(checkpoint, expected=signature)`。
+  所以**如果代码身份在我本会话的若干次文档提交后发生了变化**，
+  on 臂会在**第一个 checkpoint（约 1.5 h 处）**炸掉，而不是开跑就炸——又是一类
+  「40 h 后才暴露」的失败。
+
+  **实测（现场重算 vs 冻结值）**：
+
+  ```
+  frozen model_code_sha256    : 59340710623ca24c7ee59ebb5711f52193ebfbaa72ed4532b41bdd987f5d9324
+  live   model_code_digest    : 59340710623ca24c7ee59ebb5711f52193ebfbaa72ed4532b41bdd987f5d9324   MATCH
+  frozen training_code_sha256 : e767411883ce47887eb11557f3cd16c4b2ad07ca2e06f74c28f33aaa384e81b0
+  live   training_code_digest : e767411883ce47887eb11557f3cd16c4b2ad07ca2e06f74c28f33aaa384e81b0   MATCH
+  ```
+
+  **为什么这是非平凡的一条**：`model_code_digest()` 对 `model/**.py` 全树 `rglob` 求哈希，
+  `training_code_digest()` 只对 13 个具名 `SOURCE_FILES` 求哈希。**`tools/` 不在其中**
+  ——这也解释了为什么我本会话对 `tools/` 的多处修改（`check_workflow_syntax.py`、
+  `r7_round_stages.py` 等）不影响本轮身份，而任何 `model/` 或那 13 个文件的一个字节都会。
+  本会话的四次提交全部只改 `docs/`（`git show --stat` 可核），故对齐是**预期**结果；
+  实测的意义在于**确认**而非推测。
