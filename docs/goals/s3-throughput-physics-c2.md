@@ -3945,3 +3945,36 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 21600`（67.2%）、`seed42/off 20780`（64.7%），
   速率 1.1044 / 1.1481 s/update，两臂均在 epoch 2。
+
+- **2026-11-09 评分阶段的 cohort 断言在真实 val manifest 上**逐 lead 精确成立**（0 GPU-h）**。
+
+  这是评分链上最后一个未实测的关卡。`check_provenance` 要求
+  `n_evaluated == n_available_windows == VAL_COHORTS[lead]`，而 `n_evaluated` 出自
+  `evaluate_local` 的 `for i in range(min(max_samples, len(ds)))`——C2 驱动传
+  `max_samples=10**9`，所以 `n_evaluated = len(ds)`。
+
+  ⇒ 问题化简为：**`len(ds)` 是否等于 `VAL_COHORTS[lead]`？** 用**真实** `EvaluationPreparation`
+  在真实 val manifest 上实测：
+
+  ```
+  lead | len(ds) | VAL_COHORTS | match
+     6 |     1458 |        1458 | True
+    12 |     1457 |        1457 | True
+    24 |     1455 |        1455 | True
+    48 |     1451 |        1451 | True
+    72 |     1447 |        1447 | True
+  ```
+
+  **五个 lead 全部精确相等** ⇒ `check_provenance` 的 cohort 断言会通过，
+  不会出现"十小时后才发现 n_evaluated 差几个"这类故障。
+
+  **一处容易写错的地方，已确认不是问题**：`evaluate_local` 的**默认** `max_samples=32`。
+  如果哪个驱动忘了传大值，就会只评 32 个样本、然后被 `check_provenance` 拒绝
+  （`n_evaluated != VAL_COHORTS`）。C2 驱动**显式传了 `max_samples=10**9`**，
+  所以走的是全量路径。**这不是缺陷，但说明了那条断言的价值**：
+  它把"忘了传 cap"从"静默只评 32 个"变成"当场失败"。
+
+  **边界**：本条零读数、零 GPU-h。它证明 cohort 数量对得上，**不是** (a)–(d)。
+
+  **进度（明写 update 数）**：`seed41/off 22400`（69.7%）、`seed42/off 21540`（67.0%），
+  速率 1.1043 / 1.1481 s/update，两臂均在 epoch 2；seed41/off 已有 **4 个 checkpoint**（5k/10k/15k/20k）。
