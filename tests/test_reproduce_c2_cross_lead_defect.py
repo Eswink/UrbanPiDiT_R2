@@ -48,13 +48,20 @@ def test_dataset_stacks_atmos_target_as_the_first_physical_step():
     assert 'sample["physical_targets"] = torch.stack(fields)' in source
 
 
-def test_matching_term_reads_atmos_target_not_the_last_physical_target():
-    """Pins the defect's location, so a future fix makes this test fail loudly and get updated."""
+def test_matching_term_reads_the_last_physical_target():
+    """Decision 0106 fixed the pairing; this pins the FIX so a regression cannot pass silently.
+
+    Before the fix the module read ``moved["atmos_target"]`` (the +6 h field). This test now
+    asserts the opposite, which is what makes it a guard rather than a description of the bug.
+    """
     source = (Path(probe.__file__).resolve().parents[1]
               / "training" / "r7_derivative_matching.py").read_text(encoding="utf-8")
-    assert 'target = moved.get("atmos_target")' in source
-    # And it pairs that against the LAST forecast step.
+    assert 'targets = moved.get("physical_targets")' in source
+    assert "target = targets[:, -1]" in source
+    # And it still scores the LAST forecast step.
     assert "forecast = result.forecasts[:, -1]" in source
+    # Reading atmos_target as the target must be explicitly refused, not just avoided.
+    assert "atmos_target is " in source and "not lead-matched" in source
 
 
 def test_report_declares_the_four_flags_the_adr_quotes():
@@ -76,17 +83,24 @@ def test_report_declares_the_four_flags_the_adr_quotes():
                         if isinstance(key, ast.Constant):
                             returned[key.value] = inner.lineno
     assert returned, "measure() must return a dict literal"
-    for flag in ("deployed_pairing_is_cross_lead", "perfect_forecast_is_penalised",
-                 "lead_matched_is_zero_at_truth", "preflight_guard_is_vacuous",
-                 "scientific_claim"):
+    for flag in ("atmos_target_is_the_6h_field", "forecast_last_step_is_72h",
+                 "deployed_term_is_zero_at_a_perfect_forecast", "deployed_pairing_is_cross_lead",
+                 "lead_matched_is_zero_at_truth", "cross_lead_counterexample_is_positive",
+                 "preflight_guard_is_vacuous", "scientific_claim"):
         assert flag in returned, f"{flag} is not a key of measure()'s returned dict"
 
 
-def test_preflight_guard_compares_target_with_itself():
-    """The vacuous guard: ``derivative_matching_terms(target, target, ...)``."""
+def test_preflight_now_carries_a_failing_counterexample():
+    """``zero_at_target`` alone is vacuous; the guard must also demand a POSITIVE cross-lead value."""
     source = (Path(probe.__file__).resolve().parents[1]
               / "scripts" / "r7_s3_derivative_matching_c2_protocol.py").read_text(encoding="utf-8")
-    assert 'zero = derivative_matching_terms(target, target' in source
+    assert 'mismatched = derivative_matching_terms(other_lead, target' in source
+    assert "nonzero_for_cross_lead_field" in source
+    # And the preflight must actually raise when that counterexample is not positive.
+    assert 'raise RuntimeError(' in source
+    assert "cannot distinguish the deployed pairing" in source
+    # And the target must be the last physical step, not atmos_target.
+    assert 'target = denormalize(targets[:, -1]' in source
 
 
 def test_probe_is_read_only_and_writes_only_its_out_path():
@@ -99,7 +113,11 @@ def test_probe_is_read_only_and_writes_only_its_out_path():
 
 
 @pytest.mark.parametrize("value", [0.495737, 0.591632, 0.607382, 0.492830])
-def test_measured_deployed_values_are_all_above_zero(value):
-    """The four frozen-scale values decision 0105 records, as a guard on the arithmetic's shape."""
+def test_measured_cross_lead_values_are_all_above_zero(value):
+    """The four cross-lead counterexample values decision 0105/0106 record.
+
+    These are what a +6 h field scores against a +72 h one. They must be comfortably positive:
+    that is what makes them able to detect a mismatched pairing at all.
+    """
     assert value > 0.0
     assert value < 1.0  # same order as L_mse ~ 1; not a rounding artefact

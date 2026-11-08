@@ -65,18 +65,77 @@ def _denormalise(field, mean, std):
     return field * std.view(shape) + mean.view(shape)
 
 
+def _measure_case(case, batch, rollout, stats, scales) -> dict:
+    """One case: the lead structure, the deployed pairing at a perfect forecast, and the guards."""
+    import torch
+
+    from training.r7_derivative_matching import derivative_matching_terms, matching_term
+
+    channels, mean, std, latitude, longitude = stats
+    truth72 = _denormalise(batch["physical_targets"][:, -1], mean, std).detach()
+    analysis6 = _denormalise(batch["atmos_target"], mean, std).detach()
+    # (1) the lead structure: is atmos_target really the first step, not the last?
+    is_first = bool(torch.equal(batch["physical_targets"][:, 0], batch["atmos_target"]))
+
+    # (2) the pairing the CODE actually uses now, driven through matching_term itself at a PERFECT
+    # +72 h forecast. Driving the real entry point is what makes this a check on the fix rather
+    # than on my reconstruction of it.
+    contract = {"autoregression": {"derivative_matching": "c2",
+                                  "normalization": {"mean": mean.tolist(), "std": std.tolist()},
+                                  "channels": list(channels),
+                                  "derivative_scales": dict(scales)}}
+    # matching_term denormalises internally, so the stub carries NORMALISED units. Built through a
+    # leaf so the graph reaches it; earlier steps stay zero and are unused.
+    targets = batch["physical_targets"]
+    shape = (1, targets.shape[1], len(channels), *targets.shape[-2:])
+    forecast_leaf = torch.zeros(shape, requires_grad=True)
+    last = (truth72 - mean.view(1, -1, 1, 1)) / std.view(1, -1, 1, 1)
+    forecasts = torch.cat([forecast_leaf[:, :-1], last.unsqueeze(1)], dim=1)
+    stub = type("Rollout", (), {"forecasts": forecasts})()
+    moved = {"physical_targets": targets, "atmos_target": batch["atmos_target"],
+             "latitude": latitude, "longitude": longitude}
+    deployed_out = matching_term(stub, moved, contract)
+    if not deployed_out["total"].requires_grad:
+        raise RuntimeError("the deployed term has no gradient: matching_term is not reading the "
+                           "forecast, so this probe cannot measure the pairing")
+    gradient = float(torch.autograd.grad(deployed_out["total"], forecast_leaf)[0].norm())
+
+    # (3) the lead-matched pairing, which must be exactly zero at truth.
+    matched = derivative_matching_terms(truth72, truth72, channels, latitude, longitude,
+                                        scales=scales)
+    # The discriminator the old guard lacked: the +6 h field scored against the +72 h one MUST be
+    # above zero, otherwise a zero-at-target check cannot tell a matched pairing from a mismatched.
+    cross_lead = derivative_matching_terms(analysis6, truth72, channels, latitude, longitude,
+                                           scales=scales)
+    # (4) the guard the preflight used to run alone: target against itself, zero by construction.
+    selfcheck = derivative_matching_terms(analysis6, analysis6, channels, latitude, longitude,
+                                          scales=scales)
+    return {
+        "case": case,
+        "atmos_target_is_physical_targets_step_0": is_first,
+        "forecast_steps": int(rollout.forecasts.shape[1]),
+        "forecast_last_step_lead_hours": int(rollout.forecasts.shape[1] * 6),
+        "atmos_target_lead_hours": 6,
+        "term_at_perfect_72h_via_matching_term": float(deployed_out["total"].detach()),
+        "term_at_perfect_72h_vs_own_72h_truth": float(matched["total"]),
+        "gradient_norm_at_perfect_forecast": gradient,
+        "nonzero_for_cross_lead_field": float(cross_lead["total"]),
+        "preflight_guard_term_target_vs_target": float(selfcheck["total"]),
+    }
+
+
 def measure(protocol_path: Path) -> dict:
     """The four measurements, on the protocol's own preflight cases."""
     import torch
     from torch.utils.data import default_collate
 
-    from training.r7_derivative_matching import derivative_matching_terms
     from training.r7_long_rollout import training_long_rollout
     from training.r7_experiment import load_checkpoint, make_model
     from scripts import r7_s3_curve_point_large_protocol as curve
 
     (body, dataset, channels, mean, std, latitude, longitude,
      scales, cases) = _context(protocol_path)
+    stats = (channels, mean, std, latitude, longitude)
 
     saved = load_checkpoint(ROOT / PARENT_CHECKPOINT)
     with torch.random.fork_rng(devices=[]):
@@ -91,45 +150,28 @@ def measure(protocol_path: Path) -> dict:
             rollout = training_long_rollout(
                 model, batch, curve.REASONING_STEPS,
                 physical_weights=curve.PHYSICAL_WEIGHTS, supervision_mask=None)
-        truth72 = _denormalise(batch["physical_targets"][:, -1], mean, std).detach()
-        analysis6 = _denormalise(batch["atmos_target"], mean, std).detach()
-        # (1) the lead structure: is atmos_target really the first step, not the last?
-        is_first = bool(torch.equal(batch["physical_targets"][:, 0], batch["atmos_target"]))
-        # (2) the deployed pairing, evaluated at a PERFECT +72 h forecast.
-        probe = truth72.clone().requires_grad_(True)
-        deployed = derivative_matching_terms(probe, analysis6, channels, latitude, longitude,
-                                             scales=scales)
-        gradient = float(torch.autograd.grad(deployed["total"], probe)[0].norm())
-        # (3) the lead-matched pairing, which should be exactly zero at truth.
-        matched = derivative_matching_terms(truth72, truth72, channels, latitude, longitude,
-                                            scales=scales)
-        # (4) the guard the preflight actually ran: target against itself.
-        selfcheck = derivative_matching_terms(analysis6, analysis6, channels, latitude, longitude,
-                                              scales=scales)
-        rows.append({
-            "case": case,
-            "atmos_target_is_physical_targets_step_0": is_first,
-            "forecast_steps": int(rollout.forecasts.shape[1]),
-            "forecast_last_step_lead_hours": int(rollout.forecasts.shape[1] * 6),
-            "atmos_target_lead_hours": 6,
-            "term_at_perfect_72h_vs_analysis_6h": float(deployed["total"].detach()),
-            "term_at_perfect_72h_vs_own_72h_truth": float(matched["total"]),
-            "gradient_norm_at_perfect_forecast": gradient,
-            "preflight_guard_term_target_vs_target": float(selfcheck["total"]),
-        })
+        rows.append(_measure_case(case, batch, rollout, stats, scales))
+
     return {
         "protocol_sha256": body["protocol_sha256"],
         "parent_checkpoint": PARENT_CHECKPOINT,
         "parent_checkpoint_updates": int(saved["updates"]),
         "frozen_scales": scales,
         "rows": rows,
-        "deployed_pairing_is_cross_lead": all(r["atmos_target_is_physical_targets_step_0"]
-                                             and r["forecast_last_step_lead_hours"] != 6
-                                             for r in rows),
-        "perfect_forecast_is_penalised": all(r["term_at_perfect_72h_vs_analysis_6h"] > 0.0
-                                             for r in rows),
+        # These two describe the DATA, independent of which target the code reads.
+        "atmos_target_is_the_6h_field": all(
+            r["atmos_target_is_physical_targets_step_0"] for r in rows),
+        "forecast_last_step_is_72h": all(r["forecast_last_step_lead_hours"] == 72 for r in rows),
+        # These describe what the DEPLOYED code does now. With the fix (decision 0106) the term is
+        # zero at a perfect forecast; before it, it was charged 0.4957-0.6074 (decision 0105).
+        "deployed_term_is_zero_at_a_perfect_forecast": all(
+            r["term_at_perfect_72h_via_matching_term"] == 0.0 for r in rows),
+        "deployed_pairing_is_cross_lead": all(
+            r["term_at_perfect_72h_via_matching_term"] > 0.0 for r in rows),
         "lead_matched_is_zero_at_truth": all(
             r["term_at_perfect_72h_vs_own_72h_truth"] == 0.0 for r in rows),
+        "cross_lead_counterexample_is_positive": all(
+            r["nonzero_for_cross_lead_field"] > 0.0 for r in rows),
         "preflight_guard_is_vacuous": all(
             r["preflight_guard_term_target_vs_target"] == 0.0 for r in rows),
         "scientific_claim": False,
@@ -145,8 +187,11 @@ def main(argv: list[str] | None = None) -> int:
     report = measure(args.protocol)
     args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({key: report[key] for key in
-                      ("deployed_pairing_is_cross_lead", "perfect_forecast_is_penalised",
-                       "lead_matched_is_zero_at_truth", "preflight_guard_is_vacuous")}, indent=2))
+                      ("atmos_target_is_the_6h_field", "forecast_last_step_is_72h",
+                       "deployed_term_is_zero_at_a_perfect_forecast",
+                       "deployed_pairing_is_cross_lead", "lead_matched_is_zero_at_truth",
+                       "cross_lead_counterexample_is_positive",
+                       "preflight_guard_is_vacuous")}, indent=2))
     return 0
 
 

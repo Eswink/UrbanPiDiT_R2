@@ -186,16 +186,33 @@ def _preflight_cases(context):
         batch = default_collate([dataset[case]])
         rollout = _rollout(context["model"], batch, contract, None)
         prediction = denormalize(rollout.forecasts[:, -1], (mean, std), constants["channels"])
-        target = denormalize(batch["atmos_target"], (mean, std), constants["channels"])
+        # The target MUST be the step this forecast predicts. ``atmos_target`` is
+        # ``physical_targets[:, 0]`` -- the +6 h field -- and pairing it with the +72 h forecast is
+        # exactly the defect that voided attempt07 (decisions 0105/0106): the term then charges a
+        # perfect forecast, so its optimum cannot contain the truth.
+        targets = batch["physical_targets"]
+        if targets.shape[1] != rollout.forecasts.shape[1]:
+            raise RuntimeError(f"physical_targets has {targets.shape[1]} steps but the rollout "
+                               f"produced {rollout.forecasts.shape[1]}")
+        target = denormalize(targets[:, -1], (mean, std), constants["channels"])
+        # A cross-lead field, kept only to prove the guard below can actually FAIL. If this one is
+        # ever zero, the guard is vacuous again.
+        other_lead = denormalize(batch["atmos_target"], (mean, std), constants["channels"])
         live = derivative_matching_terms(prediction, target, constants["channels"],
                                          context["latitude"], context["longitude"], scales=scales)
         zero = derivative_matching_terms(target, target, constants["channels"],
                                          context["latitude"], context["longitude"], scales=scales)
+        mismatched = derivative_matching_terms(other_lead, target, constants["channels"],
+                                               context["latitude"], context["longitude"],
+                                               scales=scales)
         mse = float(rollout.loss.detach())
         rows.append({"case": case, "divergence": float(live["divergence"]),
                      "vorticity": float(live["vorticity"]), "total": float(live["total"]),
                      "mse": mse, "dose": float(live["total"]) / mse,
-                     "zero_at_target": float(zero["total"])})
+                     "zero_at_target": float(zero["total"]),
+                     # The counterexample: a DIFFERENT lead's analysis field must score > 0. A
+                     # target-vs-itself comparison is zero by construction and proves nothing.
+                     "nonzero_for_cross_lead_field": float(mismatched["total"])})
         # The scales are declared as coming from the ANALYSIS field's distribution, so the
         # provenance is measured on the target. Measuring the prediction would make the
         # protocol's stated basis unverifiable.
@@ -225,6 +242,14 @@ def preflight(seed):
     if any(row["zero_at_target"] != 0.0 for row in rows):
         raise RuntimeError("the preflight found a nonzero value at pred = target, so this term is "
                            "not a target match and the family argument fails")
+    if any(row["nonzero_for_cross_lead_field"] <= 0.0 for row in rows):
+        # The discriminator. ``zero_at_target`` alone cannot fail on a target-vs-itself
+        # comparison, which is precisely how attempt07's cross-lead pairing slipped through
+        # (decision 0105). A different lead's field MUST score above zero; if it does not, the
+        # guard has stopped discriminating and a real mismatch could pass again.
+        raise RuntimeError(
+            "the preflight's cross-lead counterexample scored zero, so the zero-at-target guard "
+            "cannot distinguish the deployed pairing from a mismatched one; refusing to freeze")
     if any(row["total"] <= 0.0 for row in rows):
         raise RuntimeError("the preflight found the term inert on the trained parent")
     if any(not (DOSE_MIN <= row["dose"] <= DOSE_MAX) for row in rows):

@@ -103,18 +103,26 @@ def derivative_matching_terms(prediction, target, channel_names, latitude, longi
 
 
 def matching_term(result, moved, contract):
-    """Stage C2's derivative match on the *last* forecast, or ``None`` when the axis is off.
+    """Stage C2's derivative match on the *last* forecast against the *last* target.
 
     ``None`` is returned before constructing anything, so a run with the axis unset keeps the
     registered arithmetic bit-for-bit -- a "weight 0" path would still build a graph and still
     change the numbers.
 
-    The target is the batch's own ``atmos_target`` for the same window, i.e. the last physical
-    step's analysis field. Both sides are denormalised with the store's declared constants: the
-    training batch carries no normalization (the dataset normalises inside ``__getitem__``), so
-    the caller must pass them in the contract and their digest is frozen in the protocol. Only
-    the last forecast is matched, one application per update, so the single-factor claim is
-    about one application rather than a dose (decision 0095).
+    **The target is ``physical_targets[:, -1]``, not ``atmos_target``** (decision 0106). The two
+    are not interchangeable: ``data/r7_long_rollout_dataset.py`` builds
+    ``fields = [sample["atmos_target"]]`` and then appends later steps, so ``atmos_target`` is
+    ``physical_targets[:, 0]`` -- the **+6 h** field -- while ``result.forecasts[:, -1]`` is step
+    ``N`` of ``N`` = **+72 h**. Pairing them made the term penalise a *correct* forecast: at a
+    perfect +72 h forecast it scored 0.4957-0.6074 with a nonzero gradient, so its optimum could
+    not contain the truth and the family argument of decision 0095 failed for an implementation
+    reason rather than a physical one (attempt07, decision 0105). With the lead-matched target the
+    term is exactly 0.0 at a perfect forecast, which is the property 0095 claims.
+
+    Both sides are denormalised with the store's declared constants: the training batch carries no
+    normalization (the dataset normalises inside ``__getitem__``), so the caller must pass them in
+    the contract and their digest is frozen in the protocol. Only the last forecast is matched, one
+    application per update, so the single-factor claim is about one application rather than a dose.
     """
     axis = contract["autoregression"].get("derivative_matching")
     if axis is None:
@@ -135,9 +143,18 @@ def matching_term(result, moved, contract):
     forecast = result.forecasts[:, -1]
     device = forecast.device
     physical = denormalize(forecast, (mean.to(device), std.to(device)), tuple(channels))
-    target = moved.get("atmos_target")
-    if target is None:
-        raise ValueError("the c2 axis requires atmos_target in the batch")
+    # ``physical_targets`` is [B, N, C, H, W] with the same N as ``forecasts``; ``[:, -1]`` is the
+    # step this forecast predicts. ``atmos_target`` would be step 0 (+6 h) and is refused here
+    # rather than silently accepted, because that mismatch is what voided attempt07.
+    targets = moved.get("physical_targets")
+    if targets is None:
+        raise ValueError("the c2 axis requires physical_targets in the batch; atmos_target is "
+                         "the +6 h field and is not lead-matched to forecasts[:, -1]")
+    if targets.shape[1] != result.forecasts.shape[1]:
+        raise ValueError(f"physical_targets carries {targets.shape[1]} steps but the rollout "
+                         f"produced {result.forecasts.shape[1]}; the last forecast has no "
+                         f"lead-matched target")
+    target = targets[:, -1]
     observed = denormalize(target, (mean.to(device), std.to(device)), tuple(channels))
     latitude, longitude = moved.get("latitude"), moved.get("longitude")
     if latitude is None or longitude is None:

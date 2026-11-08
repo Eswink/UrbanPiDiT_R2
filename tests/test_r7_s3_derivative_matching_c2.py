@@ -295,3 +295,73 @@ def test_every_driver_global_resolves_before_a_gpu_stage_sees_it():
                 if key not in module.__dict__ and not hasattr(builtins, key):
                     problems.append(f"{module_name}.{name}: {key}")
     assert not problems, problems
+
+
+# --------------------------------------------------------------------- decision 0105/0106 pairing
+# These are the tests that would have caught attempt07's defect. The module-level ``zero_at_target``
+# test above (field vs itself) is zero by construction and cannot tell a lead-matched pairing from a
+# cross-lead one; the tests below drive ``matching_term`` with a batch that carries BOTH fields set
+# to different values, so reading the wrong one is observable rather than merely undesirable.
+
+def _matching_contract():
+    """A contract with the three things ``matching_term`` requires."""
+    return {"autoregression": {"derivative_matching": "c2",
+                              "normalization": {"mean": [0.0] * len(STORE_NAMES),
+                                                "std": [1.0] * len(STORE_NAMES)},
+                              "channels": list(STORE_NAMES),
+                              "derivative_scales": dict(SCALES)}}
+
+
+def _fake_rollout(forecast_last):
+    """The minimal object ``matching_term`` reads: ``forecasts`` with a trailing step."""
+    from types import SimpleNamespace
+    torch = pytest.importorskip("torch")
+    return SimpleNamespace(forecasts=torch.zeros(1, 12, len(STORE_NAMES), 65, 65,
+                                                 requires_grad=True).clone())
+
+
+def test_matching_term_uses_the_last_physical_target_not_atmos_target():
+    """The defect itself: a batch whose +6 h and +72 h targets differ must score against +72 h.
+
+    ``atmos_target`` is deliberately set to a wildly different field, so a module that reads it
+    instead of ``physical_targets[:, -1]`` produces a different number rather than the same one.
+    """
+    torch = pytest.importorskip("torch")
+    from training.r7_derivative_matching import matching_term
+
+    lat = torch.linspace(27.0, 43.0, 65)
+    lon = torch.linspace(107.0, 123.0, 65)
+    torch.manual_seed(0)
+    last = torch.randn(1, len(STORE_NAMES), 65, 65)
+    batch = {"physical_targets": torch.zeros(1, 12, len(STORE_NAMES), 65, 65),
+             "atmos_target": torch.full((1, len(STORE_NAMES), 65, 65), 99.0),
+             "latitude": lat, "longitude": lon}
+    batch["physical_targets"][:, -1] = last
+    result = _fake_rollout(None)
+    result.forecasts = torch.zeros(1, 12, len(STORE_NAMES), 65, 65)
+    result.forecasts[:, -1] = last          # a PERFECT +72 h forecast
+    terms = matching_term(result, batch, _matching_contract())
+    # Lead-matched: the forecast equals the target it is scored against, so exactly zero.
+    assert float(terms["total"]) == 0.0, (
+        "a perfect +72 h forecast must score zero against its own target; a nonzero value means "
+        "the term read a different lead (this is decision 0105's defect)")
+
+
+def test_matching_term_refuses_a_batch_without_physical_targets():
+    """``atmos_target`` alone must be refused, not silently used as the +6 h stand-in."""
+    from training.r7_derivative_matching import matching_term
+    batch = {"atmos_target": pytest.importorskip("torch").zeros(1, len(STORE_NAMES), 65, 65)}
+    with pytest.raises(ValueError, match="requires physical_targets"):
+        matching_term(_fake_rollout(None), batch, _matching_contract())
+
+
+def test_matching_term_refuses_a_target_with_the_wrong_number_of_steps():
+    """A target array whose N disagrees with the rollout cannot be lead-matched; refuse."""
+    torch = pytest.importorskip("torch")
+    from training.r7_derivative_matching import matching_term
+    batch = {"physical_targets": torch.zeros(1, 6, len(STORE_NAMES), 65, 65),
+             "atmos_target": torch.zeros(1, len(STORE_NAMES), 65, 65),
+             "latitude": torch.linspace(27.0, 43.0, 65),
+             "longitude": torch.linspace(107.0, 123.0, 65)}
+    with pytest.raises(ValueError, match="no\\s+lead-matched target"):
+        matching_term(_fake_rollout(None), batch, _matching_contract())
