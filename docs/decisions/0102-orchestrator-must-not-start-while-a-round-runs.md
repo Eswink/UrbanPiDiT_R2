@@ -105,3 +105,26 @@ running: [{'phase':'seed','seed':41,'running':True,'pids':[1817520,1819196,...]}
   在没有它之前，「编排器可用」只能写成**未验证**。
 - `Scout`/`Auditor`/`Registrar` 三条写路径是否也该有各自的前置（本条未测）。
 - `orphans` 看不见跨会话/跨路径的同 store 并发（R-054 的可见性边界）。
+
+## 附记（2026-11-08 同日补齐本条最大未验证面）
+
+本条 Consequences 第 1 条曾写「**我不能声称这个 560+ 行的 draft 通过了类型检查**——仓内没有
+TypeScript 编译器」。**该缺口已关闭**，方式与当时设想的不同：不是装编译器，而是用
+**Node 22 的 `--experimental-strip-types` + 动态 `import`** 强制解析。
+
+新增 `tools/check_workflow_syntax.py` + `tests/test_check_workflow_syntax.py`（4 项）。
+它剥掉开头的 `/* zcode-workflow ... */` 注释，把正文包进 `async function`（workflow 正文有
+顶层 `return`，在函数内合法、在模块里不合法），再 import 触发解析。
+
+**实测**：真实 draft **40,521 字节 → PARSED → exit 0**；派生的源 draft
+`r7-campaign-round.dwf.ts` 同样 PARSED。
+
+**自证那次教训值得单记**：第一版「破坏样本」只删了一个分号，结果**仍然 PARSED**
+（自动分号插入把它修好了）⇒ 那个反证**什么也没证明**。现在三条控制样本都是 ASI 修不了的
+（未闭合大括号、未终止字符串、悬空运算符），三条**全部被拒**。
+**生产级反证**：把我在本会话里**真的造成过**的那种损伤（截掉 `if (plan.blocked) { … }`
+的收尾三行）重新注入 ⇒ `parsed:false`、**exit 1**；恢复后 exit 0。
+
+**仍未覆盖**（如实写）：**只剥离类型，不检查类型**。语义错误（属性名写错、调用签名不符）
+在本检查下**照样通过**，只有真编译器能抓。所以这条关掉的是「**从未被解析过**」，
+不是「**已被完整类型检查**」。
