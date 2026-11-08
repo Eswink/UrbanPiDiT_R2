@@ -2515,3 +2515,72 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
   **进度（明写 update 数）**：`update 4680–4820`（14.6%–15.0%），速率 1.1073/1.1429 s/update。
 
   **边界**：本条零读数、零 GPU-h。
+
+- **2026-11-09 四件套登记的整条链在真实产物上**预演**通过（CPU-only，0 GPU-h，零读数）**。
+
+  开轮前能做的最后一类验证：**登记**（不是读数）会不会在跑完之后才失败。用**真实**的
+  `protocol.json` 与**真实**的 `stage_ledger.jsonl`，配一份**只活在 `/tmp`** 的
+  schema-faithful `readings.json`，把 `build_c2_registration.py` 的 **CLI** 整条跑了两遍。
+
+  **① 两个判决分支都能产出可入索引的记录。** 这是关键：若只试 `all=True`，而实际结果是
+  `not-candidate`，`excluded_reason` 的缺失会在**跑完之后**才炸。
+
+  | 分支 | `candidate_state` | `outcome_class` | `validate_record` |
+  | --- | --- | --- | --- |
+  | (a)–(d) 全真 | `candidate` | `engineering-positive` | **PASS** |
+  | (a) 假 ⇒ 永久关闭 | `not-candidate` | `negative` | **PASS**（带 `excluded_reason`） |
+
+  实测两个分支都写盘成功：`wrote ... (1106 bytes); validate_record passed`（exit 0）。
+  `gpu_hours=0.168607` 由**真实 ledger** 的两行（prepare 601.479 + archive 5.505 s）算出，
+  `ledger_rows=2`；`evidence_commit` 与 `experiment_commit` 是两个**不同的**真 SHA
+  （`309d89c2…` 当前 HEAD / `2e0aac8…` 冻结协议里的代码身份），这正是记录应有的形状。
+
+  **② 反证：验证器真的会拒绝它存在的理由。** 正向通过不算证明——两个已知缺陷各造一个样本：
+
+  ```
+  zero-padded short SHA          -> REFUSED "fabricated commit id"
+  not-candidate 缺 excluded_reason -> REFUSED "require excluded_reason"
+  ```
+
+  两条都被拒。⇒ 上面两个 PASS **不是**"永远通过"的实现给出的。
+
+  **③ 一处实测到的工具契约（不是缺陷，但会静默咬人）：`--evidence` 必须是仓内相对路径。**
+  我第一次把绝对路径传进去，`validate_record` 回 `evidence_path must be a safe
+  repository-relative path`——因为 `build()` 把 `str(evidence_path)` **原样**存进记录，而
+  `_safe_relative()` 拒绝绝对路径；同时它又要 `_sha256()` 打开该文件（**相对 cwd** 解析）。
+  两个要求同时成立只在一种用法下：**cwd = 仓库根，且传 `docs/...` 这样的相对串**。
+  这正是 docstring 里写的用法，所以**不是 bug**；但它意味着"从别处调用"会以
+  `safe repository-relative` 的名义失败。**登记时必须 cd 到仓库根**，我的预演就是这么做的。
+
+  **④ 顺带核对过的账本算术。** `r7_round.py ledger-plan` 用**逐行四舍五入后求和**
+  （`504.507408`），而 `campaign_state.used_gpu_h` 是 `504.507518`，差 **0.00011**——
+  在 `check_campaign_state.TOLERANCE = 1e-3` 之内，**不是缺陷**。另一处容易误读的是
+  `remaining_gpu_h = -484.507518`：本 campaign 是 `budget_mode: per-node-hard-cap-summed`
+  （`cap_gpu_h 20.0` 是**单节点**硬帽，不是总量），`20.0 - 504.507518` 精确等于该值，
+  `check_campaign_state.py` 当前 **failures=0**（4 条 note 是老账本行没有 index record）。
+  **不得**把负数报成"预算超支/失败"。
+
+  五项登记链相关测试当场全绿：`test_render_c2_result`、`test_check_round_receipts`、
+  `test_build_c2_registration`、`test_verify_r7_evidence_index`、`test_check_campaign_state`
+  ⇒ **92 passed**。
+
+  **边界**：本条**零读数**、零 GPU-h。它证明的是"登记这一步的机械链条能走通且能拒绝坏输入"，
+  **不是** (a)–(d) 的任何结果，也不预判 C2 的判决。三份 `seed*_receipt.json` 仍未出现。
+
+  **进度（明写 update 数）**：`seed41/off 5660`、`seed42/off 5480`（17.6% / 17.1%），
+  速率 ~1.107 / ~1.143 s/update。
+
+  **⑤ 一处必须写明的混淆（我差点自己误判）：`protocol_sha256` 是文件里的字段，不是文件的哈希。**
+  追加本条时我顺手 `sha256sum protocol.json`，得到 `d92048f3…`，与冻结值 `a3ca9fe7…` 不同，
+  差点当成"冻结协议漂移"。**两者是不同的对象**：
+
+  ```
+  protocol.json 的 sha256sum          = d92048f3…   (整个 33,115,530 字节文件的哈希)
+  protocol 内部的 "protocol_sha256"   = a3ca9fe7…   (驱动算并写进体内的字节身份)
+  ```
+
+  真正的核对方式是**跑校验器**而不是比文件哈希：`validate_protocol(attempt_dir)` 当场通过并
+  回 `a3ca9fe7…`，与 brief、ADR 0107、`attempt08` 管线里引用的值一致。文件 mtime 仍是
+  `2026-11-08 23:54:56`（冻结时刻），本次追加只动了 `docs/`，
+  而 `docs/` **不在** `execution_files_sha256` 的 95 条 pin 里（实测 `docs/` 前缀 0 条）
+  ⇒ 追加日志**不破坏**运行中的身份。**这条不改变任何判据，只是防止一次误读。**
