@@ -47,11 +47,18 @@ def test_a_partial_write_is_caught_and_the_stub_really_is_partial(tmp_path):
 
 
 def test_a_complete_document_passes_and_missing_seeds_fail(tmp_path):
-    """Both directions, so a checker that always fails would not pass this file."""
+    """Both directions, so a checker that always fails would not pass this file.
+
+    The "complete" fixture must carry the keys ``readings()`` actually emits. An earlier
+    version used ``{"scientific_claim": False}`` as the complete document, which is how the
+    guard came to accept a parseable-but-empty reading: the test encoded the same weak
+    assumption as the code (decision 0108).
+    """
     (tmp_path / "prepared_protocol.json").write_text(json.dumps({"k": 1}), encoding="utf-8")
     (tmp_path / "archive_receipt.json").write_text(json.dumps({"k": 1}), encoding="utf-8")
-    (tmp_path / "readings.json").write_text(json.dumps({"scientific_claim": False}),
-                                            encoding="utf-8")
+    (tmp_path / "readings.json").write_text(json.dumps({
+        "scientific_claim": False, "test_read": False, "protocol_sha256": "a" * 64,
+        "seeds": {}, "exit_conditions": {"all": True}}), encoding="utf-8")
     done = _run(tmp_path, "--require-reading")
     assert done.returncode == 0, done.stdout
 
@@ -82,3 +89,61 @@ def test_a_one_armed_seed_receipt_is_refused(tmp_path):
 def test_a_missing_attempt_directory_is_a_usage_error(tmp_path):
     done = _run(tmp_path / "nope")
     assert done.returncode == 2
+
+
+def test_a_parseable_but_incomplete_reading_is_rejected(tmp_path):
+    """Parseability is not completeness.
+
+    Measured before this was tightened: a readings.json containing only
+    {"scientific_claim": false} parsed fine and passed the --require-reading check, even
+    though a reading must carry the exit_conditions the verdict is read from. A partial
+    write that happens to close its braces would have slipped through the very guard that
+    exists to catch partial writes.
+    """
+    import json
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    (attempt / "prepared_protocol.json").write_text("{}")
+    (attempt / "archive_receipt.json").write_text("{}")
+    (attempt / "readings.json").write_text(json.dumps({"scientific_claim": False}))
+
+    from tools.check_round_receipts import check
+    report = check(attempt, None, True)
+    assert report["passed"] is False
+    reading = [r for r in report["results"] if r["stage"] == "reading"][0]
+    assert "incomplete reading" in reading["reason"]
+    assert "exit_conditions" in reading["reason"]
+
+
+def test_a_complete_reading_is_accepted(tmp_path):
+    """The other direction: the required shape must pass, or the guard is merely obstructive."""
+    import json
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    (attempt / "prepared_protocol.json").write_text("{}")
+    (attempt / "archive_receipt.json").write_text("{}")
+    (attempt / "readings.json").write_text(json.dumps({
+        "scientific_claim": False, "test_read": False, "protocol_sha256": "a" * 64,
+        "seeds": {}, "exit_conditions": {"all": True}}))
+
+    from tools.check_round_receipts import check
+    report = check(attempt, None, True)
+    assert report["passed"] is True
+
+
+def test_exit_conditions_must_be_an_object(tmp_path):
+    """``exit_conditions: null`` carries no verdict; it must not pass as complete."""
+    import json
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    (attempt / "prepared_protocol.json").write_text("{}")
+    (attempt / "archive_receipt.json").write_text("{}")
+    (attempt / "readings.json").write_text(json.dumps({
+        "scientific_claim": False, "test_read": False, "protocol_sha256": "a" * 64,
+        "seeds": {}, "exit_conditions": None}))
+
+    from tools.check_round_receipts import check
+    report = check(attempt, None, True)
+    assert report["passed"] is False
+    reading = [r for r in report["results"] if r["stage"] == "reading"][0]
+    assert "not an object" in reading["reason"]

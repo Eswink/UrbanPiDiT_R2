@@ -39,7 +39,14 @@ STAGE_RECEIPTS = {
 }
 
 
-def _check_one(path: Path) -> dict:
+#: The keys ``readings()`` always emits. A truncated write can still land on a valid JSON
+#: prefix (``{"scientific_claim": false`` parses if it happens to be closed), and a file that
+#: merely parses is not a reading: it must carry the structure the exits are read from.
+READINGS_REQUIRED_KEYS = ("scientific_claim", "test_read", "protocol_sha256",
+                          "exit_conditions", "seeds")
+
+
+def _check_one(path: Path, required_keys: tuple[str, ...] = ()) -> dict:
     """Is this file a complete JSON document, or a half-written one?"""
     record = {"path": str(path), "exists": path.is_file(), "ok": False, "reason": ""}
     if not record["exists"]:
@@ -53,8 +60,23 @@ def _check_one(path: Path) -> dict:
         # The signature of the partial-write failure: truncated at the point of the raise.
         record["reason"] = f"truncated or invalid JSON ({exc.msg} at char {exc.pos})"
         return record
-    record["ok"] = True
     record["top_level_keys"] = sorted(body)[:12] if isinstance(body, dict) else []
+    if required_keys:
+        # Parseability is not completeness. Measured: a file containing only
+        # {"scientific_claim": false} parsed fine and passed, even though a reading must carry
+        # the exit_conditions the verdict is read from. The exits are never recomputed here --
+        # this only refuses a document that cannot contain them.
+        if not isinstance(body, dict):
+            record["reason"] = "not a JSON object"
+            return record
+        missing = [key for key in required_keys if key not in body]
+        if missing:
+            record["reason"] = f"incomplete reading: missing keys {missing}"
+            return record
+        if not isinstance(body.get("exit_conditions"), dict):
+            record["reason"] = "incomplete reading: exit_conditions is not an object"
+            return record
+    record["ok"] = True
     return record
 
 
@@ -65,7 +87,10 @@ def check(attempt: Path, seeds: list[int] | None, require_reading: bool) -> dict
     for phase, name in STAGE_RECEIPTS.items():
         if phase == "reading" and not require_reading:
             continue
-        results.append({"stage": phase, **_check_one(attempt / name)})
+        # Only the reading has a required internal structure: the two protocol receipts are
+        # validated by the driver itself, and demanding keys of them here would duplicate that.
+        required = READINGS_REQUIRED_KEYS if phase == "reading" else ()
+        results.append({"stage": phase, **_check_one(attempt / name, required)})
     for seed in seeds or []:
         entry = {"stage": f"seed{seed}", **_check_one(attempt / f"seed{seed}_receipt.json")}
         if entry.get("ok"):
