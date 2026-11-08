@@ -3383,3 +3383,43 @@ stage-seeds  → seed41/seed42 的 off 臂同时开训
 
   **进度（明写 update 数）**：`seed41/off 17020`（53.0%）、`seed42/off 16400`（51.0%），
   速率 1.1037 / 1.1457 s/update。三份 receipt 仍未出现。
+
+- **2026-11-09 误跑 `stage reading` 是**安全的**：它干净失败、不留半截文件（0 GPU-h）**。
+
+  这决定了我现在（receipt 未齐时）能不能试探这条命令。答案：能，而且**不会**污染 attempt 目录。
+  实测：在一份**只有 protocol.json** 的临时目录上直接调驱动自己的 `readings()`：
+
+  ```
+  readings() raised FileNotFoundError: .../seed41_receipt.json
+  readings.json created?  False
+  any file at all?        ['protocol.json']      <-- 只读它本来该读的，没写任何东西
+  ```
+
+  **为什么这一点重要**：上一节证过——半截 `readings.json` 会让 `stage_plan` 判 `skip=True`，
+  编排器**永久跳过** reading，整轮以"没有判决"结束。如果过早跑 `stage reading` 会留下那种文件，
+  那么"手快点一下"就能毁掉整轮。
+  **实测它不会**：`readings()` 先把所有 receipt **读完**才走到 `write_exclusive`，
+  所以缺 receipt 时它在**任何写操作之前**就抛 `FileNotFoundError`。
+
+  **真实 attempt 目录的只读快照（当下）**：
+
+  ```
+  archive.log  archive_process.json  archive_receipt.json  code_commit.txt  code.zip
+  preparation_protocol.json  prepare.log  prepare_process.json  prepared_protocol.json
+  protocol.json  seed41/  seed42/  stage_ledger.jsonl  stage_seeds.log
+  stage_ledger rows: 2
+  ```
+
+  没有 `readings.json`、没有 `*.partial*`、没有 reading 的 log 或 process 文件
+  ⇒ 目前**零** reading 阶段的痕迹。
+
+  **仍不建议现在就跑它**，理由不是危险而是**无意义**：`run_stage` 会先过 GPU 余量门
+  （reading 与 seed 同属 GPU 阶段），而且必然会因缺 receipt 失败并往
+  `stage_ledger.jsonl` **追加一条 failed 行**。那条行会污染账本的"六条 seed 行"计数依据
+  （登记时 `ledger_rows` 与 `gpu_hours` 都从这份文件求和）。
+  ⇒ **正确做法**：等三份 receipt 齐备再跑，一次成功。
+
+  **边界**：本条零读数、零 GPU-h。
+
+  **进度（明写 update 数）**：`seed41/off 17200`（53.5%）、`seed42/off 16560`（51.5%），
+  速率 1.1036 / 1.1462 s/update。三份 receipt 仍未出现。
