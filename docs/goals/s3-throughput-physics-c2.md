@@ -5101,3 +5101,32 @@ if abs(derived[name] - declared) / declared > 0.5:
 `scale_basis` 字段写的是"re-derived at prepare time and **asserted equal**"，而实际断言是
 **容差 50%**，不是严格相等——**这处措辞比实际断言更强**。作为一条已知的措辞不精确记录在此，
 留给下轮修（改它会动 pin）。
+
+### 2026-11-10 三 seed 的 `evaluate_exit` 接口已验通（seed43 用的是**假设值**，非测量）
+
+**状态** `exit-interface-verified-three-seeds`；GPU-h **44.389187**（未变）；零最终读数。
+
+seed43 还没跑完，但可以先用**真实两 seed + 假设的第三 seed**确认三 seed 路径的接口与
+verdict 分派正确。**假设方式**：令 seed43 的 Δ 等于 seed41 的 −0.011634（**这是我人为设的，
+不是测量**）。结果：
+
+```
+a_72h_skill_mean_delta = False        <- 因为 mean = -0.013203 < 0
+b_matching_bit         = True
+c_off_path_unchanged   = True
+d_no_criterion_changed = True
+all                    = False
+verdict                = permanently-close-derivative-matching-branch
+```
+
+**这条验证的是接口，不是结论**：
+1. `readings()` 的 `for seed in SEEDS` 与 `evaluate_exit` 的 `len(delta_72)` 能正确吃下三 seed；
+2. (a) 为假时 verdict **确实**落到 `permanently-close-derivative-matching-branch`，
+   与 brief 第 504 行的预声明字符串一致；
+3. `b/c/d` 在 (a) 为假时仍各自独立求真（不是被 (a) 短路），所以最终报告能逐条说明
+   **哪一条真、哪一条假**。
+
+**不得引用这里的 −0.013203**：它含一个人为设定的第三 seed。真实的 mean 要等
+`readings.json`。本条的价值在于**排除了接口层面的意外**（`KeyError`、键名不符、verdict 拼错）。
+
+**进度（明写 update 数）**：`seed43/off 12920/32132`（40.2%，ep1）；其余同前。
