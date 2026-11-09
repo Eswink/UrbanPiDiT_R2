@@ -5235,3 +5235,37 @@ RECORD_FORMAT     = urbanpidit-r7-evidence-record-v1
 **边界**：本条只固定枚举，不预设结果。最终取值以 `readings.json` 为准。
 
 **进度（明写 update 数）**：`seed43/off 19040/32132`（59.3%，ep2）；其余同前。
+
+### 2026-11-10 **更正**：分母不是冻结在 protocol 里，`readings()` 在读数时**实时**读 D2
+
+**状态** `denominator-source-corrected`；GPU-h **44.389187**（未变）；零最终读数。
+
+我在前面的成本/分母讨论里有句话是错的：「分母来自冻结的 protocol」。**实测不是**：
+
+```
+protocol.json 里有 climatology_reference 键？   False
+驱动程序 :184   climatology = body.get("climatology_reference") or curve.climatology_reference()
+```
+
+⇒ `body.get(...)` 返回 `None`，于是走 `or` 的右支：**读数时现场调用**
+`curve.climatology_reference()`，现读 D2 文件。
+
+**这不构成漏洞，原因实测**：`climatology_reference()` 每次都做完整字节校验——
+文件存在、`format` 相符、`scientific_claim is False`、每档 `n_evaluated == n_available_windows
+== VAL_COHORTS`、48 桶、`boundary_rmse_csv` 的 sha256 相符，再把 t2m RMSE 与冻结常量表
+`CLIMATOLOGY_T2M_RMSE` 比到 **1e-12**。所以：
+
+- 文件被改动 ⇒ **抛错**，不会静默用不同分母；
+- 当前实测 sha256 = `096c384a25a8a7bb020e0bc3eb0759e8de25ba9e96c692dd9a8ac63be6dfd37f`，
+  与 `render_c2_result.py` / `build_c2_registration.py` 现算的**同一个值**（denominator binding
+  测试已固定这条）。
+
+**为什么仍然要写更正**：如果按"冻结在 protocol 里"去理解，会误以为读数阶段不可能碰到 D2 文件；
+实际上**读数是它的读者之一**。这直接影响"若 D2 缺失/被改，失败会在哪里出现"的判断——
+失败会出现在 **`stage reading`**，而不是出现在后来的渲染或登记步骤。
+
+**顺带确认一处措辞**：我早前写「分母不可能为零，也不可能悄悄换值」——**结论对，
+理由说错了**（我当时以为是协议冻结，真实理由是 `climatology_reference()` 的校验）。
+结论与理由要分开记，理由错了就要改。
+
+**进度（明写 update 数）**：`seed43/off 20720/32132`（64.5%，ep2）；其余同前。
