@@ -4261,3 +4261,37 @@ seed43 要等 seed41 或 seed42 的整张卡空出才启动。这条路径上有
 
 **进度（明写 update 数）**：`seed41/off 30880`（96.1%，ep3）、`seed42/off 29780`（92.7%，ep3）；
 seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 seed41/off 到 32132 后为什么**安静了很久**——是评分准备，不是卡死
+
+**状态** `evaluation-in-progress`；GPU-h **0.000000**（账本未变）；零读数。
+
+`seed41/off` 在 update **32132/32132** 落盘、`update_0032132.pt` 写出后，卡上显存仍占 9.5 GiB
+但 `utilization.gpu = 0%`，而**磁盘上没有任何 `evaluation/` 目录**持续了约 25 分钟。
+这一形态容易被误判为卡死——但**实测不是**：
+
+```
+seed41 无 dataloader 子进程（训练已结束）
+seed42 仍有 4 个子进程（pid 2463939-42，各 RSS ~1.46 GB）在跑 => 训练进行中（32000/32132）
+nvidia-smi: gpu0 9496 MiB / 0%   gpu1 9475 MiB / 72%
+```
+
+原因在 `training/r7_evaluate.py:39-57` 的 `EvaluationPreparation.__init__`：它先把**整个 val manifest
+的 1457 条记录逐条 `validate_record`**、再建 `RolloutStoreScan`（扫 train-only 气候态），
+**这些做完之后** `evaluate_local` 才创建 `lead_XXXh` 目录。所以"没有目录"是准备阶段，
+不是失败。**后来的实测证实了这条推断**：随后 `seed41/evaluation/off/lead_006h` 与
+`lead_012h` 相继出现。
+
+**为什么值得记**：如果我把这 25 分钟判成卡死并去 kill worker，代价是**整轮作废**——
+而 R-054 明令不得对非本实验进程发信号；**本实验自己的 worker 也不该在证据不足时动**。
+判据应当看：进程是否活着、CPU/GPU 是否在动、子进程集合是否符合阶段特征，而不是"目录没出现"。
+
+**成本口径提醒**：protocol 的 `scoring_allowance_seconds = 2588.1 s/臂` 取自 **Stage B** 的实测，
+而这里的评分准备（1457 条记录校验 + 气候态扫描）**已计入**该点测量，所以不另计；
+但它是**每臂一次**，`_seed()` 里 `EvaluationPreparation` 在**两臂之间复用**
+（`prepared` 在 `for lead` 循环外构造，并在 `_train_arm` 内每臂新建一次）——
+准确说：**每臂构造一次**，五个 lead 复用同一个对象。
+
+**进度（明写 update 数）**：`seed41/off 32132/32132`（**训练完成**，评分中：`lead_006h`、`lead_012h` 已出）、
+`seed42/off 32000`（99.6%，余约 4 分钟）、`seed41/on` 与 `seed42/on` 未开始、seed43 未启动；
+三份 receipt 不存在。
