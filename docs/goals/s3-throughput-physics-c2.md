@@ -4363,3 +4363,43 @@ CSV 在其后写出），所以"目录存在但 `rmse.csv` 缺失"是**进行中
 **进度（明写 update 数）**：`seed41/off 32132/32132`（训练完成，评分 5/5 目录、4/5 已落盘）、
 `seed42/off 32132/32132`（训练完成，评分 3/5 目录）、两臂 on 未开始、seed43 未启动；
 三份 receipt 不存在。
+### 2026-11-09 on 臂首次真跑：+14.1% 每步成本，且 `constraint_*` 只在报告里、不在 progress 流里
+
+**状态** `candidate-arm-running`；GPU-h **0.000000**（账本未变，seed 行未落）；零读数。
+
+`seed41/on` 已启动（`update 120/32132`，epoch 0）。两条实测：
+
+**1) on 臂每步更慢，幅度可测。**
+
+```
+seed41/off  1.1049 s/update   (derivative_matching=None)
+seed41/on   1.2603 s/update   (derivative_matching='c2')   => +14.1%
+```
+
+这与"每步多算两次球面算子（散度 + 涡度）及其反传"的方向一致。**成本影响如实记**：
+on 臂单独约需 `32132 × 1.2603 s = 11.25 h`，比 off 的 9.86 h 多 **1.39 h/seed**，
+三 seed 合计**约 +4.2 GPU-h**。整轮投影因此从 65.6 上修到约 **69.8 GPU-h（估计）**。
+**硬截止不受影响**：余量 31 h，仍在范围内。
+
+**2) `constraint_*` 不出现在 `progress.jsonl` 里——这是设计，不是 (b) 失败。**
+
+`training/r7_long_rollout_runner.py:55-69` 的 `_append_progress` 只写**固定 8 个键**
+（`update/epoch/lr/loss/l6/l12/gradient_norm/elapsed_seconds/recorded_at`），**刻意不含**
+`constraint_*`。带约束项的 `losses` 列表只在训练结束时写进 `training_report.json`。
+所以：
+
+- **在 `progress.jsonl` 里找不到 `constraint_divergence` ⇒ 正常**，不是缺陷；
+- (b) 读的是 `training_report.json` 的 `losses` 行，而 `seed41/off` 的报告**实测有 32132 行**、
+  键为 `[…, per_step_losses, samples, update]`、**无** `constraint_*`（off 臂，正确）；
+- on 臂走**同一个** `metrics` 字典代码路径，且其冻结合同 `derivative_matching='c2'`
+  ⇒ `auxiliary_term` 每步返回 dict ⇒ `metrics` 加三个 `constraint_*` 键。
+
+**这个区分很要紧**：若把"progress 里没有 constraint 键"当成 (b) 为假，会在 64 GPU-h 之后
+把一个**记录位置的差异**误判成**物理结论**并永久关闭该支——与 0105/0108 同族的错误。
+
+**边界**：本条零读数。on 臂的 `training_report.json` 尚不存在，故 (b) 的**实测值**仍未取得；
+上面第 2 条是**代码路径 + 冻结合同**的推断，真正的验证在 seed41 的 receipt 落盘之后。
+
+**进度（明写 update 数）**：`seed41/off 32132/32132`（完成，评分 5/5 落盘）、
+`seed42/off 32132/32132`（完成，评分 4/5）、**`seed41/on 120/32132`（0.4%，1.2603 s/u）**、
+`seed42/on` 未开始、seed43 未启动；三份 receipt 不存在。
