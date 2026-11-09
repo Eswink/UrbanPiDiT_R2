@@ -5063,3 +5063,41 @@ seed42: 22.4612 GPU-h (80,860.5 s)
 软/硬上限才有 overrun 概念，GPU-h 只记账）。
 
 **进度（明写 update 数）**：`seed43/off 9600/32132`（29.9%，ep1）；其余同前。
+
+### 2026-11-10 一处**未登记**的读数细节：`derived_scales` 与 `scales` 差 29.8% / 27.3%，在 50% 容差内
+
+**状态** `scale-drift-within-tolerance`；GPU-h **44.389187**（账本 4 行，未变）；零最终读数。
+
+回答"实测的 (b) 是什么"时顺手把 preflight 的尺度对了一遍，发现一个**此前没写下来**的事实：
+
+```
+derived_scales (preflight 由分析场现算)  divergence 1.801040e-05   vorticity 2.551462e-05
+scales         (冻结在 protocol 的常量)  divergence 2.566500e-05   vorticity 3.508900e-05
+相对偏差                                   +29.8%                  +27.3%
+```
+
+**这不是失效**：`r7_s3_derivative_matching_c2_protocol.py:265-268` 的守卫是
+
+```python
+if abs(derived[name] - declared) / declared > 0.5:
+    raise RuntimeError("...the store moved")
+```
+
+容差 **50%**，实测 29.8% / 27.3% 都**在带内**，所以 prepare 正常通过——这是设计里的"允许现算值与冻结常量有出入、但大于 50% 说明 store 动了"。
+
+**它影响什么（量化，不夸大）**：
+- 若改用**现算**尺度，两项会各放大约 **2.03× / 1.89×**，dose 从 `0.2889–0.4109` 抬到约
+  `0.4333–0.6163`；两者都仍在预声明带 `[0.1, 10.0]` 内。
+- ⇒ **尺度的选择改变 dose 约 2 倍，但不改变"该项确实在起作用"这个定性结论**。
+- ⇒ 也**不影响** (b) 的判据：`dose` 只参与 prepare 阶段的带检查，(b) 读的是
+  `constraint_divergence > 0` 与 `preflight.total > 0`，与尺度取值无关。
+
+**为什么不改**：① 这两种取值都在**冻结前**就写定的容差约定内，事后改成"现算值"等于
+**事后改判据的输入**（明令禁止）；② `derived_scales` 与 `scales` 都**原样记在 protocol 里**，
+审计者可自行复算；③ 改它会改 `execution_files_sha256` 里 `r7_s3_derivative_matching_c2_protocol.py`
+的摘要，seed43 正在跑（30.3%），会即刻作废。
+
+**如实说明**：这是**现在才注意到**的一处细节，不是新缺陷。它此前一直存在、一直通过守卫。
+`scale_basis` 字段写的是"re-derived at prepare time and **asserted equal**"，而实际断言是
+**容差 50%**，不是严格相等——**这处措辞比实际断言更强**。作为一条已知的措辞不精确记录在此，
+留给下轮修（改它会动 pin）。
