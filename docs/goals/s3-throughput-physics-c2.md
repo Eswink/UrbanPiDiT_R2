@@ -4226,3 +4226,38 @@ seed43 要等 seed41 或 seed42 的整张卡空出才启动。这条路径上有
 
 **进度（明写 update 数）**：`seed41/off 25860`（80.5%，ep3，余约 1.9 h）、
 `seed42/off 24860`（77.4%，ep3，余约 2.3 h）；seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 `stage reading` 自身的两个前置：余量门与 deadline —— 逐行核对（未启动任何进程）
+
+**状态** `reading-stage-preconditions-audited`；GPU-h **0.000000**；零读数。
+
+用户指定链的第二步是 `tools/r7_round.py stage reading`。它比 seed 阶段少一个参数、多一个门槛细节，
+两处都容易踩：
+
+| 事项 | 代码位置 | 实测结论 |
+| --- | --- | --- |
+| deadline 用的是哪个 | `:292` `limit = min(deadline, now+per_seed) if phase=="seed" else deadline` | **reading 拿整轮窗口**，不是 32 h 的 per-seed 口径 ⇒ 余量 31.6 h 全可用 |
+| 会不会传 `--seed` | `:328-330` 只在 `seed is not None` 时追加 | reading 不传 ⇒ 驱动 `:269` 的 `seed not in SEEDS` 守卫**不会误触发** |
+| 是否过余量门 | `:296` `if phase in {"seed", "reading"}` | **过**。reading 要加载 checkpoint，所以这是真门槛，不是形式 |
+| 门用多大的 peak | `:301` `max(protocol.estimated_peak_bytes, measured_peak_bytes(output))` | 取"冻结估计"与"已完成 seed 实测峰值"的**较大者** |
+
+**第四行是本条的主要风险点**：若真实 reserved peak 超过协议里的 8.91 GiB，reading 的门会**更高**，
+在 seed43 的卡回收完之前可能被阻塞。查了本仓同架构历史 receipt 的实测值：
+
+```
+5.21 GiB (anchor_feedback_65x65 seed41/42 control)
+8.38 GiB (anchor_isolation seed42/43)
+11.03 GiB (capacity_depth seed42 —— 不同架构，depth 扩展)
+```
+
+本架构（3.29 M 参数、K=4）的实测峰值 **5.21–8.38 GiB**，**低于**协议的 8.91 GiB 估计
+⇒ `measured_peak_bytes` 大概率不会抬高门限，`estimated_peak_bytes` 继续生效。
+**这是基于历史 receipt 的推断，不是 attempt08 的实测**；attempt08 的真实峰值在它自己
+`seed*_receipt.json` 的 `owned_cuda_reserved_peak_bytes` 里，读数阶段前可直接读。
+
+**顺带记一条 dead-code 观察**：reading 分支在驱动 `:269` 之后的守卫（`if seed not in SEEDS`）
+对 reading **不可达**，因为 `seed` 变量在到期后为 `None`——但 `phase == "reading"` 已在
+`:266-268` 提前 return。这不是缺陷，只是让"为什么 reading 不会因 seed 检查而失败"有据可查。
+
+**进度（明写 update 数）**：`seed41/off 30880`（96.1%，ep3）、`seed42/off 29780`（92.7%，ep3）；
+seed43 未启动；三份 receipt 不存在。
