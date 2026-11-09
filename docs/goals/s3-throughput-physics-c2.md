@@ -4695,3 +4695,36 @@ campaign-state.used_gpu_h = new_cumulative
 
 **进度（明写 update 数）**：`seed41/on 11840/32132`（36.9%，ep1）、`seed42/on 10340/32132`（32.2%，ep1）；
 seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 **更正上一节**：「campaign §8」确实存在，我读错了文件
+
+**状态** `section-looking-corrected`；GPU-h **0.000000**；零读数。
+
+上一节我写「主计划只有 §0–§7、没有 §8、应写进 §6」。**这个结论是错的**，因为我读的是
+`docs/goals/s3-throughput-and-physics-campaign.md`——那是**本目标的 brief**，不是 campaign 主计划。
+
+**实测更正**：`tools/r7_round_support.py:25` 的 `MASTER_REL` 是
+
+```
+docs/goals/main-model-climatology-campaign.md      <- 真正的 campaign 主计划
+```
+
+该文件**确实有 `## §8 进度块`**（第 405 行），最后一条是 `2026-11-07 — S3 Stage B 第四点…`，
+格式为 `- **<日期> — <结论>。**`。而 `campaign-state` 块、账本行解析（`ledger_rows()`）、
+`check_campaign_state.py` **全部**指向这个文件。
+
+**两处因此确定**：
+1. **登记要写进 `main-model-climatology-campaign.md` 的 §8**，与既有 Stage B 块同格式；
+2. 这正是 `round-spec.register_paths` 第 4 条 `docs/goals/main-model-climatology-campaign.md`
+   的含义——**它一直在那里**，我上一节没去读 spec 就下结论。
+
+**我错在哪**：用**文件名相似**（都叫 *campaign*）代替**读代码里的常量**。这与 0103 的
+"猜路径"、本会话早些时候"D 报告文件名猜错"是同一族错误——**猜名字不算核对**。
+正确的第一步是 `grep MASTER_REL tools/*.py`，一行就够。
+
+**代价如实记**：上一节已提交（`628795e`），内容有错。我**不删除**它（不可变记录），
+而是用本节原地更正——这样读者能看到错误与本更正的对照，比抹掉更有用。
+`register_paths` 未受任何影响（它一直是 5 条，我按它执行即可）。
+
+**进度（明写 update 数）**：`seed41/on 13560/32132`（42.2%，ep1）、`seed42/on 12020/32132`（37.4%，ep1）；
+seed43 未启动；三份 receipt 不存在。
