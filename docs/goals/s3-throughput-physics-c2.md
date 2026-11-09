@@ -4558,3 +4558,44 @@ render -> 3962 bytes
 
 **进度（明写 update 数）**：`seed41/on 8700/32132`（27.1%，ep1）、`seed42/on 7320/32132`（22.8%，ep0）；
 seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 登记链的**顺序依赖**与 record_id 冲突检查（先测再说，不靠记忆）
+
+**状态** `registration-order-verified`；GPU-h **0.000000**；零读数。
+
+读数落地后要做四件套登记。这条把其中**有顺序依赖、且失败会静默或难查**的两点先测掉：
+
+**1) index → brief 的顺序不能颠倒。** 实测当前状态：
+
+```
+verify_r7_evidence_index --check-brief docs/R7_CANDIDATE_BRIEF.md
+  -> PASS evidence index and brief: 105 records
+```
+
+`--check-brief` 比对的是 **brief 与索引的规范渲染**。所以顺序必须是：
+
+```
+① 把新记录 append 到 docs/R7_EVIDENCE_INDEX.jsonl   (105 -> 106)
+② verify_r7_evidence_index --render > docs/R7_CANDIDATE_BRIEF.md   (brief 也变成 106)
+③ verify_r7_evidence_index --check-brief ...          (此时才 PASS)
+```
+
+**若跳过 ②**：`--check-brief` 会因"索引 106 / brief 105"失败，而**失败信息指向 brief**，
+容易误判成"brief 坏了"而不是"忘了重渲染"。`brief` 最后一次改动是 `646b677`，
+**早于任何 C2 记录**，所以本轮必然需要重渲染。
+
+**2) record_id 冲突已查（不是猜）。** 索引里现有的 C2 相关记录只有：
+
+| record_id | outcome_class | candidate | evidence |
+| --- | --- | --- | --- |
+| `c2-feedback-negative` | negative | not-candidate | `docs/R7_65_C2_C3_FEEDBACK_AND_DEPTH.md` |
+
+那是**另一个更早的实验**（feedback routing），与本轮 `s3-derivative-matching-c2-result`
+**不冲突**（实测 `collision? False`）。记下来是因为两个名字都含 "c2"，若重名，
+`validate_record` 的重复检查会在最后一步才炸。
+
+**边界**：本条零读数、零 GPU-h；它保证的是登记**形式**不会因顺序/命名出错，
+不涉及任何科学判断。
+
+**进度（明写 update 数）**：`seed41/on 9380/32132`（29.2%，ep1）、`seed42/on 7980/32132`（24.8%，ep0）；
+seed43 未启动；三份 receipt 不存在。
