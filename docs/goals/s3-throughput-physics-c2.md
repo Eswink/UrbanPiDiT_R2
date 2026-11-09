@@ -4969,3 +4969,30 @@ scripts/study_r7_s3_derivative_matching_c2.py:62-73  (_parent_model)
 
 **进度（明写 update 数）**：`seed43/off` 训练中；`seed41/42` receipt 已齐并已上账本；
 `readings.json` 未产出；(a) 未最终求值（两 seed 现为 −0.013988 均值）。
+
+### 2026-11-10 seed43 全卡投影 19.1 h，硬截止余量 20.5 h（估计，非实测）
+
+**状态** `seed43-eta-projected`；GPU-h **44.389187**（账本 4 行，未变）；零最终读数。
+
+用 seed43/off 的稳态速率（1.1252 s/u，最近 900 步窗口）投影：
+
+```
+off 剩余 (32132-7800) × 1.1252 s  =  7.6 h
+on 全程  32132 × 1.1252 s         = 10.0 h
+两臂五档评分 2 × 2588.1 s         =  1.4 h
+seed43 全卡                        = 19.1 h
+```
+
+**硬截止剩 39.55 h** ⇒ 余量 **20.46 h**；再扣读数阶段的~1 h（需一张空卡过余量门）
+仍余 **19.5 h**。
+
+**这是估计**：速率会随 epoch 边界、checkpoint 落盘、评分准备（1457 条记录校验）漂移；
+20 h 的余量足以吸收它。**不改协议、不缩判据。**
+
+**一个必须提前说清的次序**：`stage reading` 要等 **seed43 的 receipt 写出之后**才能跑
+（`readings()` 无条件读 `seed43_receipt.json`）；而 seed43 的 receipt 要等**两臂训练 +
+两臂评分全部结束**才 `write_exclusive`。所以读数时刻**不会早于** seed43 卡空出，
+不存在"提前跑读数"的选项。
+
+**进度（明写 update 数）**：`seed43/off 7800/32132`（24.3%，ep0）；`seed41/42` 完成并上账本；
+`readings.json` 未产出。
