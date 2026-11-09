@@ -4656,3 +4656,42 @@ seed43 未启动（等待卡）；三份 receipt 不存在。
 
 **进度（明写 update 数）**：`seed41/on 11180/32132`（34.8%，ep1）、`seed42/on 9720/32132`（30.2%，ep1）；
 seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 `used_gpu_h` 的取数口径：**最后一行 cumulative + 本轮**，不是逐行求和
+
+**状态** `gpu-hour-arithmetic-verified`；GPU-h **0.000000**；零读数。
+
+登记时要写 `campaign-state.used_gpu_h`。这一步有个**会静默偏移**的陷阱，实测如下：
+
+```
+campaign-state.used_gpu_h          = 504.507518
+账本最后一行 cumulative            = 504.507518
+sum(88 行 gpu_hours)               = 504.507408
+difference                         = -0.000110
+最大单行偏差在 row 86               = +0.000110
+```
+
+**成因**：每行的 `gpu_hours` 各自舍入到 6 位小数，而 `cumulative` 是逐行**累加原始值**后再舍入；
+88 行 × 6 位小数的舍入漂移在这个量级完全正常（粗估上限 4.4e-5，实测 1.1e-4）。
+⇒ **这不是数据错误**，是两种口径的差异。
+
+**正确的登记算术**：
+
+```
+new_cumulative = round(last_row.cumulative + this_round_gpu_hours, 6)
+campaign-state.used_gpu_h = new_cumulative
+```
+
+**错误做法（会失败）**：`sum(所有行 gpu_hours)`。它会给出 504.507408 + 本轮，
+比正确值**少 0.000110**，于是 `used_gpu_h` 与最后一行 `cumulative` 不再相等，
+`tools/check_campaign_state.py` 会拒绝（它在 `r7_round_support.py:84` 的校验链里）。
+
+**本轮的 `this_round_gpu_hours` 从哪来**：由 `tools/build_c2_registration.py::_gpu_hours_from_ledger`
+从 `stage_ledger.jsonl` 的 `elapsed_seconds` **现算**（6 位小数），**不许手抄**。
+且必须等**六条 seed 行全部落盘**——因为一条 seed 行是在 `_seed()`（两臂训练 + 两臂评分）
+全部完成之后才写（`tools/r7_round_stages.py:342-359`）。
+
+**边界**：本条零读数、零科学结论；它是记账口径，不是科学判据。
+
+**进度（明写 update 数）**：`seed41/on 11840/32132`（36.9%，ep1）、`seed42/on 10340/32132`（32.2%，ep1）；
+seed43 未启动；三份 receipt 不存在。
