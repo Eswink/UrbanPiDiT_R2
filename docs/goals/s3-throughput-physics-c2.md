@@ -5201,3 +5201,37 @@ docs/goals/s3-throughput-physics-c2.md
 （它只查 SHA 形状与对象存在性），但审计时"这条记录由哪次提交产生"就错位了。
 
 **进度（明写 update 数）**：`seed43/off 16300/32132`（50.7%，ep2）；其余同前。
+
+### 2026-11-10 登记枚举值与先例（(a) 为假时应填 `negative` / `not-candidate`）
+
+**状态** `outcome-class-enum-verified`；GPU-h **44.389187**（未变）；零最终读数。
+
+`validate_record` 用**必填键白名单**校验（不禁止额外字段），所以
+`climatology_reference_sha256` 这个我加的说明性字段是合法附加项。但它对两个枚举有硬约束，
+落地前先查清（实测自 `tools/verify_r7_evidence_index.py`）：
+
+```
+OUTCOME_CLASSES   = audit / engineering-positive / mixed / negative / unresolved
+CANDIDATE_STATES  = blocked / candidate / needs-review / not-candidate
+RECORD_FORMAT     = urbanpidit-r7-evidence-record-v1
+```
+
+**两个同类先例**（都在索引里）：
+
+| record_id | outcome_class | candidate_state | priority |
+| --- | --- | --- | --- |
+| `s3-capacity-width-result` | **negative** | **not-candidate** | 99 |
+| `s3-physical-constraints-c1-preflight-veto` | **negative** | **not-candidate** | 60 |
+
+⇒ **若 (a) 为假**（现两 seed 指向此），本轮记录应为
+`outcome_class: negative`、`candidate_state: not-candidate`。
+**不**选 `mixed`：`mixed` 在索引里多用于"部分变量改善部分退化"这类多维结果，
+而本轮 (a) 是一条**预声明的二元判据**且**五档全负、两 seed 同向**，用 `negative` 更准确；
+也不选 `unresolved`，因为 (a) 不是"没测出来"，是"测了、指向退化"。
+
+**若 (a) 为真**则改 `engineering-positive` / `needs-review`——但按预声明那只是**工程出口**，
+不是 candidate 晋级，`candidate_state` 也只能是 `needs-review`，**不得**写 `candidate`。
+
+**边界**：本条只固定枚举，不预设结果。最终取值以 `readings.json` 为准。
+
+**进度（明写 update 数）**：`seed43/off 19040/32132`（59.3%，ep2）；其余同前。
