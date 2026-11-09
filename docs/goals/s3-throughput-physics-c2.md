@@ -4295,3 +4295,35 @@ nvidia-smi: gpu0 9496 MiB / 0%   gpu1 9475 MiB / 72%
 **进度（明写 update 数）**：`seed41/off 32132/32132`（**训练完成**，评分中：`lead_006h`、`lead_012h` 已出）、
 `seed42/off 32000`（99.6%，余约 4 分钟）、`seed41/on` 与 `seed42/on` 未开始、seed43 未启动；
 三份 receipt 不存在。
+
+### 2026-11-09 评分开销的**实测值**（不再是 Stage B 借来的估计）与修正后的到齐时间
+
+**状态** `scoring-cost-measured`；GPU-h **0.000000**（账本未变）；零读数。
+
+用 `seed41/off` 五个 lead 目录的**落盘时刻**量每档评分开销（本地时区文件时间，非 UTC，已核对）：
+
+```
+lead_006h  10:07:00
+lead_012h  10:11:58   +5.0 min
+lead_024h  10:18:40   +6.7 min
+```
+
+⇒ **5–7 分钟/lead，一臂五档约 25–35 分钟**。protocol 里冻结的 `scoring_allowance_seconds = 2588.1 s
+= 43.1 min/臂` 比实测**更保守** ⇒ 评分不会造成 overrun，冻结值可以继续用。
+
+**修正排期**（每臂 = 训练 + 五档评分 0.50 h）：
+
+```
+seed41 卡空出 ≈ 10.86 h（off 已在评分，on 尚未开始）
+seed42 卡空出 ≈ 11.30 h
+seed43 需 ≈ 11.25 h（从第一张卡空出起算）
+=> 三份 receipt 齐备 ≈ 22.12 h；硬截止剩 53.24 h ⇒ 余量 ≈ 31.13 h
+```
+
+**这是估计**：速率取自实测 `elapsed_seconds/update`，但 epoch 边界、checkpoint 落盘、
+`EvaluationPreparation` 的 1457 条校验都会让它漂移。**余量 31 h 足以吸收 ±2 倍漂移**，
+故不改协议、不缩短判据。
+
+**进度（明写 update 数）**：`seed41/off 32132/32132`（训练完成，评分已出 4/5：006/012/024/048h）、
+`seed42/off 32000`（99.6%，评分已出 2/5）、`seed41/on` 与 `seed42/on` 未开始、seed43 未启动；
+三份 receipt 不存在。
