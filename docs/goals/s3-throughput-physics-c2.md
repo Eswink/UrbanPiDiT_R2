@@ -4794,3 +4794,34 @@ s3-whitebox-trained-state
 
 **进度（明写 update 数）**：`seed41/on 15900/32132`（49.5%，ep1）、`seed42/on 14260/32132`（44.4%，ep1）；
 seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 `readings()` 只有两个显式失败点，off 侧都不触发（实测文件稳定性）
+
+**状态** `reading-failure-modes-enumerated`；GPU-h **0.000000**；零读数。
+
+用 AST 把 `readings()` 的 `raise` 全列出来——只有两处：
+
+| 行 | 失败条件 | 触发它需要什么 |
+| --- | --- | --- |
+| `:200` | `seed S arm A lead L table drifted` | `receipt` 里记的 `boundary_rmse_csv_sha256` 与磁盘文件不符 |
+| `:206` | `seed S arm A scored X, not the frozen leads` | 某臂的 `rmse` 键集不等于冻结的 `{6,12,24,48,72}` |
+
+**第二处**由驱动自己的循环保证（`for lead in LEADS` 逐档写），不会自然触发；
+**第一处才是真正的风险**：若某个 `boundary_rmse.csv` 在 digest 被记下**之后**又被改动，
+读数会失败——而那时三份 receipt 已经存在，容易误判成"数据坏了"。
+
+**实测（现值，不是假设）**：10 个已完成的 off 臂 CSV 全部稳定，mtime 距今 318–381 分钟：
+
+```
+seed41: 6h/12h/24h/48h/72h  age 380.5 / 375.6 / 368.9 / 357.6 / 341.7 min
+seed42: 6h/12h/24h/48h/72h  age 358.3 / 353.1 / 346.1 / 334.5 / 318.5 min
+```
+
+⇒ 这些文件在 receipt 写完之后**不会**再被写；digest 比对会在读数阶段通过。
+（on 臂的 CSV 尚未产生，只能在它们落盘之后作同样核对。）
+
+**为什么这条值得记**：读数阶段的失败只有这两个入口，排除了它们，剩下的差异就只能是
+**真实的 skill 差异**，不是"文件格式/路径/键名"问题。这为最终 (a) 的解读预先划清边界。
+
+**进度（明写 update 数）**：`seed41/on 18160/32132`（56.5%，ep2）、`seed42/on 16460/32132`（51.2%，ep2）；
+seed43 未启动；三份 receipt 不存在。
