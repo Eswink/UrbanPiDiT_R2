@@ -158,3 +158,20 @@ def test_the_page_says_c_and_d_cannot_discriminate(tmp_path):
     assert "该行不由读数证明" in text
     assert "恒为真，不构成判别" in text
     assert "真正带信息的是 (a) 与 (b)" in text
+
+
+def test_the_date_is_the_render_time_not_a_typed_constant(tmp_path):
+    """A hardcoded date is wrong by however long the round takes, and silently so.
+
+    The page was written when the reading was expected the same day; attempt08 runs for
+    days after the page was authored, so a typed "2026-11-08" would have shipped on a
+    page whose numbers were produced later. The date must come from the render, and the
+    page must say which clock it used.
+    """
+    from datetime import datetime, timezone
+
+    code, page = _render(tmp_path, _readings(0.005))
+    assert code == 0
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    assert f"- **日期**：{today}" in page
+    assert "UTC，渲染时刻" in page

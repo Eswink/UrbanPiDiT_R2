@@ -7,6 +7,7 @@ for a measurement.
 import hashlib
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 #: Run as a script (``python tools/render_c2_result.py``) the repo root is not on sys.path, so
@@ -110,7 +111,10 @@ def main(argv: list[str] | None = None) -> int:
     lines = [
         "# S3 Stage C2（导数域目标匹配 on/off）读数 + 预声明出口 (a)–(d)",
         "",
-        "- **日期**：2026-11-08",
+        # The date is when the page was rendered, not a typed constant: the reading lands
+        # after attempt08 finishes, so a hardcoded date would be wrong by however long the
+        # three seeds take. Nothing here depends on it except the reader's orientation.
+        f"- **日期**：{datetime.now(timezone.utc).strftime('%Y-%m-%d')}（UTC，渲染时刻）",
         f"- **状态**：预声明出口 (a)–(d) 逐条求值；`all = {ex['all']}`、`verdict = {ex['verdict']}`",
         "- **`scientific_claim: false`**；`test_read: false`；`r = 0`",
         f"- **协议**：`{r['protocol_sha256']}`",
@@ -132,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         + "、".join(f"{s}={r['seeds'][s]['on'].get('constraint_terms_recorded')}" for s in seeds)
         + f" | {_mark(ex['b_matching_bit'])} |",
         f"| (c) | off 路径与注册算术**逐位等价** | **该行不由读数证明**：驱动里"
-        f"`c = True` 是常量，所以它恒为真、不携带信息（见 §4 限制条）；真正支撑它的是"
+        f"`c = True` 是常量，所以它恒为真、不携带信息（见 §4 限制条）；真正支撑它的是 "
         f"dispatcher 的 `None` 早退与其反证测试，不在本页 | {_mark(ex['c_off_path_unchanged'])} |",
         f"| (d) | 无判据被改动 | `scientific_claim={r['scientific_claim']}`、"
         f"`test_read={r['test_read']}` | {_mark(ex['d_no_criterion_changed'])} |",
