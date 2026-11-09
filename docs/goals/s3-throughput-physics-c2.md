@@ -4936,3 +4936,36 @@ total                           159801.1 s = 44.389187 GPU-h
 **进度（明写 update 数）**：`seed41/off 32132`（完成）、`seed42/off 32132`（完成）、
 `seed43/off 7020/32132`（21.9%，ep0）；两份 receipt 已齐、`seed43_receipt.json` 未出；
 `readings.json` 未产出；(a) 未最终求值。
+
+### 2026-11-10 桥 (e) 由**执行**强制，不是由报告声明（代码位置实测）
+
+**状态** `bridge-e-enforced-by-execution`；GPU-h **44.389187**（账本 4 行，未变）；零最终读数。
+
+桥 (e) 要求「父身份逐 seed 断言（`model_code_sha256` + 155 张量 `state_digest`）」。
+它不是一条要我去核对的报告项，而是**worker 启动时的硬门**：
+
+```
+scripts/study_r7_s3_derivative_matching_c2.py:62-73  (_parent_model)
+  sha256_file(path) != expected                      -> RuntimeError 父 checkpoint pin 变了
+  saved["updates"] != pins.ENDPOINT (=1600)          -> RuntimeError 父不是冻结端点
+  _state_digest(model.state_dict()) != MIGRATED_PARENT_STATE_DIGEST[seed]
+                                                     -> RuntimeError 导入状态不是钉住的权重
+```
+
+⇒ **seed41/42 能训练到 32132，就等于桥 (e) 在这两个 seed 上已通过**（否则 worker 在第一步更新前
+就抛错）。失败时的处置也已是预声明的：记 `identity/engineering unresolved`，**不进入** (a)–(d)。
+
+三个 seed 的冻结 digest（实测读出）：
+
+```
+41: 7c416ccb4054cf7e077788a43b02917e…
+42: 857d880466f76500ed74c534e757732a…
+43: 61fdac58b7bfacf828e1eae4968817b1…
+```
+
+**另外核实**：`protocol.arms_parent.state_digest` 是**空的**——所以不能靠读 protocol 判断桥 (e)；
+真值在 `scripts/r7_s3_position_retention_parent.py` 的常量里，断言在 worker 内。
+若只看 protocol 字段会误以为"桥没配"。**同 pledge 与 (b) 的教训一致：字段空 ≠ 检查缺失。**
+
+**进度（明写 update 数）**：`seed43/off` 训练中；`seed41/42` receipt 已齐并已上账本；
+`readings.json` 未产出；(a) 未最终求值（两 seed 现为 −0.013988 均值）。
