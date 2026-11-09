@@ -4599,3 +4599,29 @@ verify_r7_evidence_index --check-brief docs/R7_CANDIDATE_BRIEF.md
 
 **进度（明写 update 数）**：`seed41/on 9380/32132`（29.2%，ep1）、`seed42/on 7980/32132`（24.8%，ep0）；
 seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 seed43 的启动**不需要人工干预**——编排器仍在跑（实测进程）
+
+**状态** `scheduler-alive-confirmed`；GPU-h **0.000000**；零读数。
+
+一条容易搞错的运维假设：seed43 要不要我手动 `stage-seeds` 一次？**不需要**。实测：
+
+```
+pid 2462218, etimes 50420 s, .venv/bin/python tools/r7_round.py stage-seeds   (仍在运行)
+```
+
+`run_seeds` 的循环条件是 `while (pending and not stop) or running:`，`pending` 里还有 seed43；
+每当某个 `future` 完成（即某 seed 的两臂训练+评分全部结束）就 `free.append(device)` 并在
+下一轮 while 里为剩余 pending 分配卡。**所以 seed43 会在第一张卡空出时自动被拉起**，
+我需要做的是**等**，不是**启**。
+
+**反过来的一条纪律**：正因为编排器在跑，我**不得**再起第二个 `stage-seeds`——
+`run_stage` 有 `already-running` 保护（`:284-287`，检测同阶段 worker 存活就拒绝并记
+`passed: False`），但**两个编排器同时管同一 attempt 仍是不该出现的状态**。
+本轮我只做只读轮询，不重复启动。
+
+**若要人工核对启动**，证据在 `outputs/.../seed43_process.json` 的 `gate` 字段与
+`stage_ledger.jsonl` 的 seed43 行；**不要**以"我跑了命令"为证据。
+
+**进度（明写 update 数）**：`seed41/on 10020/32132`（31.2%，ep1）、`seed42/on 8620/32132`（26.8%，ep1）；
+seed43 未启动（等待卡）；三份 receipt 不存在。
