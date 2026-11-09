@@ -4757,3 +4757,40 @@ last 5 : 2026-10-24 ×5
 
 **进度（明写 update 数）**：`seed41/on 14720/32132`（45.8%，ep1）、`seed42/on 13160/32132`（41.0%，ep1）；
 seed43 未启动；三份 receipt 不存在。
+
+### 2026-11-09 登记参数逐项落实（round-spec 实测读出，不靠记忆）
+
+**状态** `registration-parameters-read`；GPU-h **0.000000**；零读数。
+
+读数落地后要用的参数，全部从 `docs/goals/s3-throughput-physics-c2.md` 的 round-spec **读出来**：
+
+| 键 | 值 | 影响哪些步骤 |
+| --- | --- | --- |
+| `output_stem` | `r7_s3_derivative_matching_c2_20261108` | attempt 目录定位 |
+| `seeds` | 41 / 42 / 43 | `--require-seeds`、`readings()` 的循环 |
+| `driver` | `scripts/study_r7_s3_derivative_matching_c2.py` | `stage reading` 的执行体 |
+| `device_mode` | `dual` | 两卡串行、seed43 等卡 |
+| `planned_seconds` / `hard_cap_seconds` | 115200 / 230400 | 软/硬上限；只有硬上限截断 |
+| `code_archive` | `outputs/r7_s3_derivative_matching_c2_code_attempt08.zip` | archive 阶段（必须带 commit 注释） |
+| `register_message` | `docs(r7): register Stage C2 derivative-matching readings` | 登记提交信息 |
+| `test_path` | 3 个测试文件 | `verify` 的测试集 |
+
+**一处要明说的口径**：spec 的 `arm` 是 `s3-derivative-matching-c2`，而**记录 id 要另起**
+（`--record-id` 是必填、无自动推导）。既有记录的命名惯例是 `<主题>-<作用>`：
+
+```
+s3-throughput-physics-b-p0025 / -p1000 / -p4000 / -p1600
+s3-physical-constraints-c1-preflight-veto
+s3-whitebox-trained-state
+```
+
+⇒ 本轮用 **`s3-derivative-matching-c2-result`**（实测与索引无冲突，见前一节）。
+**不**直接用 `arm` 当 record_id：那会让后续同一 arm 的其它结果无法区分。
+
+**另外确认 `control_record: null`**：本轮 off 臂在**同一 attempt 内**跑，不复用历史控制记录，
+所以这个字段为空是正确的（不是缺项）。
+
+**边界**：零读数、零 GPU-h；本条只固定**形式参数**，任何科学判断仍等读数。
+
+**进度（明写 update 数）**：`seed41/on 15900/32132`（49.5%，ep1）、`seed42/on 14260/32132`（44.4%，ep1）；
+seed43 未启动；三份 receipt 不存在。
