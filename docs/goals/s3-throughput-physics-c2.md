@@ -5162,3 +5162,42 @@ render  -> 4318 bytes
 **仍不得引用**：这个 4318-byte 页面含假设的第三 seed，**不是**最终结果页。
 
 **进度（明写 update 数）**：`seed43/off 14600/32132`（45.4%，ep1）；其余同前。
+
+### 2026-11-10 `commit-register` 只提交 5 条 `register_paths`，ADR 0109 **必须单独提交**（代码实测）
+
+**状态** `register-commit-scope-verified`；GPU-h **44.389187**（未变）；零最终读数。
+
+用户指示里有两条容易做错的地方：ADR 0109 要**单独**提交、`evidence_commit` 取登记提交=HEAD。
+第一条现在有了代码依据（`tools/r7_round_stages.py:539-555`）：
+
+```python
+paths_key = "register_paths" if spec.get("register_paths") else "commit_paths"
+```
+
+而实测 `register_paths` **只有 5 条**：
+
+```
+docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md
+docs/R7_EVIDENCE_INDEX.jsonl
+docs/R7_CANDIDATE_BRIEF.md
+docs/goals/main-model-climatology-campaign.md
+docs/goals/s3-throughput-physics-c2.md
+```
+
+**ADR 不在其中**（实测 `ADR in register_paths? False`）。⇒ 若只跑 `commit-register`，
+`docs/decisions/0109-*.md` 会**留在工作区未提交**，于是 CI 看不到、R-033 的"治理层必须在版本控制内"
+（R-037）也会被违反，而**当轮的所有检查都可能仍是绿的**（因为未跟踪文件不参与阻断判定）。
+
+**因此落地次序必须是**：
+1. 写结果页 → 提交（页面先于记录，记录 pin 它的 digest）；
+2. **单独提交 ADR 0109**（含 `docs/decisions/README.md` 的索引行）；
+3. 再跑 `build_c2_registration`（此时 `rev-parse HEAD` = **ADR 提交**，即"登记提交"），
+   于是 `evidence_commit` 指向一个**包含结果页**的提交（页面在步骤 1 已入库 ⇒ HEAD 的祖先）；
+4. 然后 `commit-register`（提交 index/§6/brief/§8/本轮 brief），`push-round`。
+
+**一处要留意的语义**：`evidence_commit` 取的是**步骤 3 那一刻的 HEAD**，也就是**ADR 提交**，
+而不是步骤 4 的 register 提交。若把次序写成"先 register 再 build record"，record 里的
+`evidence_commit` 会指向一个**不含 index 记录**的提交，虽然 `validate_record` 仍会通过
+（它只查 SHA 形状与对象存在性），但审计时"这条记录由哪次提交产生"就错位了。
+
+**进度（明写 update 数）**：`seed43/off 16300/32132`（50.7%，ep2）；其余同前。
