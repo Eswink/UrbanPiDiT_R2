@@ -5560,3 +5560,30 @@ brief 的估计                         =  63.7 GPU-h   =>  1.042×
 两个数都会写进最终报告，并标明哪个是估计、哪个是实测。
 
 **进度（明写 update 数）**：`seed43/on 9240/32132`（28.8%，ep1）；其余同前。
+
+### 2026-11-10 渲染器 (b) 行要的 `preflight` 在 protocol 里完整（4 行、total 全正）
+
+**状态** `preflight-schema-confirmed`；GPU-h **44.389187**（未变）；零最终读数。
+
+`render_c2_result.py` 的 (b) 行读 `r["preflight"]["rows"]` 并检查每行 `total > 0`。
+读数时 `readings()` 把 `body["preflight"]` **整块**搬进 `readings.json`（`:189`），
+所以只要 protocol 里有，渲染就不会 KeyError。实测 protocol 的该块：
+
+```
+keys: cases, derivative_magnitudes, derived_scales, dose_band, parent_checkpoint_sha256,
+      rows, scales, statement, store_constants_sha256, weights
+rows: 4
+row0 keys: case, divergence, dose, mse, nonzero_for_cross_lead_field, total, vorticity, zero_at_target
+totals: [0.341183, 0.465680, 0.363079, 0.412200]   all > 0 = True
+```
+
+**三件事因此确定**：
+1. **字段齐**（含 `zero_at_target` 与 `nonzero_for_cross_lead_field`——0106 修好的**有判别力**的守卫
+   两条都在，不是只有恒零那条）；
+2. **四项 total 全正**，所以 (b) 的前半（`all(row["total"] > 0)`）在冻结值上已成立；
+   (b) 的后半要等三 seed 的 `constraint_terms_recorded`；
+3. **dose 在带内**（本会话早前实测 0.3658/0.4109/0.3927/0.2889 ∈ [0.1,10]）。
+
+**边界**：这是**冻结前置**的数据，不是训练结果；(b) 的判定仍以 `readings.json` 为准。
+
+**进度（明写 update 数）**：`seed43/on 10880/32132`（33.9%，ep1）；其余同前。
