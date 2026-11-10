@@ -5382,3 +5382,36 @@ protocol.json 里有 climatology_reference 键？   False
 
 **进度（明写 update 数）**：`seed43/off 32132/32132`（**完成**，五档齐）、
 `seed43/on 320/32132`（1.0%）；`seed41/42` 完成；**缺的只剩 seed43/on 与其五档评分**。
+
+### 2026-11-10 落地链脚本已就绪并**实测拒绝提前执行**（2/3 receipt 即停）
+
+**状态** `landing-script-ready`；GPU-h **44.389187**（未变）；零最终读数。
+
+用户指定的落地链（state → stage reading → receipt guard → 求值 (a)–(d)）写成一个脚本，
+放在 `/tmp/c2_land.sh`（**运行态，不提交**，符合 `docs/rules/artifact-storage.md` 的成品判据：
+新克隆不需要它来审计，四件套本身已记录全部证据）。
+
+**脚本的三条纪律**：
+1. **每一步取 `$?` 而不是管道状态**——`set -u` + 显式 `rc=$?`，避免本会话踩过的
+   `cmd | head; echo $?` 陷阱（那次打印的是 `head` 的 0，真值是 1）；
+2. **第 0 步先数 receipt**：缺一份就 `ABORT`，**不进入 state/reading**；
+3. **第 1 步核对 `current_round_goal`**：不等 `docs/goals/s3-throughput-physics-c2.md`
+   就退出——这是目标长文点名的第三个坑（冻结/读数错轮次）。
+
+**实测拒绝提前执行**（这是关键，不是"应该会拒绝"）：
+
+```
+$ bash /tmp/c2_land.sh
+=== 0. precheck: three receipts must exist ===
+  seed41 receipt: present
+  seed42 receipt: present
+  seed43 receipt: MISSING -> stop
+ABORT: only 2/3 receipts
+```
+
+⇒ 脚本在只有两份 receipt 时**确实停在第 0 步**，没有触碰 `stage reading`。
+
+**`bash -n` 语法检查通过。**
+
+**进度（明写 update 数）**：`seed43/on 3560/32132`（11.1%，ep0）；`seed41/42` 与
+`seed43/off` 全部完成；**只剩 seed43/on 训练与其五档评分**。
