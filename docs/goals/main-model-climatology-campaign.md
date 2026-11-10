@@ -397,12 +397,52 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
 | S3 Stage C2 `attempt04`**作废**（导数域目标匹配，三 seed 两臂） | 6.5555 | 475.854695 | `docs/decisions/0098-stage-c2-attempt04-stopped-three-reading-stage-defects.md`（**无 index record**：作废轮**不产生读数**，故**不登记** `record:`——本条是记账行，不是证据记录）：`off` 臂两卡并行跑到 **32%**（1.136 / 1.147 s/update，loss 0.63 / 0.99），**在读数阶段发现三处必然失败并主动终止**。**(1)** `readings()` 与 `_train_arm()` 都写 `curve.EVALUATION_LEADS`，而该名字只存在于 `study_r7_s3_wide_single_factor`；`r7_s3_curve_point_large_protocol` 把它 import 成 `wide` **从不重绑** ⇒ 在**在跑的这一份字节**上实测 `AttributeError`；**(2)** 同一名字在 `_train_arm` 第 138 行（**训练跑完之后、评分之前**）；**(3)** `entry[arm]['rmse']/['skill']` 的填充被**缩进在 `if arm == CANDIDATE:` 内**，`off` 臂永远是空字典 ⇒ 用合成结果实测 `evaluate_exit` 抛 `KeyError('72')`。另发现**第三个同类**：`curve.check_provenance` 实际定义在 `scripts/r7_s3_curve_point_large_driver.py:96`。**三处都在已钉进 `execution_files_sha256` 的两个文件里**（94 项）⇒ 在当前身份下**无法修补**，跑完只能得到零读数 + 约 61 GPU-h 账单。**为何停**：继续跑约 14 GPU-h 墙钟只会换来一次 `AttributeError`；停在此处代价 6.5555。**终止动作**：先逐 PID 核对 `/proc/<pid>/cmdline` 含 `attempt04` 才对本实验自己的两个 `seed` worker 发 `SIGTERM`（PID 1607930/1607931），**未对任何非本实验进程发信号**（R-054）；随后确认两卡 0% / 38 MiB / 17 MiB、`stage-seeds` 父进程同时退出。**成本口径**：两臂各自记录的 `elapsed_seconds` 之和 **23,599.7 s = 6.5555 GPU-h**（seed41 11,803.3157 s + seed42 11,796.4114 s）——这是**可测的卡占用**；按 `freeze` 起墙钟 × 2 卡算是 7.8802 GPU-h，但那个数**含 prepare 578.6 s 与等待**，不是卡的占用，故**采用 6.5555**。soft overrun 0（未触硬上限，**不是** `budget_limited`）。**记账类别**：**作废 + 全额记账 + 零读数**，**不得**记成「部分成功」。两个 `off` 臂的 `progress.jsonl` 与 checkpoint 留在原地作废留痕，**不作为任何结论的证据**，也**不被** `attempt05` 的 `reuse-plan` 复用（只复用完整 seed receipt）。**修复（只动读数路径，不动训练/判据/冻结量）**：`LEADS = wide.EVALUATION_LEADS` 成为单一具名常量替换两处引用、`curve_driver.check_provenance`、填充移出候选分支、新增「每臂 lead 集合必须恰等于冻结五档」断言。**反证实测**：两项新测试在 `git stash` 回缺陷版本后**都失败**、修复后 **23 项全过**；**第一版结构测试是假阴性**（只断言候选分支下「没有」填充，而缺陷版本里整段嵌套块**就是**填充，故它在缺陷代码上**通过**），已改为断言**正面性质**并如实登记这次假阴性。**顺带 R-021 136→135**：`r7_s3_derivative_matching_c2_protocol.py` 404→400（只压 docstring 与三行注释、零逻辑改动）、新测试文件 399 行；**阈值/级别/冻结例外一字未改**，`docs/rules/size-thresholds.md` 的 marker 与实测现值**重新一致**。**不得**据此行声称导数域匹配有效或无效、不得声称 C2 已跑过——**本行零读数**。`scientific_claim: false`、`test_read: false`、`r = 0` |
 | S3 Stage C2 `attempt06`**作废**（导数域目标匹配，三 seed 两臂） | 23.684603 | 499.539408 | `docs/decisions/0105-c2-objective-pairs-72h-forecast-with-6h-analysis.md`（**无 index record**：作废轮不产生读数，故**不登记** `record:`——本条是记账行）：`attempt06` 在 **seed41/seed42 两个 off 臂跑满 32,132 全量**（37,092.1 s / 36,054.1 s）+ 两个 on 臂各跑到 5,160 / 5,380 时**被我自己的误操作终止**——我为模拟 `outputs/` 缺失把**在跑的** attempt06 目录 `mv` 到 `/tmp` 再移回，导致 seed42 的 on 臂 `FileNotFoundError: …/seed42/training/on/failed_attempt.json`、`status: failed`、elapsed 45,962.3 s；又因 `r7_round_stages.py:440-441` 的 `stop = True` 在任一 record 未通过时**停止后续 seed 弹出**，seed43 从未启动 ⇒ 整轮无 receipt、无读数。**这是本目标第一次由我直接造成的作废**，成因不是代码缺陷而是「用一个会移动在跑目录的危险动作去做只读核查」。**成本口径**：四份 `progress.jsonl` 的 `elapsed_seconds` 之和 **85,264.6 s = 23.684603 GPU-h**（seed41/off 37,092.1 + seed41/on 6,023.4 + seed42/off 36,054.1 + seed42/on 6,095.0）。**账本曾漏记这一笔**：该轮当时只写进了 brief 与决策记录，**账本行直到本条才补**，因此本行的 `cumulative` 是从 `attempt04` 的 475.854695 直接跳到含 attempt06 的数，**不是**紧接 `attempt07`。**教训**：`stop = True` 让「一个 seed 失败」等于「整轮作废」，所以**任何可能让一个在跑 seed 看到文件缺失的动作（`mv`、`rm`、`chmod`、换 cwd）都是整轮级别的风险**；只读核查必须只用只读动作（`stat`/`read`/哈希）。`scientific_claim: false`、`test_read: false`、`r = 0` |
 | S3 Stage C2 `attempt07`**作废**（导数域目标匹配；**目标函数本身有缺陷**） | 4.968110 | 504.507518 | `docs/decisions/0105-c2-objective-pairs-72h-forecast-with-6h-analysis.md`（**无 index record**：零读数）：`attempt07` 两个 off 臂跑到 update 7,960 / 7,740（约 25%）时，我在等 receipt 期间做读数阶段的前置核查，发现**冻结的 on 臂目标函数惩罚正确答案**：`training/r7_derivative_matching.py::matching_term` 把 `forecasts[:,-1]`（第 12 步 = **+72 h**）与 `moved["atmos_target"]` 配对，而实测 `physical_targets[:,0] == atmos_target` 为 **True** ⇒ `atmos_target` 是 **+6 h**；用**冻结的**尺度在**冻结的**四个 preflight case 上，**完美 +72 h 预测**的项值为 **0.495737 / 0.591632 / 0.607382 / 0.492830**，同一场对它自己的 +72 h 真值 **0.0**，`gradient norm d(C2)/d(forecast) = 0.011982`（MSE 在同一点 **0.0**）⇒ 优化器被推离正确答案。**前置守卫为何没拦住**：`r7_s3_derivative_matching_c2_protocol.py:192` 的 `derivative_matching_terms(target, target, …)` 把 target 与**自己**比，恒零、与真实配对无关，而 docstring 与 0095 都记成「`pred = target` 时精确零」。**为何停**：预声明「任一出口假 ⇒ 永久关闭该支」，让一个有缺陷的目标函数产生那个 false 等于把 bug 写成物理结论（0084 §6）。**终止动作**：先 `SIGTERM` 编排器 `stage-seeds`(pid 2290400) 以**阻止 seed43 拉起**，再对 10 个 worker 逐个核对 `/proc/<pid>/cmdline` 含 `attempt07` 后发 `SIGTERM`，**未对任何非本实验进程发信号**（R-054），实测两卡 0% / 38 MiB / 17 MiB。**成本口径**：两臂 `elapsed_seconds` 之和 **17,885.2 s = 4.968110 GPU-h**（seed41/off 8,933.4 + seed42/off 8,951.8）。**修法**：正确配对是 `physical_targets[:,-1]`；守卫必须加**会失败的反证**（`terms(truth_at_L, other_lead_truth) > 0`），只把 `terms(truth,truth)` 换个写法仍是恒零。复算工具 `tools/reproduce_c2_cross_lead_defect.py`（12 项测试，含 AST 反证：改名一个返回键 ⇒ 测试失败）。`scientific_claim: false`、`test_read: false`、`r = 0` |
-| **合计已用** | **504.507518** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−484.507518是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。**2026-11-08 补记两笔此前漏记的作废费用**：`attempt06` **23.684603** GPU-h（我 `mv` 在跑目录导致 seed42 失败、seed43 未启动，四份 progress 之和 85,264.6 s）与 `attempt07` **4.968110** GPU-h（冻结的 C2 on 臂目标函数跨 lead 配对、惩罚正确答案，两臂 progress 之和 17,885.2 s）。累计由 **475.854695 → 504.507518**。**这两笔此前只写在 brief 与决策记录里、没进账本**，是本条自己发现的记账缺口；C-02/C-03 只能校验已存在的行，看不见「有费用无行」，故该缺口是**机械检查的盲区**，靠人工对 `outputs/` 与账本双向核对才发现。既有各轮 index63–index90 的登记与说明照旧保留、不回改。 |
+| S3 Stage C2 `attempt08`（导数域目标匹配，**三 seed 两臂跑完全部读数**） | **66.993549** | **571.501067** | `docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md` + `record:s3-derivative-matching-c2-result`（`negative` / `not-candidate` / priority 60）+ 决策 **0109**：**C2 第一次产出真读数，判决是按预声明永久关闭该支。****设计**：单因子 on/off（`off: None` / `on: 'c2'`，同 seed 两臂共享父 checkpoint，只有这一个键不同）、三 seed（41/42/43）、每臂 **32,132 updates（4 epoch）**、`protocol_sha256 a3ca9fe7…`、`code_commit 2e0aac88…`、`model_code_sha256 59340710…`。**读数（驱动自算、未手改）**：72 h t2m skill off/on 为 `+0.230542/+0.218909`、`+0.243262/+0.226920`、`+0.231662/+0.218282` ⇒ **配对差 −0.011634 / −0.016342 / −0.013380**，均值 **−0.013785** ⇒ **(a) 假**。**(b) 真**：三 seed 的全部 32,132 行 loss 都带 `constraint_divergence`/`constraint_vorticity`/`constraint_total`，散度最小 0.072098–0.072213、涡度最小 0.071308，**两项都严格为正**（判定本身只对散度查正性、涡度只查存在性）。**(c)(d) 真但恒真、不携带信息**：`c = True` 是字面量、`d` 只读两个自写常量；实测伪造三 seed skill 为 0.5 仍 all=True。**判决**：`all=False`、`verdict=permanently-close-derivative-matching-branch`。**关闭依据是方向一致不是幅度大**：**15 个 lead×seed 配对差全部为负**、无一正值（最不坏 −0.002249），而幅度仅 0.91×–1.28× 控制臂极差（0.012720）——两 seed Δ 与噪声同量级，若只看单 seed 会被误读为噪声。**前置守卫有判别力**（0105 的教训）：`zero_at_target` 四例全 0.0 **且** 跨 lead 反例 0.495737/0.591632/0.607382/0.492830 全 >0；dose 0.365767/0.410860/0.392699/0.288887 在带 [0.1,10] 内。**成本口径**：账本六行 `elapsed_seconds` 之和 241,176.8 s = **66.993549 GPU-h**（prepare 601.5 + archive 5.5 + seed41 78,333.6 + seed42 80,860.5 + seed43 81,367.3 + reading 8.4）；soft/hard overrun 均为 0（未触 32 h/64 h 包络）；峰值 reserved 9,569,304,576 B 未超协议估计。**代价如实列**：① 本轮 66.993549 换一个否定结论，加前三次作废 35.208213（0105/0107）⇒ **C2 一支累计约 102 GPU-h 零正面结果**；② 适用域仅「4 epoch 父模型 + 一项约束」，B 判 `unsaturated`（Δ=+0.030124）故**不得外推**为「导数域匹配在任何预算下无用」或「物理信息无用」；③ **(c)(d) 恒真缺陷本轮未修**——驱动在 attempt08 的 95 条执行 pin 内，改则 seed43 启动时被拒、作废 ~44 GPU-h，留待下次独立变更；④ 一个方向关闭而近邻（守恒/平衡/连续方程/谱/CRPS）仍未测；⑤ **不代为选定** B 授权的 16–64 epoch 配置（属 Stage F 菜单与用户手选）、也**不开**补偿性实验。`scientific_claim: false`、`test_read: false`、`r = 0`，未读 2023 test |
+| **合计已用** | **571.501067** | — | 本方向基数0，历史V2不重复计费，所有失败与测试缺口费用全额登记；cap20.0/remaining−551.501067是会计字段，不是总GPU-h许可上限（0030/0038）；原cap16/旧累计不回改。**2026-11-08 补记两笔此前漏记的作废费用**：`attempt06` **23.684603** GPU-h（我 `mv` 在跑目录导致 seed42 失败、seed43 未启动，四份 progress 之和 85,264.6 s）与 `attempt07` **4.968110** GPU-h（冻结的 C2 on 臂目标函数跨 lead 配对、惩罚正确答案，两臂 progress 之和 17,885.2 s）。累计由 **475.854695 → 504.507518**。**这两笔此前只写在 brief 与决策记录里、没进账本**，是本条自己发现的记账缺口；C-02/C-03 只能校验已存在的行，看不见「有费用无行」，故该缺口是**机械检查的盲区**，靠人工对 `outputs/` 与账本双向核对才发现。既有各轮 index63–index90 的登记与说明照旧保留、不回改。 |
 
 新账本每个失败和成功都加实际连续GPU/执行口径及证据record；其他网络/decoded/disk/whole/overrun在
 各回执分列；无index支撑的文档0成本行如实列note，不伪装成实验机器核数。
 
 ## §8 进度块
+
+- **2026-11-10 — S3 Stage C2（导数域目标匹配）三 seed 跑完并登记；预声明出口 (a) 为假，该支按预声明永久关闭。**
+  **实跑**：`freeze`（`a3ca9fe7…`）→ `prepare`（601.5 s）→ `archive`（5.5 s）→
+  `stage-seeds` 三 seed（seed41 78,333.6 s、seed42 80,860.5 s、seed43 81,367.3 s，
+  各含两臂训练 + 两臂五档评分）→ `stage reading`（8.4 s，exit 0）。两卡共驻串行、
+  未对任何邻居进程发信号（R-054）。seed43 在某张卡释放后被编排器**自动**拉起，
+  无人工触发；其启动前 95 条执行 pin 逐条现算相符（实测 95/95，0 缺失 0 变更）。
+  **读数**（`readings.json`，驱动自算、未手改、`scientific_claim:false`、`test_read:false`）：
+  72 h t2m skill off/on 为 `+0.230542/+0.218909`、`+0.243262/+0.226920`、`+0.231662/+0.218282`；
+  配对差 **−0.011634 / −0.016342 / −0.013380**，均值 **−0.013785** ⇒ **(a) 假**。
+  五档完整：off 臂 6/12/24/48 h 分别落在 0.7075–0.7123 / 0.5707–0.5733 / 0.6381–0.6423 /
+  0.4098–0.4183，三 seed 高度一致（72 h 极差仅 0.012720）。
+  **(b) 真**：三 seed 的 on 臂**全部 32,132 行** loss 都带 `constraint_divergence` /
+  `constraint_vorticity` / `constraint_total`，散度最小 **0.072098–0.072213**、涡度最小
+  **0.071308**，两项都严格为正；off 臂无这些键（正确）。**生效 ≠ 有益**——(a) 正是分开这两者的判据。
+  **(c)(d) 真但恒真、不携带信息**：驱动里 `c = True` 是字面量、`d` 只读两个本页自写常量；
+  实测把三 seed 的 skill 全部伪造成 0.5，四项仍全真、verdict 仍指向 `advance-to-independent-review`。
+  **为何按预声明关闭而不是"调参再试"**：本支**第四次**开轮，前三次作废
+  （attempt04 6.5555 + attempt06 23.684603 + attempt07 4.968110 = **35.208213 GPU-h**）全部零读数；
+  预声明写死"任一出口假即永久关闭、不调权重、不换项、不加 seed、不换名重开"。
+  **关闭依据是方向一致而非幅度大**：**15 个 lead×seed 配对差全部为负、无一正值**
+  （最不坏 −0.002249），而幅度仅 0.91×–1.28× 控制臂极差——两 seed 的 Δ 与噪声同量级，
+  若只看单 seed 会被误读为噪声，**三 seed × 五档的一致性才是承重证据**。
+  **成本**：**66.993549 GPU-h**（账本六行现算：prepare 601.5 + archive 5.5 + 三个 seed 行
+  78,333.6/80,860.5/81,367.3 + reading 8.4 = 241,176.8 s），soft/hard overrun 均为 0；
+  峰值 reserved 9,569,304,576 B 未超协议估计。账本累计 **504.507518 → 571.500957**。
+  **登记**：`docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md`、
+  `record:s3-derivative-matching-c2-result`（`negative` / `not-candidate` / priority 60）、
+  决策 **0109**、本账本行、`campaign-state`（`used_gpu_h 571.500957`、`remaining −551.500957`）。
+  **一处口径更正（如实记）**：我早前判断 `used_gpu_h` 应取"最后一行 `cumulative` + 本轮"，
+  **错了**——`check_campaign_state` 的 C-02 比对的是**逐行 `gpu_hours` 之和**，
+  而两者因历史行各自舍入相差 0.000110。按 sum 取值后 C-02 才通过。
+  **未做（如实登记）**：(c)(d) 恒真缺陷**未修**（驱动在 95 条 pin 内，改则 seed43 启动被拒、
+  作废 ~44 GPU-h），留待下次独立变更；**不代为选定** B 授权（`unsaturated`，Δ=+0.030124）的
+  16–64 epoch 配置——那属 Stage F 菜单与用户手选；**不开**补偿性实验；未读 2023 test。
+  **下一动作是一个判定点，不是自动开轮**：物理信息这一半在 C2 关闭后仍无正面证据
+  （守恒/平衡/连续方程/谱/CRPS 零命中），若继续须由用户在 E1（R5 训练信号族）与
+  Stage F 菜单之间选定；执行者只提供成本与适用域，不代选。
+  **恢复第一条命令** = `.venv/bin/python tools/r7_round.py state`。
 
 - **2026-11-07 — S3 Stage B 第四点（16 epoch / 128,528 updates）跑完并登记；四点阶梯完整，饱和判定已求值。**
   **实跑**：`freeze`（`17f3103a…`）→ `prepare` → `archive` → `seed 41`
@@ -623,7 +663,7 @@ GPU研究按0030/0038、GPU资源规则与该次协议，不虚构不存在的�
   登记提交 `5b72e5642c0563adef6db163b257e17f4ecf8115` 已推工作分支，精确主CI `37606126942` completed/success、必要pytest job/全部steps success（2026-10-07 UTC匿名只读API；17标签实验skip非实验PASS）。
   本单病例诊断完整登记终态，下一不同S3问题优先无新增更新地核0/20/80原deepK目标和最终physical17×5评分对应，预声明原四train季节/四val开发例与同train气候态，不由单病例降幅推共同优化/泛化因果。S3/test未评分/r0/科学未接受不变。
 
-<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-throughput-physics-c2.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_S3_THROUGHPUT_PHYSICS_B_P1600_RESULT.md", "previous_round_goal": "docs/goals/s3-throughput-physics-b-p1600.md", "remaining_gpu_h": -484.507518, "route_decision": "0038", "status": "active", "used_gpu_h": 504.507518} -->
+<!-- campaign-state: {"budget_mode": "per-node-hard-cap-summed", "cap_gpu_h": 20.0, "current_node": "S3", "current_round_goal": "docs/goals/s3-throughput-physics-c2.md", "next_node_proposal": "S4", "previous_node": "S3", "previous_round_evidence": "docs/R7_S3_THROUGHPUT_PHYSICS_B_P1600_RESULT.md", "previous_round_goal": "docs/goals/s3-throughput-physics-b-p1600.md", "remaining_gpu_h": -551.500957, "route_decision": "0038", "status": "active", "used_gpu_h": 571.500957} -->
 
 - **状态**：active；S0/S1/S2 已完成并登记；**S3 进行中（2026-10-05/06）**：batch-2 四季
   2022/2023 获取完成（8/8 part、28,773,423,423 字节、两次失败保留），v2 确认实例（2017/2022/2023

@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 105; human-review candidates: 2
+Records: 106; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1889,6 +1889,24 @@ Records: 105; human-review candidates: 2
   - The invalid first K1 harness run is retained but excluded from conclusions.
 - Excluded from runnable candidates: Mixed depth trade-off; requires a separately frozen hypothesis before any follow-up.
 - Recorded metrics (not recomputed): free_scaling_supported=false, gpu_hours=0.5, independent_k1_result=mixed, phase=c3, seeds=3, test_read=false
+
+## s3-derivative-matching-c2-result
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `60` (not a scientific score)
+- Evidence: `docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md` (SHA256 `4a5eaf9edad94065701d4a0ddc1c7f563b9aea1141259c952b654a04ceb080c0`)
+- Evidence commit: `82c5c72cc5e13c46d14119960a4c277ba35ad342`; experiment commit: `2e0aac88aeb9c658d29dd3e791e27d8fce3f207c`
+- Protocol SHA256: `a3ca9fe7b36bb9e65d11f42a7e7f3026ce6390f934b8a45001842af320b4c764`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Derivative-domain target matching (divergence + vorticity of the last forecast against the lead-matched target) was tested on/off within the same parent across three seeds at 32132 updates each. The predeclared exit (a) failed: 72h t2m skill paired mean delta -0.013785 (41 -0.011634, 42 -0.016342, 43 -0.013380), with all fifteen lead-by-seed deltas negative. Exit (b) held -- both constraint terms were recorded on every update and strictly positive -- so the term acted and did not help. The predeclaration closes this branch on any false exit; it is closed. Scope: a 4-epoch parent, which Stage B judged unsaturated, so this does not extend to the axis at larger budgets.
+- Limitations:
+  - Exit (a) is a sign test (mean >= 0), not an effect-size test; the magnitudes are 0.91x-1.28x the 0.0127 control-arm spread.
+  - Exits (c) and (d) are constant-true in the driver and carry no information; measured by fabricating all three seeds' skills as 0.5, which still yields all=True.
+  - Tested only at 4 epochs on a parent Stage B judged unsaturated; not evidence about the axis at other budgets, and not evidence that physics information is useless.
+  - n=3 seeds, single run each; GPU training is not bitwise reproducible though checkpoints and data identity are strictly verified.
+  - The reading denominator digest is measured at render time because readings() does not record it; the field is inside attempt08's 95 execution pins.
+  - scientific_claim false, test_read false, r = 0; the 2023 test split was never read.
+- Excluded from runnable candidates: Failed predeclared exit (a): the 72h paired mean delta is negative, so the branch is permanently closed and nothing from it is a candidate.
+- Recorded metrics (not recomputed): all_exits_true=false, climatology_reference_sha256=096c384a25a8a7bb020e0bc3eb0759e8de25ba9e96c692dd9a8ac63be6dfd37f, delta_72h={"41": -0.011634, "42": -0.016342, "43": -0.01338}, exit_verdict=permanently-close-derivative-matching-branch, gpu_hours=66.993549, stage_ledger_rows=6, test_read=false
 
 ## s3-physical-constraints-c1-preflight-veto
 
