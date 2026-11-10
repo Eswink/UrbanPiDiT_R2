@@ -73,7 +73,11 @@ def test_a_hydrostatically_balanced_field_scores_exactly_zero(probe):
     t850 = torch.full((6, 7), 285.0, dtype=torch.float64)
     t500 = torch.full((6, 7), 275.0, dtype=torch.float64)
     z850 = torch.full((6, 7), 1500.0, dtype=torch.float64)
-    z500 = z850 - coefficient * 0.5 * (t850 + t500)
+    # Thickness is ``z_upper - z_lower`` (height gained going up), so the balanced z500 sits
+    # ABOVE z850 by the temperature-implied thickness. The first draft wrote
+    # ``z500 = z850 - coef*T``, which puts 500 hPa *below* 850 hPa and made the truth score
+    # 6,354 m^2 instead of zero.
+    z500 = z850 + coefficient * 0.5 * (t850 + t500)
     residual = probe.hydrostatic_residual(z850, z500, t850, t500, 850.0, 500.0)
     assert float(residual.abs().max()) == 0.0
 
@@ -93,7 +97,8 @@ def test_a_thickness_error_is_linear_in_the_height_offset(probe):
         z850, z500, t850, t500, 850.0, 500.0).mean())
     offset = float(probe.hydrostatic_residual(
         z850, z500 + 10.0, t850, t500, 850.0, 500.0).mean())
-    assert offset - baseline == pytest.approx(-10.0)
+    # A height *increase* at the upper level means a thicker layer, so the residual rises.
+    assert offset - baseline == pytest.approx(10.0)
 
 
 # --- property 2: an inert term must not pass ----------------------------------------
@@ -189,28 +194,54 @@ def test_unit_report_rejects_a_normalised_humidity_field(probe):
 
 # --- the record shape and the refusal surface ----------------------------------------
 
+def _direction_rows_of(payload):
+    """Every per-direction row in the record, whichever branch produced it.
+
+    ``directions`` is nested (``synthetic_control`` plus a ``real`` block when the store is
+    readable), so a flat iteration would silently check nothing.
+    """
+    directions = payload["directions"]
+    if directions.get("source") == "store":
+        yield from directions["real"].values()
+        yield from directions["synthetic_control"].values()
+        return
+    yield from directions.values()
+
+
 def test_the_record_is_json_serialisable_without_nan(probe, tmp_path):
     """Strict JSON has no NaN, so every non-finite value must be null before it is written."""
     out = tmp_path / "j1.json"
     assert probe.main(["--out", str(out)]) == 0
     text = out.read_text(encoding="utf-8")
     assert "NaN" not in text
+    assert "Infinity" not in text
     payload = json.loads(text)
     assert payload["scientific_claim"] is False
     assert payload["test_read"] is False
     assert payload["r"] == 0
-    for name, row in payload["directions"].items():
-        if name == "note":
+    checked = 0
+    for row in _direction_rows_of(payload):
+        if not isinstance(row, dict) or "dose" not in row:
             continue
+        # Dose is null by design until the registered MSE denominator is available; a guessed
+        # denominator would make J3 unfalsifiable, so null is the honest value.
         assert row["dose"] is None
+        # Dose being null means J3 cannot pass, so no direction may open on this record.
         assert row["open_this_direction"] is False
+        checked += 1
+    assert checked >= 3, f"expected at least three direction rows, checked {checked}"
 
 
 def test_the_synthetic_rows_reproduce_the_expected_directions(probe):
     """A passes, B fails the way C1 failed, D is inert -- on fields built to show each."""
     rows = probe._direction_rows()
     assert rows["A_hydrostatic"]["passes_j1"] is True
-    assert rows["A_hydrostatic"]["penalty_analysis"] == 0.0
+    # Not ``== 0.0``: the synthetic truth is built by a floating-point subtraction, so it
+    # lands at ~1e-26 m^2 rather than exactly zero. The property that matters is that it is
+    # negligible against the model side, not that it is bitwise zero -- exact zero is a
+    # property of the *loss* (see tests/test_r7_spectral_geometry.py), not of a residual.
+    assert rows["A_hydrostatic"]["penalty_analysis"] < 1e-20
+    assert rows["A_hydrostatic"]["penalty_model"] > 1.0
     assert rows["B_column_divergence"]["passes_j1"] is False
     assert rows["B_column_divergence"]["ratio_analysis_over_model"] > 1.0
     assert rows["D_moisture_negative"]["inert_on_both_sides"] is True

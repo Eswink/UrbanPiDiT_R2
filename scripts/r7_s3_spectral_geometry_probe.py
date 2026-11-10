@@ -43,19 +43,27 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from training import r7_spectral_geometry as geometry  # noqa: E402 - after the path fix
+
 #: The four training points, in increasing exposure. All four are single-arm, single-seed
 #: runs on the same treatment manifest and the same recipe, so the only thing that differs
 #: is how long they trained. Reusing the registered Stage B endpoints keeps this probe free
 #: of any new training.
+#:
+#: The attempt directories are **not** uniform: the 2,008-update point predates the p-labelled
+#: naming, and the 8,033 / 32,132 points live in the ``_20261104`` / ``_20261105`` attempts, not
+#: in the ``p1000`` / ``p4000`` directories an earlier draft guessed at. Every path below was
+#: checked to exist and its ``updates`` field to equal this table's value before being written
+#: here; a wrong path would have made P1 report "no data" rather than a reading.
 TRAINING_POINTS = (
     {"name": "p0025", "updates": 2008, "skill_72h": 0.098082,
-     "checkpoint": "outputs/r7_s3_throughput_physics_b_p0025_20261006_attempt02/"
+     "checkpoint": "outputs/r7_s3_throughput_physics_b_20261104_attempt02/"
                    "seed41/training/update_0002008.pt"},
     {"name": "p1000", "updates": 8033, "skill_72h": 0.159293,
-     "checkpoint": "outputs/r7_s3_throughput_physics_b_p1000_20261006_attempt02/"
+     "checkpoint": "outputs/r7_s3_throughput_physics_b_p1000_20261104_attempt01/"
                    "seed41/training/update_0008033.pt"},
     {"name": "p4000", "updates": 32132, "skill_72h": 0.230544,
-     "checkpoint": "outputs/r7_s3_throughput_physics_b_p4000_20261007_attempt02/"
+     "checkpoint": "outputs/r7_s3_throughput_physics_b_p4000_20261105_attempt02/"
                    "seed41/training/update_0032132.pt"},
     {"name": "p1600", "updates": 128528, "skill_72h": 0.260668,
      "checkpoint": "outputs/r7_s3_throughput_physics_b_p1600_20261106_attempt01/"
@@ -72,158 +80,50 @@ CASES = (1000, 5000, 9000, 13000, 17000, 21000, 25000, 29000)
 REFUSED_WORKERS = ("prepare", "archive", "seed", "seeding", "reading")
 
 
-def band_edges(height: int, width: int) -> list[float]:
-    """Radial wavenumber band edges for an ``height x width`` grid.
-
-    Returned as magnitudes of the total wavenumber so the bands are isotropic in index
-    space, which is the closest available analogue of spherical harmonic degree on a
-    square patch. The last edge is the **true** corner Nyquist, computed from the frequency
-    arrays rather than assumed, so the bands tile the whole spectrum exactly once. The edges
-    are a *choice* and are frozen into the protocol before any training uses them
-    (decision 0110 consequence 2); nothing here scans them.
-    """
-    if height < 2 or width < 2:
-        raise ValueError("band_edges needs a grid of at least 2x2")
-    ky_max = max(torch_fftfreq(height))
-    kx_max = max(torch_fftfreq(width))
-    corner = (ky_max ** 2 + kx_max ** 2) ** 0.5
-    edges = [edge for edge in (0.0, 1.0, 2.0, 4.0, 8.0, 16.0) if edge < corner]
-    edges.append(corner)
-    return edges
-
-
-def torch_fftfreq(length: int) -> list[float]:
-    """RFFT frequency magnitudes in cycles per grid interval, without importing numpy."""
-    out = []
-    for index in range(length):
-        value = float(index) if index <= length // 2 else float(index - length)
-        out.append(abs(value))
-    return out
-
-
-def radial_band_index(height: int, width: int, edges: list[float]):
-    """A ``[H, W//2+1]`` integer map from each rfft2 bin to its band, plus the band count."""
-    import torch
-
-    ky = torch.tensor(torch_fftfreq(height), dtype=torch.float64)[:, None]
-    kx = torch.tensor(torch_fftfreq(width), dtype=torch.float64)[None, :width // 2 + 1]
-    radius = (ky * ky + kx * kx).sqrt()
-    index = torch.zeros_like(radius, dtype=torch.long)
-    for band in range(len(edges) - 1):
-        low, high = edges[band], edges[band + 1]
-        last = band == len(edges) - 2
-        inside = (radius >= low) & ((radius <= high) if last else (radius < high))
-        index[inside] = band
-    return index, len(edges) - 1
+#: The measurement primitives live in ``training/r7_spectral_geometry`` -- the same module a
+#: Q round would call. They are imported rather than re-implemented here because a second copy
+#: drifts: an earlier draft of this probe computed band powers with ``abs() ** 2``, which
+#: differs from ``re^2 + im^2`` in about one sample in six and so broke the "``pred = target``
+#: is exactly zero" property the J2/J4 argument rests on. Delegating makes that class of
+#: divergence impossible, and ``tests/test_r7_spectral_geometry.py`` asserts the two names are
+#: the same objects.
+band_edges = geometry.band_edges
+radial_band_index = geometry.radial_band_index
+band_spectra = geometry.band_spectra
+_hermitian_weights = geometry.hermitian_weights
+_coarse_only = geometry.coarsen
+_dct_energy = geometry.dct_energy
 
 
 def parseval_error(field) -> float:
     """Relative energy difference between the spatial field and its ortho rfft2 spectrum.
 
-    ``norm='ortho'`` makes the transform unitary, but ``rfft2`` returns only the
-    non-negative-frequency half of the spectrum. The Hermitian symmetry partner of every bin
-    except the DC column (and Nyquist, which is its own partner when the width is even) is
-    absent, so a naive sum of ``|spectrum|^2`` reports half the energy. The doubling weights
-    below restore Parseval; without them every band energy would be off by a factor that
-    grows with the number of missing partners.
+    ``rfft2`` returns only the non-negative-frequency half, so a naive sum of ``|spectrum|^2``
+    reports half the energy; the Hermitian weights restore it. Uses ``re^2 + im^2`` rather than
+    ``abs() ** 2`` for the bitwise reason in the module docstring.
     """
     import torch
 
     data = field.to(torch.float64)
     spatial = float((data ** 2).sum())
-    spectrum = torch.fft.rfft2(data, norm="ortho")
-    spectral = float((spectrum.abs() ** 2 * _hermitian_weights(data.shape[-1])).sum())
+    spectral = float(geometry._energy(data, geometry.hermitian_weights(data.shape[-1])))
     if spatial == 0.0:
         return 0.0 if spectral == 0.0 else float("inf")
     return abs(spatial - spectral) / spatial
 
 
-def _hermitian_weights(width: int):
-    """Per-column multipliers that restore the negative-frequency partners rfft2 omits.
-
-    Columns ``1..width//2-1`` each stand for a conjugate pair, so they count twice. The DC
-    column never doubles. The Nyquist column doubles only when ``width`` is odd (for even
-    ``width`` it is its own partner and already single).
-    """
-    import torch
-
-    weights = torch.full((width // 2 + 1,), 2.0, dtype=torch.float64)
-    weights[0] = 1.0
-    if width % 2 == 0:
-        weights[-1] = 1.0
-    return weights[None, :]
-
-
 def seam_energy_ratio(field) -> float:
-    """Fraction of band energy that the periodic wrap invents at the patch edges.
-
-    A regional patch is not periodic, so ``rfft2`` silently assumes the left edge continues
-    into the right edge. The cheapest honest measure: compare the spectrum of the field as
-    given with the spectrum of the same field after removing its best-fit linear ramp across
-    the patch. The ramp is the part a periodic wrap cannot represent, so what disappears is
-    the energy attributable to the discontinuity rather than to the weather.
-    """
-    import torch
-
-    data = field.to(torch.float64)
-    height, width = data.shape[-2], data.shape[-1]
-    rows = torch.linspace(-1.0, 1.0, height, dtype=torch.float64)[:, None]
-    cols = torch.linspace(-1.0, 1.0, width, dtype=torch.float64)[None, :]
-    design = torch.stack([torch.ones_like(rows * cols), rows.expand_as(rows * cols),
-                          cols.expand_as(rows * cols)], dim=-1).reshape(-1, 3)
-    flat = data.reshape(-1)
-    coefficients = torch.linalg.lstsq(design, flat).solution
-    ramp = (design @ coefficients).reshape(height, width)
-    weights = _hermitian_weights(width)
-    total = float((torch.fft.rfft2(data, norm="ortho").abs() ** 2 * weights).sum())
-    residual = float((torch.fft.rfft2(data - ramp, norm="ortho").abs() ** 2 * weights).sum())
-    if total == 0.0:
-        return 0.0
-    return max(0.0, (total - residual) / total)
-
-
-def band_spectra(prediction, target, edges: list[float]) -> dict:
-    """Per-band ``PSD`` for both fields plus their coherence.
-
-    Coherence is ``sum_l Re(a_x conj(a_y)) / sqrt(PSD_x PSD_y)`` summed inside a band, which
-    is the band-aggregated form of the paper's ``coh_k``. The amplitude ratio is returned in
-    the same units so a caller can check ``amp_ratio ~= coh`` directly.
-    """
-    import torch
-
-    height, width = prediction.shape[-2], prediction.shape[-1]
-    index, count = radial_band_index(height, width, edges)
-    weights = _hermitian_weights(width)
-    spectrum_x = torch.fft.rfft2(prediction.to(torch.float64), norm="ortho")
-    spectrum_y = torch.fft.rfft2(target.to(torch.float64), norm="ortho")
-    psd_x = spectrum_x.abs() ** 2 * weights
-    psd_y = spectrum_y.abs() ** 2 * weights
-    cross = (spectrum_x.real * spectrum_y.real
-             + spectrum_x.imag * spectrum_y.imag) * weights
-    rows = []
-    for band in range(count):
-        selected = index == band
-        sx = float(psd_x[selected].sum())
-        sy = float(psd_y[selected].sum())
-        cr = float(cross[selected].sum())
-        denominator = (sx * sy) ** 0.5
-        coherence = cr / denominator if denominator > 0.0 else 0.0
-        amp_ratio = (sx / sy) ** 0.5 if sy > 0.0 else float("nan")
-        rows.append({
-            "band": band,
-            "bins": int(selected.sum()),
-            "psd_pred": sx,
-            "psd_target": sy,
-            "amp_ratio": amp_ratio,
-            "coherence": coherence,
-            "gap": 1.0 - amp_ratio if amp_ratio == amp_ratio else float("nan"),
-            "overshoot": bool(amp_ratio > 1.0),
-        })
-    return {"bands": rows, "band_count": count, "edges": edges}
+    """The wrap discontinuity relative to a typical interior step (delegated to the module)."""
+    return geometry.seam_energy_ratio(field)
 
 
 def _field_from(tensor):
-    """Reduce a ``[C, H, W]`` batch element to one channel-mean field for the P0 checks."""
+    """Reduce a ``[C, H, W]`` batch element to one channel-mean field for the P0 checks.
+
+    Used for the synthetic control and for a single labelled channel only. A *mean across the
+    17 store variables* is never fed to a real P0: they carry different units ``(K, m/s, Pa,
+    m^2/s^2, kg/kg)``, so averaging them would invent a field no model ever sees.
+    """
     if tensor.ndim == 3:
         tensor = tensor.mean(dim=0)
     if tensor.ndim != 2:
@@ -247,51 +147,34 @@ def p0_checks(sample) -> dict:
     dct_energy = _dct_energy(field)
     dct_agrees = abs(dct_energy - spatial) <= 1e-8 * max(spatial, 1.0)
 
-    # J2: move all fine-band energy into the coarse band. A guard that cannot see this is
-    # the attempt07 failure mode (decision 0105).
+    # J2, the counter-example that must be visible: move all fine-band energy into the coarse
+    # bands. A guard that cannot see this is the attempt07 failure mode (decision 0105).
     coarse_only = _coarse_only(field, edges)
     truth_spectrum = band_spectra(field, field, edges)
-    moved_spectrum = band_spectra(coarse_only, field, edges)
-
-    # pred == target must be exactly zero in every band.
-    zero_at_truth = all(row["gap"] == 0.0 or row["psd_pred"] == row["psd_target"]
-                        for row in truth_spectrum["bands"])
-    finer_bands_moved = [row["band"] for row in moved_spectrum["bands"] if row["bins"] > 1]
-    guard_sees_it = _guard_sees_it(coarse_only, field, finer_bands_moved)
+    # ``pred == target`` must be exactly zero, measured on the loss the Q round would use --
+    # not on a band-gap proxy. The literal AMSE second term is nonzero here in about one
+    # sample in six; the rationalised form in the module is exact.
+    truth_loss = float(geometry.amse_analogue(field, field, edges=edges))
+    moved_loss = float(geometry.amse_analogue(coarse_only, field, edges=edges))
+    zero_at_truth = truth_loss == 0.0 and all(row["gap"] == 0.0
+                                             for row in truth_spectrum["bands"])
+    guard_sees_it = bool(moved_loss > truth_loss)
 
     return {
         "parseval_relative_error": parseval,
         "parseval_ok": parseval <= 1e-6,
         "seam_energy_ratio": seam,
+        "seam_ratio_needs_no_threshold": True,
         "dct_energy": dct_energy,
         "dct_agrees_with_parseval": bool(dct_agrees),
         "zero_at_truth": bool(zero_at_truth),
-        "guard_sees_coarse_shift": bool(guard_sees_it),
+        "amse_at_truth": truth_loss,
+        "amse_after_coarsening": moved_loss,
+        "guard_sees_coarse_shift": guard_sees_it,
         "band_edges": edges,
-        "passes_hard_gate": bool(parseval <= 1e-6 and dct_agrees and zero_at_truth and guard_sees_it),
+        "passes_hard_gate": bool(parseval <= 1e-6 and dct_agrees and zero_at_truth
+                                 and guard_sees_it),
     }
-
-
-def _dct_energy(field) -> float:
-    """Energy under a DCT-II with orthonormal scaling (even reflection at the boundary)."""
-    import numpy as np
-    import torch
-    from scipy.fft import dctn
-
-    data = np.asarray(field.detach().to("cpu", torch.float64).numpy(), dtype=np.float64)
-    coefficients = dctn(data, type=2, norm="ortho")
-    return float((coefficients ** 2).sum())
-
-
-def _coarse_only(field, edges):
-    """Keep the two coarsest bands, drop the rest: a field that must score worse."""
-    import torch
-
-    spectrum = torch.fft.rfft2(field.to(torch.float64), norm="ortho")
-    index, count = radial_band_index(field.shape[-2], field.shape[-1], edges)
-    keep = index <= 1
-    filtered = torch.where(keep, spectrum, torch.zeros_like(spectrum))
-    return torch.fft.irfft2(filtered, s=field.shape[-2:], norm="ortho")
 
 
 def _guard_sees_it(moved, truth, finer_bands) -> bool:
@@ -329,30 +212,38 @@ def main(argv=None):
     record = {"scientific_claim": False, "test_read": False, "r": 0,
               "probe": "stage-p spectral geometry", "cases": list(args.cases),
               "stage": args.stage}
+    hard_gate_failed = False
     try:
-        record["p0"] = _run_p0(args.cases)
-        if record["p0"]["passes_hard_gate"] is False and args.stage in ("p0", "all"):
-            record["stopped"] = "p0 hard gate failed; stage p1 not run"
-        elif args.stage in ("p1", "all"):
+        if args.stage in ("p0", "all"):
+            record["p0"] = _run_p0(args.cases)
+            hard_gate_failed = record["p0"].get("passes_hard_gate") is False
+            if hard_gate_failed:
+                record["stopped"] = "p0 hard gate failed; stage p1 not run"
+        if not hard_gate_failed and args.stage in ("p1", "all"):
             record["p1"] = _run_p1(args.cases)
     except Exception as exc:  # noqa: BLE001 - record, never raise, so the verdict is written
         record["error"] = f"{type(exc).__name__}: {exc}"
         record["traceback_tail"] = traceback.format_exc().strip().splitlines()[-8:]
+        hard_gate_failed = True
 
     text = json.dumps(record, indent=2, ensure_ascii=False)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(text, encoding="utf-8")
     print(text)
-    return 0 if "error" not in record else 1
+    # The exit code is the workflow's *hard gate*: a nonzero return stops P1/P2 before any GPU
+    # is spent. Returning 0 on a failed P0 would have let the gate report "passed" while the
+    # decomposition was illegal -- the same class of defect as a guard that cannot fail.
+    return 0 if ("error" not in record and not hard_gate_failed) else 1
 
 
 def _run_p0(cases) -> dict:
-    """P0 on synthetic fields plus, when available, the registered training points.
+    """P0 on the real analysis field, with the synthetic field kept as a fallback control.
 
-    The correctness checks run on a deterministic synthetic field so they do not depend on
-    any product being present; the seam ratio is additionally reported for a real frame when
-    one can be read, because the number that matters is the one on real data.
+    The checks themselves are grid-level and deterministic, so they can run on a synthetic
+    field; but the number that matters -- the **seam energy ratio** -- is a property of the
+    real regional field, so the real frame is measured whenever the store is readable and the
+    synthetic run is reported alongside it as a labelled control, never substituted for it.
     """
     import torch
 
@@ -364,14 +255,234 @@ def _run_p0(cases) -> dict:
                  + 0.3 * torch.sin(rows / 1.7) * torch.cos(cols / 1.3))
     result = p0_checks(synthetic)
     result["synthetic"] = True
+    result["synthetic_field"] = {"seam_energy_ratio": result["seam_energy_ratio"],
+                                 "parseval_relative_error": result["parseval_relative_error"]}
+    real = _real_p0()
+    if real is not None:
+        result["real"] = real
+        result["seam_energy_ratio"] = real["seam_energy_ratio"]
+        result["parseval_relative_error"] = real["parseval_relative_error"]
+        result["dct_agrees_with_parseval"] = real["dct_agrees_with_parseval"]
+        result["passes_hard_gate"] = bool(
+            real["parseval_ok"] and real["dct_agrees_with_parseval"]
+            and real["zero_at_truth"] and real["guard_sees_coarse_shift"])
+        result["synthetic"] = False
+    result["real_field_measured"] = real is not None
     return result
 
 
+def _real_p0() -> dict | None:
+    """P0 on one real analysis frame, or ``None`` when the store is not readable."""
+    import numpy as np
+    import torch
+    import zarr
+
+    from scripts import r7_s3_curve_point_large_protocol as curve
+    from training import r7_spectral_geometry as geometry
+
+    if not curve.STORE.exists():
+        return None
+    store = zarr.open_group(str(curve.STORE), mode="r")
+    channels = list(store.attrs["channels"])
+    state = np.asarray(store["state"][:1], dtype=np.float64)  # [1, C, H, W]
+    # One channel at a time: the seam is a property of a field, not of a channel mean, and
+    # averaging 17 variables of different units would invent a field no model ever sees.
+    rows = []
+    for name in channels:
+        field = torch.as_tensor(state[0, channels.index(name)], dtype=torch.float64)
+        checks = p0_checks(field)
+        rows.append({"channel": name,
+                     "seam_energy_ratio": checks["seam_energy_ratio"],
+                     "parseval_relative_error": checks["parseval_relative_error"],
+                     "dct_agrees_with_parseval": checks["dct_agrees_with_parseval"],
+                     "zero_at_truth": checks["zero_at_truth"],
+                     "guard_sees_coarse_shift": checks["guard_sees_coarse_shift"]})
+    worst_parseval = max(row["parseval_relative_error"] for row in rows)
+    return {
+        "channels": rows,
+        "seam_energy_ratio": max(row["seam_energy_ratio"] for row in rows),
+        "seam_energy_ratio_by_channel": {row["channel"]: row["seam_energy_ratio"]
+                                        for row in rows},
+        "parseval_relative_error": worst_parseval,
+        "parseval_ok": worst_parseval <= 1e-6,
+        "dct_agrees_with_parseval": all(row["dct_agrees_with_parseval"] for row in rows),
+        "zero_at_truth": all(row["zero_at_truth"] for row in rows),
+        "guard_sees_coarse_shift": all(row["guard_sees_coarse_shift"] for row in rows),
+        "method": geometry.METHOD_NAME,
+        "note": ("seam ratio is reported per channel and never thresholded (decision 0110); "
+                 "the maximum is quoted only so one number exists to carry into limitations"),
+    }
+
+
 def _run_p1(cases) -> dict:
-    """Amplitude versus coherence at each training point, aggregated per band."""
-    return {"note": "populated by the round driver once checkpoints and the store are wired",
-            "points": [point["name"] for point in TRAINING_POINTS],
-            "cases": list(cases), "status": "not-run-here"}
+    """Amplitude versus coherence per band, per training point -- the measurement that can skip Q.
+
+    Each point is rolled forward once per case from its own registered checkpoint, and every
+    band of every lead is compared against that step's own target. The gap ``1 - amp_ratio``
+    is then read as a function of training exposure: shrinking means the deficit is
+    under-training (Q is not worth opening), flat or growing means it is the loss geometry
+    (Q is). Reported per band and per point -- never pooled into a single number that could be
+    made to look supportive.
+    """
+    import numpy as np
+    import torch
+
+    from scripts import r7_s3_curve_point_large_protocol as curve
+    from training import r7_spectral_geometry as geometry
+
+    if not curve.STORE.exists():
+        raise FileNotFoundError(f"the store is not readable at {curve.STORE}")
+    points = []
+    for point in TRAINING_POINTS:
+        path = ROOT / point["checkpoint"]
+        if not path.exists():
+            raise FileNotFoundError(f"{point['name']} checkpoint is missing: {path}")
+        points.append(_measure_point(point, path, cases, curve, geometry, np, torch))
+    return {
+        "method": geometry.METHOD_NAME,
+        "training_points": [point["name"] for point in TRAINING_POINTS],
+        "cases": list(cases),
+        "leads_hours": [6 * (step + 1) for step in range(len(curve.PHYSICAL_WEIGHTS))],
+        "points": points,
+        "gate": _p1_gate(points),
+    }
+
+
+def _train_dataset(curve, torch):
+    """The registered train dataset, built once per process.
+
+    Construction scans the manifest and validates every window's sha256 -- measured at ~187 s
+    on this instance. P1 rolls four checkpoints over the same eight cases, so rebuilding it
+    per checkpoint would spend ~12 minutes re-proving the same identity. The cache is keyed on
+    the manifest path, and the identity arguments come from the registered C2 protocol, so a
+    stale cache cannot silently describe a different split.
+    """
+    from data.r7_long_rollout_dataset import ZarrLongRolloutDataset
+
+    cached = getattr(_train_dataset, "_cache", None)
+    if cached is not None and cached[0] == str(curve.TRAIN_MANIFEST):
+        return cached[1]
+    protocol = ROOT / "outputs/r7_s3_derivative_matching_c2_20261108_attempt07/protocol.json"
+    body = json.loads(protocol.read_text(encoding="utf-8"))
+    dataset = ZarrLongRolloutDataset(
+        curve.TRAIN_MANIFEST, physical_steps=len(curve.PHYSICAL_WEIGHTS),
+        expected_exclusions=body["train_windows"]["excluded_sample_ids"],
+        expected_window_sha256=body["train_windows"]["window_sha256"])
+    _train_dataset._cache = (str(curve.TRAIN_MANIFEST), dataset)
+    return dataset
+
+
+def _measure_point(point, path, cases, curve, geometry, np, torch) -> dict:
+    """One checkpoint rolled over every case; per-band amplitude ratio and coherence."""
+    from training.r7_experiment import load_checkpoint, make_model
+    from training.r7_long_rollout import training_long_rollout
+
+    saved = load_checkpoint(path)
+    if int(saved["updates"]) != int(point["updates"]):
+        raise ValueError(f"{point['name']} holds {saved['updates']} updates, expected "
+                         f"{point['updates']}")
+    with torch.random.fork_rng(devices=[]):
+        model = make_model("process", curve.model_spec())
+    model.load_state_dict(saved["model"], strict=True)
+    # ``training_long_rollout`` refuses an eval-mode/grad-off model ("differentiable training
+    # requires grad-enabled model.train()"), so this runs in train mode with the graph alive and
+    # detaches the forecast before measuring -- the same route C1's model half took
+    # (``tools/reproduce_c1_model_comparison.py``). The equivalence to an eval forward is
+    # checked rather than assumed: dropout must be 0.0 and no BatchNorm may exist in the trunk,
+    # or train and eval would differ and the reading would not describe the deployed model.
+    spec = curve.model_spec()
+    if float(spec.get("dropout", -1.0)) != 0.0:
+        raise ValueError(f"frozen spec dropout is {spec.get('dropout')!r}, not 0.0: a train-mode "
+                         f"forward would not match the deployed one")
+    normalising = [f"{name}: {type(module).__name__}"
+                   for name, module in model.named_modules()
+                   if isinstance(module, torch.nn.modules.batchnorm._BatchNorm)]
+    if normalising:
+        raise ValueError("the trunk has batch-dependent normalisation, so train and eval "
+                         f"forwards differ: {normalising}")
+    model.train()
+    dataset = _train_dataset(curve, torch)
+    edges = geometry.band_edges(65, 65)
+    per_case = []
+    for case in cases:
+        batch = {key: value.unsqueeze(0) for key, value in dataset[case].items()
+                 if torch.is_tensor(value)}
+        result = training_long_rollout(model, batch, curve.REASONING_STEPS,
+                                       physical_weights=curve.PHYSICAL_WEIGHTS,
+                                       supervision_mask=None)
+        forecasts = result.forecasts[0].detach()
+        targets = batch["physical_targets"][0]
+        leads = []
+        for step in range(forecasts.shape[0]):
+            rows = geometry.band_statistics(forecasts[step], targets[step], edges)
+            leads.append({"lead_hours": 6 * (step + 1), "bands": rows})
+        per_case.append({"case": case, "leads": leads})
+    return {"name": point["name"], "updates": point["updates"],
+            "skill_72h": point["skill_72h"],
+            "model_code_sha256": saved.get("model_code_sha256"),
+            "bands": _band_aggregate(per_case, edges), "cases": per_case}
+
+
+def _band_aggregate(per_case, edges) -> list[dict]:
+    """Mean amplitude ratio and coherence per band over cases and leads.
+
+    Both are aggregated in the **power** domain (sum PSDs, then a ratio) rather than by
+    averaging per-case ratios: a band whose target is nearly empty would otherwise contribute
+    a wild ratio with the same weight as a well-populated one.
+    """
+    import numpy as np
+
+    count = len(edges) - 1
+    rows = []
+    for band in range(count):
+        px, py, cr = [], [], []
+        for case in per_case:
+            for lead in case["leads"]:
+                row = lead["bands"][band]
+                px.append(row["psd_pred"])
+                py.append(row["psd_target"])
+                cr.append(row["cross"])
+        px, py, cr = np.asarray(px), np.asarray(py), np.asarray(cr)
+        sx, sy, sn = px.sum(), py.sum(), cr.sum()
+        ratio = float(np.sqrt(sx / sy)) if sy > 0 else float("nan")
+        coh = float(sn / np.sqrt(sx * sy)) if sx > 0 and sy > 0 else float("nan")
+        rows.append({"band": band, "amp_ratio": ratio, "coherence": coh,
+                     "gap": 1.0 - ratio if ratio == ratio else float("nan")})
+    return rows
+
+
+def _p1_gate(points) -> dict:
+    """Does ``1 - amp_ratio`` shrink with training exposure? The pre-declared Q decision.
+
+    ``gap_shrinks`` is true only if the finest bands' mean gap is **monotonically** smaller
+    across the exposure ladder, which is the strong form of "it is under-training". A
+    non-monotone sequence is reported as ``mixed`` and does **not** by itself cancel Q: the
+    brief's rule cancels Q when the gap shrinks, so anything else opens it. That asymmetry is
+    deliberate -- the gate is the only mechanism allowed to save the GPU budget, so it must be
+    hard to trip by accident while remaining able to trip.
+    """
+    import numpy as np
+
+    fine = []
+    for point in points:
+        gaps = [row["gap"] for row in point["bands"]
+                if row["band"] >= len(point["bands"]) // 2 and row["gap"] == row["gap"]]
+        fine.append(float(np.mean(gaps)) if gaps else float("nan"))
+    finite = [value for value in fine if value == value]
+    monotone_decrease = bool(len(finite) == len(fine) and len(finite) >= 2
+                             and all(later < earlier
+                                     for earlier, later in zip(finite, finite[1:])))
+    verdict = "skip-q" if monotone_decrease else "open-q"
+    if not monotone_decrease and len(finite) > 1 and fine[-1] < fine[0]:
+        verdict = "mixed-trend"
+    return {
+        "fine_band_mean_gap_by_point": dict(zip([p["name"] for p in points], fine)),
+        "monotone_decrease": monotone_decrease,
+        "verdict": verdict,
+        "rule": ("gap shrinking with exposure => the deficit is under-training and Q is "
+                 "skipped; flat or growing => it is the loss geometry and Q opens "
+                 "(goal section 3.1)"),
+    }
 
 
 if __name__ == "__main__":

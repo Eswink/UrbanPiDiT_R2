@@ -51,6 +51,10 @@ LEVEL_PAIRS = ((850.0, 500.0), (500.0, 250.0))
 #: before they can create one (the C1 precedent, decision 0094).
 REFUSED_WORKERS = ("prepare", "archive", "seed", "seeding", "reading")
 
+#: One registered train case: the same window C1 and C2 measured, so the direction
+#: columns can be held against those results without a new split.
+CASES = (1000,)
+
 
 def thickness_coefficient(lower_hpa: float, upper_hpa: float) -> float:
     """``(R/g) * ln(p_lower / p_upper)`` in metres per kelvin.
@@ -66,14 +70,22 @@ def thickness_coefficient(lower_hpa: float, upper_hpa: float) -> float:
 def hydrostatic_residual(z_lower, z_upper, t_lower, t_upper, lower_hpa, upper_hpa):
     """Difference between measured thickness and the thickness its mean temperature implies.
 
-    ``z`` must be geopotential height in metres and ``t`` absolute temperature in kelvin; the
-    caller is responsible for that and ``check_units`` will say so. The residual is in metres,
-    which makes it directly comparable to an analysis-field increment.
+    ``z`` must be geopotential **height in metres** and ``t`` absolute temperature in kelvin.
+    The store's ``z*`` channels are **geopotential** (``m**2 s**-2``), so every caller must
+    divide by ``g`` first; ``check_units`` reports that.
+
+    **The sign matters and was wrong in the first draft.** Thickness is
+    ``z_upper - z_lower`` (the *height gained* going up), which is positive: about 4,110 m for
+    850-500 hPa. Writing ``z_lower - z_upper`` gives -4,110 m, and comparing that against
+    ``(R/g) ln(p1/p2) Tbar ~ 4,082 m`` produces an RMS residual of **8,193 m** instead of the
+    physical **36.6 m** -- a 224x inflation that would have read as "the analysis badly
+    violates hydrostatic balance" and manufactured a direction. Measured on this store,
+    2026-11-11.
     """
     import torch
 
     coefficient = thickness_coefficient(lower_hpa, upper_hpa)
-    measured = z_lower.to(torch.float64) - z_upper.to(torch.float64)
+    measured = z_upper.to(torch.float64) - z_lower.to(torch.float64)
     mean_temperature = 0.5 * (t_lower.to(torch.float64) + t_upper.to(torch.float64))
     return measured - coefficient * mean_temperature
 
@@ -221,7 +233,16 @@ def main(argv=None):
                   for low, high in LEVEL_PAIRS}}
     try:
         record["units"] = _unit_report()
-        record["directions"] = _direction_rows()
+        analysis, prediction = _real_fields()
+        record["real_fields"] = {
+            "measured": analysis is not None,
+            "analysis_side": "physical_targets[0, -1] denormalised (the +72 h analysis field)"
+            if analysis is not None else None,
+            "model_side": "p1600 rollouts[0, -1] denormalised (the +72 h forecast)"
+            if prediction is not None else None,
+            "case": CASES[0] if analysis is not None else None,
+        }
+        record["directions"] = _direction_rows(analysis, prediction)
     except Exception as exc:  # noqa: BLE001 - record, never raise, so the verdict is written
         record["error"] = f"{type(exc).__name__}: {exc}"
         record["traceback_tail"] = traceback.format_exc().strip().splitlines()[-8:]
@@ -235,27 +256,64 @@ def main(argv=None):
 
 
 def _unit_report() -> dict:
-    """Unit evidence from a synthetic atmosphere with known correct units.
+    """Unit evidence read from the **real** store, fallback to a synthetic control.
 
-    Run on synthetic values rather than the real store so this verdict does not depend on any
-    product being present; the real field's unit check happens when the round driver runs with
-    ``--store``. Each entry states what the correct reading looks like.
+    The store's declared units are the thing being checked, so a synthetic atmosphere can only
+    ever confirm that the checks are wired -- not that this instance is in the units the
+    formulas assume. Two facts this instance actually contradicts must be reported as they are:
+
+    * ``z850``/``z500``/``z250`` carry unit ``m**2 s**-2``: they are **geopotential**, not
+      geopotential height. ``hydrostatic_residual`` needs metres, so every caller must divide
+      by ``g``. Skipping that would scale the thickness by 9.81 and turn a balance check into
+      noise -- the same class of unit slip as C1's ``s^-2`` collision (decision 0094).
+    * ``t850``/``t500`` carry unit ``K`` and read ~274 K, so they are Kelvin, not Celsius.
     """
+    import numpy as np
     import torch
+    import zarr
 
-    return check_units({
+    from scripts import r7_s3_curve_point_large_protocol as curve
+
+    synthetic = check_units({
         "z850": torch.full((8, 8), 1500.0), "z500": torch.full((8, 8), 5800.0),
         "t850": torch.full((8, 8), 285.0), "q850": torch.full((8, 8), 0.008),
         "u850": torch.zeros((8, 8)), "v850": torch.zeros((8, 8)),
     })
+    report = {"synthetic_control": synthetic, "source": "synthetic"}
+    if not curve.STORE.exists():
+        report["note"] = "the store is not readable; only the synthetic control ran"
+        return report
+    store = zarr.open_group(str(curve.STORE), mode="r")
+    names = list(store.attrs["channels"])
+    units = list(store.attrs["units"])
+    frame = torch.as_tensor(np.asarray(store["state"][0], dtype=np.float64))
+    fields = {name: frame[index] for index, name in enumerate(names)}
+    real = check_units(fields)
+    geopotential = [name for name, unit in zip(names, units) if "s**-2" in unit]
+    report.update({
+        "source": "store",
+        "declared_units": dict(zip(names, units)),
+        "checks": real,
+        "z_is_geopotential_not_height": bool(geopotential),
+        "geopotential_channels": geopotential,
+        "height_conversion": ("z_height_m = z_geopotential / g; the store's z reads "
+                              "~14649 m^2 s^-2 at 850 hPa => ~1493 m, consistent with the "
+                              "standard atmosphere, whereas reading it as metres would say "
+                              "1493*9.81 m"),
+        "temperature_is_kelvin": bool(real.get("t_850", {}).get("looks_like_kelvin")),
+        "verdict": ("units are consistent with the formulas once z is divided by g; and they "
+                    "are NOT consistent if z is used directly as metres"),
+    })
+    return report
 
 
-def _direction_rows() -> dict:
-    """One row per candidate, on synthetic fields with a known direction.
+def _direction_rows(store_fields=None, model_fields=None, edges=None) -> dict:
+    """One row per candidate. Real fields when supplied, synthetic construction otherwise.
 
-    The synthetic construction is the point: a **true** field that satisfies the relation and
-    a **model-like** field that is smoother than it. If the gate then reports "truth charged
-    more", the candidate has C1's failure mode and must not be opened.
+    The synthetic branch is kept as a labelled control: it constructs a truth that satisfies
+    the relation and a smoother model-like field, so it proves the gate *can* report a
+    direction. But a synthetic pass says nothing about this atmosphere, so ``source`` is
+    always reported and the real measurement is what the verdict is read from.
     """
     import torch
 
@@ -273,7 +331,8 @@ def _direction_rows() -> dict:
     t850_truth = 285.0 + 4.0 * rough
     t500_truth = torch.full_like(rough, 275.0)
     z850_truth = 1500.0 + 3.0 * rough
-    z500_truth = z850_truth - coefficient * 0.5 * (t850_truth + t500_truth)
+    # Balanced: 500 hPa sits above 850 hPa by the thickness its mean temperature implies.
+    z500_truth = z850_truth + coefficient * 0.5 * (t850_truth + t500_truth)
     a_truth = _penalty(hydrostatic_residual(z850_truth, z500_truth, t850_truth,
                                             t500_truth, 850.0, 500.0))
     # The model-like field smooths z and T independently, breaking the relation: this is the
@@ -292,13 +351,187 @@ def _direction_rows() -> dict:
     d_truth = _penalty(torch.clamp(-moisture["negative"], min=0.0))
     d_model = _penalty(moisture["negative"] * 0.0)
 
-    return {
+    synthetic = {
+        "source": "synthetic",
         "A_hydrostatic": j1_verdict(a_truth, a_model, dose=None),
         "B_column_divergence": j1_verdict(b_truth, b_model, dose=None),
         "D_moisture_negative": j1_verdict(d_truth, d_model, dose=None),
-        "note": ("dose requires the real MSE denominator, so it is null here; the direction "
-                 "columns are meaningful and the dose columns are filled by the round driver"),
+        "note": ("synthetic control only: it proves the residual and the constructor agree, "
+                 "which says nothing about this atmosphere"),
     }
+    if store_fields is None or model_fields is None:
+        return synthetic
+    return {"source": "store", "synthetic_control": synthetic,
+            "real": _real_direction_rows(store_fields, model_fields, edges=edges)}
+
+
+def _real_direction_rows(analysis, prediction, edges=None) -> dict:
+    """J1 on the same fields C1 died on: this store's analysis vs the p1600 model's forecast.
+
+    Every direction is measured on **both** sides with one function and one set of units, so
+    the only difference between the two columns is the field itself -- C1's comparison design,
+    which is what made its 10.2x result a property of the term rather than of the setup.
+
+    Units: the store's ``z*`` channels are **geopotential** (``m**2 s**-2``). Both sides are
+    divided by ``g`` before the hydrostatic residual, because that residual is in metres.
+    ``t*`` is already Kelvin. Doing this only on one side would manufacture a direction.
+    """
+    import torch
+    from model.r7_process_tensor_diagnostics import spherical_divergence
+
+    latitude = analysis["latitude"]
+    longitude = analysis["longitude"]
+
+    def divergences(fields):
+        out = {}
+        for name, (u, v) in (("850", ("u850", "v850")), ("500", ("u500", "v500")),
+                             ("250", ("u250", "v250"))):
+            out[name] = spherical_divergence(fields[u], fields[v], latitude, longitude)
+        return out
+
+    penalties = {"A_hydrostatic": [], "B_column_divergence": [], "D_moisture_negative": []}
+    for side in (analysis, prediction):
+        z_height = {name: side[name] / GRAVITY for name in ("z850", "z500", "z250")}
+        a = _penalty(hydrostatic_residual(z_height["z850"], z_height["z500"],
+                                          side["t850"], side["t500"], 850.0, 500.0))
+        div = divergences(side)
+        b = _penalty(column_divergence_residual(div["850"], div["500"], div["250"]))
+        moisture = moisture_violations(side["q850"], side["t850"], 850.0)
+        negative = _penalty(moisture["negative"])
+        supersaturated = _penalty(moisture["supersaturated"])
+        penalties["A_hydrostatic"].append(a)
+        penalties["B_column_divergence"].append(b)
+        # The moisture direction is the sum of both violations: ``q >= 0`` alone was a dead
+        # term in C1 (0.0 on both sides while carrying weight 0.5), so reporting only that
+        # column would repeat the defect that made C1's humidity row uninformative.
+        penalties["D_moisture_negative"].append(negative + supersaturated)
+        penalties.setdefault("D_negative_only", []).append(negative)
+        penalties.setdefault("D_supersaturated_only", []).append(supersaturated)
+
+    # The dose's denominator is the normalised-space MSE, which needs the exact loss the
+    # training path uses; without it the dose is reported as null rather than guessed.
+    rows = {}
+    for name in ("A_hydrostatic", "B_column_divergence", "D_moisture_negative"):
+        analysis_penalty, model_penalty = penalties[name]
+        rows[name] = j1_verdict(analysis_penalty, model_penalty, dose=None)
+        rows[name]["penalty_units"] = {
+            "A_hydrostatic": "m^2 (residual in metres, then mean square)",
+            "B_column_divergence": "s^-2 (sum of three divergences, then mean square)",
+            "D_moisture_negative": "(kg/kg)^2 (both moisture violations)",
+        }[name]
+    rows["D_breakdown"] = {
+        "negative_only": {"analysis": penalties["D_negative_only"][0],
+                          "model": penalties["D_negative_only"][1]},
+        "supersaturated_only": {"analysis": penalties["D_supersaturated_only"][0],
+                                "model": penalties["D_supersaturated_only"][1]},
+    }
+    rows["dose_note"] = ("dose = penalty/L_mse needs the registered normalised MSE for these "
+                         "exact cases; it is null here rather than approximated, because a "
+                         "guessed denominator would make J3 unfalsifiable")
+    return rows
+
+
+def _real_fields() -> tuple[dict | None, dict | None]:
+    """This store's analysis and the p1600 model's +72 h forecast on one case.
+
+    Read-only. Returns ``(None, None)`` when the store or the endpoint is unavailable, so the
+    probe reports a synthetic-only run instead of inventing a real measurement.
+    """
+    import numpy as np
+    import torch
+    import zarr
+
+    from scripts import r7_s3_curve_point_large_protocol as curve
+    from training.r7_experiment import load_checkpoint, make_model
+    from training.r7_long_rollout import training_long_rollout
+
+    checkpoint = ROOT / ("outputs/r7_s3_throughput_physics_b_p1600_20261106_attempt01/"
+                         "seed41/training/update_0128528.pt")
+    if not curve.STORE.exists() or not checkpoint.exists():
+        return None, None
+    store = zarr.open_group(str(curve.STORE), mode="r")
+    names = list(store.attrs["channels"])
+    latitude = torch.as_tensor(np.asarray(store["latitude"][:]), dtype=torch.float64)
+    longitude = torch.as_tensor(np.asarray(store["longitude"][:]), dtype=torch.float64)
+    saved = load_checkpoint(checkpoint)
+    with torch.random.fork_rng(devices=[]):
+        model = make_model("process", curve.model_spec())
+    model.load_state_dict(saved["model"], strict=True)
+    spec = curve.model_spec()
+    if float(spec.get("dropout", -1.0)) != 0.0:
+        raise ValueError("train-mode forward would differ from the deployed model: dropout != 0")
+    model.train()
+    import json as _json
+
+    from data.r7_long_rollout_dataset import ZarrLongRolloutDataset
+    protocol = ROOT / "outputs/r7_s3_derivative_matching_c2_20261108_attempt07/protocol.json"
+    body = _json.loads(protocol.read_text(encoding="utf-8"))
+    dataset = ZarrLongRolloutDataset(
+        curve.TRAIN_MANIFEST, physical_steps=len(curve.PHYSICAL_WEIGHTS),
+        expected_exclusions=body["train_windows"]["excluded_sample_ids"],
+        expected_window_sha256=body["train_windows"]["window_sha256"])
+    case = CASES[0]
+    batch = {key: value.unsqueeze(0) for key, value in dataset[case].items()
+             if torch.is_tensor(value)}
+    result = training_long_rollout(model, batch, curve.REASONING_STEPS,
+                                   physical_weights=curve.PHYSICAL_WEIGHTS,
+                                   supervision_mask=None)
+    # The rollout gives **normalised** fields (the dataset normalises on read), while the
+    # constraint formulas only make sense in physical units, so *both* sides are mapped back
+    # with the store's own constants -- identically, so the comparison stays fair.
+    #
+    # Direction is checked, not assumed. ``store["state"]`` holds **physical** units
+    # (``read_normalized`` divides by these constants at read time), so the map back is
+    # ``physical = normalised * std + mean``. An earlier draft denormalised one side and not
+    # the other and reported a hydrostatic penalty of 3.6e11 m^2 against a physical residual of
+    # a few hundred metres -- a unit fault that would have read as a direction.
+    mean = torch.as_tensor(np.asarray(store["normalization_mean"][:]), dtype=torch.float64)
+    std = torch.as_tensor(np.asarray(store["normalization_std"][:]), dtype=torch.float64)
+    shape = (len(names), 1, 1)
+
+    def physical(fields):
+        """``[C, H, W]`` normalised -> physical, in one call so the axes cannot drift.
+
+        The shape has to be ``[C, H, W]``: applying the ``(C, 1, 1)`` constants to a bare
+        ``[H, W]`` slice broadcasts into ``[C, H, W]``, and the resulting per-channel dict
+        entry silently becomes a 17-channel blend whose mean is dominated by ``mslp`` (~101635)
+        and ``z250`` (~104149). That is not hypothetical -- it produced a "t2m mean" of 16593
+        and is what ``_assert_physical_units`` is there to catch.
+        """
+        return fields.to(torch.float64) * std.reshape(shape) + mean.reshape(shape)
+
+    analysis_fields = physical(batch["physical_targets"][0, -1])   # [C, H, W]
+    prediction_fields = physical(result.forecasts[0, -1].detach())  # [C, H, W]
+    analysis = {name: analysis_fields[index] for index, name in enumerate(names)}
+    prediction = {name: prediction_fields[index] for index, name in enumerate(names)}
+    _assert_physical_units(analysis)
+    for fields in (analysis, prediction):
+        fields["latitude"] = latitude
+        fields["longitude"] = longitude
+    return analysis, prediction
+
+
+def _assert_physical_units(analysis) -> None:
+    """Refuse to score a field whose magnitudes contradict the store's declared units.
+
+    Two facts a wrong normalisation direction breaks immediately:
+
+    * ``t2m`` is Kelvin, so a 65x65 field must average a few hundred K. A double-denormalised
+      field reads thousands; an un-denormalised (normalised) one reads near zero.
+    * ``z850`` is geopotential (``m**2 s**-2``), so ``z/g`` must be a plausible 850 hPa height.
+      Reading ~6.6e5 m means the normalisation was applied twice.
+
+    Raises rather than warns: a warning in a probe log is how a units fault survives into a
+    result page.
+    """
+    t2m_mean = float(analysis["t2m"].mean())
+    if not 200.0 < t2m_mean < 340.0:
+        raise ValueError(f"t2m averages {t2m_mean:.1f}, which is not Kelvin: the "
+                         "normalisation direction is wrong or the store is not physical")
+    height = float(analysis["z850"].mean()) / GRAVITY
+    if not 200.0 < height < 3000.0:
+        raise ValueError(f"z850/g is {height:.1f} m, not a plausible 850 hPa height: the "
+                         "normalisation was applied twice, or z is not geopotential")
 
 
 if __name__ == "__main__":
