@@ -5615,3 +5615,32 @@ docs/decisions/0095-stage-c2-derivative-domain-target-matching.md
 无关——命名相近但不同物，不要混。
 
 **进度（明写 update 数）**：`seed43/on 14060/32132`（43.8%，ep1）；其余同前。
+
+### 2026-11-10 receipt guard 的当前状态实测 exit 1 `missing`，登记前置文件齐备
+
+**状态** `guard-baseline-red-as-expected`；GPU-h **44.389187**（未变）；零最终读数。
+
+`check_round_receipts.py --attempt <attempt08> --require-reading` **现在必须失败**——
+`readings.json` 还没产出。实测确认它失败的方式是对的（不是别的错）：
+
+```
+real_exit=1
+  "reason": "missing"      <- readings.json 缺失，不是 truncated、不是 schema 错
+```
+
+登记所需的前置文件实测都在：
+
+| 文件 | 大小 |
+| --- | --- |
+| `prepared_protocol.json` | 33,115,530 B |
+| `protocol.json` | 33,115,530 B（与 prepared 同大小，install 时复制） |
+| `archive_receipt.json` | 181 B |
+| `stage_ledger.jsonl` | 3,793 B |
+
+**为什么记 `missing` 这个具体 reason**：guard 有多个失败模式（`missing` / `truncated or invalid JSON` /
+`missing keys [...]` / `expected 2 arms`）。若读数后它仍报 `missing`，说明 `stage reading`
+**没有真正写出文件**（可能是被 checkpoint pin 拒绝而早退）；若报 `truncated`，
+说明 `allow_nan=False` 在写入中途抛错（本会话演示过的半截文件）。**不同 reason 指向不同的处置**，
+所以基线要记精确。
+
+**进度（明写 update 数）**：`seed43/on 17280/32132`（53.8%，ep2）；其余同前。
