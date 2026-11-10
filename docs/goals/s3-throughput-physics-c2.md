@@ -5441,3 +5441,37 @@ ABORT: only 2/3 receipts
 **边界**：零读数、零科学结论；这是对**已有两 seed** 表述精度的校准，seed43 仍未测。
 
 **进度（明写 update 数）**：`seed43/on 4660/32132`（14.5%，ep0）；其余同前。
+
+### 2026-11-10 `tools/r7_round.py verify` 的**确切构成**与登记前基线（实测 exit 0）
+
+**状态** `verify-baseline-green`；GPU-h **44.389187**（未变）；零最终读数。
+
+用户指示要求"登记后跑 `verify`"。它跑什么，先列清（`tools/r7_round_support.py:80-95`）：
+
+```
+1. tools/check_conventions.py --quiet                                        (37 条阻断规则)
+2. tools/check_campaign_state.py --campaign docs/goals/main-model-climatology-campaign.md
+3. tools/verify_r7_evidence_index.py --index docs/R7_EVIDENCE_INDEX.jsonl \
+        --check-brief docs/R7_CANDIDATE_BRIEF.md
+```
+
+**登记前基线（现在实测）**：
+
+```
+$ .venv/bin/python tools/r7_round.py verify
+real_exit=0
+passed: True
+  exit=0  check_conventions.py --quiet
+  exit=0  check_campaign_state.py --campaign ...
+  exit=0  verify_r7_evidence_index.py --index ... --check-brief ...
+```
+
+**为什么现在先跑一次**：登记会同时动 index、brief、§8、campaign-state 四处。
+有了这条**绿基线**，登记后若任一验证器变红，就能确定是**我的改动**引起，而不是既存问题；
+反之若登记后仍绿，也不能只靠它说"登记正确"——它只检查形式（编号、digest、同步），
+不判断科学内容。
+
+**第 3 个验证器是顺序依赖的**：它比对 index 与 brief。登记时**先写 index 再重渲染 brief**，
+否则它会在"索引 106 / brief 105"上失败——这点已在前面单独记过，现在有了命令级证据。
+
+**进度（明写 update 数）**：`seed43/on 5760/32132`（17.9%，ep0）；其余同前。
