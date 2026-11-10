@@ -5644,3 +5644,31 @@ real_exit=1
 所以基线要记精确。
 
 **进度（明写 update 数）**：`seed43/on 17280/32132`（53.8%，ep2）；其余同前。
+
+### 2026-11-10 (b) 的实现**要求两个键都在**，不只是散度为正（读到源码）
+
+**状态** `b-implementation-read`；GPU-h **44.389187**（未变）；零最终读数。
+
+前面我按"`readings()` 只查 `constraint_divergence > 0`"来表述。读源码 `:211-217` 后更正细节：
+
+```python
+entry[arm]["constraint_terms_recorded"] = bool(losses) and all(
+    "constraint_divergence" in row and "constraint_vorticity" in row
+    and float(row["constraint_divergence"]) > 0.0
+    for row in losses)
+```
+
+⇒ 判定要求**每一行同时含 `constraint_divergence` 与 `constraint_vorticity`**（只查存在性），
+**并且** `constraint_divergence > 0`（只对散度查正性）。所以：
+
+- 我说的"两项都为正"比实现**更强**——我做的手工核查确实确认了 `constraint_vorticity` 也严格为正
+  （min 0.0713），但**判定本身**只要求 vorticity 存在；
+- 这个实现差异**不影响结论**：两个 on 臂实测 vorticity 也全为正，所以无论按哪种口径 (b) 都成立；
+- `bool(losses)` 排掉空列表，避免 `all([]) == True` 把"没有 loss 行"判成通过——
+  这是 0108 那类"空集合被当成满足"的缺陷的**正确回避**。
+
+**为什么值得记**：如果最终报告写"判定要求两项都为正"，而实现只要求一项为正，
+那是**夸大判据强度**。准确的表述是：判定要求两项**都记录**、散度**为正**；
+而实测两项**都为正**，所以更强的事实也成立。
+
+**进度（明写 update 数）**：`seed43/on 18940/32132`（58.9%，ep2）；其余同前。
