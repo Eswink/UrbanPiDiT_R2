@@ -5704,3 +5704,42 @@ ADR 的 `## Context` 不依赖 verdict，可以现在就把**要引用的事实*
 分别因三处不同缺陷，均已由 0098/0105/0107 登记。
 
 **进度（明写 update 数）**：`seed43/on 20560/32132`（64.0%，ep2）；其余同前。
+
+### 2026-11-10 `--evidence` 的路径契约（精确到判定条件，早前踩过一次）
+
+**状态** `evidence-path-contract`；GPU-h **44.389187**（未变）；零最终读数。
+
+`build_c2_registration --evidence` 的值会被 `validate_record` 的 `_safe_relative` 检查
+（`tools/verify_r7_evidence_index.py:36-47`）。判定条件按源码：
+
+```python
+if not isinstance(value, str) or not value or Path(value).is_absolute(): return None   # 绝对路径 -> 拒
+if ".." in relative.parts or relative == Path("."):                    return None   # 上跳 -> 拒
+candidate = (root / relative).resolve()
+candidate.relative_to(root.resolve())                                   # 必须落在 root 内
+```
+
+⇒ **必须**是「非空字符串 + 相对路径 + 不含 `..` + 解析后仍在仓库内」。
+**本会话早前踩过**：传了 `Path("/data/esw/.../docs/....md")` 绝对路径，`validate_record` 直接拒
+（"must be a safe repository-relative path"）。**正确写法**：`docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md`。
+
+**一处容易连带出错的**：`build_c2_registration.build()` 里 `evidence_sha256 = _sha256(evidence_path)`，
+而 `_sha256` 按 **cwd** 解析相对路径。所以调用时 **cwd 必须是仓库根**——
+否则会出现"`validate_record` 说路径安全，但 `_sha256` 找不到文件"的割裂。
+本会话的演练脚本就是在 `os.chdir(REPO)` 之后才调用的。
+
+**落地时的确切调用形态**（cwd = `/data/esw/UrbanPiDiT_R2`）：
+
+```
+.venv/bin/python tools/build_c2_registration.py \
+  --readings outputs/<attempt08>/readings.json \
+  --protocol outputs/<attempt08>/protocol.json \
+  --evidence docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md \
+  --record-id s3-derivative-matching-c2-result \
+  --outcome-class <negative 或 engineering-positive> \
+  --candidate-state <not-candidate 或 needs-review> \
+  --priority <int> --reason "..." --limitation "..." \
+  --out /tmp/c2_record.json
+```
+
+**进度（明写 update 数）**：`seed43/on 22700/32132`（70.7%，ep2）；其余同前。
