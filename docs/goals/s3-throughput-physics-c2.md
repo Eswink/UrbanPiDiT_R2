@@ -5475,3 +5475,33 @@ passed: True
 否则它会在"索引 106 / brief 105"上失败——这点已在前面单独记过，现在有了命令级证据。
 
 **进度（明写 update 数）**：`seed43/on 5760/32132`（17.9%，ep0）；其余同前。
+
+### 2026-11-10 C2 若关闭，**下一动作不是"自动补偿"**——B 的 verdict 只授权范围，不授权选配置
+
+**状态** `next-action-bounded`；GPU-h **44.389187**（未变）；零最终读数。
+
+若 (a) 判假、C2 支关闭，会自然想问"那物理信息这一半怎么办"。实测
+`outputs/r7_s3_saturation_verdict_20261107.json` 给出的边界是明确的：
+
+```
+outcome : unsaturated          (Δ = +0.030123884677096924 > 0.01)
+action  : a final run at 16-64 epoch follows; choosing its exact configuration is
+          Stage F's menu and the user's selection, not this tool's
+limitations: n=1 per point, unquantified run-to-run variance, not bitwise reproducible,
+             rule frozen before any point ran, engineering/calibration reading
+single_seed_caveat: each point is ONE seed; delta is a difference of two independent
+             runs with no pairing structure and no interval
+```
+
+⇒ **三条推论**：
+1. **B 未饱和 ⇒ Stage E 的"整段跳过"条件不成立**，所以 E1（R5 训练信号族）**仍在可选集**里；
+2. **但 B 的 verdict 只授权"跑 16–64 epoch"这个范围**，**不授权**声称 64e 更好、**不授权**
+   由执行者选定配置——那是 **Stage F 菜单 + 用户手选**；
+3. C2 的结果**不能**被"再跑一次更长训练"替代或覆盖：C2 测的是**4 epoch 父模型 + 一项约束**，
+   它的关闭有明确适用域（brief §4 已预声明这一点）。
+
+**我不会**在 C2 登记后自己去开 E1：目标长文把 E1 列为 Stage E 的可选支，
+但**选题顺序**与**配置选择**不在我的授权范围；我应当把选项、成本、以及 C2 关闭的含义
+交给用户，而不是替用户决定下一步做哪个物理信息实验。
+
+**进度（明写 update 数）**：`seed43/on 6960/32132`（21.7%，ep0）；其余同前。
