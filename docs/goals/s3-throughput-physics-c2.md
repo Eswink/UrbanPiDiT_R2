@@ -5587,3 +5587,31 @@ totals: [0.341183, 0.465680, 0.363079, 0.412200]   all > 0 = True
 **边界**：这是**冻结前置**的数据，不是训练结果；(b) 的判定仍以 `readings.json` 为准。
 
 **进度（明写 update 数）**：`seed43/on 10880/32132`（33.9%，ep1）；其余同前。
+
+### 2026-11-10 结果页是**新建**，不会覆盖任何已有产物（实测）
+
+**状态** `result-page-path-clear`；GPU-h **44.389187**（未变）；零最终读数。
+
+登记的第一个产物是 `docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md`。`render_c2_result.py` 用
+`write_text`（覆盖式），所以先确认目标路径没有被占用：
+
+```
+$ ls docs/R7_S3_DERIVATIVE_MATCHING_C2_RESULT.md
+ls: cannot access ...: No such file or directory
+$ ls docs/R7_*C2* docs/R7_*DERIVATIVE*
+docs/R7_65_C2_C3_FEEDBACK_AND_DEPTH.md          <- 不同的、更早的实验
+$ git ls-files docs/ | grep -i "derivative|C2_RESULT"
+docs/decisions/0095-stage-c2-derivative-domain-target-matching.md
+```
+
+⇒ 结果页是**新建文件**，不覆盖任何既有内容。
+
+**为什么专门查这一条**：`write_text` 覆盖是静默的；若该路径上已有别的页，
+渲染会把它**无声替换**，而被替换页的 `evidence_sha256` 若已登记在索引里，
+该记录会立刻失效（摘要对不上）。这条检查只花一次 `ls`，能排掉一类不可逆错误。
+
+**另外确认**：`R7_65_C2_C3_FEEDBACK_AND_DEPTH.md` 与 `c2-feedback-negative` 记录对应，
+是**另一个更早的实验**（feedback routing），与本轮 `s3-derivative-matching-c2-result`
+无关——命名相近但不同物，不要混。
+
+**进度（明写 update 数）**：`seed43/on 14060/32132`（43.8%，ep1）；其余同前。
