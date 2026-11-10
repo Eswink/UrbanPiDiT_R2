@@ -254,3 +254,57 @@ curl -sS -I -L -m 8 -o /dev/null -w 'export=%{http_code}' https://export.arxiv.o
 ```bash
 .venv/bin/python tools/r7_round.py state
 ```
+
+---
+
+## §7 更正（2026-11-11）：§4.2 第 1 条的「global 65×65」判断是**错的**
+
+**要更正的是哪一句**：§4.2 第 1 条写「**本仓是 global 65×65**，所以理论上适用，但需要一个球谐变换实现
+（或近似）」，并说「平面 FFT 与球谐在**极区**差异大 —— 而我们的域是 `full` 全域，含极区」。
+
+**实测事实**（`docs/DATA_SPEC.md:36`，2026-11-11 核对）：
+
+```
+ROI：27.0–43.0°N / 107.0–123.0°E
+格心：lat 43.0 → 27.0 步长 −0.25（降序，65 个）；lon 107.0 → 123.0 步长 +0.25（升序，65 个）
+形状：[65, 65]
+```
+
+⇒ 这是**区域 patch**（约 16°×16°），**不是全球网格、不含极区**。所以：
+
+1. §4.2 第 1 条担心的「平面 FFT 与球谐在**极区**差异大」在本仓**不成立** —— 网格里没有极区；
+2. 但它换成了**更严重**的问题：**球谐变换在区域块上不良定义**，所以「引入球谐变换」不是
+   「成本更高」的选项，而是**在数学上不成立**的选项；
+3. §4.2 里「本仓是 global 65×65，所以理论上适用」这句**作废**。
+
+**同一手文献里被漏读的一条**（`arXiv:2501.19374v2` §4.2，访问 2026-11-10，逐字）：
+
+> This is simple enough for **global** latitude/longitude grids, but it might be **difficult for
+> local-area models** without a regular global grid structure. In these cases, we think that the basic
+> intuition behind (6) might still apply through other multiscale decompositions such as **wavelet
+> lifting**, provided suitable equivalents to scale-dependent variance and correlation could be found.
+> The multiscale decomposition is critical in some form, however … **Without such a decomposition (e.g.
+> applying the adjustment of (6) globally, without the harmonic transform), the model might be able to
+> "cover up" a lack of fine-scale variability by over-emphasizing coarser scales.**
+
+**这段对 §4.1 的「零 GPU-h 强预测」有直接后果**：
+
+- 该段明确把「**不加尺度分解**、直接在整个（区域）域上套式 (6)」列为**反模式**。所以本页 §4.1 提议的
+  测量**仍然可做**（它测的是 `amp_ratio` vs `coh` 这个**诊断**关系，不是损失），但
+  ① 必须**按波数带**做而不是全区域一个标量，② 任何由它推出的**损失**必须带尺度分解；
+- 同段还引 **Han et al. (2024)**：一个 **local-area** 模型在长 lead 上出现「diminished forecast
+  activity」（一个与 blurring 相关的整体度量）⇒ **区域模型同样有平滑病**，所以 §4.1 的诊断
+  在本仓**不是无的放矢**。
+
+**处置**：
+
+- §4.2 第 1 条与 §4.1 的「前置决策点」**不再作为执行依据**，执行依据是决策
+  **0110**（`rfft2` 径向分带 + DCT-II 交叉校验，三项近似显式声明）与
+  `docs/plans/0030-thesis-physics-informed-mainline.md` §2.3；
+- 本页 §1.1（MSE 最优解 `σ_X = ρ`）、§1.2（AMSE 形式）、§2（未找到的）、§3（逐方向裁决）
+  与 §4.3（与 C2 的关系）**不受影响** —— 它们不依赖网格是全球还是区域；
+- 正文 §4.2 原句**保留不删**，以便审计这条误判是怎么发生的：`docs/DATA_SPEC.md` 一直写着
+  区域 ROI，是本节**没有去核**就按「`full` 全域」推断成了全球网格。
+
+**这条更正本身的可复现等级**：`analysis-reproducible` —— 结论来自 `docs/DATA_SPEC.md:36` 的
+逐字读数与 arXiv 正文原文，两条都可独立复核；没有跑任何代码。

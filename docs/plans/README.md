@@ -63,3 +63,6 @@
 | [0025](0025-training-speed-observability-axis-reeval.md) | 训练速度优化、观测性修复与已关闭轴重估队列 | 已执行（实测 −43.8% GPU-h、−39.9% 墙钟；接受判据逐字节一致） | 2026-10-24 |
 | [0026](0026-matched-exposure-reeval-and-s4.md) | 匹配算力重估与 S4 就绪（含训练年份轴重开的程序冲突） | 已归档；**交付形状在 `docs/goals/s3-matched-exposure-reeval.md` §6 更正**：workflow 写进 goal，不另挂说明 | 2026-10-25 |
 | [0027](0027-urban-static-covariate-round.md) | 城市静态协变量数据准备轮（L2 城市证据落地） | 文档轮：授权（决策 0063）+ 本计划 + goal 长文 + L2 契约 + 技能扩围 + workflow 草稿；**0 GPU-h、未下载、未执行** | 2026-10-27 |
+| [0028](0028-throughput-physics-campaign.md) | 吞吐前置、学习曲线定标、物理约束与有界重开的组合 campaign（六 Stage） | 已归档；只有 A6（batch 上限扫描）真跑完成，**推翻了本计划自己的线性拟合**（实测上限 14、共驻 10，16/32 OOM）；Stage B 四点判 `unsaturated`（Δ=+0.030124）；C1 前置否决 0 GPU-h；C2 三 seed 一致退化、66.993549 GPU-h 永久关闭 | 2026-11-04 |
+| [0029](0029-physics-operator-candidates.md) | 物理信息算子的候选清单与开轮判据 J1–J4 | 工作态；**2026-11-11 由 0030 接续**；§4.1 的「global 65×65」前提被实测推翻（网格是区域 patch），已就地加更正块并改指决策 0110 | 2026-11-10 |
+| [0030](0030-thesis-physics-informed-mainline.md) | **毕业论文主线**：物理信息混合预报（谱几何 → 平衡约束 → 正面结果），三 Stage P/Q/R | 定稿归档、**未执行**（`NOT EXECUTED YET`）；统一论证把 C1 的 10.2× 方向反、C2 的 15/15 退化、模型比真值平滑 2.9× 归为同一病的三个侧面；Q 轮改为从 p1600 端点微调（≈12 GPU-h，而非从零 242） | 2026-11-11 |
