@@ -73,6 +73,14 @@ TRAINING_POINTS = (
 #: The same eight train cases C1 and C2 used, so a P1 number can be held against them.
 CASES = (1000, 5000, 9000, 13000, 17000, 21000, 25000, 29000)
 
+#: The five leads the goal brief freezes for P1 (``4 endpoints x 8 cases x 17 channels x
+#: 5 leads``). The rollout still produces all twelve 6-hourly steps because that is what the
+#: registered recipe computes; the gate is evaluated on **these five** and the twelve-step
+#: aggregate is reported beside it so the choice of lead set cannot hide a trend. An earlier
+#: draft aggregated all twelve, which is a different question ("every lead") rather than the
+#: frozen one.
+FROZEN_LEADS = (6, 12, 24, 48, 72)
+
 #: Wrong subcommands fail loudly instead of silently writing a half protocol. Stage P has no
 #: frozen protocol and no archive by design (the C1 precedent: a preflight that decides not
 #: to open a round produces no protocol at all), so a caller who reaches for the training
@@ -420,15 +428,24 @@ def _measure_point(point, path, cases, curve, geometry, np, torch) -> dict:
     return {"name": point["name"], "updates": point["updates"],
             "skill_72h": point["skill_72h"],
             "model_code_sha256": saved.get("model_code_sha256"),
-            "bands": _band_aggregate(per_case, edges), "cases": per_case}
+            # ``bands`` is the frozen five-lead aggregate the gate reads; ``bands_all_leads``
+            # is every 6-hourly step, reported so the lead-set choice is visible rather than
+            # hidden. The per-case rows keep all twelve steps so either aggregate can be
+            # recomputed without a re-run.
+            "bands": _band_aggregate(per_case, edges, leads=FROZEN_LEADS),
+            "bands_all_leads": _band_aggregate(per_case, edges, leads=None),
+            "cases": per_case}
 
 
-def _band_aggregate(per_case, edges) -> list[dict]:
-    """Mean amplitude ratio and coherence per band over cases and leads.
+def _band_aggregate(per_case, edges, leads=None) -> list[dict]:
+    """Mean amplitude ratio and coherence per band over cases and the selected leads.
 
     Both are aggregated in the **power** domain (sum PSDs, then a ratio) rather than by
     averaging per-case ratios: a band whose target is nearly empty would otherwise contribute
     a wild ratio with the same weight as a well-populated one.
+
+    ``leads`` selects which lead hours enter the aggregate; ``None`` means every lead. The
+    frozen gate uses ``FROZEN_LEADS``, and the all-lead aggregate is reported alongside it.
     """
     import numpy as np
 
@@ -438,6 +455,8 @@ def _band_aggregate(per_case, edges) -> list[dict]:
         px, py, cr = [], [], []
         for case in per_case:
             for lead in case["leads"]:
+                if leads is not None and lead["lead_hours"] not in leads:
+                    continue
                 row = lead["bands"][band]
                 px.append(row["psd_pred"])
                 py.append(row["psd_target"])
@@ -451,37 +470,59 @@ def _band_aggregate(per_case, edges) -> list[dict]:
     return rows
 
 
-def _p1_gate(points) -> dict:
+def _p1_gate(points, *, frozen_only: bool = True) -> dict:
     """Does ``1 - amp_ratio`` shrink with training exposure? The pre-declared Q decision.
 
-    ``gap_shrinks`` is true only if the finest bands' mean gap is **monotonically** smaller
-    across the exposure ladder, which is the strong form of "it is under-training". A
-    non-monotone sequence is reported as ``mixed`` and does **not** by itself cancel Q: the
-    brief's rule cancels Q when the gap shrinks, so anything else opens it. That asymmetry is
-    deliberate -- the gate is the only mechanism allowed to save the GPU budget, so it must be
-    hard to trip by accident while remaining able to trip.
+    The gate is evaluated on the bands of the **frozen five-lead** aggregate, because the goal
+    brief fixes P1 as ``5 leads``; the twelve-step aggregate is reported beside it under
+    ``all_leads`` so the lead-set choice cannot conceal a trend.
+
+    ``monotone_decrease`` requires the finest bands' mean gap to fall at every rung of the
+    exposure ladder. Anything else opens Q: the brief cancels Q only when the gap shrinks, so
+    the asymmetry is deliberate -- this gate is the only mechanism allowed to save the GPU
+    budget, and it must be hard to trip by accident while remaining able to trip.
     """
     import numpy as np
 
-    fine = []
-    for point in points:
-        gaps = [row["gap"] for row in point["bands"]
-                if row["band"] >= len(point["bands"]) // 2 and row["gap"] == row["gap"]]
-        fine.append(float(np.mean(gaps)) if gaps else float("nan"))
-    finite = [value for value in fine if value == value]
-    monotone_decrease = bool(len(finite) == len(fine) and len(finite) >= 2
-                             and all(later < earlier
-                                     for earlier, later in zip(finite, finite[1:])))
-    verdict = "skip-q" if monotone_decrease else "open-q"
-    if not monotone_decrease and len(finite) > 1 and fine[-1] < fine[0]:
+    def _fine_gaps(aggregate):
+        gaps = [row["gap"] for row in aggregate
+                if row["band"] >= len(aggregate) // 2 and row["gap"] == row["gap"]]
+        return float(np.mean(gaps)) if gaps else float("nan")
+
+    def _monotone(values) -> bool:
+        finite = [value for value in values if value == value]
+        return bool(len(finite) == len(values) and len(finite) >= 2
+                    and all(later < earlier for earlier, later in zip(finite, finite[1:])))
+
+    names = [point["name"] for point in points]
+    frozen_fine = [_fine_gaps(point["bands"]) for point in points]
+    all_fine = [_fine_gaps(point["bands_all_leads"]) for point in points]
+    monotone = _monotone(frozen_fine)
+    verdict = "skip-q" if monotone else "open-q"
+    if not monotone and len(frozen_fine) > 1 and frozen_fine[-1] == frozen_fine[-1] \
+            and frozen_fine[0] == frozen_fine[0] and frozen_fine[-1] < frozen_fine[0]:
         verdict = "mixed-trend"
+    per_band_frozen = []
+    for band in range(len(points[0]["bands"])):
+        per_band_frozen.append({
+            "band": band,
+            "gap_by_point": dict(zip(names, [p["bands"][band]["gap"] for p in points])),
+            "monotone_decrease": _monotone([p["bands"][band]["gap"] for p in points]),
+        })
     return {
-        "fine_band_mean_gap_by_point": dict(zip([p["name"] for p in points], fine)),
-        "monotone_decrease": monotone_decrease,
+        "lead_set": list(FROZEN_LEADS),
+        "fine_band_mean_gap_by_point": dict(zip(names, frozen_fine)),
+        "monotone_decrease": monotone,
         "verdict": verdict,
+        "all_leads": {
+            "lead_set": [6 * (step + 1) for step in range(12)],
+            "fine_band_mean_gap_by_point": dict(zip(names, all_fine)),
+            "monotone_decrease": _monotone(all_fine),
+        },
+        "per_band_frozen_leads": per_band_frozen,
         "rule": ("gap shrinking with exposure => the deficit is under-training and Q is "
                  "skipped; flat or growing => it is the loss geometry and Q opens "
-                 "(goal section 3.1)"),
+                 "(goal section 3.1); the gate reads the frozen five-lead aggregate"),
     }
 
 

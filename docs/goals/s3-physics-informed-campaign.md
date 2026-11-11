@@ -2,7 +2,7 @@
 
 <!-- round-node: S3 -->
 
-<!-- round-spec: {"arm": "s3-physics-informed-p", "driver": "scripts/r7_s3_spectral_geometry_probe.py", "output_stem": "r7_s3_spectral_geometry_20261111", "control_record": null, "seeds": [], "device_mode": "cpu", "test_path": ["tests/test_r7_spectral_geometry.py", "tests/test_r7_s3_spectral_geometry_probe.py", "tests/test_r7_s3_operator_j1_probe.py"], "commit_paths": ["training/r7_spectral_geometry.py", "training/r7_objective_axes.py", "scripts/r7_s3_spectral_geometry_probe.py", "scripts/r7_s3_operator_j1_probe.py", "tests/test_r7_s3_spectral_geometry_probe.py", "tests/test_r7_s3_operator_j1_probe.py", "docs/goals/s3-physics-informed-campaign.md", "docs/goals/main-model-climatology-campaign.md", "docs/plans/0030-thesis-physics-informed-mainline.md", "docs/decisions/0110-limited-area-multiscale-decomposition.md", "docs/decisions/README.md", "docs/plans/README.md", "docs/plans/0029-physics-operator-candidates.md", "docs/R7_PHYSICS_LOSS_LITERATURE_REVIEW.md"], "commit_message": "feat(r7): Stage P spectral-geometry probe -- limited-area rfft2 bands plus DCT cross-check", "register_paths": ["docs/R7_S3_SPECTRAL_GEOMETRY_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-physics-informed-campaign.md"], "register_message": "docs(r7): register Stage P spectral-geometry and J1 readings", "planned_seconds": 10800.0, "hard_cap_seconds": 21600.0, "code_archive": null} -->
+<!-- round-spec: {"arm": "s3-physics-informed-p", "driver": "scripts/r7_s3_spectral_geometry_probe.py", "output_stem": "r7_s3_spectral_geometry_20261111", "control_record": null, "seeds": [], "device_mode": "cpu", "test_path": ["tests/test_r7_spectral_geometry.py", "tests/test_r7_s3_spectral_geometry_probe.py", "tests/test_r7_s3_operator_j1_probe.py", "tests/test_r7_s3_j1_dose_probe.py"], "commit_paths": ["training/r7_spectral_geometry.py", "training/r7_objective_axes.py", "scripts/r7_s3_spectral_geometry_probe.py", "scripts/r7_s3_operator_j1_probe.py", "tests/test_r7_s3_spectral_geometry_probe.py", "tests/test_r7_s3_operator_j1_probe.py", "docs/goals/s3-physics-informed-campaign.md", "docs/goals/main-model-climatology-campaign.md", "docs/plans/0030-thesis-physics-informed-mainline.md", "docs/decisions/0110-limited-area-multiscale-decomposition.md", "docs/decisions/README.md", "docs/plans/README.md", "docs/plans/0029-physics-operator-candidates.md", "docs/R7_PHYSICS_LOSS_LITERATURE_REVIEW.md", "scripts/r7_s3_j1_dose_probe.py", "tests/test_r7_s3_j1_dose_probe.py"], "commit_message": "feat(r7): Stage P spectral-geometry probe -- limited-area rfft2 bands plus DCT cross-check", "register_paths": ["docs/R7_S3_SPECTRAL_GEOMETRY_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-physics-informed-campaign.md"], "register_message": "docs(r7): register Stage P spectral-geometry and J1 readings", "planned_seconds": 10800.0, "hard_cap_seconds": 21600.0, "code_archive": null} -->
 
 本文件是**唯一执行源**；机器可读的 `round-spec` 在上方。
 设计依据是不可变记录 `docs/plans/0030-thesis-physics-informed-mainline.md`（统一论证、三个 Stage、成本表与负面后果在那里）。
@@ -203,10 +203,12 @@
 
 - **已完成**：本长文与 `round-spec`；plan 0030；ADR 0110；三处事实修正；`training/r7_spectral_geometry.py`
   （区域分带 AMSE-analogue，接入 `training/r7_objective_axes.py` 唯一分发点）；两个探针接到真实数据；
-  **P0 四门全过**；**P1 判 `skip-q`**；**P2 三个方向全不过**；结果页 `docs/R7_S3_SPECTRAL_GEOMETRY_RESULT.md`；
+  **P0 四门全过**；**P1 判 `skip-q`**（冻结 5 lead，缺口 0.27871→0.25531→0.23296→0.22690）；
+  **P2 三个方向在 J1 与 J3 上都不过**；新增 `scripts/r7_s3_j1_dose_probe.py` 使 **dose 真正可判**
+  （散度 8.744–34.653、湿度 0、静力平衡无声明尺度）；结果页 `docs/R7_S3_SPECTRAL_GEOMETRY_RESULT.md`；
   证据索引 106 → **107** 条（`record:s3-spectral-geometry-stage-p`）
-- **未做**：**Stage Q 未启动**（P1 判 `skip-q`）；**Stage R 未启动**；未冻结任何协议；未改任何训练/模型代码
-  （新增的是损失模块，未被任何已注册轮使用）；未读 2023 test
+- **未做**：**Stage Q 未启动**（§3.1 预声明判据触发，理由见下）；**Stage R 未启动**（两个前置都不成立，
+  理由见下）；未冻结任何协议；未改任何训练/模型代码（新增的是损失模块，未被任何已注册轮使用）；未读 2023 test
 - **入口**：`.venv/bin/python tools/r7_round.py state` 核对 `current_round_goal` 指向本文件
 - **下一动作**：Stage P 已收口；下一轮的方向选择留给用户/复核者——候选是
   （a）把 `skip-q` 作为证伪章定稿、转向 Stage R 一类零训练后处理；
@@ -216,9 +218,34 @@
 
 ### 停在这里的理由（三选一中的第 2 条：达已冻结的科学停止条件）
 
-按 §3.1 的**预声明**规则，P1 细带缺口随训练量单调缩小（0.32346 → 0.29482 → 0.26783 → 0.25637）
-⇒ **Stage Q 必须跳过**。这是本目标长文写死的机制（"P1 是本轮唯一能阻止白烧 GPU 的机制，必须真的能触发"），
-它触发了。同时 P2 三个方向全部不过 ⇒ 没有任何物理算子方向可开轮。
+按 §3.1 的**预声明**规则，P1 细带缺口在**冻结的 5 lead** 口径下随训练量单调缩小
+（**0.27871 → 0.25531 → 0.23296 → 0.22690**）⇒ **Stage Q 必须跳过**。这是本目标长文写死的机制
+（"P1 是本轮唯一能阻止白烧 GPU 的机制，必须真的能触发"），它触发了。同时 P2 三个方向在
+**J1 与 J3 两个门上都不过** ⇒ 没有任何物理算子方向可开轮。
+
+### Stage Q：**不启动**，理由是预声明判据触发（不是被省略）
+
+objective 写的是"按三 Stage 一次跑到底"，所以这里必须说清 Q 为什么没有跑，而不是让它看起来像漏做：
+
+| 出口前条件 | 状态 |
+| --- | --- |
+| P1 缺口随训练量**缩小** ⇒ 跳过 Q（§3.1） | **触发**：5 lead 下 0.27871 → 0.22690，四档单调下降 |
+| P0 硬门任一门不过 ⇒ 停 | 未触发（四门全过） |
+
+判据是**预声明**的、且本轮没有改动它。跳过 Q 直接省下约 **12 GPU-h**（2 臂 × 3 seed × 4,000 updates）。
+若仍要开 Q，必须先**另立 ADR** 说明为何无视 §3.1 的判据——那属于"事后放宽已冻结的判据"，本目标禁止。
+
+### Stage R：**不启动**，理由是两个前置都不成立
+
+| R 的前置（plan 0030 §3.3） | 状态 |
+| --- | --- |
+| P1 证实 `amp_ratio ≈ coh` | **只到"相容"**：5 lead 下 `mean|amp − coh|` 为 0.037–0.048、`max` 0.149–0.179，不是等式 |
+| 谱几何损失那条链成立 | **不成立**：Q 已跳过，R 要校正的"振幅缺口"已被 P1 判定为**欠训练成分占主导**，后处理校正失去动机 |
+
+R 还是一个**纯评估**轮（约 5–15 GPU-h），它的出口是"五 lead skill 与 RMSE 不劣化 24/48/72 h"——
+在缺口主要是欠训练的前提下，按相干性反演振幅很可能只是把一个欠训练的场重新缩放，
+这既没有解析依据也不再对应 plan 0030 的论证。**不得**在没有新 ADR 的情况下开它。
+
 
 **恢复第一条命令**（若要继续）：
 
