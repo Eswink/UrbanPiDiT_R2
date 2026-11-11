@@ -199,9 +199,33 @@
 
 ## §8 进度块
 
-**状态**：`prepared`（2026-11-11 建立，**未启动**）
+**状态**：**Stage P 已测量并登记（2026-11-11）**；`scientific_claim: false`、`test_read: false`、`r = 0`、**0 GPU-h**
 
-- **已完成**：本长文与 `round-spec`；plan 0030 归档；ADR 0110；三处事实修正（0029 §4.1、文献页 §7、两处 README 索引）
-- **未做**：P0/P1/P2 全部未跑；Q 与 R 未开轮；**0 GPU-h**；未冻结任何协议；未改任何模型/训练代码；未读 test
-- **入口**：`tools/r7_round.py state` 核对 `current_round_goal` 指向本文件
-- **下一动作**：写 `scripts/r7_s3_spectral_geometry_probe.py`、`scripts/r7_s3_operator_j1_probe.py` 与两个测试文件，跑 `round-guard`，然后执行 P0
+- **已完成**：本长文与 `round-spec`；plan 0030；ADR 0110；三处事实修正；`training/r7_spectral_geometry.py`
+  （区域分带 AMSE-analogue，接入 `training/r7_objective_axes.py` 唯一分发点）；两个探针接到真实数据；
+  **P0 四门全过**；**P1 判 `skip-q`**；**P2 三个方向全不过**；结果页 `docs/R7_S3_SPECTRAL_GEOMETRY_RESULT.md`；
+  证据索引 106 → **107** 条（`record:s3-spectral-geometry-stage-p`）
+- **未做**：**Stage Q 未启动**（P1 判 `skip-q`）；**Stage R 未启动**；未冻结任何协议；未改任何训练/模型代码
+  （新增的是损失模块，未被任何已注册轮使用）；未读 2023 test
+- **入口**：`.venv/bin/python tools/r7_round.py state` 核对 `current_round_goal` 指向本文件
+- **下一动作**：Stage P 已收口；下一轮的方向选择留给用户/复核者——候选是
+  （a）把 `skip-q` 作为证伪章定稿、转向 Stage R 一类零训练后处理；
+  （b）在**新的**预声明下扩大 P1 到三 seed 以量化端点间方差；
+  （c）转向 plan 0030 之外的近邻方向（守恒/连续方程/CRPS）。
+  **不得**因本轮不通过而换名重开 C1/C2（0094 / 0109）。
+
+### 停在这里的理由（三选一中的第 2 条：达已冻结的科学停止条件）
+
+按 §3.1 的**预声明**规则，P1 细带缺口随训练量单调缩小（0.32346 → 0.29482 → 0.26783 → 0.25637）
+⇒ **Stage Q 必须跳过**。这是本目标长文写死的机制（"P1 是本轮唯一能阻止白烧 GPU 的机制，必须真的能触发"），
+它触发了。同时 P2 三个方向全部不过 ⇒ 没有任何物理算子方向可开轮。
+
+**恢复第一条命令**（若要继续）：
+
+```bash
+.venv/bin/python tools/r7_round.py state
+```
+
+**未做的事要写清**：P1 只覆盖单 seed 的 4 个端点，端点间差异含未量化运行间方差；
+接缝占比 0.9921 使该分解的绝对数值带未量化偏差；band 边界未扫；
+`skip-q` 只否掉这 4 个端点上的 Q 动机，**不得外推**为"AMSE-analogue 无效"。

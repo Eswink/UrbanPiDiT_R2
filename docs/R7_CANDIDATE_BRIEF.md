@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 106; human-review candidates: 2
+Records: 107; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1927,6 +1927,27 @@ Records: 106; human-review candidates: 2
 - CI run: `42374118124`
 - Excluded from runnable candidates: not a candidate and not a scientific result: no training run, no protocol, no arms. It is the record of an opening precondition failing, which is exactly what decision 0084 section 6 asks for.
 - Recorded metrics (not recomputed): abs_divergence_p95_analysis_s_inv=7.2998e-05, abs_divergence_p95_model_s_inv=2.3913e-05, blocking_convention_rules_failing=0, bundle_analysis_over_model_ratio_max=15.481, bundle_analysis_over_model_ratio_mean=10.222, bundle_analysis_over_model_ratio_min=6.503, cases_measured=8, cases_where_analysis_charged_more=8, dew_point_term_analysis_mean=2.7204e-05, dew_point_term_model_mean=9.3815e-05, dimensionless_fix_grad_ratio_endpoint_max=1.244, dimensionless_fix_grad_ratio_endpoint_min=0.5029, dimensionless_fix_grad_ratio_parent_max=4.104, dimensionless_fix_grad_ratio_parent_min=2.103, divergence_term_analysis_mean=8.4703, divergence_term_model_mean=0.8286, gpu_hours=0.0, humidity_term_analysis_mean=0.0, humidity_term_model_mean=0.0, legacy_vs_spherical_magnitude_ratio=3407000000.0, mean_abs_divergence_analysis_s_inv=2.5063e-05, mean_abs_divergence_model_s_inv=8.5227e-06, pre_fix_grad_ratio_parent_max=0.001013, pre_fix_grad_ratio_parent_min=2.728e-10, protocol_frozen=false, q850_min_analysis_kgkg=0.001051, q850_min_model_kgkg=0.0021055, q850_negative_fraction=0.0, round_opened=false, test_read=false, tests_passing=24, train_batches_only=true, val_read=false
+
+## s3-spectral-geometry-stage-p
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `60` (not a scientific score)
+- Evidence: `docs/R7_S3_SPECTRAL_GEOMETRY_RESULT.md` (SHA256 `4b15fab6df31a7de525286fc0bfd9381132258b6ae532f49cfc517dc2af8a463`)
+- Evidence commit: `b44de4997104869e015fe3a6631414445d53c476`; experiment commit: `04409939d22bc00bd9452bd39ed7a07d1abb0fe7`
+- Protocol SHA256: `not recorded`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Stage P was measured with no GPU time. P0 passes all four gates on the real 65x65 regional field: Parseval holds to 5.64e-16, the DCT-II energy agrees with the spatial energy on all 17 channels, the AMSE-analogue scores exactly 0.0 when prediction equals target, and the J2 counter-example (fine-band energy moved into the coarse bands) scores 549.5046 against that zero, so the guard can fail. The periodic seam energy ratio is 0.9921 mean and 0.99975 max and is reported without a threshold, per decision 0110. P1 measures the amplitude gap 1-amp_ratio on 4 endpoints x 8 cases x 12 leads x 17 channels and finds it shrinking monotonically across exposure (0.32346, 0.29482, 0.26783, 0.25637), so the predeclared rule says the deficit is under-training and Stage Q is skipped. P2 applies the J1 direction gate at 8 cases: the analysis field is charged more than the model in 6/8 cases for hydrostatic balance, 2/8 for column divergence and 5/8 for moisture, so under J1's same-sign-in-every-case requirement all three directions fail; dose is null for all of them because the registered normalised MSE denominator was not recomputed, so no direction could open a round regardless. A single-case reading taken first said A=3.41x (fail), B=0.804 (pass), D=0.367 (pass); at eight cases that inverted, which is the round's clearest methodological result. Two numerical facts decide whether the family argument can be made at all and are recorded as measured: torch.abs(z)**2 differs from re^2+im^2 in 8291/50000 random spectra, and the literal 2*max(P)*1-coh is nonzero at pred==target in 8291/50000, so the rationalised equivalent form is used and gives exact zeros in both fp32 and fp64.
+- Limitations:
+  - P1 covers 4 single-seed Stage B endpoints, so the between-endpoint differences carry unquantified run-to-run variance; the monotone gap decrease is a trend, not a significance test.
+  - The periodic seam energy ratio is 0.9921 mean and 0.99975 max on this regional patch, so every absolute spectral number carries an unquantified bias; only relative comparisons are supported.
+  - Band edges (0/1/2/4/8/16/corner) are a frozen choice and were not scanned, so stability under a different partition is untested.
+  - The DCT-II cross-check shares the same 65x65 grid, so it cannot exclude grid resolution as the driver of the conclusion.
+  - Only 4 of 6 bands are strictly monotone in gap; band 0 and band 5 each reverse once, so the summary gate rests on a fine-band mean rather than on every band.
+  - J1 was measured at 8 cases but for one model (p1600) on one store; A reversed in 6/8, B in 2/8 and D in 5/8, so no direction is openable, but this does not license a claim that the equations are physically wrong.
+  - Dose (J3) is null for every direction because the registered normalised MSE denominator was not recomputed, so even a direction that passed J1 could not open a round.
+  - The two probes passed all 37 blocking convention rules and 41 tests as skeletons before this round; CI green did not establish that any measurement existed.
+  - scientific_claim false, test_read false, r = 0; the 2023 test split was never read.
+- Excluded from runnable candidates: Not a candidate and not a scientific result: no training run, no protocol, no arms. This is Stage P, a CPU-only opening precondition, and its verdict (skip-q) plus three failed J1 directions are opening criteria rather than readings.
+- Recorded metrics (not recomputed): blocking_convention_rules_failing=0, gpu_hours=0.0, p0_amse_after_coarsening=549.5046382277552, p0_amse_at_truth=0.0, p0_dct_agrees=true, p0_parseval_relative_error=5.641359628382066e-16, p0_seam_energy_ratio_max=0.999750053431235, p0_seam_energy_ratio_mean=0.992118, p1_cases=8, p1_fine_band_gap_by_point={"p0025": 0.32345893764231215, "p1000": 0.2948167348901654, "p1600": 0.2563669077478997, "p4000": 0.2678320639476988}, p1_leads=12, p1_monotone_decrease=true, p1_verdict=skip-q, p2_A_cases_reversed=6, p2_B_cases_reversed=2, p2_D_cases_reversed=5, p2_cases=8, p2_directions_openable=0, protocol_frozen=false, round_opened=false, stage=P, test_read=false, tests_passing=43, tests_skipped=1, val_read=false
 
 ## s4-fy-2016-first-confirmation
 
