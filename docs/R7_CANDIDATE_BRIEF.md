@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 108; human-review candidates: 2
+Records: 109; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1907,6 +1907,25 @@ Records: 108; human-review candidates: 2
   - scientific_claim false, test_read false, r = 0; the 2023 test split was never opened.
 - Excluded from runnable candidates: Not a candidate and not a scientific result: no training run, no protocol, no arms. It is the feasibility pre-check that closes Stage R before any GPU time is spent, which is the outcome plan 0030 section 3.3 asks for.
 - Recorded metrics (not recomputed): band_amp_ratio_mean=[0.9273594267945204, 0.866161740343314, 0.7588133503150799, 0.7770049933675538, 0.8094614677295233, 0.9933137452680697], band_amp_ratio_std=[0.06156907780711309, 0.11109250557978266, 0.07427024621187461, 0.06375416876124398, 0.06081521563474436, 0.07760534124630318], band_count=6, band_multiplier=[1.078330549198779, 1.1545187849138172, 1.3178471353789083, 1.2869930161786758, 1.2353892555317334, 1.0067312616620703], band_samples_total=120, bands_with_bounded_multiplier=6, bands_with_stable_ratio=6, blocking_convention_rules_failing=0, d2_n_selected_steps=32144, gpu_hours=0.0, overshoot_band5_windows=8, overshoot_band_samples=13, protocol_frozen=false, round_opened=false, stage=R-feasibility, statement=not-opened, test_read=false, tests_passing=14, val_read=true, val_windows_read=20
+
+## s3-amplitude-correction-negative
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `60` (not a scientific score)
+- Evidence: `docs/R7_S3_AMPLITUDE_CORRECTION_RESULT.md` (SHA256 `30a4861af18710481cd879e210bd9ad3004b1650fd3d93e2985b218820b82e7a`)
+- Evidence commit: `df83123bf357fe29b16cdce9d3156812b9832c3a`; experiment commit: `df83123bf357fe29b16cdce9d3156812b9832c3a`
+- Protocol SHA256: `not recorded`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Stage R was executed as the declared deliverable: multipliers fitted on 40 train windows from 2000-2021, reported on 40 validation windows from 2022, with the registered D2 denominator recomputed rather than assumed (n_selected_steps 32144, matches true). The correction is 1/amp_ratio per radial band with no free parameter. Every one of the five leads degrades. 72h t2m skill falls from -0.0321 to -0.8380, and the exit leads 24/48/72 lose 0.6795, 0.5969 and 0.8059 skill while RMSE rises by 0.0929, 0.0731 and 0.0787, so the pre-declared exit ('skill and RMSE must not degrade at 24/48/72 h') is false and the branch is recorded negative. The mechanism is legible: band 0 overshoots already (train amp_ratio 1.0299) so its multiplier is 0.9710 while bands 1-5 are amplified by 1.09-1.40, which adds variance that is incoherent with the truth rather than restoring structure, and coherence does not improve with amplitude. The failure is worst on t2m (6h skill 0.5233 to -0.1904) because t2m's energy sits in the coarse bands whose multiplier is below one. This negative also supersedes a self-authored feasibility threshold: the previous round declined to run R on a probe I invented, which was not a predeclared criterion, and running the declared exit was the correct action. Note what this does not say: the amplitude deficit is real (P1 measured it shrinking with training), and AMSE as a training loss remains untested because Stage Q was skipped by its own predeclared rule.
+- Limitations:
+  - 40 train and 40 validation windows out of 1,458 available; the degradations agree in sign across all five leads, but the magnitudes carry no computed interval and must not be quoted as precise effect sizes.
+  - One endpoint and one seed (p1600, seed41); weaker endpoints carry larger deficits and more aggressive multipliers, so the degradation could be larger there and this result must not be extrapolated to all models.
+  - The correction form is fixed at 1/amp_ratio with no free parameter, which is what keeps the exit falsifiable; it does not exclude that some parameterised spectral correction would help.
+  - Only the six frozen radial bands from decision 0110 were used; other partitions or correction forms are untested.
+  - The seam energy ratio of 0.9921 measured in Stage P applies to these spectra too, so absolute numbers carry an unquantified bias.
+  - This is an AMSE-analogue post-processing test on a limited-area grid, not a test of AMSE, and not a test of the training-time loss (Stage Q was skipped by its own predeclared rule).
+  - scientific_claim false, test_read false, r = 0; the 2023 test split was never opened.
+- Excluded from runnable candidates: The pre-declared exit failed: skill and RMSE degrade together at 24/48/72 h, so the post-hoc amplitude correction is a negative result and nothing from it is a candidate.
+- Recorded metrics (not recomputed): artifact_sha256=1cabdd69c6156c0afa307c230cc4ea20a55cc2f6fcb00859da321cc04f7de3c0, blocking_convention_rules_failing=0, d2_matches_registered=true, d2_n_selected_steps=32144, exit_leads_degraded=[24, 48, 72], exit_leads_mixed=[], exit_passed=false, gpu_hours=0.0, multiplier_by_band=[0.9709508783612035, 1.3001006692590793, 1.3749782667925574, 1.400495713675987, 1.3357128072696858, 1.0851286002220795], protocol_frozen=false, rmse_after_by_lead=[0.26536614001776415, 0.2811813439195702, 0.2646767203559463, 0.275415730929298, 0.3138330074020963], rmse_before_by_lead=[0.16793884332647774, 0.19301819641873286, 0.17177770625935476, 0.2023469683651978, 0.23517449353814945], rmse_delta_by_lead=[0.09742729669128641, 0.08816314750083737, 0.09289901409659154, 0.07306876256410019, 0.07865851386394684], skill_after_by_lead=[-0.19035052808510478, -0.34536039096982973, -0.17400205774552013, -0.29698122155454887, -0.8379515059741538], skill_before_by_lead=[0.523254975024711, 0.36603958774770007, 0.5054946807106664, 0.29991687774202136, -0.03208922979767648], skill_delta_by_lead=[-0.7136055031098157, -0.7113999787175298, -0.6794967384561865, -0.5968980992965702, -0.8058622761764773], stage=R, test_read=false, tests_passing=19, train_amp_ratio_by_band=[1.0299182196403451, 0.7691712062342795, 0.7272842227046413, 0.7140328886657028, 0.7486639302681298, 0.9215497589827996], train_windows=40, val_read=true, val_windows=40, verdict=negative
 
 ## s3-derivative-matching-c2-result
 
