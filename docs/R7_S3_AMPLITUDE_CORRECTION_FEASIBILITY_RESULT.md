@@ -1,10 +1,31 @@
 # S3 Stage R 可行性探针：**按相干性反演振幅在 2022 val 上不成立**
 
 - **日期**：2026-11-11（UTC）
-- **状态**：`not-opened` —— R 的**前置探测**（不是 R 本身）已跑完，结论是否决
+- **状态**：**已被取代（superseded）** —— 本页的 `not-opened` 判定**错误**，见下方取代说明；
+  页面内的**实测数字仍然有效**（20 窗口谱量），只有基于它们做出的「R 不开轮」这一判定被推翻
 - **`scientific_claim: false`；`test_read: false`；`r = 0`；GPU-h = 0**（纯 CPU）
 - **判据来源**：`docs/goals/s3-physics-informed-campaign.md` §3.3（R 的出口）、plan 0030 §3.3
 - **本轮 Stage P**：`docs/R7_S3_SPECTRAL_GEOMETRY_RESULT.md`
+- **取代者**：`docs/R7_S3_AMPLITUDE_CORRECTION_RESULT.md`（R 已完整执行，判定 `negative`）
+
+---
+
+## §0 取代说明（2026-11-11 追加，原文一字未改）
+
+本页曾以「band 5 过冲 8/20、val 与 train 谱不一致」为由判 R `not-opened`，**不开轮**。这个判定是**错的**，
+错误不在于观测（那 20 个窗口的谱量读得对，本页 §3 的表格与 P1 的 train 端点确实不同），而在于**推理的越界**：
+
+- plan 0030 §3.3 与目标长文都把 R 列为**无条件交付物**，并给了**预声明出口**；
+- 用一份**自创的**可行性门槛取消一个已声明交付物，等于用代理证据替代实测；
+- 本页 §4.2「val 与 train 谱不一致 ⇒ 会过度放大」这条推断**方向上是对的**，但它不是判据——
+  §5.4 自己也写了「未测校正后的 skill 与 RMSE」。
+
+R 后来按已冻结出口**完整执行**（train 40 窗口拟合 / val 40 窗口报告 / 五 lead / D2 分母重算逐位一致），
+结果记在 `docs/R7_S3_AMPLITUDE_CORRECTION_RESULT.md`：**24/48/72 h 的 skill 与 RMSE 同向劣化**，
+`verdict = negative`。那个 negative 与**本页的推断同向**，但只有实跑能给出量级——推断预测了劣化，
+**没有**预测到 0.6–0.8 个 skill 的幅度，也没有显示 t2m 会掉得远比其他通道重。
+
+**保留本页的意义**：它是「代理证据不能替代实测」这条纪律的实证案例，与决策 0111 记录的同一类错误配对。
 
 ---
 
@@ -123,11 +144,15 @@ P1 已测出缺口随训练量单调缩小（0.27871 → 0.22690），即它主�
 | R 的前置（`amp_ratio ≈ coh`） | **相容而非证实**（`mean|amp − coh|` 0.037–0.048） |
 | 校正乘子的稳定性 | 稳定（6/6 带 std < 0.15） |
 | 校正乘子的方向正确性 | **不成立**（13/120 样本 `amp_ratio > 1`，其中 band 5 占 8 例） |
-| **Stage R** | **`not-opened`、0 GPU-h、不产生 `posthoc_amplitude_correction.json`** |
+| **Stage R**（本页原判定，**已被取代**） | `not-opened`、0 GPU-h、不产生 `posthoc_amplitude_correction.json` |
+| **Stage R**（实际执行结果） | **`negative`** —— `posthoc_amplitude_correction.json` 已产出，24/48/72 h 全部劣化 |
 
 **怎么做才可能成立**（留给下一轮，需新 ADR）：只在 `amp_ratio < 1` 稳定的 mid-band（2–4）上校正，
 并把出口改成"这三个带的 skill 与 RMSE 不劣化"而不是"五 lead 全部不劣化"。
 那是对 R 的**重新定义**，不是本轮可以顺手做的事。
+
+**注意**：上面这条"怎么做才可能成立"也是**推断**，未经实测。已执行的 R 用的是无条件全带 `1/amp_ratio`，
+它失败并不能证明这个受限版本也会失败——但它同样不能证明会成功。要判定它，需要新一轮的预声明出口。
 
 ---
 
