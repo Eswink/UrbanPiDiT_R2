@@ -53,7 +53,7 @@ REFUSED_WORKERS = ("prepare", "archive", "seed", "seeding", "reading")
 
 #: One registered train case: the same window C1 and C2 measured, so the direction
 #: columns can be held against those results without a new split.
-CASES = (1000,)
+CASES = (1000, 5000, 9000, 13000, 17000, 21000, 25000, 29000)
 
 
 def thickness_coefficient(lower_hpa: float, upper_hpa: float) -> float:
@@ -202,7 +202,12 @@ def j1_verdict(penalty_analysis: float, penalty_model: float, dose,
     return {
         "penalty_analysis": penalty_analysis,
         "penalty_model": penalty_model,
-        "ratio_analysis_over_model": ratio,
+        # Strict JSON has no ``Infinity``. An exactly-zero model penalty makes the ratio
+        # unbounded; reporting the non-finite float would make the whole record unparseable
+        # for any strict reader, and a probe whose output cannot be parsed is not evidence.
+        # The fact is kept in ``ratio_unbounded`` so nothing is hidden by the null.
+        "ratio_analysis_over_model": ratio if ratio is None or math.isfinite(ratio) else None,
+        "ratio_unbounded": bool(ratio == float("inf")),
         "dose": dose if finite_dose else None,
         "inert_on_both_sides": bool(inert),
         "passes_j1": bool(passes_j1),
@@ -233,16 +238,16 @@ def main(argv=None):
                   for low, high in LEVEL_PAIRS}}
     try:
         record["units"] = _unit_report()
-        analysis, prediction = _real_fields()
+        cases = _real_fields()
         record["real_fields"] = {
-            "measured": analysis is not None,
+            "measured": cases is not None,
             "analysis_side": "physical_targets[0, -1] denormalised (the +72 h analysis field)"
-            if analysis is not None else None,
+            if cases is not None else None,
             "model_side": "p1600 rollouts[0, -1] denormalised (the +72 h forecast)"
-            if prediction is not None else None,
-            "case": CASES[0] if analysis is not None else None,
+            if cases is not None else None,
+            "cases": [entry["case"] for entry in cases] if cases is not None else None,
         }
-        record["directions"] = _direction_rows(analysis, prediction)
+        record["directions"] = _direction_rows(cases)
     except Exception as exc:  # noqa: BLE001 - record, never raise, so the verdict is written
         record["error"] = f"{type(exc).__name__}: {exc}"
         record["traceback_tail"] = traceback.format_exc().strip().splitlines()[-8:]
@@ -307,7 +312,7 @@ def _unit_report() -> dict:
     return report
 
 
-def _direction_rows(store_fields=None, model_fields=None, edges=None) -> dict:
+def _direction_rows(cases=None, edges=None) -> dict:
     """One row per candidate. Real fields when supplied, synthetic construction otherwise.
 
     The synthetic branch is kept as a labelled control: it constructs a truth that satisfies
@@ -359,83 +364,103 @@ def _direction_rows(store_fields=None, model_fields=None, edges=None) -> dict:
         "note": ("synthetic control only: it proves the residual and the constructor agree, "
                  "which says nothing about this atmosphere"),
     }
-    if store_fields is None or model_fields is None:
+    if cases is None:
         return synthetic
     return {"source": "store", "synthetic_control": synthetic,
-            "real": _real_direction_rows(store_fields, model_fields, edges=edges)}
+            "real": _real_direction_rows(cases, edges=edges)}
 
 
-def _real_direction_rows(analysis, prediction, edges=None) -> dict:
-    """J1 on the same fields C1 died on: this store's analysis vs the p1600 model's forecast.
+def _real_direction_rows(cases, edges=None) -> dict:
+    """J1 across every registered case: this store's analysis vs the p1600 model's forecast.
 
     Every direction is measured on **both** sides with one function and one set of units, so
     the only difference between the two columns is the field itself -- C1's comparison design,
-    which is what made its 10.2x result a property of the term rather than of the setup.
+    which is what made its 10.2x a property of the term rather than of the setup.
 
-    Units: the store's ``z*`` channels are **geopotential** (``m**2 s**-2``). Both sides are
+    Units: the store's ``z*`` channels are **geopotential** (``m**2 s**-2``), so both sides are
     divided by ``g`` before the hydrostatic residual, because that residual is in metres.
-    ``t*`` is already Kelvin. Doing this only on one side would manufacture a direction.
+    ``t*`` is already Kelvin. Doing this on one side only would manufacture a direction.
+
+    A direction passes only if it passes **in every case** (``all_cases``), which is J1's
+    "逐例一致" requirement; the pooled means are reported alongside so a single outlier cannot
+    hide behind an average.
     """
     import torch
     from model.r7_process_tensor_diagnostics import spherical_divergence
 
-    latitude = analysis["latitude"]
-    longitude = analysis["longitude"]
+    records = []
+    for entry in cases:
+        analysis, prediction = entry["analysis"], entry["prediction"]
+        latitude, longitude = analysis["latitude"], analysis["longitude"]
 
-    def divergences(fields):
-        out = {}
-        for name, (u, v) in (("850", ("u850", "v850")), ("500", ("u500", "v500")),
-                             ("250", ("u250", "v250"))):
-            out[name] = spherical_divergence(fields[u], fields[v], latitude, longitude)
-        return out
+        def divergences(fields):
+            out = {}
+            for name, (u_channel, v_channel) in (
+                    ("850", ("u850", "v850")), ("500", ("u500", "v500")),
+                    ("250", ("u250", "v250"))):
+                out[name] = spherical_divergence(fields[u_channel], fields[v_channel],
+                                                 latitude, longitude)
+            return out
 
-    penalties = {"A_hydrostatic": [], "B_column_divergence": [], "D_moisture_negative": []}
-    for side in (analysis, prediction):
-        z_height = {name: side[name] / GRAVITY for name in ("z850", "z500", "z250")}
-        a = _penalty(hydrostatic_residual(z_height["z850"], z_height["z500"],
-                                          side["t850"], side["t500"], 850.0, 500.0))
-        div = divergences(side)
-        b = _penalty(column_divergence_residual(div["850"], div["500"], div["250"]))
-        moisture = moisture_violations(side["q850"], side["t850"], 850.0)
-        negative = _penalty(moisture["negative"])
-        supersaturated = _penalty(moisture["supersaturated"])
-        penalties["A_hydrostatic"].append(a)
-        penalties["B_column_divergence"].append(b)
-        # The moisture direction is the sum of both violations: ``q >= 0`` alone was a dead
-        # term in C1 (0.0 on both sides while carrying weight 0.5), so reporting only that
-        # column would repeat the defect that made C1's humidity row uninformative.
-        penalties["D_moisture_negative"].append(negative + supersaturated)
-        penalties.setdefault("D_negative_only", []).append(negative)
-        penalties.setdefault("D_supersaturated_only", []).append(supersaturated)
+        sides = {}
+        for label, fields in (("analysis", analysis), ("model", prediction)):
+            z_height = {name: fields[name] / GRAVITY for name in ("z850", "z500", "z250")}
+            hydrostatic = _penalty(hydrostatic_residual(
+                z_height["z850"], z_height["z500"], fields["t850"], fields["t500"],
+                850.0, 500.0))
+            div = divergences(fields)
+            column = _penalty(column_divergence_residual(div["850"], div["500"], div["250"]))
+            moisture = moisture_violations(fields["q850"], fields["t850"], 850.0)
+            negative = _penalty(moisture["negative"])
+            supersaturated = _penalty(moisture["supersaturated"])
+            sides[label] = {"A_hydrostatic": hydrostatic,
+                            "B_column_divergence": column,
+                            "D_moisture_negative": negative + supersaturated,
+                            "D_negative_only": negative,
+                            "D_supersaturated_only": supersaturated}
+        records.append({"case": entry["case"],
+                        "analysis": sides["analysis"], "model": sides["model"]})
 
-    # The dose's denominator is the normalised-space MSE, which needs the exact loss the
-    # training path uses; without it the dose is reported as null rather than guessed.
     rows = {}
     for name in ("A_hydrostatic", "B_column_divergence", "D_moisture_negative"):
-        analysis_penalty, model_penalty = penalties[name]
-        rows[name] = j1_verdict(analysis_penalty, model_penalty, dose=None)
-        rows[name]["penalty_units"] = {
+        analysis_values = [record["analysis"][name] for record in records]
+        model_values = [record["model"][name] for record in records]
+        per_case = [j1_verdict(a, m, dose=None) for a, m in zip(analysis_values, model_values)]
+        pooled = j1_verdict(sum(analysis_values) / len(analysis_values),
+                            sum(model_values) / len(model_values), dose=None)
+        pooled["passes_j1_all_cases"] = bool(all(row["passes_j1"] for row in per_case))
+        pooled["cases_worse_than_model"] = int(sum(1 for row in per_case if not row["passes_j1"]))
+        pooled["case_count"] = len(records)
+        pooled["per_case_ratio"] = [row["ratio_analysis_over_model"] if
+                                    row["ratio_analysis_over_model"] is None
+                                    or math.isfinite(row["ratio_analysis_over_model"])
+                                    else None for row in per_case]
+        pooled["penalty_units"] = {
             "A_hydrostatic": "m^2 (residual in metres, then mean square)",
             "B_column_divergence": "s^-2 (sum of three divergences, then mean square)",
             "D_moisture_negative": "(kg/kg)^2 (both moisture violations)",
         }[name]
+        # ``passes_j1`` on the pooled row is the direction at the mean; the J1 criterion is
+        # "same sign in every case", so the all-cases field is what a decision should read.
+        pooled["passes_j1"] = pooled["passes_j1_all_cases"]
+        rows[name] = pooled
     rows["D_breakdown"] = {
-        "negative_only": {"analysis": penalties["D_negative_only"][0],
-                          "model": penalties["D_negative_only"][1]},
-        "supersaturated_only": {"analysis": penalties["D_supersaturated_only"][0],
-                                "model": penalties["D_supersaturated_only"][1]},
-    }
+        label: {"analysis": sum(r["analysis"][label] for r in records) / len(records),
+                "model": sum(r["model"][label] for r in records) / len(records)}
+        for label in ("D_negative_only", "D_supersaturated_only")}
     rows["dose_note"] = ("dose = penalty/L_mse needs the registered normalised MSE for these "
                          "exact cases; it is null here rather than approximated, because a "
                          "guessed denominator would make J3 unfalsifiable")
     return rows
 
 
-def _real_fields() -> tuple[dict | None, dict | None]:
-    """This store's analysis and the p1600 model's +72 h forecast on one case.
+def _real_fields() -> list[dict] | None:
+    """This store's analysis and the p1600 model's +72 h forecast, for every registered case.
 
-    Read-only. Returns ``(None, None)`` when the store or the endpoint is unavailable, so the
-    probe reports a synthetic-only run instead of inventing a real measurement.
+    Read-only. Returns ``None`` when the store or the endpoint is unavailable, so the probe
+    reports a synthetic-only run instead of inventing a real measurement. One case is not
+    enough for a direction: C1's 10.2x held 8/8, and a single case could be a lead-effect
+    accident (see decision 0094's note on cross-lead pairing).
     """
     import numpy as np
     import torch
@@ -470,12 +495,10 @@ def _real_fields() -> tuple[dict | None, dict | None]:
         curve.TRAIN_MANIFEST, physical_steps=len(curve.PHYSICAL_WEIGHTS),
         expected_exclusions=body["train_windows"]["excluded_sample_ids"],
         expected_window_sha256=body["train_windows"]["window_sha256"])
-    case = CASES[0]
-    batch = {key: value.unsqueeze(0) for key, value in dataset[case].items()
-             if torch.is_tensor(value)}
-    result = training_long_rollout(model, batch, curve.REASONING_STEPS,
-                                   physical_weights=curve.PHYSICAL_WEIGHTS,
-                                   supervision_mask=None)
+    batches = []
+    for case in CASES:
+        batches.append((case, {key: value.unsqueeze(0) for key, value in dataset[case].items()
+                               if torch.is_tensor(value)}))
     # The rollout gives **normalised** fields (the dataset normalises on read), while the
     # constraint formulas only make sense in physical units, so *both* sides are mapped back
     # with the store's own constants -- identically, so the comparison stays fair.
@@ -500,15 +523,21 @@ def _real_fields() -> tuple[dict | None, dict | None]:
         """
         return fields.to(torch.float64) * std.reshape(shape) + mean.reshape(shape)
 
-    analysis_fields = physical(batch["physical_targets"][0, -1])   # [C, H, W]
-    prediction_fields = physical(result.forecasts[0, -1].detach())  # [C, H, W]
-    analysis = {name: analysis_fields[index] for index, name in enumerate(names)}
-    prediction = {name: prediction_fields[index] for index, name in enumerate(names)}
-    _assert_physical_units(analysis)
-    for fields in (analysis, prediction):
-        fields["latitude"] = latitude
-        fields["longitude"] = longitude
-    return analysis, prediction
+    cases = []
+    for case, batch in batches:
+        result = training_long_rollout(model, batch, curve.REASONING_STEPS,
+                                       physical_weights=curve.PHYSICAL_WEIGHTS,
+                                       supervision_mask=None)
+        analysis_fields = physical(batch["physical_targets"][0, -1])        # [C, H, W]
+        prediction_fields = physical(result.forecasts[0, -1].detach())      # [C, H, W]
+        analysis = {name: analysis_fields[index] for index, name in enumerate(names)}
+        prediction = {name: prediction_fields[index] for index, name in enumerate(names)}
+        _assert_physical_units(analysis)
+        for fields in (analysis, prediction):
+            fields["latitude"] = latitude
+            fields["longitude"] = longitude
+        cases.append({"case": case, "analysis": analysis, "prediction": prediction})
+    return cases
 
 
 def _assert_physical_units(analysis) -> None:
