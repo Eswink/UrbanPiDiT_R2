@@ -201,6 +201,57 @@
 
 **状态**：**Stage P 已测量并登记（2026-11-11）**；`scientific_claim: false`、`test_read: false`、`r = 0`、**0 GPU-h**
 
+### §8.0 objective 指定的 workflow 执行机制：**第一遍未使用，已于 2026-11-12 补跑**
+
+**这是一条具名机制的偏离记录，不是省略。** objective 写明执行方式是
+`.zcode/workflow-drafts/r7-physics-informed-round.dwf.ts`，用 `CreateWorkflow` 传
+`path` + `args {maxRounds: 1, dryRun: false}` 启动，该草稿自带 **P0 硬门分支、P1/P2 并行、
+两名独立复核者、判定点与 artifact**。**第一遍的 Stage P 与 Stage R 全部由会话内直跑脚本完成，
+该 workflow 一次都没有被启动**，且当时没有在 §8 或 ADR 里记为偏离。
+
+**补跑（run `dwfrun-b5bacc8d-edf0-4b15-a753-ede8b355ae56`，completed，18m32s，5 phase / 15 step）**：
+
+| 阶段 | 实跑结果 |
+| --- | --- |
+| `state` 核对 | 退出码 0，解出本轮 round-spec |
+| P0 硬门 | 退出码 0，四门全过（`passes_hard_gate: true`） |
+| P1 ∥ P2 | `Promise.all` 两个进程同在 `15:51` 启动、各约 3–4 min（**真并行**） |
+| 两名独立复核者 | P1 复核者 38,949 tokens、P2 复核者 1,471,458 tokens，**并发** |
+| 判定点 | 产出 `stage-p-report`（markdown，5,062 B，primary）与 `stages` 表 |
+
+**三个产物与直跑版本逐位相同**（这是**独立第二条执行路径**的复现，不是同进程重复读数）：
+
+| 产物 | 字节 | sha256 |
+| --- | ---: | --- |
+| `p0_decomposition.json` | 6,789 | `dfcbcb0661c77e36de8934e2235141d207395cece1f6de0d2f4d5eb8fe73cbdf` |
+| `p1_amplitude_coherence.json` | 635,531 | `5a42521fdf28d7ea3ef08c91610826701636fb32a21d91ef90de949b537e11ad` |
+| `p2_j1_gates.json` | 7,828 | `79fd9666cf5900be5755fefa42299ba25bb36848123bd6546ae8da27a3536ccb` |
+
+**补跑直接改了三条记录（这是补跑的价值，不是形式）**：
+
+1. **判定行曾写反**：初版脚本用 `p1Verdict.passed` 换出「P1 缺口支持开 Q」，而缺口缩小的复核
+   结论恰是 `passed=true` + 「应跳过 Q」⇒ 交付页判定行与同页复核结论**自相矛盾**。
+   已改为由复核者的结构化字段 `qDecision`（`open`/`skip`/`unresolved`）决定。
+   中途试过的正则方案**没有采用**：真实措辞同时提到「跳过」与「开路」，那条正则对**相反**的结论
+   也返回 `unresolved`，等于只会说一种话——三分支已用 snippet 逐一验证可达。
+2. **§4.2 的惰性例数错**：原文写「4 个 case 两侧同时为 0」，产物实测 **5 例**
+   （`per_case_ratio` = `[0.3673, 0.0, null, null, null, null, 0.0, null]` ⇒ 1 例比较、
+   2 例精确 `0.0` 通过、5 例惰性）。已按产物更正。
+3. **§7 的 p0/p1 digest 漂移**：登记的是更早一次运行的 digest 与字节数，产物在接线修正后被重写。
+   已按当前产物实测重填。
+
+**没改的**：`skip-q` 与「三个方向全不过」的判定本身。复核者读的是**同一份产物**（逐位相同），
+补跑能确认读数，不能把「按 §3.1 应该跳过」变成「应该开」。P1 复核者独立给出的方向也是 `skip`
+（`qDecision` 语义上等价；该轮交付页的判定行因上述缺陷写反，以它自己的 `summary` 为准）。
+
+**这一条的代价如实记**：第一遍**缺少外部印证**。workflow 带来的不是新数字，是
+「两名互不共享上下文的复核者在判定点之前独立读过产物」这一层，而 Q 的跳过恰恰需要外部印证。
+补跑补的是**记录**，不能改变「当时没做」。
+
+**仍未完成的**：`dwfrun-e2c93b44`（判定修正轮）在两名复核者处遇到 provider 侧连续空 turn
+（4 轮 `text_len=0`），已按 `model` 停止，该轮未产出 artifact。**判定修正逻辑本身已由
+snippet 三分支验证**；`b5bacc8d` 的两份复核全文仍在它的 `reports[4]`/`reports[5]` 里可查。
+
 - **已完成**：本长文与 `round-spec`；plan 0030；ADR 0110；三处事实修正；`training/r7_spectral_geometry.py`
   （区域分带 AMSE-analogue，接入 `training/r7_objective_axes.py` 唯一分发点）；两个探针接到真实数据；
   **P0 四门全过**；**P1 判 `skip-q`**（冻结 5 lead，缺口 0.27871→0.25531→0.23296→0.22690）；
