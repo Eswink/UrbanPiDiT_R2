@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 107; human-review candidates: 2
+Records: 108; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1889,6 +1889,24 @@ Records: 107; human-review candidates: 2
   - The invalid first K1 harness run is retained but excluded from conclusions.
 - Excluded from runnable candidates: Mixed depth trade-off; requires a separately frozen hypothesis before any follow-up.
 - Recorded metrics (not recomputed): free_scaling_supported=false, gpu_hours=0.5, independent_k1_result=mixed, phase=c3, seeds=3, test_read=false
+
+## s3-amplitude-correction-feasibility-veto
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `60` (not a scientific score)
+- Evidence: `docs/R7_S3_AMPLITUDE_CORRECTION_FEASIBILITY_RESULT.md` (SHA256 `1a5d24580545a7e8371b57095cccdca79c8b8e7e8051a49fb87f5dab48fc25fe`)
+- Evidence commit: `57d4dd5a90c5f879fa7759d9a5676f57bf6f615e`; experiment commit: `57d4dd5a90c5f879fa7759d9a5676f57bf6f615e`
+- Protocol SHA256: `not recorded`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Stage R's pre-condition is that P1 showed amp_ratio ~= coh; P1 measured compatibility (mean|amp-coh| 0.037-0.048) rather than equality, so a zero-GPU feasibility probe asked the three questions that decide whether a coherence-derived amplitude correction can work. On 20 validation windows the six bands' amp_ratio is stable (std 0.0616-0.1111) and every multiplier is bounded (1.007-1.318), so the deficit is a property of the model rather than of the window. But 13 of 120 band-by-window samples have amp_ratio > 1, with band 5 alone contributing 8 of 20 windows: its mean ratio is 0.9933, so that band has essentially no deficit and its multiplier sits below one in the overshooting windows, where the correction would amplify error instead of fixing it. Two further facts block the original design. First the validation spectra differ from the training endpoint's (band 5 0.9933 versus 0.8635 in P1, band 4 0.8095 versus 0.6989), while Stage R was specified as fit-on-train report-on-val, so the fitted multiplier would describe a different distribution than the one it is applied to. Second P1 established that the deficit shrinks monotonically with training, i.e. it is mostly under-training, and rescaling variance does not restore phase: the gap between amp_ratio and coherence stays at 0.037-0.048 and does not converge. Stage R is therefore not opened, costs 0 GPU-h, and produces no posthoc_amplitude_correction.json. A version restricted to the mid bands where amp_ratio < 1 holds consistently would be a redefinition of R and needs a new ADR.
+- Limitations:
+  - Only 20 of 1,458 validation windows were read; the overshoot fraction 13/120 has a wide interval and must not be quoted as a precise rate.
+  - Only the six frozen radial bands and the single p1600 endpoint at one seed were measured; weaker endpoints carry larger deficits and fewer overshoots, so the veto does not transfer to them.
+  - No corrected skill or RMSE was computed: the page vetoes the precondition (the multiplier's direction is reversed in some bands), not the claim that any correction would be worse.
+  - The seam energy ratio of 0.9921 measured in Stage P applies to these spectra too, so absolute numbers carry an unquantified bias and only relative comparisons are supported.
+  - The validation reader is EvaluationPreparation so the window definition matches the scoring path; ZarrLongRolloutDataset was rejected for val on purpose and was not worked around.
+  - scientific_claim false, test_read false, r = 0; the 2023 test split was never opened.
+- Excluded from runnable candidates: Not a candidate and not a scientific result: no training run, no protocol, no arms. It is the feasibility pre-check that closes Stage R before any GPU time is spent, which is the outcome plan 0030 section 3.3 asks for.
+- Recorded metrics (not recomputed): band_amp_ratio_mean=[0.9273594267945204, 0.866161740343314, 0.7588133503150799, 0.7770049933675538, 0.8094614677295233, 0.9933137452680697], band_amp_ratio_std=[0.06156907780711309, 0.11109250557978266, 0.07427024621187461, 0.06375416876124398, 0.06081521563474436, 0.07760534124630318], band_count=6, band_multiplier=[1.078330549198779, 1.1545187849138172, 1.3178471353789083, 1.2869930161786758, 1.2353892555317334, 1.0067312616620703], band_samples_total=120, bands_with_bounded_multiplier=6, bands_with_stable_ratio=6, blocking_convention_rules_failing=0, d2_n_selected_steps=32144, gpu_hours=0.0, overshoot_band5_windows=8, overshoot_band_samples=13, protocol_frozen=false, round_opened=false, stage=R-feasibility, statement=not-opened, test_read=false, tests_passing=14, val_read=true, val_windows_read=20
 
 ## s3-derivative-matching-c2-result
 
