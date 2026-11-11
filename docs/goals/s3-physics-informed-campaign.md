@@ -206,14 +206,16 @@
   **P0 四门全过**；**P1 判 `skip-q`**（冻结 5 lead，缺口 0.27871→0.25531→0.23296→0.22690）；
   **P2 三个方向在 J1 与 J3 上都不过**；新增 `scripts/r7_s3_j1_dose_probe.py` 使 **dose 真正可判**
   （散度 8.744–34.653、湿度 0、静力平衡无声明尺度）；结果页 `docs/R7_S3_SPECTRAL_GEOMETRY_RESULT.md`；
-  证据索引 106 → **107** 条（`record:s3-spectral-geometry-stage-p`）
+  证据索引 106 → **109** 条（`record:s3-spectral-geometry-stage-p`、`record:s3-amplitude-correction-feasibility-veto`、`record:s3-amplitude-correction-negative`）；**决策 0111** 把 Q 的跳过从执行者推断升格为具名 ADR
 - **未做/按判据不开**：**Stage Q = `predeclared-skip`**（§3.1 判据触发，理由见下，0 GPU-h）；
   未冻结任何协议；未改任何训练/模型代码（新增的是损失模块，未被任何已注册轮使用）；未读 2023 test
 - **已执行**：**Stage R = `negative`**（train 40 窗口拟合 / val 40 窗口报告 / 五 lead / D2 分母
   `n_selected_steps` 重算为 32144 且匹配；24/48/72 h 的 skill 与 RMSE **同向劣化** ⇒ 预声明出口为假），
   产出 `posthoc_amplitude_correction.json`（`sha256 1cabdd69…`），0 GPU-h
 - **入口**：`.venv/bin/python tools/r7_round.py state` 核对 `current_round_goal` 指向本文件
-- **下一动作**：Stage P 已收口，Q 与 R 都已按判据给出结论（前者预声明跳过、后者可行性否决）。
+- **下一动作**：Stage P 已收口，Q 与 R 都已按判据给出结论（前者**预声明跳过**、后者**已执行并记 negative**——
+  R 早先的「可行性否决」是本执行者的错误推断，已由 `docs/R7_S3_AMPLITUDE_CORRECTION_FEASIBILITY_RESULT.md`
+  页头的取代说明与决策 0111 的「前置裁定」一并撤回）。
   下一轮的方向选择留给用户/复核者——候选是
   （a）把 `skip-q` 与 R 的否决一起作为证伪章定稿；
   （b）在**新的**预声明下扩大 P1 到三 seed 以量化端点间方差；
