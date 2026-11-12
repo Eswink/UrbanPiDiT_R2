@@ -234,6 +234,20 @@ def _terms(px, py, cr):
     ``2*M*(P_x*P_y - cross^2) / (P_x*P_y*(1 + coh))``. Algebraically identical, but exactly
     zero when the two fields are bitwise equal -- which the literal form is not, in roughly
     one sample in six (module docstring, decision 0110's J4 test).
+
+    **The rationalised form is singular at ``coh = -1``** (perfect anti-phase), where the
+    denominator ``P*Q*(1+coh)`` vanishes while the numerator ``P*Q - cross^2`` is a floating
+    point residue rather than an exact zero. The single-bin DC band reaches this exactly, and
+    the division then returns ``inf`` rather than the correct limit ``2*max(P,Q)*(1-coh) =
+    4*max(P,Q)`` -- the *maximum* penalty, not a small one. Measured on a real 6 h pair of
+    ``v10`` at store frame 1464: ``P=802.585``, ``Q=93.396``, ``cross=-273.785``, so
+    ``coh=-1.0`` and the rationalised second term came back ``inf`` where the literal value is
+    ``3210.34``. A ``where`` that zeroes the whole term at ``coh <= -1`` would be worse still:
+    it would report perfect anti-phase as a perfect match.
+
+    So the literal form is used wherever ``1 + coh`` is not safely positive, which is the only
+    branch where it differs in value; everywhere else the rationalised form keeps the exact-zero
+    property that decision 0110's family argument depends on.
     """
     amplitude = (torch.sqrt(px) - torch.sqrt(py)) ** 2
     product = px * py
@@ -242,7 +256,13 @@ def _terms(px, py, cr):
     # detach the graph or break under vmap/compile. Empty bands get a zero second term.
     safe_product = torch.where(product > 0.0, product, torch.ones_like(product))
     coherence = cr / torch.sqrt(safe_product)
-    second = 2.0 * torch.maximum(px, py) * degeneracy / (safe_product * (1.0 + coherence))
+    denominator = safe_product * (1.0 + coherence)
+    rationalised = 2.0 * torch.maximum(px, py) * degeneracy / torch.where(
+        denominator > 0.0, denominator, torch.ones_like(denominator))
+    literal = 2.0 * torch.maximum(px, py) * (1.0 - coherence)
+    # Both branches are evaluated; pick per element. ``0/0`` or ``x/0`` in the discarded
+    # branch produces inf/nan and would poison a gradient, so it is replaced first.
+    second = torch.where(denominator > 0.0, rationalised, literal)
     second = torch.where(product > 0.0, second, torch.zeros_like(second))
     return amplitude, second
 
