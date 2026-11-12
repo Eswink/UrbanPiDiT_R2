@@ -278,6 +278,62 @@ def amse_analogue(prediction, target, *, edges: list[float] | None = None):
     return (first + second).mean()
 
 
+def per_channel_amse(prediction, target, *, edges: list[float] | None = None):
+    """One AMSE-analogue value per channel, as a differentiable ``[C]`` tensor.
+
+    ``band_powers`` sums over every leading axis, so the pooled loss mixes all 17 variables
+    before any per-variable weight could apply. Stage A needs the per-channel split, and
+    decision 0112 makes ``beta_j`` a weight **per variable**, so the channel axis has to stay
+    separate until the weighting. ``prediction``/``target`` are ``[B, C, H, W]``; the batch axis
+    is averaged, the channel axis is not.
+
+    Pairing is the deployment one: the rollout's forecast at step ``n`` against that step's own
+    ``physical_targets[:, n]``.
+    """
+    if prediction.shape != target.shape:
+        raise ValueError(f"prediction {tuple(prediction.shape)} and target "
+                         f"{tuple(target.shape)} must have the same shape")
+    if prediction.ndim != 4:
+        raise ValueError("per_channel_amse expects [B, C, H, W]")
+    channels = prediction.shape[1]
+    values = [amse_analogue(prediction[:, index], target[:, index], edges=edges)
+              for index in range(channels)]
+    return torch.stack(values)
+
+
+def beta_weighted_amse(forecasts, targets, beta, *, edges: list[float] | None = None):
+    """FastNet equation (10)'s shape on the per-variable axis: a **pure sum** of ``beta_j AMSE_j``.
+
+    Read from ``arXiv:2509.17601`` §4.1.3 (equation 10) on 2026-11-12::
+
+        L_MSH = (1/|D_batch|) sum_{d0} (1/T_train) sum_tau sum_j s_j w_j beta_j
+                x sum_k gamma_k AMSE_{j,k}(x_hat, x)
+
+    Two properties matter for this implementation and both are read off that formula rather
+    than chosen here: the variable sum is **not** divided by ``J`` or by ``sum_j beta_j``, and
+    there is **no** per-gridpoint MSE term added beside it. ``s_j w_j`` are the paper's own
+    per-variable weights; this round sets them to 1, so the only variable-level factor is
+    ``beta_j`` -- that is the single factor the round varies.
+
+    ``beta`` is frozen into the protocol and passed in; nothing here recomputes it, so the
+    weights the loss uses are the ones the protocol records (decision 0112 D2).
+    """
+    if beta.ndim != 1:
+        raise ValueError("beta must be a [C] tensor")
+    if forecasts.shape[2] != beta.numel():
+        raise ValueError(f"beta has {beta.numel()} entries but the field has "
+                         f"{forecasts.shape[2]} channels")
+    if forecasts.shape[:2] != targets.shape[:2]:
+        raise ValueError(f"forecast shape {tuple(forecasts.shape)} does not pair with target "
+                         f"shape {tuple(targets.shape)}; the deployment pairing is "
+                         f"[B,N,...] against [B,N,...]")
+    total = forecasts.new_zeros(())
+    for step in range(forecasts.shape[1]):
+        per_channel = per_channel_amse(forecasts[:, step], targets[:, step], edges=edges)
+        total = total + (beta * per_channel).sum()
+    return total / forecasts.shape[1]
+
+
 def spectral_geometry_term(result, moved, contract):
     """``training/r7_objective_axes.py``'s entry point for a ``spectral_geometry`` round.
 
@@ -287,6 +343,17 @@ def spectral_geometry_term(result, moved, contract):
     forecast against that step's own ``physical_targets``, exactly as the skill metric pairs
     them. C2's failure mode was a term built from a *derived* quantity only; this one is the
     forecast field itself, reweighted across bands.
+
+    The return value is a **dict with a ``total`` key**, matching what ``constraint_term`` and
+    ``matching_term`` return. An earlier version returned a bare tensor, which
+    ``r7_long_rollout_runner._update``'s ``result.loss + constraint["total"]`` would have
+    crashed on at the first update -- the axis had never been run end to end (Stage Q was
+    skipped), so the mismatch went unseen. ``test_the_axis_matches_the_runner_contract`` pins
+    it.
+
+    With ``beta`` in the contract this is FastNet equation (10)'s form (a pure
+    ``sum_j beta_j AMSE_j``); without it, the axis keeps the unweighted pooled AMSE, which is
+    what Stage P measured.
     """
     axis = contract["autoregression"].get("spectral_geometry")
     if axis is None:
@@ -301,8 +368,17 @@ def spectral_geometry_term(result, moved, contract):
         raise ValueError(f"forecast shape {tuple(forecasts.shape)} does not pair with target "
                          f"shape {tuple(targets.shape)}; the deployment pairing is "
                          f"[B,N,...] against [B,N,...]")
-    losses = [amse_analogue(forecasts[:, step], targets[:, step]) for step in range(forecasts.shape[1])]
-    return torch.stack(losses).mean()
+    declared = contract["autoregression"].get("beta_weights")
+    if declared is None:
+        losses = [amse_analogue(forecasts[:, step], targets[:, step])
+                  for step in range(forecasts.shape[1])]
+        total = torch.stack(losses).mean()
+        return {"spectral_geometry": total, "beta_weighted": forecasts.new_zeros(()), "total": total}
+    beta = torch.as_tensor(declared, dtype=forecasts.dtype, device=forecasts.device)
+    if not bool(torch.isfinite(beta).all()) or bool((beta <= 0).any()):
+        raise ValueError("every beta_j must be finite and strictly positive")
+    total = beta_weighted_amse(forecasts, targets, beta)
+    return {"spectral_geometry": total, "beta_weighted": total, "total": total}
 
 
 def seam_energy_ratio(field) -> float:
