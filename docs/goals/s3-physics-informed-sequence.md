@@ -212,13 +212,49 @@
 
 ## §8 进度块
 
-**状态**：`prepared`（2026-11-12 建立，**Step A 未启动**）
+**状态**：`attempt02-running`（2026-11-12）。attempt01 **作废于一个真实缺陷**，见下。
 
-- **已完成**：Step C（0 GPU-h，α=0.05111、β 跨度 86.75×、`verdict=open-a`）；`_terms` 奇点修复
-  （`inf` → 3210.34，精确零守住）；23 项反证测试全过；plan 0031；决策 0112；本长文与 `round-spec`
-- **未做**：Step A 的 `beta_weights` 未加进训练路径；未写 Step A 驱动；**未重做父迁移**；
-  未冻协议、未开 GPU；**GPU-h = 0**；Step B 未碰
-- **入口**：`tools/r7_round.py state` 核对 `current_round_goal` 指向本文件
-- **下一动作**：在 `training/r7_spectral_geometry.py` 加 `beta_weights`（默认 off 逐位不变），
-  写 Step A 驱动与测试，`round-guard` 过关后**重做父迁移**（`_terms` 修复改了 `training_code_sha256`），
-  再冻 `protocol.json`
+### 2026-11-12 attempt01：作废（2 × 8,600 s，**未产生任何读数**）
+
+- **实跑到了哪一步**：Step C 门 `open-a`（JSON 解析，非子串）→ `code.zip` 14,045,019 B
+  （`sha256 9c056aa7ab2f7611dd4d7928d17ee23a8d8f3026b50477f4d3ddc838b03fe82b`，zip comment =
+  `2718fa4`）→ `freeze` → `prepare` 674.6 s（β_j 重导 + (e) 预检全过）→ `archive` 5.5 s →
+  `stage-seeds` 在 seed41/42 的 **on 臂第一次 update** 处崩溃
+- **缺陷（我写的）**：`band_powers` 里 `hermitian_weights()` 与 `radial_band_index()` 建在
+  **CPU** 上，而 `spectrum_x` 在 `cuda:0` ⇒
+  `RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!`
+- **为什么整套测试没抓到**：29 项测试当时全过，但它们与 Stage P1 探针一样**全在 CPU** 上跑
+  （P1 从不调 `model.to(device)`）。这条轴是第一次在 GPU 训练路径上被真正调用。
+  **教训**：`(e)` 预检在 CPU 上跑，所以它能证明「量级正确」，但**不能**证明「能在 GPU 上跑」
+- **代价如实记**：seed41 + seed42 两个 worker（双卡并行）各约 8,600 s ⇒ 合计约 **4.8 GPU-h 浪费**。
+  off 臂的 `training_report.json` 与 `update_0004000.pt` 留在 attempt01 目录里（**作废，不登记为读数**）
+- **修复**（`f333ca0`）：`weights`/`index` 跟随 `prediction.device`；`band_statistics` 显式
+  `.detach().cpu()`。新增两条**真 CUDA 反证测试**（`test_the_loss_runs_on_cuda_not_just_cpu`、
+  `test_the_axis_entry_point_runs_on_cuda`），在无 GPU 的机器上 skip —— 这正是为什么不能只靠绿测试，
+  还要真实运行的记录
+- **GPU 冒烟实测**（重开前，不进协议）：真实形状 `[4,12,17,65,65]` 在 `cuda:0` 上
+  `total=10116.26`、有限、梯度有限且非零、off 路径仍 `None`、峰值 122 MiB
+- **attempt02 必须重做冻结**：修复改了 `training/r7_spectral_geometry.py`，它在
+  `execution_files_sha256`（96 个文件）里，所以 attempt01 的 protocol **不能**复用
+
+### 已完成（累计）
+
+- Step C（0 GPU-h，α=0.05111、β 跨度 86.75×、`verdict=open-a`）；`_terms` 奇点修复
+  （`inf` → 3210.34，精确零守住）；plan 0031；决策 0112；本长文与 `round-spec`
+- `β_j` 逐变量加权实现（`per_channel_amse` + `beta_weighted_amse`，式 (10) 纯求和形式）与
+  **返回形状修复**（裸 tensor → `{"total": ...}`，否则 `_update` 的 `constraint["total"]` 必崩）
+- 剂量裁决在冻结前写定：实测 `amse_total / L_mse` ∈ **[58.02, 95.22]** ⇒ MSE 只占
+  1.04%–1.69%，on 臂训练的就是论文 §4.1 的 MSH 制度本身，**不是**「MSE + 小修正」
+- 三条前提被实测推翻并更正（§1.2b、决策 0112 代价③）：`_terms` 修复**没有**改
+  `training_code_sha256`（spectral 模块不在 runner 的 `SOURCE_FILES`）、**父迁移不需要重做**、
+  这条轴的接线此前**不完整**
+
+### 未做
+
+- Step A 的读数（attempt02 在跑）；Step B 未碰（须 ADR 0113）；2023 test 未读；`r = 0`
+
+**恢复第一条命令**：
+
+```bash
+.venv/bin/python tools/r7_round.py state
+```
