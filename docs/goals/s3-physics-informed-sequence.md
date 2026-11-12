@@ -57,7 +57,28 @@
 `inf`（真实 6 h `v10` 对：`P=802.585`、`Q=93.396`、`cross=−273.785`；字面极限 **3210.34**；
 1459 帧中命中 108/201）。修法：`1+coh` 不为正时用字面形式，其余保留有理化形式以维持
 `amse(x,x)` **精确为 0**。**否决**「在 `coh ≤ −1` 置零」——那会把完全反相报成完美匹配。
-**这改了 `training_code_sha256`**，Step A 必须重做父迁移。
+
+### §1.2b 执行 Step A 时纠正的三条前提（2026-11-12 实测）
+
+上一条与 0112 代价③都写「这改了 `training_code_sha256`，Step A 必须重做父迁移」。
+**实测不成立**，三条一并更正：
+
+| 主张 | 实测 | 证据 |
+| --- | --- | --- |
+| `_terms` 修复改了 `training_code_sha256` | **没有**。`training/r7_spectral_geometry.py` 不在 runner 的 `SOURCE_FILES`（17 个）里，带/不带该修复两侧 digest **都是** `e767411883ce…` | `git stash push -- training/r7_spectral_geometry.py` 前后各跑一次 `training_code_digest()` |
+| 父迁移必须重做 | **不需要**。`model_code_sha256` 仍是 `5934071062…`（与 `parent_pins.MODEL_CODE_SHA256` 相等），三个父 checkpoint 文件 SHA 与 pin 相等，`load_checkpoint` 全部通过并报 `updates=1600` | 逐 seed 跑 `pinned_parent` + `load_checkpoint` |
+| `spectral_geometry` 轴接线完整 | **不完整**：`spectral_geometry_term` 返回**裸 tensor**，而 `_update` 执行 `result.loss + constraint["total"]` ⇒ 第一次 update 就 `IndexError: too many indices for tensor of dimension 0`。Q 轮被跳过，所以这个接口不匹配从未暴露 | 直接调用实测；修法与反证测试见 §1.3 与 `tests/test_r7_s3_spectral_geometry_a.py::test_the_axis_matches_the_runner_contract` |
+
+改动留痕落在 `execution_files_sha256` 上（它覆盖 spectral 模块），不落在
+`training_code_sha256` 上。**父迁移未做，因为它是无对象的操作**——为一条错误前提再跑一次迁移
+只会产生一个与现有 pin 逐位相同的新目录。
+
+**第四条纠正（来自一手文献）**：`arXiv:2509.17601` 式 (10) 是
+`Σ_j s_j w_j β_j Σ_k γ_k AMSE_{j,k}` 的**纯求和**——不除以 J、不除以 Σβ_j，且**没有**并行的
+逐格点 MSE 项。所以 `β_j` 归一的实现是 `Σ_j β_j AMSE_j`，不是「MSE + 小修正」。
+本仓 runner 无法移除 MSE（597/600 行，R-051），只能让 MSE 变成残差；实测剂量 58.0–95.2
+使这个残差占 1.03%–1.69%，故 on 臂训练的就是论文 §4.1 的 MSH 制度本身。**这条在冻结前写定**
+（`dose_decision`），不能事后从结果反读。
 
 ### §1.3 基础设施（复用，不新建）
 

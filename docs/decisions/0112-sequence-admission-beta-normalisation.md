@@ -130,6 +130,14 @@ B 的三处改动（预训练期、单位方差归一化、逐变量权重）**�
    **代价**：若年际漂移大，`β_j` 本身会带一个未记录的偏差。
 3. **修 `_terms` 改了 `training_code_sha256`。** A 轮的父迁移与代码身份必须重做，不能沿用 Stage P 的身份。
    **代价**：多一次父迁移的开销，且 A 与 Stage P 不再是同一代码身份。
+   **⚠ 2026-11-12 执行 Step A 时实测更正：这条不成立。** `training/r7_spectral_geometry.py`
+   **不在** `training/r7_long_rollout_runner.py` 的 `SOURCE_FILES`（17 个）里，所以带/不带该修复
+   `training_code_sha256` **都是** `e767411883ce47887eb11557f3cd16c4b2ad07ca2e06f74c28f33aaa384e81b0`
+   （`git stash push -- training/r7_spectral_geometry.py` 前后各跑一次
+   `training.r7_long_rollout_runner.training_code_digest()` 实测）。`model_code_sha256` 仍是
+   `5934071062…`、与 `parent_pins.MODEL_CODE_SHA256` 相等，三个父 checkpoint 的文件 SHA 与 pin
+   相等且 `load_checkpoint` 全部通过（`updates=1600`）⇒ **父迁移不需要重做**，它不是被跳过而是
+   没有对象。改动留痕落在 `execution_files_sha256`（它覆盖 spectral 模块）上。本条其余部分不变。
 4. **A 只有 4,000 updates。** FastNet 的微调日程是 36,525 + 4×7,305 步，我们短得多。
    **代价**：若 AMSE 需要更长适应期，4,000 步的阴性可能是剂量不足造成的假阴性——
    这正是 C1 栽过的坑（`s_^-2` 量纲事故让轴完全不能作用）。缓解：出口 (a) 判**细带振幅比**这个
