@@ -143,7 +143,16 @@ def band_powers(prediction, target, edges: list[float] | None = None):
     edges = list(edges) if edges is not None else band_edges(height, width)
     index, count = radial_band_index(height, width, edges)
     dtype = torch.float64 if prediction.dtype == torch.float64 else torch.float32
-    weights = hermitian_weights(width).to(dtype)
+    # **The weights and the band map must follow the field's device.** ``hermitian_weights`` and
+    # ``radial_band_index`` build their tensors on CPU; the spectrum is on whatever device the
+    # model is on. Multiplying them raised ``RuntimeError: Expected all tensors to be on the same
+    # device, but found at least two devices, cuda:0 and cpu`` -- measured on the first GPU
+    # update of Stage A seed 41/42 (2 x 8,600 s spent before it fired). Every earlier caller was
+    # CPU-only (the Stage P1 probe never calls ``model.to(device)``), which is why the defect
+    # survived until a training round used the axis.
+    device = prediction.device
+    weights = hermitian_weights(width).to(device=device, dtype=dtype)
+    index = index.to(device)
     spectrum_x = torch.fft.rfft2(prediction.to(dtype), norm="ortho")
     spectrum_y = torch.fft.rfft2(target.to(dtype), norm="ortho")
     power_x = (spectrum_x.real * spectrum_x.real
@@ -183,6 +192,11 @@ def band_statistics(prediction, target, edges: list[float] | None = None) -> lis
     index, _ = radial_band_index(prediction.shape[-2], prediction.shape[-1],
                                  list(edges) if edges is not None
                                  else band_edges(prediction.shape[-2], prediction.shape[-1]))
+    # ``float()`` on a CUDA scalar works, but the report's numbers must not depend on when a
+    # sync happens; detaching to CPU once is both cheaper and explicit. The device fix above
+    # makes this reachable from a GPU training round (the amplitude read in Stage A's reading
+    # stage runs on the evaluation device).
+    px, py, cr = px.detach().cpu(), py.detach().cpu(), cr.detach().cpu()
     rows = []
     for band in range(count):
         rows.append({"band": band, "bins": int((index == band).sum()),

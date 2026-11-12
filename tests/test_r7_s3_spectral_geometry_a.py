@@ -396,3 +396,51 @@ def test_the_dose_decision_can_name_the_inert_regime():
     mixed = proto.dose_decision([0.5, 5.0])
     assert mixed["on_arm_is_the_paper_regime"] is False
     assert "mixed" in mixed["regime"]
+
+
+# ------------------------------------------------------------- the defect that cost two seeds
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="a GPU is needed to reproduce it")
+def test_the_loss_runs_on_cuda_not_just_cpu():
+    """The first GPU update of Stage A died here: weights and band map were built on CPU.
+
+    Measured 2026-11-12 on seeds 41/42: both spent ~8,600 s on an off arm and then raised
+    ``RuntimeError: Expected all tensors to be on the same device, but found at least two
+    devices, cuda:0 and cpu`` from ``band_powers``. Every earlier caller was CPU-only (the
+    Stage P1 probe never calls ``model.to(device)``), so no test could see it.
+
+    This test asserts the whole weighted loss, its gradient, and the reporting path all work on
+    the device the field is on. It is skipped on a CPU-only machine -- which is exactly why the
+    round also needs the real run's record, not just a green suite.
+    """
+    forecast, target = _pair(batch=1, steps=2, channels=17, size=65)
+    beta = torch.linspace(0.01, 0.5, 17)
+    device = torch.device("cuda:0")
+    forecast = forecast.to(device).requires_grad_(True)
+    target = target.to(device)
+    total = geometry.beta_weighted_amse(forecast, target, beta.to(device))
+    assert total.device.type == "cuda", f"the loss landed on {total.device}"
+    assert torch.isfinite(total)
+    total.backward()
+    assert forecast.grad is not None and bool(torch.isfinite(forecast.grad).all())
+    # The reporting path shares ``band_powers``, so it must survive the same device.
+    rows = geometry.band_statistics(forecast[0, 0].detach(), target[0, 0])
+    assert len(rows) >= 4
+    assert all(math.isfinite(row["psd_pred"]) for row in rows)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="a GPU is needed to reproduce it")
+def test_the_axis_entry_point_runs_on_cuda():
+    """The dispatcher's path, not just the maths: ``spectral_geometry_term`` on a GPU batch."""
+    forecast, target = _pair(batch=1, steps=2, channels=17, size=65)
+    device = torch.device("cuda:0")
+    result = _Result(forecast.to(device))
+    contract = {"autoregression": {"spectral_geometry": "amse-analogue",
+                                   "beta_weights": [0.1] * 17}}
+    term = geometry.spectral_geometry_term(result, {"physical_targets": target.to(device)},
+                                           contract)
+    assert term["total"].device.type == "cuda"
+    assert torch.isfinite(term["total"])
+    # The runner's expression, on the device a real update uses.
+    objective = result.loss.to(device) + term["total"]
+    assert torch.isfinite(objective)
