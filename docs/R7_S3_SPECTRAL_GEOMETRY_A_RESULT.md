@@ -52,6 +52,7 @@ Step A 问的是一个可失败的问题：**把 FastNet 式 (10) 的逐变量 �
 | `readings.json` sha256 | `c53d645faf97b710a8d91d71e6c9ddc84a55becf008bcc56b9af930689ed1e1d` |
 | 执行闭包 | 96 个文件（含 `training/r7_spectral_geometry.py` 与驱动） |
 | 产物目录 | `outputs/r7_s3_spectral_geometry_a_20261112_attempt02/` |
+| CI | `R7 CPU CI` run **43363119418** on `94a3795` — **success**，9/9 步全绿 |
 
 **可复现等级**：`config-reproducible`（协议 + 代码归档 + 三 seed receipt 齐全；GPU 训练**不是**
 逐位可复现，见 §7）。**没有**逐位重放证据，因此**不得**声称 bit-identical。

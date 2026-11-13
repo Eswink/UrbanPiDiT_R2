@@ -227,7 +227,7 @@
 **⇒ `verdict = permanently-close-the-spectral-geometry-branch`。** 交付物 D1–D6 全部产出：
 冻结协议（`protocol_sha256 75897e51…`）、代码身份归档（zip comment = `9fb7a19`）、
 逐 seed receipt（三份，各含父身份与 s/update）、十七变量 × 五 lead 读数（含 `exit_conditions`）、
-证据页 `docs/R7_S3_SPECTRAL_GEOMETRY_A_RESULT.md`（`sha256 84c0699e…`，含 §6.4 的四次修复记录）、index record
+证据页 `docs/R7_S3_SPECTRAL_GEOMETRY_A_RESULT.md`（`sha256 867b0c9f…`，含 §6.4 的四次修复记录）、index record
 `s3-spectral-geometry-a-negative`、账本行、master §8、campaign-state。
 
 **这个负结果的性质要说准**：不是「项没起作用」。**(a) 三 seed 一致升高、臂间差比 seed 间离散大一个
