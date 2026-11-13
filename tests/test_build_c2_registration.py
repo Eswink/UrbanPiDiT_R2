@@ -26,6 +26,16 @@ PROTOCOL_FIELDS = {
 }
 EVIDENCE = ROOT / "docs/R7_S3_THROUGHPUT_PHYSICS_B_P1600_RESULT.md"
 
+#: The D2 reference is a real artifact under ``outputs/``, which .gitignore:31 excludes, so a
+#: clean checkout (CI) has no denominator to hash. This is the same situation as
+#: ``tests/test_real_data_pipeline.py``'s optional fixture and is handled the same way: skip with
+#: the reason stated, never synthesise a stand-in -- a fabricated reference would let the digest
+#: assertion pass while proving nothing about the file the registered (a) actually divides by.
+requires_d2_reference = pytest.mark.skipif(
+    not (ROOT / "outputs/r7_s3_fy_year_coverage_d2_20261023_attempt01/reference.json").is_file(),
+    reason="the D2 reference lives under git-ignored outputs/; absent on a clean checkout",
+)
+
 EXITS_CLOSED = {"a_72h_skill_mean_delta": False, "b_matching_bit": True,
                 "c_off_path_unchanged": True, "d_no_criterion_changed": True,
                 "all": False, "delta_72h": {"41": -0.003, "42": 0.001, "43": -0.002},
@@ -105,6 +115,7 @@ def test_a_non_candidate_needs_an_exclusion_reason(tmp_path):
     assert not out.exists()
 
 
+@requires_d2_reference
 def test_the_record_names_the_denominator_that_exit_a_divides_by(tmp_path):
     """(a) is 1 - (rmse/denominator)^2; the registered record must trace the denominator bytes.
 

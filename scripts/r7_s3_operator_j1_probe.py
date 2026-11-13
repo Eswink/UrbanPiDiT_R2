@@ -473,7 +473,13 @@ def _real_fields() -> list[dict] | None:
     checkpoint = ROOT / ("outputs/r7_s3_throughput_physics_b_p1600_20261106_attempt01/"
                          "seed41/training/update_0128528.pt")
     if not curve.STORE.exists() or not checkpoint.exists():
-        return None, None
+        # ``None``, not ``(None, None)``: the signature and the docstring both promise a single
+        # value, and the caller tests ``cases is not None`` to decide whether the run measured
+        # anything real. A 2-tuple is truthy, so the degradation path used to report
+        # ``measured: True`` with an empty case list and then die on the list comprehension --
+        # i.e. it failed to degrade *and* failed to say so. Found by a clean checkout, where the
+        # store and the p1600 checkpoint are both absent (CI has been red on this since 0440993).
+        return None
     store = zarr.open_group(str(curve.STORE), mode="r")
     names = list(store.attrs["channels"])
     latitude = torch.as_tensor(np.asarray(store["latitude"][:]), dtype=torch.float64)

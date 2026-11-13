@@ -7,4 +7,8 @@ torch>=2.4
 numpy>=1.26
 PyYAML>=6.0
 pytorch-lightning>=2.2
+# scipy: training/r7_spectral_geometry.py imports scipy.fft.dctn for the DCT-II boundary
+# cross-check of decision 0110. It is imported at call time, so a missing scipy does not fail
+# an import -- it fails the first P0 check, which is how CI stayed red on 0440993 unnoticed.
+scipy>=1.11
 pytest>=8.0

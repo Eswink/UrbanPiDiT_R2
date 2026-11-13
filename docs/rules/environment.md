@@ -15,6 +15,17 @@
 | `numcodecs` | `data/download/arco_tiny_bounded.py:63`（函数内延迟导入） | ❌ 未声明 | 作为 `zarr` 的依赖被间接带入 |
 | `pip` | `tests/test_r7_installed_package.py` 调用 `python -m pip wheel` | ❌ 未声明 | `ci.yml` 显式 `pip install --upgrade pip` |
 
+**✅ 已闭合（2026-11-13）：`scipy`。** `training/r7_spectral_geometry.py:467` 在
+`dct_energy()` 里 `from scipy.fft import dctn`（决策 0110 的 DCT-II 边界交叉校验）。它此前
+**不在任何 requirements 或 pyproject 里**：本机 `.venv` 装了 `scipy==1.18.1`（来源未留痕），
+所以本地 6,800 项测试全绿，而 CI 自 `0440993`（2026-11-11）起一直红在
+`tests/test_r7_s3_spectral_geometry_probe.py::test_p0_hard_gate_passes_on_a_real_grid`。
+已加进 `requirements.txt` 与 `pyproject.toml` 的 `dependencies`（`scipy>=1.11`）。
+
+**这个缺口的形态值得记住**：`dctn` 是**函数内延迟导入**，所以缺 scipy 不会让任何 `import`
+失败——它只在 P0 的第一项检查被调用时炸。这与本清单开头说的 `icechunk`/`numcodecs` 是同一类，
+也是「静态检查 requirements 发现不了」的第二个实证。
+
 **为什么要写这份清单**：用 `uv venv` 或 `python -m venv --without-pip` 建的环境默认没有 `pip`，
 会让 `test_r7_installed_package.py` 失败；而 `icechunk`/`numcodecs` 是**延迟导入**，
 只在跑到对应下载路径时才炸——静态检查 `requirements` 不会发现。

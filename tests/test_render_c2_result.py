@@ -11,8 +11,18 @@ from pathlib import Path
 import subprocess
 import sys
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 RENDER = ROOT / "tools/render_c2_result.py"
+#: The D2 reference is a real artifact under ``outputs/``, git-ignored at .gitignore:31, so a
+#: clean checkout has none. Same handling as ``test_real_data_pipeline.py``'s optional fixture:
+#: skip and say why, never substitute a synthetic reference -- a stand-in would let the digest
+#: assertion pass while proving nothing about the file (a) divides by.
+requires_d2_reference = pytest.mark.skipif(
+    not (ROOT / "outputs/r7_s3_fy_year_coverage_d2_20261023_attempt01/reference.json").is_file(),
+    reason="the D2 reference lives under git-ignored outputs/; absent on a clean checkout",
+)
 #: The renderer only reads code_commit, model_code_sha256, training_code_sha256 and
 #: protocol_sha256 out of the protocol, so the fixture is built here rather than read from
 #: ``outputs/`` -- that directory is git-ignored (.gitignore:31) and absent in CI, where a
@@ -115,6 +125,7 @@ def test_the_rendered_page_has_no_duplicated_section_heading(tmp_path):
     assert page.count("| seed | off | on | Δ(on−off) |") == 1
 
 
+@requires_d2_reference
 def test_the_page_names_the_denominator_bytes_it_used():
     """(a) is 1 - (rmse/denominator)^2, so the page must name the denominator's digest.
 
@@ -131,8 +142,18 @@ def test_the_page_names_the_denominator_bytes_it_used():
     # And the line must state the boundary that keeps it train-only: 2021 is the last year.
     assert "2021" in line
     assert "2023 test" in line
-    # A missing file must degrade to an explicit limitation, never silently print nothing.
+
+
+def test_a_missing_denominator_degrades_to_a_stated_limitation():
+    """The absent-file branch needs no artifact, so it runs even on a clean checkout.
+
+    Kept separate from the digest test above: that one needs the real reference under
+    git-ignored ``outputs/`` and skips without it, but *this* branch is what a reader of a CI-built
+    page would hit, and it must never silently print nothing. Asserting it unconditionally is
+    strictly stronger than folding it into a test that may skip.
+    """
     from tools import render_c2_result as renderer
+
     original = renderer.D2_REFERENCE
     try:
         renderer.D2_REFERENCE = original.parent / "definitely-absent.json"
