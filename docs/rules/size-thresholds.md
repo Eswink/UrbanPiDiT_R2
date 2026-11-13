@@ -74,7 +74,13 @@ R-020=67、R-022=67、R-023=47 保持。
 下一次 `attempt05` 会**重新**把 400 行的协议钉进它的 `execution_files_sha256`，
 届时若再改动仍须按上一条的办法处理——**这个坑会随每轮重开重现**。
 
-<!-- measured: R-019=1 R-019b=1132 R-020=67 R-021=140 R-022=68 R-023=48 -->
+<!-- measured: R-019=1 R-019b=1132 R-020=67 R-021=142 R-022=68 R-023=48 -->
+
+**2026-11-13 城市静态三臂消融复算（提交集合实测）**：R-021 **140→142**（新增
+`scripts/r7_urban_static_ablation_protocol.py` 595 行、`scripts/r7_urban_static_placebo.py` 314 行、
+`tests/test_r7_urban_static_ablation.py` 485 行——后两个超过 C 类 400 行目标态，两个代码文件均
+**低于 R-051 的 600 行阻断上限**）；R-020 曾因 `frozen_constants` 函数体 103 行一度升到 68，已拆成 `_static_block` / `_factor_block` / `_recipe_block` / `_checkpoint_block` / `_arm_block`
+后回到 67（最终实测仍为 67）。R-019=1、R-019b=1132、R-022=68、R-023=48 保持。
 
 **2026-11-12 S3 物理信息阶梯 Step A 复算（提交集合实测）**：R-021 **138→139**；
 R-019=1、R-019b=1132、R-020=67、R-022=68、R-023=48 保持。

@@ -292,3 +292,23 @@ def temporal_variability(store, *, samples: int = 24, crop: int = 8) -> dict:
             "note": ("the 17 dynamic channels vary in time at every sampled channel; the published "
                      "static field is one snapshot per covariate, so its temporal spread is exactly "
                      "zero and no function of the dynamic channels at one time equals it")}
+
+
+def static_block(static, manifest, variables) -> dict:
+    """The frozen ``static`` section: the product's identity and the placebo rule."""
+    return {
+        "static_identity": manifest["static_identity"],
+        "output_sha256": manifest["identity_components"]["output_sha256"],
+        "derived_statistic_not_truth": manifest["derived_statistic_not_truth"],
+        "variables": list(variables), "variable_count": len(variables),
+        "grid": {"points": manifest["grid"]["points"],
+                 "spacing_deg": manifest["grid"]["spacing_deg"],
+                 "lat_order": manifest["grid"]["lat_order"],
+                 "lon_order": manifest["grid"]["lon_order"]},
+        "expansion_per_variable": static.EXPANSION_PER_VARIABLE,
+        "scales": dict(static.STATIC_SCALES),
+        "placebo_seed": PLACEBO_SEED,
+        "placebo_rule": ("each covariate's 65x65 cells permuted independently under one fixed "
+                         "seed; channels are never shuffled between variables; each "
+                         "covariate's mask multiset stays bit-identical after sorting"),
+        "parameter_delta": 0}

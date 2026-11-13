@@ -346,6 +346,50 @@ def _differing_keys(treatment_pair, placebo) -> list:
                   if not torch.equal(treatment[key].to("cpu"), placebo_state[key].to("cpu")))
 
 
+def _factor_block() -> dict:
+    """The one-factor declaration: what the three levels share and what separates them."""
+    return {"name": "urban static covariate pathway, three levels",
+            "levels": list(ARMS),
+            "differing_quantity": f"the two persistent buffers {list(BUFFER_KEYS)} and nothing else",
+            "shared": ["code revision (model_code_sha256)", "parent checkpoint", "seed",
+                       "update count", "batch size", "lr", "warmup", "weight decay", "clip",
+                       "physical weights", "train manifest", "val manifest", "scoring region",
+                       "climatology denominator"],
+            "not_shared_by_design": "buffer values only",
+            "parameter_delta": 0, "parameter_delta_measured": True}
+
+
+def _checkpoint_block() -> dict:
+    """Which checkpoints a seed keeps, and that no validation selection happens."""
+    return {"checkpoint_every": curve.CHECKPOINT_EVERY,
+            "retained": "multiples of checkpoint_every plus the endpoint",
+            "selection": "frozen endpoint; no validation selection", "decision": "0087"}
+
+
+def _arm_block(arm: str) -> dict:
+    """One arm's frozen description: what it constructs and what it does not."""
+    fields = {CONTROL: "absent", TREATMENT: "published 8-layer product",
+              PLACEBO: "published 8-layer product, per-cell permuted"}[arm]
+    return {"name": arm, "static_conditioning": arm != CONTROL, "field": fields,
+            "projection": "absent" if arm == CONTROL else "published fixed projection",
+            "updates": UPDATES, "steps": STEPS, "batch_size": BATCH_SIZE, "seeds": list(SEEDS)}
+
+
+def _recipe_block() -> dict:
+    """The registered recipe, held word for word from the archived spec."""
+    return {"mode": "long_rollout", "updates": UPDATES, "steps": STEPS,
+            "lr": curve.LR, "warmup": curve.WARMUP,
+            "weight_decay": curve.WEIGHT_DECAY, "batch_size": BATCH_SIZE,
+            "clip": curve.CLIP, "bf16": wide.BF16,
+            "checkpoint_every": curve.CHECKPOINT_EVERY,
+            "physical_weights": list(curve.PHYSICAL_WEIGHTS),
+            "reasoning_steps": curve.REASONING_STEPS,
+            "supervision": "full_grid (no spatial mask on the native 65x65 grid)",
+            "initialization": ("pinned p1600 registered parent; state dict plus the two "
+                               "published buffers, loaded strict=True"),
+            "epochs": round(UPDATES * BATCH_SIZE / curve.USABLE_WINDOWS, 6)}
+
+
 def frozen_constants() -> dict:
     """Everything frozen before any training starts."""
     static, manifest, fields, variables = _static_product()
@@ -366,58 +410,12 @@ def frozen_constants() -> dict:
         "region": {"points": [65, 65], "boundary_margins": [1], "scored_region": "full",
                    "n_grid_points": 4225,
                    "note": "the whole native 65x65 grid; interior_32 is 1x1 here"},
-        "arms": {arm: {"name": arm,
-                       "static_conditioning": arm != CONTROL,
-                       "field": ("absent" if arm == CONTROL else
-                                 "published 8-layer product" if arm == TREATMENT else
-                                 "published 8-layer product, per-cell permuted"),
-                       "projection": ("absent" if arm == CONTROL else "published fixed projection"),
-                       "updates": UPDATES, "steps": STEPS, "batch_size": BATCH_SIZE,
-                       "seeds": list(SEEDS)} for arm in ARMS},
-        "factor": {
-            "name": "urban static covariate pathway, three levels",
-            "levels": list(ARMS),
-            "differing_quantity": "the two persistent buffers "
-                                  f"{list(BUFFER_KEYS)} and nothing else",
-            "shared": ["code revision (model_code_sha256)", "parent checkpoint", "seed",
-                       "update count", "batch size", "lr", "warmup", "weight decay", "clip",
-                       "physical weights", "train manifest", "val manifest", "scoring region",
-                       "climatology denominator"],
-            "not_shared_by_design": "buffer values only",
-            "parameter_delta": 0,
-            "parameter_delta_measured": True},
-        "recipe": {"mode": "long_rollout", "updates": UPDATES, "steps": STEPS,
-                   "lr": curve.LR, "warmup": curve.WARMUP,
-                   "weight_decay": curve.WEIGHT_DECAY, "batch_size": BATCH_SIZE,
-                   "clip": curve.CLIP, "bf16": wide.BF16,
-                   "checkpoint_every": curve.CHECKPOINT_EVERY,
-                   "physical_weights": list(curve.PHYSICAL_WEIGHTS),
-                   "reasoning_steps": curve.REASONING_STEPS,
-                   "supervision": "full_grid (no spatial mask on the native 65x65 grid)",
-                   "initialization": ("pinned p1600 registered parent; state dict plus the two "
-                                      "published buffers, loaded strict=True"),
-                   "epochs": round(UPDATES * BATCH_SIZE / curve.USABLE_WINDOWS, 6)},
-        "checkpoint_policy": {"checkpoint_every": curve.CHECKPOINT_EVERY,
-                              "retained": "multiples of checkpoint_every plus the endpoint",
-                              "selection": "frozen endpoint; no validation selection",
-                              "decision": "0087"},
+        "arms": {arm: _arm_block(arm) for arm in ARMS},
+        "factor": _factor_block(),
+        "recipe": _recipe_block(),
+        "checkpoint_policy": _checkpoint_block(),
         "budgets": budgets(),
-        "static": {
-            "static_identity": manifest["static_identity"],
-            "output_sha256": manifest["identity_components"]["output_sha256"],
-            "derived_statistic_not_truth": manifest["derived_statistic_not_truth"],
-            "variables": list(variables), "variable_count": len(variables),
-            "grid": {"points": manifest["grid"]["points"],
-                     "spacing_deg": manifest["grid"]["spacing_deg"],
-                     "lat_order": manifest["grid"]["lat_order"],
-                     "lon_order": manifest["grid"]["lon_order"]},
-            "expansion_per_variable": static.EXPANSION_PER_VARIABLE,
-            "scales": dict(static.STATIC_SCALES),
-            "placebo_seed": PLACEBO_SEED,
-            "placebo_rule": ("each covariate's 65x65 cells permuted independently under one fixed "
-                             "seed; channels are never shuffled between variables; each "
-                             "covariate's mask multiset stays bit-identical after sorting"),
-            "parameter_delta": 0},
+        "static": placebo_mod.static_block(static, manifest, variables),
         "family_argument": placebo_mod.family_argument(fields, variables, variability),
         "exits": {
             "a": "72 h t2m skill: paired delta (treatment - control) >= 0 for all three seeds",
