@@ -227,7 +227,7 @@
 **⇒ `verdict = permanently-close-the-spectral-geometry-branch`。** 交付物 D1–D6 全部产出：
 冻结协议（`protocol_sha256 75897e51…`）、代码身份归档（zip comment = `9fb7a19`）、
 逐 seed receipt（三份，各含父身份与 s/update）、十七变量 × 五 lead 读数（含 `exit_conditions`）、
-证据页 `docs/R7_S3_SPECTRAL_GEOMETRY_A_RESULT.md`（`sha256 edce4f1d…`）、index record
+证据页 `docs/R7_S3_SPECTRAL_GEOMETRY_A_RESULT.md`（`sha256 84c0699e…`，含 §6.4 的四次修复记录）、index record
 `s3-spectral-geometry-a-negative`、账本行、master §8、campaign-state。
 
 **这个负结果的性质要说准**：不是「项没起作用」。**(a) 三 seed 一致升高、臂间差比 seed 间离散大一个
@@ -239,6 +239,36 @@
 `spectral_geometry_term` 返回裸 tensor 而 runner 执行 `constraint["total"]`（该轴从未端到端跑过）；
 `hermitian_weights`/`radial_band_index` 建在 CPU 而 `spectrum_x` 在 `cuda:0`（attempt01 两 worker
 各 ~8,600 s 后崩）。**教训**：(e) 预检在 CPU 上跑，能证明「量级正确」但**不能**证明「能在 GPU 上跑」。
+
+### 登记之后的四次修复（都不改读数，但都推翻过一句话）
+
+产物登记（`cdfc94e`…）完成后，在干净树上跑全量测试与查 CI，又暴露四件事。读数一字未动，
+但其中三件各自推翻了本轮某个先前的说法，所以记在这里而不是只写在提交里：
+
+| 提交 | 修的是什么 | 推翻了什么 |
+| --- | --- | --- |
+| `e40562e` | 测试拆分遗留一条断言在父文件里（`NameError`）；C2 的 `AXES` 成员钉自 `0440993` 起就红 | `ce03b06` 自己写的「no assertion dropped」 |
+| `99a3bd7` | evidence record 的 `beta_spread_max_over_min` 里装的其实是**与 Step C 的最大相对差** 4.71e-06，真跨度是 86.755×；页新增 §6.4 | 记录里一个字段的名实不符（页与全部文字表述一直是对的） |
+| `e5f78e3` | CI 长期零绿的四个成因；其中一个是真的科学完整性缺陷 | 「全量测试绿 ⇒ CI 应该绿」这个未检验的假设 |
+
+**`e5f78e3` 里那个真缺陷值得单独记**：`scripts/r7_s3_operator_j1_probe.py` 的
+`_real_fields()` 文档承诺 `list[dict] | None`，却在降级路径返回 `None, None`。调用方解包一个值，
+于是 `cases` 变成**二元组** `(None, None)`——**真值**——记录便写下 `"measured": True` 与一个空的
+case 清单，下一行 `[entry['case'] for entry in cases]` 抛 `TypeError`。**它既没降级成功，也没说
+自己没降级。** 这正是决策 0105 的 attempt07 失效模式在一个新位置。已修并反证（把 `curve.STORE`
+指向不存在的路径，断言 `cases is None` 且 `measured: False`）。
+
+**CI 的事实**（不是推断）：本仓最近 **100 次 `R7 CPU CI` run 的成功数为 0**（90 failure / 10
+cancelled，总量 976）。这不是本轮引入的，也不是「这次特殊」——它是一个长期状态，本轮只是第一次
+去查它。四个成因里 2 个是「测试硬依赖 git-ignored 的 `outputs/`」（按 `test_real_data_pipeline.py`
+的既有约定改成带理由的 skipif，且把渲染器的缺文件降级分支**单独**留成无条件测试），1 个是
+`scipy` 被**生产代码**延迟导入却未在任何 requirements/pyproject 声明（Q-011 那一类，已声明），
+1 个是上面的 j1 缺陷。**四个都修了不等于 CI 一定绿**——那是关于下一次 run 的预测，不是实测。
+
+**冻结身份未被触碰**：改依赖前先核过 `execution_files_sha256` 覆盖
+`training/r7_spectral_geometry.py`（`c4953b2b…`）与 `training/r7_objective_axes.py`（`212ff51f…`），
+两者哈希仍与冻结值相等，所以依赖修复只落在 `requirements.txt` / `pyproject.toml`，
+Step A 的 96 文件执行闭包与 `model_code_sha256` 全部不变。
 
 ### 为什么停
 
