@@ -212,46 +212,44 @@
 
 ## §8 进度块
 
-**状态**：`attempt02-running`（2026-11-12）。attempt01 **作废于一个真实缺陷**，见下。
+**状态**：`Step A complete`（2026-11-13）。**判定：(b)(c) 为假 ⇒ 永久关闭 `spectral_geometry` 支。**
 
-### 2026-11-12 attempt01：作废（2 × 8,600 s，**未产生任何读数**）
+### Step A 已执行（21.825 GPU-h 总计：有效 15.999 + 浪费 5.826）
 
-- **实跑到了哪一步**：Step C 门 `open-a`（JSON 解析，非子串）→ `code.zip` 14,045,019 B
-  （`sha256 9c056aa7ab2f7611dd4d7928d17ee23a8d8f3026b50477f4d3ddc838b03fe82b`，zip comment =
-  `2718fa4`）→ `freeze` → `prepare` 674.6 s（β_j 重导 + (e) 预检全过）→ `archive` 5.5 s →
-  `stage-seeds` 在 seed41/42 的 **on 臂第一次 update** 处崩溃
-- **缺陷（我写的）**：`band_powers` 里 `hermitian_weights()` 与 `radial_band_index()` 建在
-  **CPU** 上，而 `spectrum_x` 在 `cuda:0` ⇒
-  `RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!`
-- **为什么整套测试没抓到**：29 项测试当时全过，但它们与 Stage P1 探针一样**全在 CPU** 上跑
-  （P1 从不调 `model.to(device)`）。这条轴是第一次在 GPU 训练路径上被真正调用。
-  **教训**：`(e)` 预检在 CPU 上跑，所以它能证明「量级正确」，但**不能**证明「能在 GPU 上跑」
-- **代价如实记**：seed41 + seed42 两个 worker（双卡并行）各约 8,600 s ⇒ 合计约 **4.8 GPU-h 浪费**。
-  off 臂的 `training_report.json` 与 `update_0004000.pt` 留在 attempt01 目录里（**作废，不登记为读数**）
-- **修复**（`f333ca0`）：`weights`/`index` 跟随 `prediction.device`；`band_statistics` 显式
-  `.detach().cpu()`。新增两条**真 CUDA 反证测试**（`test_the_loss_runs_on_cuda_not_just_cpu`、
-  `test_the_axis_entry_point_runs_on_cuda`），在无 GPU 的机器上 skip —— 这正是为什么不能只靠绿测试，
-  还要真实运行的记录
-- **GPU 冒烟实测**（重开前，不进协议）：真实形状 `[4,12,17,65,65]` 在 `cuda:0` 上
-  `total=10116.26`、有限、梯度有限且非零、off 路径仍 `None`、峰值 122 MiB
-- **attempt02 必须重做冻结**：修复改了 `training/r7_spectral_geometry.py`，它在
-  `execution_files_sha256`（96 个文件）里，所以 attempt01 的 protocol **不能**复用
+| 判据 | 真/假 | 读数 |
+| --- | --- | --- |
+| **(a)** 细带 `amp_ratio` 相对同 seed off 臂升高 | **真** | +0.125128 / +0.113816 / +0.116573（三 seed 全部 > 0） |
+| **(b)** 72 h t2m skill 三 seed 配对 Δ 全 ≥ 0 | **假** | −0.066368 / −0.057539 / −0.062297 |
+| **(c)** 24/48 h skill 配对 Δ 三 seed 全 ≥ 0 | **假** | 24 h 三 seed 全负（−0.0257 ～ −0.0323）、48 h 三 seed 全负（−0.0462 ～ −0.0512） |
+| **(d)** off 路径逐位等价 | 支撑在位 | `training/r7_objective_axes.py:43` 的 `None` 早退 + `test_off_arm_matches_the_registered_arithmetic` 等两条反证测试实跑 `2 passed` |
+| **(e)** 预检：β_j 非全相等且 amse 全有限 | **真** | 跨度 86.75497080940221×；8 case × 12 step 全有限；剂量 58.016–95.217 已在冻结前写定 |
 
-### 已完成（累计）
+**⇒ `verdict = permanently-close-the-spectral-geometry-branch`。** 交付物 D1–D6 全部产出：
+冻结协议（`protocol_sha256 75897e51…`）、代码身份归档（zip comment = `9fb7a19`）、
+逐 seed receipt（三份，各含父身份与 s/update）、十七变量 × 五 lead 读数（含 `exit_conditions`）、
+证据页 `docs/R7_S3_SPECTRAL_GEOMETRY_A_RESULT.md`（`sha256 edce4f1d…`）、index record
+`s3-spectral-geometry-a-negative`、账本行、master §8、campaign-state。
 
-- Step C（0 GPU-h，α=0.05111、β 跨度 86.75×、`verdict=open-a`）；`_terms` 奇点修复
-  （`inf` → 3210.34，精确零守住）；plan 0031；决策 0112；本长文与 `round-spec`
-- `β_j` 逐变量加权实现（`per_channel_amse` + `beta_weighted_amse`，式 (10) 纯求和形式）与
-  **返回形状修复**（裸 tensor → `{"total": ...}`，否则 `_update` 的 `constraint["total"]` 必崩）
-- 剂量裁决在冻结前写定：实测 `amse_total / L_mse` ∈ **[58.02, 95.22]** ⇒ MSE 只占
-  1.04%–1.69%，on 臂训练的就是论文 §4.1 的 MSH 制度本身，**不是**「MSE + 小修正」
-- 三条前提被实测推翻并更正（§1.2b、决策 0112 代价③）：`_terms` 修复**没有**改
-  `training_code_sha256`（spectral 模块不在 runner 的 `SOURCE_FILES`）、**父迁移不需要重做**、
-  这条轴的接线此前**不完整**
+**这个负结果的性质要说准**：不是「项没起作用」。**(a) 三 seed 一致升高、臂间差比 seed 间离散大一个
+数量级**，说明 β_j 归一化精确作用在了它声称的作用点上；而同一改动让 **9/9 个 (lead, seed) 单元 skill
+全部下降，降幅随 lead 单调增大**（24 h ≈ −0.029 → 48 h ≈ −0.049 → 72 h ≈ −0.062）。
+剂量 58–95 使 on 臂训练的就是论文 §4.1 的 MSH 制度本身，所以这是对该目标的直接检验，不是剂量不足。
 
-### 未做
+**顺带修掉两个会让训练崩溃的真实缺陷**（都不是「可能有问题」）：
+`spectral_geometry_term` 返回裸 tensor 而 runner 执行 `constraint["total"]`（该轴从未端到端跑过）；
+`hermitian_weights`/`radial_band_index` 建在 CPU 而 `spectrum_x` 在 `cuda:0`（attempt01 两 worker
+各 ~8,600 s 后崩）。**教训**：(e) 预检在 CPU 上跑，能证明「量级正确」但**不能**证明「能在 GPU 上跑」。
 
-- Step A 的读数（attempt02 在跑）；Step B 未碰（须 ADR 0113）；2023 test 未读；`r = 0`
+### 为什么停
+
+**达已冻结的科学停止条件**：brief §3.1 预声明「(a)–(e) 任一为假即永久关闭该支」，实测 (b)(c) 为假。
+Step B 不在本 objective 授权内——它须新 ADR 0113，且只在 A 失败之后；是否开 B 留待用户读过证据页后决定。
+
+**未做**：Step B（未授权）；2023 test 未读（`r = 0`）。
+
+**下一动作（S3）**：用户阅读 `docs/R7_S3_SPECTRAL_GEOMETRY_A_RESULT.md` 后决定是否以 ADR 0113 开
+Step B（预训练期 + 单位方差归一化 + 逐变量权重，≈40–77 GPU-h），或按本质证负结果把物理信息线收束为
+证伪章与机制发现。**在此之前不新开任何实验轮**。
 
 **恢复第一条命令**：
 

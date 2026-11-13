@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 109; human-review candidates: 2
+Records: 110; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1965,6 +1965,25 @@ Records: 109; human-review candidates: 2
 - CI run: `42374118124`
 - Excluded from runnable candidates: not a candidate and not a scientific result: no training run, no protocol, no arms. It is the record of an opening precondition failing, which is exactly what decision 0084 section 6 asks for.
 - Recorded metrics (not recomputed): abs_divergence_p95_analysis_s_inv=7.2998e-05, abs_divergence_p95_model_s_inv=2.3913e-05, blocking_convention_rules_failing=0, bundle_analysis_over_model_ratio_max=15.481, bundle_analysis_over_model_ratio_mean=10.222, bundle_analysis_over_model_ratio_min=6.503, cases_measured=8, cases_where_analysis_charged_more=8, dew_point_term_analysis_mean=2.7204e-05, dew_point_term_model_mean=9.3815e-05, dimensionless_fix_grad_ratio_endpoint_max=1.244, dimensionless_fix_grad_ratio_endpoint_min=0.5029, dimensionless_fix_grad_ratio_parent_max=4.104, dimensionless_fix_grad_ratio_parent_min=2.103, divergence_term_analysis_mean=8.4703, divergence_term_model_mean=0.8286, gpu_hours=0.0, humidity_term_analysis_mean=0.0, humidity_term_model_mean=0.0, legacy_vs_spherical_magnitude_ratio=3407000000.0, mean_abs_divergence_analysis_s_inv=2.5063e-05, mean_abs_divergence_model_s_inv=8.5227e-06, pre_fix_grad_ratio_parent_max=0.001013, pre_fix_grad_ratio_parent_min=2.728e-10, protocol_frozen=false, q850_min_analysis_kgkg=0.001051, q850_min_model_kgkg=0.0021055, q850_negative_fraction=0.0, round_opened=false, test_read=false, tests_passing=24, train_batches_only=true, val_read=false
+
+## s3-spectral-geometry-a-negative
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `60` (not a scientific score)
+- Evidence: `docs/R7_S3_SPECTRAL_GEOMETRY_A_RESULT.md` (SHA256 `edce4f1d965512c6cee444bb566bc58da216c596e4e1acbe2606745161082c91`)
+- Evidence commit: `cdfc94efb0955a1da9d6f6bb2019d6a96b2a6250`; experiment commit: `cdfc94efb0955a1da9d6f6bb2019d6a96b2a6250`
+- Protocol SHA256: `75897e513d5784dda9f326fdaefc8e212530c4357d1eef7cbb2405fd1b9727e2`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Step A was executed as the declared deliverable: the spectral_geometry axis gained the decision-0112 beta_j AMSE-analogue normalisation, and 2 arms x 3 seeds x 4,000 updates ran from the p1600 endpoint. Exit (a) is true and unusually clean -- the fine-band amp_ratio rose from 0.72 to 0.84-0.85 on all three seeds, a shift an order of magnitude larger than the seed-to-seed spread -- so the term acted exactly where it claims to. Exits (b) and (c) are false: all nine (lead, seed) cells are negative and the magnitude grows with lead (24 h ~-0.029, 48 h ~-0.049, 72 h ~-0.062). The pre-declared rule is that any false exit closes the branch, so it is closed. Two real defects were fixed on the way: the axis returned a bare tensor where the runner indexes ['total'], and the band weights were built on CPU so the first GPU update raised a device mismatch.
+- Limitations:
+  - single 65x65 multi-year instance, dim-192 depth-4 trunk; the 129x129 wide store is not covered
+  - 4,000 updates per arm is far shorter than FastNet's fine-tuning schedule (36,525 + 4x7,305); (a) rules out 'the term did nothing', not 'a longer adaptation would flip (b)(c)'
+  - beta_j is estimated from one year (2001); the inter-year variance is unmeasured here
+  - the on arm changes two things at once: the loss shape becomes a per-variable sum because a per-variable weight cannot apply to an already-pooled band quantity, so the negative result belongs to 'beta_j normalisation + per-variable decomposition' as a combination
+  - the amplitude read uses the eight train-manifest cases (the dataset only accepts train.jsonl); that is in-sample and biases toward NOT finding an arm difference
+  - not bitwise reproducible: GPU training carries no bitwise promise, only config-level
+  - dose 58.0-95.2 means the on arm trained on the paper's MSH regime with MSE as a 1.04-1.69% residual; that was frozen before the run, not inferred after
+- Excluded from runnable candidates: The pre-declared exits (b) and (c) failed: the 72 h t2m skill paired delta was negative on all three seeds (-0.066368 / -0.057539 / -0.062297) and both 24 h and 48 h were negative on all three, so the branch is permanently closed by its own exit conditions. Exit (a) passed -- the fine-band amp_ratio rose by +0.114 to +0.125 on every seed -- which is what makes this a mechanism finding rather than a dose artefact.
+- Recorded metrics (not recomputed): a_fine_band_amp_raised=true, a_per_seed_delta={"41": 0.12512776525887714, "42": 0.11381635110164101, "43": 0.11657301119952301}, attempt_dir=outputs/r7_s3_spectral_geometry_a_20261112_attempt02, b_72h_skill_nonnegative=false, b_delta_72h={"41": -0.0663678168613655, "42": -0.057539333822441474, "43": -0.0622971714558862}, beta_spread_max_over_min=4.71347918118202e-06, c_delta_mid={"24": {"41": -0.029612551742797977, "42": -0.025703831033386138, "43": -0.03226876882131868}, "48": {"41": -0.05118272078488606, "42": -0.04991581557881053, "43": -0.04622548087779055}}, c_mid_skill_nonnegative=false, e_preflight_passed=true, gpu_hours=21.825, gpu_hours_effective=15.999, gpu_hours_wasted=5.826, protocol_file_sha256=f754d28c04d843ada5004d98c18880a444935a612c19cb040b7c853f2040b821, readings_sha256=c53d645faf97b710a8d91d71e6c9ddc84a55becf008bcc56b9af930689ed1e1d, verdict=permanently-close-the-spectral-geometry-branch
 
 ## s3-spectral-geometry-stage-p
 
