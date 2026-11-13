@@ -1,7 +1,31 @@
 # 0112 — 阶梯准入 C→A→B：β_j 归一化、`skip-q` 判据缺陷、以及「预训练期」作为未测制度
 
 - **日期**：2026-11-12
-- **状态**：proposed —— Step A 的读数出来之后才转 accepted
+- **状态**：accepted
+- **状态说明**：2026-11-13 转 accepted —— Step A 的读数已出，见下方 §执行结果
+
+## 执行结果（2026-11-13，Step A 已跑）
+
+依据本条准入执行的 Step A 已完成，**21.825 GPU-h**（有效 15.999 + 浪费 5.826），读数见
+`docs/R7_S3_SPECTRAL_GEOMETRY_A_RESULT.md`、index record `s3-spectral-geometry-a-negative`。
+
+| 出口 | 真/假 | 读数 |
+| --- | --- | --- |
+| (a) 细带 `amp_ratio` 升高 | **真** | +0.125128 / +0.113816 / +0.116573（三 seed 全部 > 0） |
+| (b) 72 h skill 三 seed 全 ≥ 0 | **假** | −0.066368 / −0.057539 / −0.062297 |
+| (c) 24/48 h 三 seed 全 ≥ 0 | **假** | 24 h 与 48 h 三 seed 全负 |
+| (d) off 逐位等价 | 支撑在位 | `r7_objective_axes.py:43` 的 `None` 早退 + 两条反证测试 `2 passed` |
+| (e) 预检 | **真** | β 跨度 86.755×；8×12 全有限；剂量 58.0–95.2 冻结前写定 |
+
+**⇒ 按 D2 的预声明，`spectral_geometry` 支已永久关闭；(b)(c) 为假是关闭依据。**
+**Step B 未开**：D4 要求它另立 ADR 0113，本条不授权。
+
+**本条自己的两处预测被实测修正**（均已就地更正，不另立决策）：
+
+1. 代价③「`_terms` 修复改了 `training_code_sha256`」**不成立**——spectral 模块不在 runner 的
+   17 个 `SOURCE_FILES` 里，带/不带该修复 digest 都是 `e7674118…`；父迁移**不需要**重做。
+2. 本条的乐观情形（A 过关后开 B）**未发生**；事实是 (a) 真而 (b)(c) 假，即
+   「β_j 精确作用在声称的作用点上，而那件事本身有害」。
 - **范围**：`training/r7_spectral_geometry.py`（`_terms` 奇点修复 + 待加的 `beta_weights`）、
   `training/r7_objective_axes.py`（已有 `spectral_geometry` 轴）、
   `scripts/r7_s3_gap_decay_and_beta.py`（Step C 探针）。
