@@ -306,9 +306,6 @@ def test_the_exit_can_fail_the_preflight():
     assert driver.evaluate_exit(constant)["e_preflight_passed"] is False
 
 
-    assert "mixed" in mixed["regime"]
-
-
 # ------------------------------------------------------------- the defect that cost two seeds
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="a GPU is needed to reproduce it")

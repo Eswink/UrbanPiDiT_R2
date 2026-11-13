@@ -217,12 +217,25 @@ def test_the_dispatcher_refuses_two_auxiliary_axes_at_once():
 
 
 def test_the_dispatcher_routes_each_axis_to_its_own_module():
-    """C1 and C2 are separate decisions; the dispatcher must not conflate them."""
+    """C1 and C2 are separate decisions; the dispatcher must not conflate them.
+
+    Asserted on the *routing*, not on the membership tuple. This test used to pin ``AXES`` to
+    exactly ``("physical_constraints", "derivative_matching")``, which went red on 2026-11-11 when
+    decision 0110 registered a third axis -- even though the property under test, "C1 and C2 each
+    dispatch to their own module", was still true. A membership pin tests the registry's length,
+    which is a different decision's business. What follows does catch a real fault: an axis listed
+    in ``AXES`` with no branch behind it would make ``auxiliary_term`` fall through to C2's
+    module and silently run the wrong loss. The count of branches is therefore asserted against
+    ``len(AXES)`` rather than against a number written here.
+    """
     from training import r7_objective_axes
-    assert r7_objective_axes.AXES == ("physical_constraints", "derivative_matching")
     source = Path(r7_objective_axes.__file__).read_text(encoding="utf-8")
     assert "r7_physical_constraints import constraint_term" in source
     assert "r7_derivative_matching import matching_term" in source
+    assert "r7_spectral_geometry import spectral_geometry_term" in source
+    # Every registered axis has its own branch; the final ``return`` is the fallback, so a
+    # registered axis with no branch shows up as one branch too few.
+    assert source.count('if enabled[0] == "') == len(r7_objective_axes.AXES) - 1
 
 
 def test_the_c2_axis_requires_the_normalization_channels_and_scales():

@@ -110,3 +110,4 @@ def test_the_dose_decision_can_name_the_inert_regime():
     assert "inert" in inert["regime"]
     mixed = proto.dose_decision([0.5, 5.0])
     assert mixed["on_arm_is_the_paper_regime"] is False
+    assert "mixed" in mixed["regime"]
