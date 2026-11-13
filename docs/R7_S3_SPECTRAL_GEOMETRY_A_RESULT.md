@@ -179,6 +179,54 @@ but found at least two devices, cuda:0 and cpu!
 `model_code_sha256` 仍是 `59340710…`、与 pin 相等，三个父 checkpoint 的 SHA 与 pin 相等且
 `load_checkpoint` 全部通过（`updates=1600`）。**父迁移未做，因为它没有对象。**
 
+### 6.4 登记后在干净树上跑全量测试，暴露两个失败
+
+两个都是真的，且都不是「环境敏感」，其中一个**推翻了本轮自己的提交说明**。
+
+**① 测试拆分把一条断言遗留在错误的函数体里。** `ce03b06` 的提交说明写「no assertion dropped」。
+实际上 `assert "mixed" in mixed["regime"]` 被留在了**父文件**、落在
+`test_the_exit_can_fail_the_preflight` 里——那个作用域里根本没有 `mixed` 绑定。
+
+```
+E       NameError: name 'mixed' is not defined
+tests/test_r7_s3_spectral_geometry_a.py:309
+```
+
+断言**没有失传**，是**放错了位置**：把它移回被拆出的
+`test_the_dose_decision_can_name_the_inert_regime` 就恢复了原本的覆盖。它之所以只算一个提交的
+笔误而不是永久缺口，**仅因为**孤儿断言会以 `NameError` 失败，而不是静默跳过。
+
+**② C2 的注册表钉子自 `0440993`（2026-11-11）就是红的，不是本轮引入的。**
+`0440993` 把 `spectral_geometry` 注册成第三个轴，而
+`tests/test_r7_s3_derivative_matching_c2.py` 把 `AXES` 钉死成二元组
+`("physical_constraints", "derivative_matching")`。
+
+修法不是"补上第三个名字"：成员钉测试的是**注册表的长度**，那是注册该轴的那条决策的事，
+不是 C2 路由的事；而且下次再注册一个轴它还会红。改成断言测试名本身声称的事——每个轴各自
+路由到自己的模块，分支数按 `len(AXES) - 1` 计（最后一个轴走 fallback `return`）。
+
+**这不是放宽，反证在案**：注册第四个轴但不加分支 ⇒ 2 个分支对 3 ⇒ 失败；加了未注册的分支
+⇒ 3 对 2 ⇒ 失败。它现在抓的是一个**活**故障：`AXES` 里登记了轴却没有分支，
+`auxiliary_term` 会落到 C2 的模块上**静默跑错损失**。
+
+**这两个缺陷都不影响 Step A 的科学读数**，而且**登记时的测试面是好的**：
+
+- ①的断言在拆分**之前**是对的——`git show ce03b06~1:tests/test_r7_s3_spectral_geometry_a.py`
+  的第 398 行，它确实在 `test_the_dose_decision_can_name_the_inert_regime` 体内。拆分是
+  **纯行数措施**（为把父文件压回 R-021 的 400 行目标），发生在训练、读数与登记**之后**。
+  也就是说：**读数所用的测试量尺当时是完好的，是拆分把它弄坏的**，而 `ce03b06` 的提交说明
+  「no assertion dropped」没兑现。
+- ② 更是本轮之前就红的（`0440993`，2026-11-11），与 Step A 无因果关系。
+
+所以本页 §4 对 (d) 的支撑与 §2.3 的 (e) 读数**都不需要修订**；需要修订的只有一处表述：
+§6.4 的两个缺陷是**登记之后**的测试面维护问题，不是读数问题。
+
+**教训**（与 `e16362f` 同源，值得并置）：那次的教训是「NameError 在函数体内，import 与
+不执行该函数的测试都看不见」；这次是它的变体——**拆分脚本搬走了函数，却把一条断言留在了
+原地**，而孤儿断言恰好以 `NameError` 失败，所以它被抓住了。若那条断言碰到的是一个**上游
+作用域里存在的名字**（比如把 `mixed` 换成任何模块级名字），它会静默断言在错误的对象上。
+拆分后**逐条核对断言数**是比「目视比对」更可靠的检查，本轮缺的正是这一步。
+
 ---
 
 ## 7. 成本（实测，不是估计）
