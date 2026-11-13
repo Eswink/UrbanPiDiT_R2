@@ -74,16 +74,21 @@ R-020=67、R-022=67、R-023=47 保持。
 下一次 `attempt05` 会**重新**把 400 行的协议钉进它的 `execution_files_sha256`，
 届时若再改动仍须按上一条的办法处理——**这个坑会随每轮重开重现**。
 
-<!-- measured: R-019=1 R-019b=1132 R-020=67 R-021=139 R-022=68 R-023=48 -->
+<!-- measured: R-019=1 R-019b=1132 R-020=67 R-021=140 R-022=68 R-023=48 -->
 
 **2026-11-12 S3 物理信息阶梯 Step A 复算（提交集合实测）**：R-021 **138→139**；
 R-019=1、R-019b=1132、R-020=67、R-022=68、R-023=48 保持。
 本轮新增的 `.py` 里只有一个越过 400 行目标带：
 `scripts/r7_s3_spectral_geometry_a_protocol.py`（**502** 行，>400 目标、**≤600 硬限 R-051 通过**，
 装的是 Step A 的全部冻结常量、`beta_j` 钉住表、(e) 预检与剂量裁决，
-与 `scripts/r7_s3_derivative_matching_c2_protocol.py` 同形）；
-`scripts/study_r7_s3_spectral_geometry_a.py`（370）与
-`tests/test_r7_s3_spectral_geometry_a.py`（398）在目标带内。
+与 `scripts/r7_s3_derivative_matching_c2_protocol.py` 同形）。
+`scripts/study_r7_s3_spectral_geometry_a.py`（370）、`scripts/r7_s3_gap_decay_and_beta.py`（390）
+在目标带内。
+**一条就地更正**：`tests/test_r7_s3_spectral_geometry_a.py` 在加了两条真 CUDA 反证测试后
+涨到 **446** 行、越过 400 目标带（CI 的 `test_size_report_counts_match_the_checker` 因此变红，
+实测标记 139 而检查器报 141）⇒ 已把「协议常数 + 剂量裁决」那组测试**逐字搬迁**到
+`tests/test_r7_s3_spectral_geometry_a_protocol.py`（112 行），原文件回落到 **357** 行。
+**没有删除或弱化任何断言**，两个文件现在都在目标带内，R-021 = **140**（139 + 新协议模块 1 个）。
 `training/r7_spectral_geometry.py` 因新增逐变量 AMSE 与 β 加权从 **381→457** 行
 （仍在 R-051 内，**未改** rule 级别或阈值）。
 **未改规则级别、阈值或冻结例外清单。**
