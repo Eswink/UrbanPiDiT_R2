@@ -356,3 +356,33 @@ Stage A 的 on/off 与城市静态的 control/treatment/placebo **来自不同�
 按当前 HEAD 构建 `code.zip`，再由 workflow 冻结并开 GPU。这三步是同一个动作序列，
 下一步就是执行它。
 **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`
+
+---
+
+## §9 进度块（2026-11-15：正式轮已跑完并登记）
+
+**状态：done。预声明出口 (a) 为假 ⇒ 按预声明记负；本轮不宣称「物理平衡是独立评价轴」这一整句结论。**
+
+| 判据 | 结果 | 实测 |
+| --- | --- | --- |
+| (a) 三臂 `δ_HB` 三 seed 一致互异 | **假** | 三 seed 排序互不相同；臂间差 1e-6…5.4e-5 « seed 极差 3.3e-4…4.7e-4 |
+| (b) 背离（主判据） | **真** | 260 组中 118 组三 seed 一致反转 |
+| (c) seed 极差 < 臂间差 | **假** | stage_a 3.28e-4 vs 5.4e-5；urban 4.69e-4 vs **1e-6** |
+| (d) 真值偏差 < 模型偏差 | **真** | 75/75 行 `ws_ag`、75/75 行噪声 |
+| (e) 预检 | **真** | 6/6 子句 |
+
+**判定串**：`negative-diagnostic-is-dead`。
+**但四个诊断量不等价**：地转（D2）与谱（D4）有分辨力且与 RMSE 系统性反向；静力（D1）没有；
+柱积分散度（D3）未纳入判定。
+
+**完整读数、成本、失败与 limitations 见 `docs/R7_S3_BALANCE_DIAGNOSTICS_RESULT.md`。**
+`record:s3-balance-diagnostics-mixed`（`negative` / `not-candidate` / priority 85）。
+
+**为何停**：预声明出口已判定且已登记；(a) 为假，按冻结判据不再推进该诊断量，
+且不得事后放宽容差或换判据重算。GPU-h 已入账本（累计 619.436628）。
+**恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`
+
+**下一动作（S3）**：① **0 GPU-h** 把本轮的机制链（AMSE 归一化 → 高频噪声↓ → 物理更平衡 → RMSE↑）
+整理成证伪章；② **补工程债**：`worker(phase="reading")` 端到端测试 + 统一
+`readings.json`/`diagnostics.json` 的 receipt 命名（`tools/r7_round_stages.py:57`）；
+③ 任何新训练轮须先有新 ADR、新 brief 与新冻结前置/出口。

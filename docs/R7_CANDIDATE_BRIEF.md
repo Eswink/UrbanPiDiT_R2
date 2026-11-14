@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 112; human-review candidates: 2
+Records: 113; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1393,6 +1393,31 @@ Records: 112; human-review candidates: 2
   - test_read: false；未改任何冻结判据、未扩臂、未换开关。
 - Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m 6h/12h，band−legacy）三 seed 符号不一致，按冻结规则无 seed 均值、无方向判定；机制探针确认开关生效但未转化为验证收益。不进入正式确认实例候选，不构成任何科学声明。
 - Recorded metrics (not recomputed): arms=2, cells_improved=18, cells_unresolved=53, cells_worsened=14, forward_backward_flops=46282984704, forward_flops=15465592704, gpu_hours=0.3297, gpu_hours_total=0.6498, gpu_hours_v1=0.3201, gpu_hours_v2=0.3297, legacy_dead_channels=68, legacy_live_channels=16, nyquist_dead_channels=0, nyquist_live_channels=192, parameters_per_arm=2948771, primary_cells={"12h": "unresolved", "6h": "unresolved"}, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
+
+## s3-balance-diagnostics-mixed
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `85` (not a scientific score)
+- Evidence: `docs/R7_S3_BALANCE_DIAGNOSTICS_RESULT.md` (SHA256 `8ab9c74ada00c788adec20da2899e4ec46d84f2dc97bd626d40f3087697ee8bb`)
+- Evidence commit: `e638582fc2455d834cde75587981785d5e39124a`; experiment commit: `e638582fc2455d834cde75587981785d5e39124a`
+- Protocol SHA256: `040a24df333ca61e2cce90e4494a8b4abe01ec74d7fc429e68fe7a1a60ece899`; data identity: `e5fb694f1b33aad9ba32b4d836c646f184603db544c1278d2cd3081d1aab88ea`
+- Reason: Predeclared exit (a) is FALSE: the hydrostatic deviation's arm gaps are an order of magnitude below the three-seed spread and the arms' orderings differ on all three seeds, so that diagnostic measured nothing. (b) and (d) are TRUE and are reported as such: geostrophic departure and fine-scale noise separate the arms and run opposite to RMSE on all three seeds, with the urban treatment arm 1.7-18.3 percent worse balanced while 0.03-0.5 percent better in RMSE, and the Stage A on arm 9-15 percent better balanced while 0.5-1.5 percent worse in RMSE. The conjunctive claim 'physical balance is an independent axis' is NOT made because (a) is false.
+- Limitations:
+  - test_read is false and r = 0: only the 2022 validation split was read, never 2023 test
+  - the 500-250 hPa thickness pair uses dry temperature because the store carries no t250/q250; it is reported separately from 850-500 and the two are never merged into a mean hydrostatic deviation
+  - delta_HB carries a +2.1..+2.9 percent systematic offset traced to the analysis itself (implied upper level 498.90 vs 500 hPa), so arm comparisons use differences only
+  - the geostrophic statistic rests on 6.8-15.8 percent of the grid (Ro<0.1) and is not a domain-wide conclusion
+  - the shortest trustworthy wavelength is about 40 km; the paper's sub-20 km claims are not reproducible at 0.25 degrees
+  - no gradient-wind balance: it needs cyclone-centre identification and an N,M<=5 radial fit, and a 65x65 regional patch need not contain a cyclone. Unmeasured, not unnecessary
+  - (b) tests ORDER, not size: the RMSE differences it rests on are 0.03-1.5 percent while the balance differences are 1.7-22 percent, so the magnitude of the former must not be used to argue the importance of the latter
+  - the reading stage FAILED on a NameError after all GPU work succeeded; the verdict was recomputed from fields whose per-arm digests were verified against the frozen seed receipts (15/15 ALL_MATCH) by code whose identity differs from the frozen protocol, and that difference is recorded in reading_derivation.json rather than hidden
+  - the worker(phase=reading) code path was not covered by any test before the round; that gap is the root cause of the failure and is not repaired in this round
+  - one model, one instance, one resolution (65x65), one region (27-43N / 107-123E); no extrapolation to global or other regions
+  - gpu re-inference is config-reproducible, not bit-reproducible; the dumped fields are the stable artefact and every diagnostic re-run over them is exact
+  - 15 checkpoints come from two different recipes, so every arm-to-arm delta here is inside one family; cross-family rows are levels only
+  - this is an evaluation, not an improvement: it produces no skill gain and no new capability
+- Excluded from runnable candidates: Evaluation-only round and a MIXED result that must not be flattened via HTTP: (a)=false and (c)=false mean the hydrostatic deviation delta_HB has no resolving power between arms -- its arm gaps (1e-6..5.4e-5) are an order of magnitude below the three-seed spread (3.3e-4..4.7e-4), and the three arms' orderings differ on all three seeds. (b)=true and (d)=true mean the geostrophic departure and the spectral fine-scale noise DO have resolving power and run systematically opposite to RMSE. Because (a) and (b) are not both true, this round does NOT license 'physical balance is an independent evaluation axis' as a whole; it licenses only the half carried by geostrophic+spectral, never by hydrostatic. Do not reuse this page as evidence that all four diagnostics work.
+- Recorded metrics (not recomputed): a_rows=1, a_same_ordering_on_every_seed=false, b_n_comparisons=260, b_n_reversed_all_seeds=44, c_stage_a_smallest_arm_gap=5.4e-05, c_stage_a_widest_seed_range=0.000328, c_urban_smallest_arm_gap=1e-06, c_urban_widest_seed_range=0.000469, clause_values={"a_arms_differ": false, "b_rmse_and_balance_disagree": true, "c_seed_spread_below_arm_gap": false, "d_truth_is_less_unbalanced": true, "e_preflight": true}, d_model_more_unbalanced=75, d_rows=75, diagnostics_sha256=6319d538b2c1d5e4d16f5e71d970b01194c40bac80be9a49bb8047cc33d3f6f5, disk_bytes_approx=43000000000, dump_seconds_summed=20326.2, e_preflight_passed=true, fields_verified_against_receipts=15/15 ALL_MATCH, gpu_hours=5.6462, n_arms=15, n_case_files=21705, n_cases=1447, reading_code_identity_differs_from_freeze=true, reading_derivation_sha256=ed65636b295827a5beb045cfdce2bbd049eb5557976225ccba18d69704e8d922, test_read=false, verdict=negative-diagnostic-is-dead
 
 ## m3-process-supervision-budget-limited
 

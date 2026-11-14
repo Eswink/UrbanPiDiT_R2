@@ -165,7 +165,11 @@ def worker(output, phase, seed, deadline):
     from training.r7_s3_v3_screen import pin_declared_gpu
     pin_declared_gpu(devices.assigned_uuid(body))
     if phase == "reading":
-        verdict.write(output / "diagnostics.json", readings(output, body))
+        # `verdict` is imported at the top of this function's caller, not in this scope: the
+        # reading path must name it here too, or the stage dies on a NameError *after* the whole
+        # GPU round has been paid for (measured: reading failed in 7.2 s on this line).
+        from scripts import r7_balance_verdict as verdict_module
+        verdict_module.write(output / "diagnostics.json", readings(output, body))
         return
     if seed not in SEEDS or deadline - time.perf_counter() > PER_SEED_SECONDS:
         raise RuntimeError("seed/deadline differs from freeze")
