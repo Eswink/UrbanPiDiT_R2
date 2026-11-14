@@ -323,3 +323,43 @@ brief 冻结 `planned 115,200 s / hard 230,400 s`。**这两个数字未被修�
 机制负结果整理成证伪章（0 GPU-h，纯写作与只读核对）；② 按主干计划 `next_node_proposal` 推进 S4
 （须 S4 自己的 brief、准入与判据）。规格/判据以本文件 §3 为准，读数与逐条判定见
 `docs/R7_S3_URBAN_STATIC_ABLATION_RESULT.md`。2023 test 未读、`r = 0`、S4 未启动。
+
+### §8.6 一处**编排层缺陷**，如实登记（2026-11-14）
+
+**症状**：`dwfrun-38da4731` 的完成摘要写「(a)=false (b)=false (c)=false (d 支撑)=true
+(e)=false (f 归因)=false」，而 `readings.json` 的实测值是 **(a)=false、(b)=true、(c)=true、
+(e)=true、(f)=true**。两者矛盾。
+
+**原因（实测定位，不是推测）**：workflow 的 judge 步骤用 `world.run` 跑一段内联 python
+把 `exit_conditions` 打成 JSON，报告项记为
+`{"probe": "exit-conditions", "exitCode": 0, "body": ""}` —— **`body` 为空**。随后脚本用
+`/"a": true/.test(judgeText)` 之类的正则取真假，空串使**每一个**正则都不匹配，于是
+`a/b/c/e/f` 全部落到 `false`。judge 的**退出码仍是 0**，所以脚本没有走「判定读数无法解析」
+那条停线，而是把「解析全落空」当成了「判据全为假」。
+
+**同一段命令在会话里重跑是正常的**（2026-11-14 实测，退出码 0）：
+
+```bash
+.venv/bin/python -c '<the same inline judge script>' r7_s3_urban_static_ablation_20261113
+# -> {"a": false, "attempt": "outputs/r7_s3_urban_static_ablation_20261113_attempt01",
+#     "b": true, "c": true, "e": true, "f": true,
+#     "verdict": "permanently-close-the-urban-static-input-branch"}
+```
+
+⇒ 空 `body` 是**该次运行内 `world.run` 的输出捕获问题**，不是那段 python 的逻辑问题。
+**未做到的定位**：没有取到 `world.run` 当时的完整 stdout/stderr，所以「为什么捕获为空」
+仍是**推测未证实**；本次没有复现它，**不得**把它写成已诊断清楚。
+
+**影响与处置**：
+
+1. **科学判定未被污染**：证据页、`R7_EVIDENCE_INDEX.jsonl`、`campaign-state`、账本行
+   全部由 `readings.json` 直接算出，与实测值一致。错的是**workflow 的摘要层**，
+   它没有写进任何登记产物。
+2. **但它是一类真实的编排风险**：`exitCode === 0` 且正则会话为空时，脚本把「没读到」
+   当成「读到 false」。**任何**用「正则匹配空输出」做判定的步骤都会犯同一个错。
+3. **对后续 workflow 的硬要求（下一轮开工前必须做）**：
+   - judge 必须**先断言 `body` 非空**再解析；空 `body` 一律走停线，不得落到默认值；
+   - 判据真值必须从 `readings.json` **结构化读取**（`json.load` 后逐键取值），
+     不得用正则去匹配自己刚打印出来的字符串；
+   - 摘要里的每一项都要能被一条可复现命令重算。
+4. 本条**没有**修改任何已冻结判据、没有重跑任何 stage、没有触碰任何读数。
