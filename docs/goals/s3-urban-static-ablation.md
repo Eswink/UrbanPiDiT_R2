@@ -9,9 +9,11 @@
 准入裁决是决策 **0113**；接线决策是 **0069**（已 `accepted`），数据决策是 **0063**。
 `campaign-state.current_round_goal` 必须指向本文件，否则 `tools/r7_round.py` 会解析到别的轮次并冻结错协议。
 
-**状态：prepared（2026-11-13 建立，未启动）。** `scientific_claim: false`、`test_read: false`、`r = 0`。
-**本轮 0 GPU-h**；无 `protocol.json`、无 `code.zip`、无 `readings.json`；(a)–(f) 全部未判定。
-在此之前，任何引用本文件作为「静态协变量有效/无效」的证据都是错的。
+**状态：done（2026-11-14 跑完并登记）——预声明出口 (a) 为假，该支按预声明永久关闭，如实记负。**
+`scientific_claim: false`、`test_read: false`、`r = 0`。**本轮 20.464471 GPU-h**；`protocol.json`（`protocol_sha256 cd6958ee…`）、`code.zip`（`sha256 c783e124…`，comment `c3e736e`）与
+`readings.json` 均已落盘，(a)–(f) 全部判定，读数与逐条判定见 `docs/R7_S3_URBAN_STATIC_ABLATION_RESULT.md`。
+（2026-11-13 建立时本行写的是「prepared，0 GPU-h，全部未判定」；那是当时的事实，现按本轮实测更新，
+下方 §8 同时保留 P0–P6 各阶段的实跑证据。）
 
 ---
 
@@ -198,12 +200,12 @@ Stage A 花钱买来的排除：直接作用点（细带振幅比）已经三 se
 | 2026-11-13 | 规划 | **完成** | 本文件、`docs/plans/0032-…`、`docs/decisions/0113-…` |
 | 2026-11-13 | 实现落盘 | **完成** | 四个文件（见 §8.1）；32 条反证测试通过 |
 | 2026-11-13 | P0 预检（e） | **完成，全绿** | §8.2：6/6 子句实测为真 |
-| —— | P1 冻结协议 | **未开始** | —— |
-| —— | P2 代码身份归档 | **未开始** | —— |
-| —— | P3 训练 | **未开始** | —— |
-| —— | P4 评分 | **未开始** | —— |
-| —— | P5 判定点 | **未开始** | —— |
-| —— | P6 登记 | **未开始** | —— |
+| 2026-11-13T17:08:56Z | P1 冻结协议 | **完成** | `protocol_sha256 cd6958ee…`；`protocol.json` 33,130,530 B、`sha256 7b2b828d…`；`prepare` 207.075 s |
+| 2026-11-13T17:09:03Z | P2 代码身份归档 | **完成** | `outputs/r7_s3_urban_static_ablation_code.zip` 14,302,614 B、`sha256 c783e124…`、1,862 条目、comment = `c3e736e`；`archive` 6.043 s |
+| 2026-11-13T17:09→2026-11-14T06:38 | P3 训练（3 臂 × 3 seed × 4,000 updates） | **完成** | 九份 receipt；训练 41,002.6 s 合计；s/update 1.1081–1.1663；父 checkpoint sha 逐 seed 与 pin 相等；`strict=True` 9/9 |
+| 2026-11-14T06:38:24Z | P4 评分（五 lead × 3 臂 × 3 seed） | **完成** | 评分 23,476.9 s 合计；`rows` 逐臂 51/51/51/51/51 且 `n_evaluated` 逐档相等（1,458/1,457/1,455/1,451/1,447） |
+| 2026-11-14T06:38:30Z | P5 判定点 (a)–(f) | **完成：(a) 假 ⇒ 永久关闭该支** | `readings.json` 的 `exit_conditions`；逐条见 §8.5 与证据页 §1 |
+| 2026-11-14 | P6 证据页 + 四件套登记 | **完成** | `docs/R7_S3_URBAN_STATIC_ABLATION_RESULT.md`、`record:s3-urban-static-ablation-negative`、master §7 行、master §8 块、`campaign-state` |
 
 ### §8.1 已落盘的实现（2026-11-13）
 
@@ -271,11 +273,53 @@ brief 冻结 `planned 115,200 s / hard 230,400 s`。**这两个数字未被修�
 - 因此按 Stage A 自己的方法（3× 估计、取整到小时）推导 per-seed 上限；brief 的软/硬**总**预算数字保持原样。
 - `test_the_budget_envelope_is_the_frozen_one` 断言：两个 brief 数字不变、per-seed > 估计、倍数 ≥ 3。
 
-**GPU-h = 0。2023 test 未读，`r = 0`。无 `protocol.json`、无 `code.zip`、无 `readings.json`；
-(a)–(f) 中只有 (d) 的代码路径与 (e) 有证据，(a)(b)(c)(f) 全部未判定。**
+**（以上是 2026-11-13 建立时的事实，保留不改。）本轮已于 2026-11-14 跑完并登记：20.464471 GPU-h，
+2023 test 未读、`r = 0`，P1–P6 全部完成，判定见 §8.5。**
+
+---
+
+### §8.5 本轮实跑与判定（2026-11-14，**替代上面「未启动」的状态**）
+
+**实跑链**：`freeze`（`protocol_sha256 cd6958eea98f4df53946dc3c21aa72937f93fb94723599377013eb57692fc020`）
+→ `prepare` 207.075 s（含 (e) 预检）→ `archive` 6.043 s → `stage-seeds` seed41 24,442.909 s
+（`GPU-408ad137…`）/ seed42 24,893.958 s（`GPU-9d1624af…`）**并发**、seed43 24,116.282 s（seed41 结束后
+自动接上同一张卡）→ `stage reading` 5.827 s，exit 0。同时最多 2 个 worker，未对任何邻居进程发信号（R-054）。
+
+| 判据 | 真/假 | 实测 |
+| --- | --- | --- |
+| **(a)** 72 h Δ(treatment − control) 三 seed 全 ≥ 0 | **假** | −0.000743 / −0.003099 / +0.000892 |
+| **(b)** 24/48 h Δ 三 seed 全 ≥ 0 | **真** | 24 h +0.001704 / +0.006306 / +0.002668；48 h +0.005789 / +0.007451 / +0.006158 |
+| **(c)** 6/12 h Δ ≥ −0.005 | **真** | 6 h +0.003309 / −0.000120 / +0.002502；12 h +0.003253 / +0.005877 / +0.008065 |
+| **(d)** control 逐位等价 | 代码路径 + 反证测试 | `model/weather_forecaster_r7.py:115` `pathway=None` + `:149` 身份检查 + `tests/test_r7_urban_static_ablation.py:51/65/84`（`3 passed`） |
+| **(e)** 预检 6/6 | **真** | 8 层全有限、`static_identity` 通过、三臂 `parameter_delta` 实测 0、placebo 多重集 8/8、9/9 strict、只差 `field` |
+| **(f)** Δ(placebo − treatment) 72 h ≥ 0.001 K | **真** | +0.045998 / +0.039604 / +0.037011 K |
+
+**⇒ 按 §3 预声明：(a) 为假 ⇒ 永久关闭城市静态协变量输入支，如实记负。**
+(b)(c)(e)(f) 的阳性**不**构成「部分成功」；判据是合取的。
+
+**一条必须连读的读数**：72 h 上 placebo 比 **control** 还差（control − placebo = +0.022741 / +0.021888 /
++0.016695 skill），而 treatment 与 control 实质打平 ⇒ (f) 的通过主要来自「placebo 被弄坏了」；
+且 placebo 与 treatment 差两件事（无空间结构 **且** token 幅度更低 0.6566× / 0.6920×）⇒ (f) 真不等于
+「效应来自空间结构」。
+
+**性质**：control 臂 72 h skill 三 seed 极差 0.014736，|Δ(a)| ≤ 0.003099 ⇒ 这是「未能证明有增益」的阴性，
+**不是**「已证明有害」的阴性；冻结判据问符号不问效应量，故仍关闭。
+
+**为何停**：目标长文 §0 把「(a)(b)(c) 任一为假」写成**预声明的科学停止条件**——不是遇到困难，
+而是本轮的判定规则已经触发。输入侧（城市静态协变量）与损失侧（C1/C2/P/R/C/A 六轮）的主要方向
+至此都已测过，本方向没有任何通过预声明出口的正面结果；按 §0 那句动手前就写下的话，
+论文的正面结果只能靠**证伪章与机制发现**。再跑一轮同类单因子、加 seed、加 updates 或换 placebo 构造
+都会违反 §3 与 §7 的冻结条款，因此**停**。
 
 **恢复第一条命令**：
 
 ```bash
 .venv/bin/python tools/r7_round.py state
 ```
+
+**下一动作（S3）**：城市静态协变量输入支已按预声明永久关闭，**本 brief 不再有新实验轮**。
+下一条假设必须先有一份新 ADR + 新 brief + 新冻结前置/出口；在此之前不新开任何实验轮、
+不重跑本支、不加 seed、不改 4,000 updates。可选的两条路（都先要 ADR）：① 把本轮与 Stage A 的
+机制负结果整理成证伪章（0 GPU-h，纯写作与只读核对）；② 按主干计划 `next_node_proposal` 推进 S4
+（须 S4 自己的 brief、准入与判据）。规格/判据以本文件 §3 为准，读数与逐条判定见
+`docs/R7_S3_URBAN_STATIC_ABLATION_RESULT.md`。2023 test 未读、`r = 0`、S4 未启动。
