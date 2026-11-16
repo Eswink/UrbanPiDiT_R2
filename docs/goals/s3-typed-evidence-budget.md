@@ -754,6 +754,40 @@ seed41.log:  File ".../study_r7_s3_typed_budget.py", line 234, in _arm_contract
 ⇒ 现在跑的 6 个臂用的是**已修复**的冻结协议。这条写在这里是为了让「为什么有两个 attempt 目录」
 有据可查，而不是靠记忆。
 
+### §5.2s 登记装配器与两处自造缺陷（含反证测试）
+
+最后一步（证据页 + index record + 账本行 + campaign §8）此前只能靠手写，而它发生在**全部
+99 GPU-h 花完之后**。新增 `scripts/r7_s3_typed_budget_register.py`（191 行，纯只读装配）把
+能从产物读出的东西全部读出来，不手抄：
+
+| 装配项 | 来源 | 为什么不能手抄 |
+| --- | --- | --- |
+| GPU-h | 臂 receipt 的 `elapsed_seconds` + 每个 `evaluations[lead].elapsed_seconds`，另加段 B 两个探针的 `gpu_hours` | **没有任何 stage receipt 记累计 GPU-h**（实测 `prepared_protocol.json` 只有 `planned/hard_cap/per_seed`，`archive_receipt.json` 只有 3 键） |
+| (a)–(f) | `readings.json` 的 `exit_conditions` / `exits.values` / `preflight` | 二次计算等于给判定开后门 |
+| `protocol_sha256` / `source_sha256` / `data_identity` | `readings.json` | 手抄即可能漂移 |
+
+**段 B 的 GPU-h 尚未入账**（已核对：账本 94 行里没有本轮任何一行），实测
+`segment_b_probe.json = 9.4348` + `segment_b_depth.json = 3.3461` = **12.7809 GPU-h**，
+必须与段 A 合并在同一行登记。
+
+**我在这个新文件里自己造了两处缺陷，两处都已修并留反证**：
+
+1. **(f) 判据的形状**。`checks.capacity` 与 `checks.forward_arithmetic` 是**带 `passed` 键的
+   dict**，我写成 `entry is True` ⇒ 绿着的 preflight 会被报成 (f) 假。这正是「把形状判错、
+   于是卡片与读数相反」那一类。改为逐条读 `entry["passed"]`，且**缺失返回 `None`（未测）
+   而不是 `False`**；反证测试覆盖 `{"passed":True}/{"passed":False}/True/{}/None` 五种输入。
+2. **浮点尾巴**。段 B 求和得 `12.780899999999999`，与账本要求的 **1e-4 对齐**在末位就会差
+   1e-16。已按 1e-4 量化。
+
+另有两处「拒绝而非记账」的守卫，都用反证测试钉住：
+- receipt 缺 `elapsed_seconds` ⇒ `RuntimeError`（**不得记 0**，否则账本少记）；
+- `readings.json` 缺任一子句 ⇒ `RuntimeError`。
+
+**code.zip 与冻结身份的一致性已核对**：注释 `f0da923796f2…` == `protocol.json` 的
+`code_commit`，zip 实测 sha256 == 冻结的 `code_zip_sha256`（`cc58c88c…`）。测试里那条
+`pytest.skip("archive is stale … built from f0da923, HEAD is b980703")` **是预期行为**：
+HEAD 因文档提交前进，而归档只须匹配**冻结**身份，不需要匹配 HEAD。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，

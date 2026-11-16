@@ -328,3 +328,61 @@ def test_a_missing_interval_is_untested_not_failed():
                                dirs={name: {"41": {}} for name in arms})
     assert out["value"] is None, out
     assert "untested rather than failed" in out["reason"]
+
+
+def test_a_preflight_entry_dict_is_read_not_compared():
+    """(f) must read each entry's own ``passed`` flag, not compare the dict against True.
+
+    ``checks.capacity`` and ``checks.forward_arithmetic`` are dicts carrying ``passed``, so an
+    ``entry is True`` test reports a green preflight as failed -- the same shape confusion that
+    once published a card contradicting its own reading. Absent is ``None``, never ``False``.
+    """
+    from scripts import r7_s3_typed_budget_register as register
+
+    assert register._passed({"passed": True}) is True
+    assert register._passed({"passed": False}) is False
+    assert register._passed(True) is True
+    assert register._passed({"passed": None}) is None
+    assert register._passed({}) is None, "an entry without a verdict is untested, not passed"
+    assert register._passed(None) is None
+
+    clauses = {"off_path_is_the_previous_model": {"passed": True},
+               "slot_arrival_is_diagonal": {"passed": True},
+               "future_labels_are_unread": {"passed": True},
+               "capacity_is_matched_where_it_must_be": {"passed": True},
+               "forward_arithmetic_is_matched": {"passed": True},
+               "budget_and_closed_dose_are_registered": {"passed": True}}
+    readings = {"preflight": {"f_preflight_passed": True, "clauses": clauses},
+                "checks": {"capacity": {"passed": True}, "forward_arithmetic": {"passed": True}},
+                "exit_conditions": {name: {"value": None} for name in
+                                    ("a_typed_minus_generic", "b_generic_minus_incumbent",
+                                     "c_claim_scope", "d_budget_direction", "e_z500_72h_guard")},
+                "exits": {"values": {}}, "verdict": "untested-no-arm-contrast"}
+    summary = register.clause_summary(readings)
+    assert summary["f_preflight"]["passed"] is True
+    assert summary["f_preflight"]["capacity"] is True
+    assert summary["f_preflight"]["forward_arithmetic"] is True
+
+
+def test_a_receipt_without_elapsed_seconds_is_refused_not_counted_as_zero():
+    """GPU hours for the ledger cannot be silently under-counted by a field-less receipt."""
+    import json
+    from pathlib import Path
+
+    from scripts import r7_s3_typed_budget_register as register
+
+    folder = Path(__file__).resolve().parents[1] / "outputs" / "_register_refusal_probe"
+    folder.mkdir(parents=True, exist_ok=True)
+    receipt = folder / "seed41_incumbent_receipt.json"
+    receipt.write_text(json.dumps({"seed": 41, "arm": "incumbent", "evaluations": {}}),
+                       encoding="utf-8")
+    try:
+        try:
+            register.segment_a_hours(folder)
+        except RuntimeError as error:
+            assert "elapsed_seconds" in str(error)
+        else:
+            raise AssertionError("a receipt without elapsed_seconds must be refused")
+    finally:
+        receipt.unlink()
+        folder.rmdir()
