@@ -377,7 +377,17 @@ def worker(output, phase, seed, deadline):
         # The reading path must name its writer here too: the balance round died on a NameError
         # 7.2 s into this branch, after the whole GPU round had already been paid for.
         from scripts import r7_typed_budget_verdict as verdict_module
-        verdict_module.write(output / "readings.json", readings(output, body))
+        assembled = readings(output, body)
+        # ``readings.json`` IS this stage's receipt and ``write`` refuses to overwrite, so a
+        # premature run would freeze an incomplete reading AND mark the stage done forever: the
+        # round would then skip reading on every later attempt. Refuse instead of recording a
+        # half-filled table -- a missing arm must stay untested, not become a published null.
+        if not assembled.get("complete"):
+            raise RuntimeError(
+                "refusing to write readings.json: the round is incomplete, missing "
+                f"{assembled.get('missing')}; an incomplete reading would become this stage's "
+                "immutable receipt and the missing arms would never be scored")
+        verdict_module.write(output / "readings.json", assembled)
         return
     if seed not in SEEDS or deadline - time.perf_counter() > PER_SEED_SECONDS:
         raise RuntimeError("seed/deadline differs from freeze")

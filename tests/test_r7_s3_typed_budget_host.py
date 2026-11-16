@@ -222,3 +222,34 @@ def test_the_archive_stage_accepts_this_rounds_real_zip_and_refuses_a_wrong_comm
     stale["execution_files_sha256"][first] = "0" * 64
     with pytest.raises(RuntimeError, match="archive omits or changes execution source"):
         driver._archive(stale_dir, stale)
+
+
+def test_the_reading_stage_refuses_to_write_an_incomplete_reading(tmp_path, monkeypatch):
+    """``readings.json`` is the stage receipt, so a premature write is permanent.
+
+    ``write`` refuses to overwrite and ``stage_plan`` skips on receipt presence, so writing with
+    arms missing would freeze an incomplete table AND mark the stage done: every later attempt
+    would skip reading and the missing arms would never be scored. The branch must raise instead.
+    """
+    import time as _time
+
+    from scripts import study_r7_s3_typed_budget as driver
+
+    frozen = {"protocol_sha256": "0" * 64, "updates": 32_132, "batch_size": 4,
+              "closed_dose": {"record_id": "s3-typed-spatial-result", "updates": 2400},
+              "independent_arm_argument": "synthetic", "limitations": ["synthetic test fixture"],
+              "preflight": {"clauses": {"capacity_is_matched_where_it_must_be": True,
+                                        "forward_arithmetic_is_matched": True}},
+              "train_data_identity": "0" * 64,
+              "val_manifest": str(driver.proto.VAL_MANIFEST),
+              "deadline_perf_counter": _time.perf_counter() + 3600.0}
+    monkeypatch.setattr(driver.proto, "validate_protocol", lambda _out: frozen)
+    monkeypatch.setattr("scripts.r7_m3_offline.deny_network", lambda: None)
+    monkeypatch.setattr("training.r7_s3_v3_screen.pin_declared_gpu", lambda _uuid: None)
+    monkeypatch.setattr(driver.devices, "assigned_uuid", lambda _body: driver.proto.GPU_UUID)
+
+    # No receipts at all: every arm is missing.
+    with pytest.raises(RuntimeError, match="refusing to write readings.json"):
+        driver.worker(str(tmp_path), "reading", None, _time.perf_counter() + 1800.0)
+    assert not (tmp_path / "readings.json").exists(), (
+        "a refused reading must leave no receipt behind, or the stage would be marked done")
