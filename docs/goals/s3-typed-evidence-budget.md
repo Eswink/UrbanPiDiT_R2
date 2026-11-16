@@ -474,6 +474,24 @@ unresolved}`；`candidate_state ∈ {candidate, blocked, needs-review, not-candi
 本轮**不**为这一风险新增恢复机制：加断点续跑会改动 `training/**` 行为（会改
 `training_code_sha256`，等于换协议），属于本轮明令不做的事。
 
+### §5.2j 训练→评估链路端到端验证（真实 checkpoint，0 训练 GPU-h）
+
+此前只验证过「段 B 的既有 checkpoint 能被评分」，但没验证过**本轮训练路径产出的 checkpoint
+能被 `evaluate_local` 读回**。这是九臂各训 11 h 之后才会踩到的最后一环，现在提前打通：
+
+| 步骤 | 实测 |
+| --- | --- |
+| 用本轮 `_expand` + 真实合约训练出的 checkpoint | `/tmp/arm_step_out/typed/update_0000002.pt`，**163 个模型键** |
+| 代码身份 | `model_code_sha256` 与当前树**一致** |
+| 合约回读 | `kind=process`、`typed_evidence_mode=typed_routing`、`data_identity=81307008…` |
+| `evaluate_local` 评分 | `n_evaluated: 200`、`boundary_rmse.csv` **已写出**、**200 条 provenance 初始化行** |
+| 读数 | t2m **2.1509**、z500 **126.95** |
+
+⇒ 训练产出的 checkpoint → 评分 → boundary CSV → provenance 逐 case 行 → 判据输入，
+整条链路在**真实文件**上跑通。这也再次证明读数的 (a) 区间所需的逐初始化行确实由该路径产生。
+
+（该 checkpoint 只训了 2 updates，故 RMSE 不具科学意义；此步只验证机制。）
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
