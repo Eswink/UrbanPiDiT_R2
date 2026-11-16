@@ -599,6 +599,88 @@ n_initializations` ⇒ `_region_rmse(path, "full", "t2m"/"z500")` 的键都在�
 
 ⇒ `_train_arm` → receipt → `readings()` → 区间，字段层面无缺口。
 
+### §5.2n 区间与写盘在**真实文件**上跑通（0 GPU-h，不是 fixture）
+
+上一节只核对了字段「在不在」。这一节把 `pair_interval()` 依赖的两个拒绝路径真正跑一遍——
+它们每一个都会把判据 (a) 变成 `null`，而且是在**全部 99 GPU-h 花完之后**才暴露：
+
+**① `paired_rmse_bootstrap` 的元数据契约**。它要求 6 个字段在两臂间**逐字相等**
+（`evaluation_manifest_sha256 / channels / units / lead_hours / step_hours / split`），
+另要求 `n_evaluated == len(initializations)`；任一不符即 `ValueError`。实测段 B 的
+`provenance.json` **29 个顶层键**，上述 6 个 + `n_evaluated` **全部存在**：
+
+| 字段 | 实测值 |
+| --- | --- |
+| `channels` | 17 个变量（t2m, u10, v10, mslp, z850, …） |
+| `units` | 与 `channels` 等长 |
+| `lead_hours` / `step_hours` / `split` | `[24]` / `6` / `val` |
+| `evaluation_manifest_sha256` | `f8133e79…` |
+| `n_evaluated` | 1455 == `len(initializations)` |
+
+**② 真跑一次**（两个真实 checkpoint、真实 1,447 个初始化、真实 72 h）：
+
+```
+paired_rmse_bootstrap(a, b, block_days=7, replicates=1000, seed=42, confidence=.95)
+→ SUCCESS: replicates=1000, block_days=7, n_initializations=1447
+→ t2m@72h: rmse_A_minus_B = +0.05594, interval = [-0.02824, +0.116997]
+```
+
+**这一条同时是一个反证**：`k2` 与 `k4` 是同一 checkpoint 的两个深度，本不该有差异，
+而区间**正确跨零**（`-0.028 … +0.117`）。若区间代码写错成恒排除零，(a) 就会在无差异处为真。
+冻结参数 `block_days=7 / replicates=1000 / confidence=0.95` 与 `paired_rmse_bootstrap` 的默认值
+**逐字一致**，本轮未传任何覆盖值。
+
+**③ `verdict.write()` 拒绝覆盖**（`path.open("x")`），配合 §5.2 的 completeness 守卫：
+不完整的读数既不会写出，也不会被后续 attempt 顶掉。
+
+⇒ 判据 (a) 的区间、五键写盘、以及「不完整即拒写」三条路径都在真实产物上验证过。
+
+### §5.2o 调度器与磁盘：两件决定「能否跑完」的运行事实（只读核对，0 GPU-h）
+
+**① 谁在推进 seed 43**。只有 seed 41/42 有 worker 进程时，容易误判为「第三 seed 没人管」。
+实测父进程链：
+
+```
+timeout 259200  →  tools/r7_round.py stage-seeds (pid 395250)  →  study_r7_s3_typed_evidence...py --worker seed --seed 41 / 42
+```
+
+`run_seeds()`（`tools/r7_round_stages.py:362`）的行为已逐条读出：
+- `pending` 取出所有**尚无 receipt** 的 seed；
+- 每张卡最多一个本轮 worker（决策 0047），第三个 seed 在**任一卡空出时立即启动**；
+- 每个 seed 的截止是 `min(round_deadline, now + per_seed_seconds)`（`:292`），
+  即 seed 43 拿到的是**完整 35 h 包络**，不会被前面两波耗掉的时间压扁；
+- `headroom-blocked` 只**只读等待**（R-054），绝不对邻居进程发信号。
+
+⚠️ 一个容易看错的守卫（**`scripts/study_r7_s3_typed_budget.py:398`**，不在 scheduler 里）：
+`if seed not in SEEDS or deadline - time.perf_counter() > PER_SEED_SECONDS: raise`
+看起来像「剩余时间多于单 seed 包络就拒绝」，实际是**拒绝一个比冻结包络更宽松的 deadline**
+——防止调用方把截止时间声明得超出冻结值。方向是对的，但读反了会得出「seed 43 永远起不来」
+的错误结论。已按语义核对：`run_stage` 传的是 `min(round_deadline, now + per_seed)`
+（`tools/r7_round_stages.py:292`），恒 `≤ now + per_seed`，故该守卫必然通过。
+
+**seed 43 的时间账（按 `perf_counter` 冻结值与实测速率实算，不是估计）**：
+
+| 项 | 值 |
+| --- | --- |
+| round deadline | `3433567.3` |
+| wave1 结束（3 臂 × 10.94 h） | `3293033.0` |
+| seed 43 的 limit = `min(deadline, pop + 126000)` | `3419033.0` ⇒ 窗口 **35.00 h** |
+| seed 43 需要 | **32.82 h** ✓（余 2.18 h） |
+| seed 43 结束 | `3411183.4` |
+| 留给 `reading` | **6.22 h** ✓ |
+
+⇒ 第三 seed 有 2.18 h 余量、reading 有 6.22 h，两处都不依赖乐观估计。
+（这些绝对 `perf_counter` 值随轮次起点不同而变；判读只用**差值**。）
+
+**② 磁盘与孤儿守卫**。`/data` 3.6 T，已用 2.6 T，**可用 835 GB**（77%）；attempt 现占 **88 MB**
+（两臂各 37 MB，尚无 checkpoint）。`checkpoint_every=5000` ⇒ 每臂 6 个中间 checkpoint，
+九臂全部 checkpoint 在数十 GB 量级，835 GB 充裕。这一条写在这里是为了让「剩余空间」有实测
+出处，而不是假定。
+
+`tools/r7_round.py stage-plan seed 41` 实测返回 `already_running: true` + 5 个存活 PID
+⇒ 重复启动会被拒而不是双开抢 GPU；`orphans` 子命令报告各 stage 的 `running/pids`。
+两处都只读，不向任何进程发信号（R-054）。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
