@@ -439,6 +439,41 @@ unresolved}`；`candidate_state ∈ {candidate, blocked, needs-review, not-candi
 → ⑤ `commit-guard` 再提交 → ⑥ `verify` 三套校验器全绿。
 任何一步用占位符都会在第 ② 步被拒。
 
+### §5.2i 无断点续跑：本轮最大的剩余运行风险（只读核对）
+
+`training/r7_long_rollout_runner.py` 自己写明：
+
+```
+"A new optimizer imports verified model weights only; no failed-attempt resume is supported."
+"resume_permitted": False
+```
+
+即 **worker 若中途死亡，该臂只能从父 checkpoint 重跑，不能续跑**。`checkpoint_every=20` 会在
+盘上留下中间 checkpoint，但 runner 拒绝据其恢复（这是刻意的科学约束：新优化器只接受已验证的
+模型权重，避免把失败尝试的半程状态混进结果）。
+
+**敞口量化**（单 seed 三臂串行；臂单价 10.96 h 实测）：
+
+| 死亡发生处 | 损失 |
+| --- | --- |
+| 臂 1（incumbent） | **32.88 h** |
+| 臂 2（generic） | 21.92 h |
+| 臂 3（typed） | 10.96 h |
+| **期望损失/次** | **21.92 h** |
+
+66 h 墙钟内共 6 个臂进程（每 wave 2 seed × 3 臂顺序执行），因此这一项的期望敞口**大于**
+§5.2g 的 9.5% 速率余量，是本轮最大的剩余运行风险。
+
+**若真发生，正确动作（现在写定，避免事后临时决定）**：
+- 死亡的 seed **不带**其已完成臂进入结论；该 seed 在新 attempt 下**整 seed 重跑**；
+- 若只剩一个 seed 缺失且硬上限不允许重跑满一波，则按冻结规则把该 seed 记为
+  `budget_limited`/`failed`，**该 seed 不进对照**，判据按「缺失臂 ⇒ `null`」处理；
+- **不得**用 `checkpoint_every` 留下的中间 checkpoint 冒充完成态，**不得**跨 attempt 拼接读数，
+  **不得**因缺臂而放宽 (a)/(b) 的容差或改判据。
+
+本轮**不**为这一风险新增恢复机制：加断点续跑会改动 `training/**` 行为（会改
+`training_code_sha256`，等于换协议），属于本轮明令不做的事。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
