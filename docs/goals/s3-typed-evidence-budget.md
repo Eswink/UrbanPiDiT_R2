@@ -423,6 +423,28 @@ unresolved}`；`candidate_state ∈ {candidate, blocked, needs-review, not-candi
 这一点在开跑时并不显式，属于本轮实测得到的运行约束，如实登记于此。
 若最终被硬上限截断，正确动作是**新 attempt、新协议**重跑缺的 seed，**不是**放宽判据或拼接读数。
 
+**上表之后的重算（§5.2g 定稿时用的速率已过时，这里更正，不是改判据）**：
+
+| 项 | §5.2g 原值 | 实测重算 |
+| --- | --- | --- |
+| s/update（两 seed 取较差） | 1.1448 | **1.1422** |
+| 单臂（32,132 upd + **五 lead 合计**评分 2,682.3 s） | 10.96 h | **10.94 h** |
+| wave（3 臂串行） | 32.89 h | **32.82 h** |
+| 剩余墙钟 | 71.63 h | **70.97 h** |
+| 还需工作 | 65.78 h | **64.76 h**（wave1 已烧 0.88 h） |
+| **余量** | 5.85 h | **+6.21 h** |
+| 可承受的最慢 s/update | 1.2541 | **1.2254**（余量 **+7.3%**） |
+
+两点更正说明，避免把口径当成结论：
+
+1. `MEASURED_SECONDS_PER_EVALUATION = 2_682.3` 是**五个 lead 的合计**
+   （231.7+308.0+426.6+711.1+1,004.9 s），**不是**每 lead 值。第一次重算我按 5× 计过，
+   把余量算成 −11.66 h——那是我自己的口径错误，已更正，如实留在这里。
+2. 两个 seed worker 在**两张卡上并发**，故两波 = 2 × wave，不是 9 × 单臂串行。
+   按 9 臂逐个串行会算出「上限 0.8157 s/update、缺口 −28.6%」，同样是口径错误。
+
+⇒ 结论不变（能跑完），但**余量从 9.5% 降到 7.3%**——GPU 共驻变慢超过 7.3% 就会截断。
+
 ### §5.2h 登记四件套的精确契约（0 GPU-h 预读，避免在 99 GPU-h 后返工）
 
 三套校验器各自的硬性要求，逐项读出（不是猜）：
@@ -491,6 +513,91 @@ unresolved}`；`candidate_state ∈ {candidate, blocked, needs-review, not-candi
 整条链路在**真实文件**上跑通。这也再次证明读数的 (a) 区间所需的逐初始化行确实由该路径产生。
 
 （该 checkpoint 只训了 2 updates，故 RMSE 不具科学意义；此步只验证机制。）
+
+### §5.2k 主干同一性：三臂的因果归因前提被**直接**验证（0 GPU-h）
+
+判据 (a)(b) 的整个解释力压在一句话上：**incumbent / generic / typed 从同一套主干权重出发**。
+若 pathway 构建挪动了任何主干张量，那么 (a)(b) 的差值里就同时包含「处理效应」和「初始化差异」，
+两件事再也分不开。preflight 只对 off 通路断言了这一点；这里把三臂、每个共享张量都直接查一遍。
+
+实测（`/tmp/trunk_identity.py`，直接对 `proto.parent_pin(seed)` 的真实父权重跑 `driver._expand`）：
+
+| seed | incumbent 新增键 | incumbent == parent（逐张量） | generic 主干 155 张量 | typed 主干 155 张量 | generic vs typed 共享 159 张量 | pathway 键交集 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 41 | `[]` | **True** | **逐位相同**，`max_abs_diff 0.000e+00` | **逐位相同**，`0.000e+00` | 0 个不同 | 仅 `typed_evidence.conv/norm` 4 个 |
+| 42 | `[]` | **True** | 同上 | 同上 | 0 个不同 | 同上 |
+| 43 | `[]` | **True** | 同上 | 同上 | 0 个不同 | 同上 |
+
+三点结论，逐条对应一个可能被质疑的地方：
+
+1. **incumbent 新增零键、且是父权重逐张量原样**——不存在「off 通路其实也建了点什么」的可能。
+2. **generic/typed 与父共享的 155 个张量全部逐位相同（`torch.equal`，不是容差比较）**——
+   处理只发生在 pathway 块内部，主干未被任何随机初始化或重排触碰。
+3. **两臂的 pathway 键交集恰好是共享编码器的 4 个张量**（`typed_evidence.conv.{weight,bias}`、
+   `.norm.{weight,bias}`），**不含投影块**；而共享 159 张量中 0 个不同 ⇒ 两臂的**唯一**差异
+   是投影块的具体形状/内容。这正是 §5.2 里 `shared_encoder_sha256` 检查所依赖的那个不变量的
+   独立复核：`_seed` 断言「两臂共享编码器同一、投影块不同」，此处从权重层面确认它成立。
+
+⇒ (a) 的「类型结构」与 (b) 的「物理证据」两个归因**不是靠推断**，而是靠逐位相同的主干成立的。
+
+### §5.2l 第十六处缺陷：`epochs` 元数据少了 batch 因子（**不修，记 errata**）
+
+价值层审计（形状审计查不到的那一类）发现两处把 `epochs` 算成 `updates / 32131`：
+
+| 位置 | 代码 | 记录值 | 正确值 |
+| --- | --- | --- | --- |
+| `scripts/study_r7_s3_typed_budget.py:339` | `int(body["updates"]) / 32_131` | **1.000031** | **4.000124** |
+| `scripts/r7_s3_typed_budget_preflight.py:174` | `proto.UPDATES / 32_131` | **1.000031** | **4.000124** |
+
+正确算式是 `updates × batch / usable_windows = 32132 × 4 / 32131`，这是本仓的既定口径
+（`tests/test_r7_s3_curve_large_points.py:37` 逐字钉住 `32132 * 4 / 32131`）。**独立佐证**：
+已注册的 `p4000` 档与本轮剂量完全相同，`r7_s3_curve_point_large_protocol.point_blocks("p4000")`
+记录 `epochs = 4.000124`——与本轮正确值逐位相同。缺的正是 ×4。
+
+**影响面（已逐项核对，是惰性的）**：
+
+- 判据 (a)–(e) **不读**该字段（`grep` 全空）；
+- (f) 子句的 `passed` 只由 `updates / batch_size / seeds / closed_round` 算出，
+  **不含** `epochs`（实测 `"epochs" in str(clause["passed"]) == False`）；
+- 三套校验器（`check_round_receipts` / `verify_r7_evidence_index` / `r7_round`）**都不读**它。
+
+⇒ 该字段不影响任何判定，但会永久留在 `protocol.json` 与 `readings.json` 里，**必须在证据页
+的 `limitations` 里点名**，否则日后有人引用「1.000031 epoch」就会把本轮说成 1/4 的剂量。
+
+**为什么不修（这是刻意的，不是省事）**：两个文件都在 `execution_files_sha256` 里（84 个冻结源之一），
+而 `validate_protocol` 在**每个** stage 开头逐文件比对。现在改它们会让 `reading` 阶段——
+也就是**全部 99 GPU-h 花完之后**——抛 `execution source changed`。这正是第十四处的原样重演。
+重冻结则要换 `protocol_sha256`，而已启动的 6 个臂的 `fine_tune_started.json` 写的是
+`contract.protocol_sha256 = 76e1c214…`，与新的 body 不符，等价于从头重跑，且 `archive_receipt`
+会因「receipt 存在即跳过」而留下**旧代码 zip 配新 digests** 的断裂链条。
+
+**处置**：不动冻结源、不重冻结；本节的数字为权威算式，`epochs` 字段按 errata 处理，
+并在证据页 `limitations` 与账本 evidence 里各写一次。判据与容差**未**改动。
+
+### §5.2m receipt 契约与真实写者逐字段对齐（0 GPU-h）
+
+`readings()` 消费的字段此前只在合成 fixture 上验证过。这里把 `_train_arm` 真正写下的 receipt
+与 `readings()` / `pair_interval()` 的读取点逐个对上，并用**段 B 的真实产物**取 schema：
+
+| receipt 字段（`_train_arm` 写入） | 真实来源 | 读取方 | 对齐 |
+| --- | --- | --- | --- |
+| `evaluations[str(lead)].dir` | `seed{seed}/evaluation/{arm}/lead_{lead:03d}h` | `_region_rmse(dir/boundary_rmse.csv)` | ✓ |
+| `evaluations[str(lead)].n_evaluated` | `provenance["n_evaluated"]` | 非空守卫 | ✓ |
+| `evaluations[str(lead)].boundary_rmse_csv_sha256` | `sha256_file(destination/"boundary_rmse.csv")` | 归档 | ✓ |
+| `evaluations[str(lead)].provenance_sha256` | `sha256_file(destination/"provenance.json")` | 归档 | ✓ |
+| `parameters` / `seconds_per_update` / `typed_evidence_mode` | 模型与 report | `readings()` 表格 | ✓ |
+
+`boundary_rmse.csv` 实测列（段 B 真实文件）：
+`region, margin_cells, n_grid_points, full_area_fraction, lead_hours, variable, unit, rmse,
+n_initializations` ⇒ `_region_rmse(path, "full", "t2m"/"z500")` 的键都在，且 `region == "full"`
+的行确实存在（17 变量 × 5 lead × 3 region 全齐）。
+
+`provenance.json` 实测结构：顶层 15 键，`initializations` 每条含
+`{cumulative_reasoning_steps, init_time, mse, valid_times}`。`pair_interval()` 重组的正是
+`init_time / valid_times / mse` 三个字段并交给 `paired_rmse_bootstrap` ⇒ **区间所需的数据确实由
+`evaluate_local` 写出**，不是假设。段 B 真实文件含 **1,455 条**逐初始化行（lead 24 h）。
+
+⇒ `_train_arm` → receipt → `readings()` → 区间，字段层面无缺口。
 
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
