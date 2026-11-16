@@ -909,6 +909,32 @@ rows_before 94, previous_total 619.436628, new_row 12.7809
 （`segment_a_hours()` 会累加训练 + 每 lead 评分秒数）。我另外用 `ledger-plan 112.0` 试算过一次
 「若段 A 是某个整数会怎样」，那**只是算术演练，任何估算值都不得写进账本**。
 
+### §5.2v 配对前提：两臂评测的是**同一组初始化**（不是同样多）
+
+`paired_rmse_bootstrap` 的拒绝条件是 `set(ra) != set(rb)`，即要求**集合相同**；仅仅
+`n_evaluated` 相等并不够（两个同样大的不同集合会被拒，且拒绝发生在 99 GPU-h 之后）。
+用段 B 的真实 provenance 直接比集合：
+
+| lead | K=2 | K=4 | K=6 | K=8 | 与 K=4 **集合完全相同** |
+| --- | --- | --- | --- | --- | --- |
+| 6h | 1458 | 1458 | 1458 | 1458 | **True** |
+| 24h | 1455 | 1455 | 1455 | 1455 | **True** |
+| 72h | 1447 | 1447 | 1447 | 1447 | **True** |
+
+（其余 lead 12/48 的 `n_evaluated` 同为 1457/1451，见 `depth_tables`。）
+
+这同时解释了 lead 之间的条数递减：长 lead 需要更多未来帧，可用窗口更少（1458→1447）。
+**段 A 的三臂用同一 val manifest、同一 `max_samples`、同一 chronological selection**，
+因此同样会落在相同集合上：冻结协议只有一个 `val_manifest`
+（`…/store/manifests_treatment/val.jsonl`，`val_manifest_sha256 = f8133e79…`），
+`_arm_contract` **不**让每臂各带一份 manifest——所以三个臂无法指向不同的评测集。
+`_train_arm` 里 `EvaluationPreparation(...)` 只构建一次、被五个 lead 复用，也不引入分歧源。
+
+⚠️ 一处措辞更正：`readings()["checks"]["val_manifest_sha256"]` 是**整轮的一个值**，
+不是「三臂各一个值且相同」——它只能证明该轮声明的 manifest 未变，不能单独证明三臂同集。
+三臂同集的真正保证来自「合约里只有一份 manifest」，以及 `_train_arm` 对每个 lead 都用
+同一个 `prepared` 对象。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
