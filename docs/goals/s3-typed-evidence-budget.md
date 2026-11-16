@@ -702,6 +702,58 @@ generic 5 键 vs typed 8 键导致 digest 必然不同、在 33 h/seed 之后抛
 
 ⇒ 从「训练结束」到「登记完成」之间没有未预演的断言了。
 
+### §5.2q (e) 护栏的两个常数已追到已注册产物（0 GPU-h）
+
+判据 (e) 的注释声称「p4000 → p1600 的 z500@72h 已从 427.35 升到 445.78」。这两个数此前只是
+注释里的引用，本次直接到已注册的 `readings.json` 核对：
+
+| 档位 | 产物 | `leads.72.z500` 实测 |
+| --- | --- | --- |
+| p4000 | `outputs/r7_s3_throughput_physics_b_p4000_20261105_attempt02/readings.json` | **427.346** |
+| p1000 | `outputs/r7_s3_throughput_physics_b_p1000_20261104_attempt01/readings.json` | 444.74 |
+| p1600 | `outputs/r7_s3_throughput_physics_b_p1600_20261106_attempt01/readings.json` | **445.777** |
+
+⇒ `Z500_72H_REFERENCE = 427.35` 与「445.78」两个常数**都是已注册读数的四舍五入**，不是估的。
+且剂量阶梯不是单调的（p1000 444.74 > p1600 445.777 ≈ 同水平），说明 z500@72h 在 8033 updates
+之后基本走平——这恰恰是 (e) 存在的理由：**t2m 能继续变好而动力学指标不动或反向**。
+
+**但 (e) 的判定对象不是这两个常数**。`clause_e()` 有三列，只有一列参与判定：
+
+| 列 | 内容 | 是否判定 |
+| --- | --- | --- |
+| `relative_change` | 该臂 vs **同 seed 的 incumbent 臂** | **判定**（≤ +5%） |
+| `against_reference` | 该臂 vs 427.35 | 仅信息（混入了预算漂移，不是臂效应） |
+| `within_tolerance` | 上列布尔汇总 | 判定 |
+
+`tests/test_r7_s3_typed_budget.py:203` 逐字钉住这一点：*"The guard is an arm-to-arm test; the
+427.35 reference is informational only."* ⇒ 即使用 427.35 当分母，也不会把本轮的臂效应和
+p4000→p1600 的既有漂移混为一谈。
+
+### §5.2r 两次被作废的尝试留下了可核对的失败证据（0 GPU-h）
+
+`outputs/` 下有 `r7_s3_typed_evidence_budget_voided_20261117b/`（不在 `output_stem` 的
+`{stem}_attempt*` glob 内，故不会被 `current_attempt_dir` 选中）。它不是垃圾，是**缺陷 11 的
+现场**：
+
+```
+seed41.log:  File ".../study_r7_s3_typed_budget.py", line 234, in _arm_contract
+               "data_identity": body["train_data_identity"], "source_sha256": body["source_sha256"],
+             KeyError: 'source_sha256'
+```
+
+`stage_ledger.jsonl` 记 `prepare/archive success`、`seed 41/42 failed`。
+
+**两个冻结协议的差异已实测**（这正是缺陷 11 被修好的证据）：
+
+| 项 | voided（63f23c46…） | live（76e1c214…） |
+| --- | --- | --- |
+| `source_sha256` | **缺失** ⇒ `KeyError` | **存在**（`1db83955…`，由 `sha256sum` 实算） |
+| `train_windows` | 两键 | 两键（同） |
+| 文件 sha256 | 不同 | 不同 |
+
+⇒ 现在跑的 6 个臂用的是**已修复**的冻结协议。这条写在这里是为了让「为什么有两个 attempt 目录」
+有据可查，而不是靠记忆。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
