@@ -995,6 +995,18 @@ forbidden_claim = "any positive claim about the typed-evidence pathway"
 incumbent 有增量，但按类型路由没有再进一步」；**不得**写「通路无增量」，也**不得**写
 「类型路由带来增益」。该分支已作为**下一轮**的修复项登记，本轮不改冻结代码。
 
+**回滚后的完整性复核（同一会话内实测，证明这次误改没有留下任何痕迹）**：
+
+```
+scripts/r7_s3_typed_budget_protocol.py --preflight-only
+  f_preflight_passed: True
+  all six clauses true: True
+  parameters: incumbent 3286037 / generic 3434837 / typed 3434837
+validate_protocol(attempt01) : PASS, protocol_sha256 = 76e1c214…
+model_code_sha256            : 59340710623c…（= 冻结 pin）
+存活 worker                   : 10
+```
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
