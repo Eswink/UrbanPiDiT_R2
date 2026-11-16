@@ -278,6 +278,21 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 使 `r7_round.py stage prepare` 读到不存在的 `protocol.json`。本轮改在**两段 B 跑完之后**
 再 `freeze`（届时探针目录改名），以免移动正在写入的路径。这是编排顺序问题，不触及任何判据。
 
+### §5.2b 段 A 排程与 reading 前置（只读核对，0 GPU-h）
+
+| 核对项 | 实测 | 结论 |
+| --- | --- | --- |
+| 硬上限是否容得下两波 | 硬上限余 **71.66 h**；wave1 = 3 臂 × 33.22 h = **33.22 h**；seed43 在 +33.22 h 拿到 **68.22 h** 包络（需 33.22 h） | ✓ **不会截断**；三 seed 全部在硬上限内 |
+| `readings()` 依赖的 protocol 键 | `protocol_sha256 / updates / batch_size / closed_dose / independent_arm_argument / limitations / preflight / train_data_identity / val_manifest` 全在冻结协议内 | ✓ 无 KeyError 风险 |
+| 评估目录布局 | 写端 `seed{N}/evaluation/{arm}/lead_XXXh`；读端取 `receipt["evaluations"][lead]["dir"]` | ✓ 两端同一路径 |
+| `verify` 三个校验器 | conventions `failing=0`、campaign_state `failures=0`、evidence index `113 records` | ✓ 登记前基线为绿 |
+
+**第十二处缺陷（本轮新发现，0 GPU-h 修复）**：`readings.json` 本身就是 `reading` 阶段的
+receipt，而 `write()` 拒绝覆盖、`stage_plan` 以 receipt 存在即 skip。因此**在臂未跑满时**执行
+`stage reading` 会把不完整的表**永久冻结**并让该阶段显示已完成，之后每次都会 skip，
+缺失的臂再也拿不到分数。现已改为：`complete` 为假时**抛错且不落 receipt**，并配反证测试
+（关掉守卫会让测试写出文件并失败）。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
