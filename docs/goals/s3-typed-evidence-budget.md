@@ -690,10 +690,14 @@ timeout 259200  →  tools/r7_round.py stage-seeds (pid 395250)  →  study_r7_s
 ⇒ 第三 seed 有 2.18 h 余量、reading 有 6.22 h，两处都不依赖乐观估计。
 （这些绝对 `perf_counter` 值随轮次起点不同而变；判读只用**差值**。）
 
-**② 磁盘与孤儿守卫**。`/data` 3.6 T，已用 2.6 T，**可用 835 GB**（77%）；attempt 现占 **88 MB**
-（两臂各 37 MB，尚无 checkpoint）。`checkpoint_every=5000` ⇒ 每臂 6 个中间 checkpoint，
-九臂全部 checkpoint 在数十 GB 量级，835 GB 充裕。这一条写在这里是为了让「剩余空间」有实测
-出处，而不是假定。
+**② 磁盘与孤儿守卫**。`/data` 3.6 T，已用 2.6 T，**可用 834 GiB**（77%）；attempt 现占 **88 MB**
+（两臂各 37 MB，尚无 checkpoint）。
+
+**checkpoint 体积已实测，不是估的**：父 checkpoint `parent_update_0001600.pt` = **12.6 MiB**
+（13,228,745 bytes）。`checkpoint_every=5000` ⇒ 每臂 5000/10000/…/30000 + 端点 = **7 个**，
+九臂共 63 个 ⇒ **0.78 GiB**。评测目录按每 lead 实测 `elapsed_seconds ≈ 392 s` 量级、
+provenance 1,455 行，远小于 checkpoint 总量。⇒ 段 A 全部落盘**不到 1 GiB**，834 GiB 毫无压力。
+（此处原写「数十 GB 量级」，是未测量的估计；实测后已更正。）
 
 `tools/r7_round.py stage-plan seed 41` 实测返回 `already_running: true` + 5 个存活 PID
 ⇒ 重复启动会被拒而不是双开抢 GPU；`orphans` 子命令报告各 stage 的 `running/pids`。
