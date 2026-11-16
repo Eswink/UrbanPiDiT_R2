@@ -293,6 +293,33 @@ receipt，而 `write()` 拒绝覆盖、`stage_plan` 以 receipt 存在即 skip�
 缺失的臂再也拿不到分数。现已改为：`complete` 为假时**抛错且不落 receipt**，并配反证测试
 （关掉守卫会让测试写出文件并失败）。
 
+### §5.2c 第十三处缺陷：判据 (a) 原本**没有**计算置信区间（0 GPU-h 修复）
+
+冻结判据 (a) 是「C−B 在 ≥2 lead 同号为负 **+ 三 seed 一致 + block bootstrap 95% CI 排除零**」。
+实测发现求值器 `r7_typed_budget_verdict.py` 只实现了前两条：**整个模块没有任何区间代码**，
+而它自己的 docstring 还写着「the interval is what carries significance」。若照原样跑完段 A，
+(a) 会在**只靠符号**的情况下判真，哪怕重采样区间跨零——这正是本轮明令禁止的读法。
+
+修正（均已实跑验证，非仅改代码）：
+
+| 项 | 内容 |
+| --- | --- |
+| 区间计算 | 新增 `pair_interval()`，从每个 lead 的 `provenance.json` 取逐初始化 MSE，调用仓内既有 `paired_rmse_bootstrap`（按初始化时间分块、95%） |
+| 数据通路 | `readings()` 把每个 lead 的 `evaluation_dirs` 随臂表带出，求值器据此定位 provenance |
+| 判据收紧 | 一个 lead 只有在**区间排除零**时才计入；(a) 的 `intervals` 字段逐条留痕 |
+| null 纪律 | 区间算不出来 ⇒ 该子句为 **`null`**（未测），**不是 `False`**；缺失不确定性不得读成已测负结果 |
+
+**真实数据验证**（不是 fixture）：拿段 B 的 K=8 对 K=4、lead 72h 跑该函数，得
+Δ = **+0.3009 K**、区间 **[0.1927, 0.4267]**（排除零）、1,447 次初始化、1000 次重采样，
+与 B-2 深度扫描报的 +0.3009 一致 ⇒ 通路正确。
+
+**反证**：把「区间排除零」这一条件从 (a) 剥掉后，null 纪律测试立刻变成 `value: True`
+（只靠符号通过）并失败 ⇒ 该条件是**承重**的，不是装饰。
+
+**同时修正的 fixture 缺陷（由这些测试暴露）**：旧判据 fixture 只写 RMSE 数字、没有 provenance，
+加区间后必然得到 `null`；而按 seed 键套 `evaluation_dirs` 会让每个区间静默报「not available」。
+fixture 现按 **lead 键**写 `evaluation_dirs`，与 driver 实际写出的结构一致。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
