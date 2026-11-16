@@ -255,7 +255,12 @@ def _arm_contract(body: dict, spec: dict, mode, parent: Path, parent_sha: str, e
                            # worker would raise before the first update rather than train.
                            "window_sha256": body["train_windows"]["window_sha256"],
                            "excluded_sample_ids": body["train_windows"]["excluded_sample_ids"],
-                           "supervision": {"kind": "full_grid"}},
+                           # Must be word for word the block ``_supervision_block(None)`` builds:
+                           # ``_bind`` compares the declared dict against the live one and raises on
+                           # any difference, so declaring only ``{"kind": "full_grid"}`` is refused.
+                           "supervision": {"kind": "full_grid",
+                                           "description": ("every cell of the target grid is "
+                                                           "supervised")}},
     }
 
 
