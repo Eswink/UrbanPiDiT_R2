@@ -175,7 +175,7 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 | 2026-11-16 | 段 B-1 组内剂量曲线 | **42/42 lead 完成** | `.../segment_b_probe_scoring/dose/`，14 ckpt × 3 lead |
 | 2026-11-16 | 段 B-2 推理深度扫描 | **完成 20/20 lead** | `.../segment_b_depth.json`，`gpu_hours 3.3461`，`error: null` |
 | 2026-11-17 | 轮次冻结（attempt01） | **完成** | `outputs/r7_s3_typed_evidence_budget_20261116_attempt01/preparation_protocol.json`，`protocol_sha256 bc506eb1…`；`per_seed 126000 s / planned 172800 / hard_cap 259200` |
-| —— | 段 A 三臂 4-epoch | **进行中**（prepare 阶段） | —— |
+| 2026-11-17 | 段 A 启动 | **训练中** | `attempt01`：prepare ✓ archive ✓（`code_commit 49e359d`）；seed 41/42 并发于双卡，各 ~9.3 GB / 25% |
 | —— | 判定 (a)–(f) | **未开始** | —— |
 | —— | 登记 | **未开始** | —— |
 
