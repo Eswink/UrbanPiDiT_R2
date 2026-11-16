@@ -248,6 +248,13 @@ def _arm_contract(body: dict, spec: dict, mode, parent: Path, parent_sha: str, e
                             f"({expansion['new_parameters']} new parameters)")},
         "autoregression": {"physical_steps": 12,
                            "physical_weights": list(body["physical_weights"]),
+                           # ``fine_tune_long_rollout`` refuses a contract whose autoregression
+                           # block omits the window digest ("physical steps/weights/window digest
+                           # must be predeclared exactly"), and every precedent driver
+                           # (spectral-geometry, curve-point) supplies it. Without it the seed
+                           # worker would raise before the first update rather than train.
+                           "window_sha256": body["train_windows"]["window_sha256"],
+                           "excluded_sample_ids": body["train_windows"]["excluded_sample_ids"],
                            "supervision": {"kind": "full_grid"}},
     }
 

@@ -414,6 +414,20 @@ def freeze(output, *, started, deadline, code_archive, code_commit, code_sha256)
     return body
 
 
+def train_windows() -> dict:
+    """The train windows the training contract must declare, discovered from the manifest.
+
+    ``fine_tune_long_rollout`` refuses a contract whose ``autoregression`` block does not carry the
+    window digest, so it is frozen here rather than left to the arm worker. Metadata only: this
+    reads the manifest, never the store's fields.
+    """
+    from data.r7_autoregressive_dataset import preflight_training_windows
+
+    found = preflight_training_windows(str(TRAIN_MANIFEST))
+    return {"window_sha256": found["window_sha256"],
+            "excluded_sample_ids": list(found.get("excluded_sample_ids") or ())}
+
+
 def prepared_protocol(output):
     """Add the live identities and the measured (f); a failing preflight writes no protocol."""
     from training.r7_arm_harness import sha256_file
@@ -439,6 +453,7 @@ def prepared_protocol(output):
             "training_code_sha256": training_code_digest(),
             "train_data_identity": train_identity,
             "val_data_identity": val_identity,
+            "train_windows": train_windows(),
             "train_manifest_sha256": sha256_file(TRAIN_MANIFEST),
             "val_manifest_sha256": sha256_file(VAL_MANIFEST),
             "preflight": measurements,
