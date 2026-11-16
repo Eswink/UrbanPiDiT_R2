@@ -16,6 +16,7 @@ has already paid for once:
 from __future__ import annotations
 
 import json
+import pathlib
 from pathlib import Path
 import sys
 
@@ -31,10 +32,65 @@ LEADS = (6, 12, 24, 48, 72)
 SEEDS = (41, 42, 43)
 
 
-def _arm(t2m, z500_72):
-    """A minimal arm table: t2m per lead plus the z500 value the (e) guard reads."""
+def _arm(t2m, z500_72, *, name="arm", seed=SEEDS[0], dirs=None):
+    """A minimal arm table: t2m per lead plus the z500 value the (e) guard reads.
+
+    ``evaluation_dirs`` is keyed by **lead**, matching what the driver writes for each arm/seed row
+    (``study_r7_s3_typed_budget.readings``). Keying it by seed instead produces a nested map the
+    evaluator cannot resolve, and every interval then reports "not available".
+    """
     return {"rmse": {str(lead): {"t2m": t2m[lead], "z500": z500_72 if lead == 72 else 400.0}
-                     for lead in LEADS}}
+                     for lead in LEADS},
+            "evaluation_dirs": dirs if dirs is not None
+            else _provenance_dirs(name, t2m[6] ** 2).get(str(seed), {})}
+
+
+_PROVENANCE_ROOT = {}
+
+
+def _provenance_dirs(arm: str, mse_t2m: float, *, seeds=SEEDS, leads=LEADS) -> dict:
+    """Materialise real per-initialisation rows so clause (a) can build its bootstrap interval.
+
+    Clause (a) now requires a block-bootstrap interval excluding zero, and the interval is computed
+    from each lead's ``provenance.json``. A fixture that only supplies RMSE numbers therefore cannot
+    decide (a) -- it is null, which is the honest reading. These helpers write genuine rows into a
+    temporary directory once per (arm, mse) pair and return the ``{seed: {lead: dir}}`` map the
+    clause expects.
+    """
+    import datetime as _dt
+    import tempfile
+
+    key = (arm, round(float(mse_t2m), 9))
+    root = _PROVENANCE_ROOT.get(key)
+    if root is None:
+        root = pathlib.Path(tempfile.mkdtemp(prefix=f"prov_{arm}_"))
+        _PROVENANCE_ROOT[key] = root
+    start = _dt.datetime(2022, 1, 1, 6)
+    out = {}
+    for seed in seeds:
+        per_lead = {}
+        for lead in leads:
+            folder = root / f"seed{seed}/lead_{int(lead):03d}h"
+            if not (folder / "provenance.json").is_file():
+                folder.mkdir(parents=True, exist_ok=True)
+                rows = []
+                for index in range(40):
+                    init = start + _dt.timedelta(hours=6 * index)
+                    rows.append({
+                        "init_time": init.isoformat(),
+                        "valid_times": [(init + _dt.timedelta(hours=int(l))).isoformat()
+                                        for l in leads],
+                        "mse": [[float(mse_t2m) / 40.0] + [400.0] * 16 for _l in leads],
+                        "cumulative_reasoning_steps": 4})
+                (folder / "provenance.json").write_text(json.dumps({
+                    "channels": ["t2m"] + [f"c{i}" for i in range(1, 17)],
+                    "units": ["K"] + ["u"] * 16,
+                    "lead_hours": [int(l) for l in leads], "step_hours": 6, "split": "val",
+                    "evaluation_manifest_sha256": "0" * 64, "n_evaluated": len(rows),
+                    "initializations": rows}), encoding="utf-8")
+            per_lead[str(lead)] = str(folder)
+        out[str(seed)] = per_lead
+    return out
 
 
 def _readings(incumbent, generic, typed):
@@ -44,9 +100,9 @@ def _readings(incumbent, generic, typed):
                      "typed": {str(seed): typed for seed in SEEDS}}}
 
 
-BASE = _arm({6: 3.0, 12: 3.5, 24: 4.0, 48: 4.5, 72: 5.0}, 420.0)
-GENERIC = _arm({6: 2.9, 12: 3.4, 24: 3.9, 48: 4.4, 72: 4.9}, 425.0)
-TYPED = _arm({6: 2.8, 12: 3.3, 24: 3.8, 48: 4.3, 72: 4.8}, 425.0)
+BASE = _arm({6: 3.0, 12: 3.5, 24: 4.0, 48: 4.5, 72: 5.0}, 420.0, name="incumbent")
+GENERIC = _arm({6: 2.9, 12: 3.4, 24: 3.9, 48: 4.4, 72: 4.9}, 425.0, name="generic")
+TYPED = _arm({6: 2.8, 12: 3.3, 24: 3.8, 48: 4.3, 72: 4.8}, 425.0, name="typed")
 
 
 def test_missing_arms_are_untested_never_false_and_never_true():

@@ -325,7 +325,13 @@ def readings(output: Path, body: dict) -> dict:
                 missing.append(f"{name}/seed{seed}")
             arms[name][str(seed)] = {"rmse": table, "parameters": receipt["parameters"],
                                      "typed_evidence_mode": receipt["typed_evidence_mode"],
-                                     "seconds_per_update": receipt["seconds_per_update"]}
+                                     "seconds_per_update": receipt["seconds_per_update"],
+                                     # Clause (a) needs the per-initialisation rows in each lead's
+                                     # provenance.json to build its block-bootstrap interval, so the
+                                     # directory the driver already recorded travels with the table.
+                                     "evaluation_dirs": {str(lead): entry["dir"]
+                                                         for lead, entry in
+                                                         (receipt.get("evaluations") or {}).items()}}
     body_readings = {
         "format": "r7-s3-typed-evidence-budget-readings-v1",
         "protocol_sha256": body["protocol_sha256"],

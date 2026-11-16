@@ -21,6 +21,31 @@ if str(ROOT) not in sys.path:
 LEADS = (6, 12, 24, 48, 72)
 SEEDS = (41, 42, 43)
 
+def _write_provenance(folder, *, mse_t2m, leads, channels=("t2m", "z500"), n=40):
+    """Per-initialisation rows, which clause (a) needs for its block-bootstrap interval.
+
+    Without them the interval cannot be computed and (a) is null -- so a fixture that only writes
+    boundary_rmse.csv would (correctly) fail to clear the pair.
+    """
+    import datetime as _dt
+    import json as _json
+
+    rows = []
+    start = _dt.datetime(2022, 1, 1, 6)
+    for index in range(n):
+        init = start + _dt.timedelta(hours=6 * index)
+        rows.append({"init_time": init.isoformat(),
+                     "valid_times": [(init + _dt.timedelta(hours=int(lead))).isoformat()
+                                     for lead in leads],
+                     "mse": [[float(mse_t2m) / n, 400.0] for _lead in leads],
+                     "cumulative_reasoning_steps": 4})
+    (folder / "provenance.json").write_text(_json.dumps({
+        "channels": list(channels), "units": ["K", "m**2 s**-2"],
+        "lead_hours": [int(lead) for lead in leads], "step_hours": 6, "split": "val",
+        "evaluation_manifest_sha256": "0" * 64, "n_evaluated": len(rows),
+        "initializations": rows}), encoding="utf-8")
+
+
 def test_readings_assembles_full_arm_tables_and_evaluates_a_f_through_e(tmp_path):
     """The end-to-end reading computation, on synthetic receipts, before any GPU is spent.
 
@@ -55,6 +80,7 @@ def test_readings_assembles_full_arm_tables_and_evaluates_a_f_through_e(tmp_path
                     writer.writerow({"lead_hours": lead, "variable": "z500", "region": "full",
                                      "rmse": repr(z500[arm] + lead * 100.0),
                                      "unit": "m**2 s**-2"})
+                _write_provenance(folder, mse_t2m=value ** 2, leads=LEADS)
                 lead_dirs[str(lead)] = {"dir": str(folder), "n_evaluated": 1447,
                                         "n_available_windows": 1447, "elapsed_seconds": 1.0,
                                         "boundary_rmse_csv_sha256": "0" * 64,
@@ -122,6 +148,7 @@ def test_the_reading_worker_branch_runs_and_writes_readings_json(tmp_path, monke
                     writer.writerow({"lead_hours": lead, "variable": "z500", "region": "full",
                                      "rmse": repr(50000.0 + lead * 100.0),
                                      "unit": "m**2 s**-2"})
+                _write_provenance(folder, mse_t2m=(base[arm] + lead / 1000.0) ** 2, leads=LEADS)
                 lead_dirs[str(lead)] = {"dir": str(folder), "n_evaluated": 1447,
                                         "n_available_windows": 1447, "elapsed_seconds": 1.0,
                                         "boundary_rmse_csv_sha256": "0" * 64,
@@ -253,3 +280,51 @@ def test_the_reading_stage_refuses_to_write_an_incomplete_reading(tmp_path, monk
         driver.worker(str(tmp_path), "reading", None, _time.perf_counter() + 1800.0)
     assert not (tmp_path / "readings.json").exists(), (
         "a refused reading must leave no receipt behind, or the stage would be marked done")
+
+
+def test_clause_a_requires_an_interval_that_excludes_zero_not_just_three_seeds():
+    """The frozen (a) needs a block-bootstrap interval excluding zero, not only sign agreement.
+
+    Three seeds are consistency evidence; the interval is the uncertainty statement over held-out
+    cases. Before this was wired in, clause (a) could pass on a delta whose resampled interval
+    straddled zero. This exercises the real helper on real per-initialisation rows already on disk.
+    """
+    from scripts import r7_typed_budget_verdict as verdict
+
+    base = (ROOT / "outputs/r7_s3_segB_probe_20261116"
+            / "segment_b_depth_scoring/depth")
+    k4, k8 = base / "update_0128528_k4", base / "update_0128528_k8"
+    if not (k4 / "lead_072h" / "provenance.json").is_file():
+        pytest.skip("the Segment B depth provenance is not available")
+    dirs = {name: {"41": {str(lead): str((k8 if name == "typed" else k4) / f"lead_{lead:03d}h")
+                         for lead in LEADS}}
+            for name in ("typed", "generic", "incumbent")}
+    out = verdict.pair_interval(verdict.parse_arms({}) if hasattr(verdict, "parse_arms") else {},
+                                41, 72, "t2m", "typed", "generic", dirs=dirs)
+    assert out["value"] is not None, out
+    assert len(out["interval"]) == 2
+    assert out["excludes_zero"] is True
+    assert out["n_initializations"] > 1000
+    # The depth sweep reported K=8 worse by about +0.30 K at 72 h; the interval must bracket that.
+    assert 0.15 < out["value"] < 0.5, out["value"]
+
+
+def test_a_missing_interval_is_untested_not_failed():
+    """A clause that cannot compute its interval must be null, never False.
+
+    'Could not establish uncertainty' and 'the effect is zero' are different facts; conflating them
+    is the da1ed00 class of defect.
+    """
+    from scripts import r7_typed_budget_verdict as verdict
+
+    # typed must be LOWER than generic on every lead, so the pair clears the sign and floor tests
+    # and the only thing standing between it and a value is the missing interval.
+    level = {"typed": 1.9, "generic": 2.0, "incumbent": 2.1}
+    arms = {name: {"41": {"rmse": {str(lead): {"t2m": level[name], "z500": 400.0}
+                                  for lead in LEADS},
+                            "evaluation_dirs": {}}}
+            for name in ("typed", "generic", "incumbent")}
+    out = verdict._clause_pair(arms, [41], LEADS, "t2m", "typed", "generic",
+                               dirs={name: {"41": {}} for name in arms})
+    assert out["value"] is None, out
+    assert "untested rather than failed" in out["reason"]

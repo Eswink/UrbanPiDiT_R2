@@ -68,7 +68,55 @@ def pair_delta(arms: dict, seed: int, lead: int, variable: str, left: str, right
     return left_value - right_value
 
 
-def _clause_pair(arms, seeds, leads, variable, left, right) -> dict:
+def pair_interval(arms: dict, seed: int, lead: int, variable: str, left: str, right: str,
+                  dirs=None, **bootstrap) -> dict:
+    """Block-bootstrap 95 percent interval for one arm pair at one lead, over initialisation time.
+
+    Clause (a) as frozen requires that the interval excludes zero, not merely that three seeds agree
+    in sign: three seeds are consistency evidence, while the interval is the uncertainty statement
+    over held-out cases. Without it, (a) would pass on a delta whose resampled interval straddles
+    zero, which is exactly the "sign alone" reading the brief forbids.
+
+    The interval needs per-initialisation MSE, which each lead's ``provenance.json`` carries. When a
+    directory is absent the interval is ``None`` with a reason, never a fabricated zero-width one.
+    """
+    from pathlib import Path
+
+    left_dir = ((dirs or {}).get(left) or {}).get(str(seed)) or {}
+    right_dir = ((dirs or {}).get(right) or {}).get(str(seed)) or {}
+    left_dir = left_dir.get(str(lead)) if isinstance(left_dir, dict) else None
+    right_dir = right_dir.get(str(lead)) if isinstance(right_dir, dict) else None
+    if not left_dir or not right_dir:
+        return {"value": None, "reason": "per-initialisation rows are not available for this pair"}
+    try:
+        from training.r7_paired_comparison import paired_rmse_bootstrap
+        reports = {}
+        for label, directory in (("left", left_dir), ("right", right_dir)):
+            body = json.loads((Path(directory) / "provenance.json").read_text(encoding="utf-8"))
+            rows = []
+            for row in body["initializations"]:
+                rows.append({"init_time": row["init_time"], "valid_times": row["valid_times"],
+                             "mse": row["mse"]})
+            reports[label] = dict(body, initializations=rows)
+        outcome = paired_rmse_bootstrap(reports["left"], reports["right"], **bootstrap)
+    except Exception as error:                                    # noqa: BLE001 - reported, not hidden
+        return {"value": None, "reason": f"interval could not be computed: {type(error).__name__}: {error}"}
+    # ``paired_rmse_bootstrap`` returns one row per (lead, variable); keep the one asked for.
+    row = next((item for item in outcome["rows"]
+                if int(item["lead_hours"]) == int(lead) and item["variable"] == variable), None)
+    if row is None:
+        return {"value": None, "reason": f"the bootstrap reported no row for lead {lead} / {variable}"}
+    low, high = float(row["interval_lower"]), float(row["interval_upper"])
+    return {"value": float(row["rmse_A_minus_B"]), "interval": [low, high],
+            "excludes_zero": bool(low > 0.0 or high < 0.0),
+            "replicates": int(outcome["replicates"]),
+            "block_days": int(outcome["block_days"]),
+            "n_initializations": int(outcome["n_initializations"]),
+            "variable": variable, "lead": lead, "seed": seed,
+            "pair": f"{left} - {right}"}
+
+
+def _clause_pair(arms, seeds, leads, variable, left, right, *, dirs=None) -> dict:
     """The generalized (a)/(b) reading: concordant leads, gain floor, and the single-seed count."""
     per_lead = {}
     for lead in leads:
@@ -93,20 +141,57 @@ def _clause_pair(arms, seeds, leads, variable, left, right) -> dict:
                           "an incomplete arm set is untested, not false"}
     concordant_leads = [lead for lead in leads if per_lead[str(lead)]["concordant"]]
     clearing = [lead for lead in leads if per_lead[str(lead)]["clears_floor"]]
+    # Clause (a) also requires the block-bootstrap interval to exclude zero. The intervals are
+    # computed per clearing lead from each arm's provenance rows; if any cannot be computed the
+    # clause reports that lead as not counting rather than assuming significance.
+    intervals = {}
+    for lead in clearing:
+        intervals[str(lead)] = [pair_interval(arms, seed, lead, variable, left, right,
+                                              dirs=dirs)
+                                for seed in seeds]
+    intervals_excluding_zero = [lead for lead in clearing
+                                if all(item.get("excludes_zero") is True
+                                       for item in intervals[str(lead)])]
+    # Null discipline: an interval that could not be computed is "untested", not "failed". If every
+    # clearing lead lacks a computable interval the clause cannot be decided, and reporting False
+    # would turn missing uncertainty into a measured negative.
+    uncomputable = [lead for lead in clearing
+                    if any(item.get("value") is None for item in intervals[str(lead)])]
+    if uncomputable and not intervals_excluding_zero:
+        return {
+            "value": None,
+            "per_lead": per_lead,
+            "concordant_leads": concordant_leads,
+            "clearing_leads": clearing,
+            "intervals": intervals,
+            "uncomputable_interval_leads": uncomputable,
+            "n_concordant": len(concordant_leads),
+            "n_clearing": len(clearing),
+            "variable": variable,
+            "pair": f"{left} - {right}",
+            "reason": ("the paired deltas clear the sign and gain floors, but no clearing lead's "
+                       "block-bootstrap interval could be computed, so the clause is untested "
+                       "rather than failed -- missing uncertainty must not read as a negative"),
+        }
     return {
-        "value": bool(len(clearing) >= MINIMUM_CONCORDANT_LEADS),
+        "value": bool(len(clearing) >= MINIMUM_CONCORDANT_LEADS
+                      and len(intervals_excluding_zero) >= MINIMUM_CONCORDANT_LEADS),
         "per_lead": per_lead,
         "concordant_leads": concordant_leads,
         "clearing_leads": clearing,
+        "intervals": intervals,
+        "clearing_leads_with_interval_excluding_zero": intervals_excluding_zero,
         "n_concordant": len(concordant_leads),
         "n_clearing": len(clearing),
+        "n_interval_excluding_zero": len(intervals_excluding_zero),
         "variable": variable,
         "pair": f"{left} - {right}",
         "thresholds": {"minimum_lead_gain_k": MINIMUM_LEAD_GAIN_K,
-                       "minimum_concordant_leads": MINIMUM_CONCORDANT_LEADS},
-        "reason": ("a lead counts only when the paired delta is negative on all three seeds and "
-                   "its mean clears the gain floor; the clause needs "
-                   f"{MINIMUM_CONCORDANT_LEADS} such leads"),
+                       "minimum_concordant_leads": MINIMUM_CONCORDANT_LEADS,
+                       "interval": "block bootstrap over initialisation time, 95 percent"},
+        "reason": ("a lead counts only when the paired delta is negative on all three seeds, its "
+                   "mean clears the gain floor, and its block-bootstrap interval excludes zero; "
+                   f"the clause needs {MINIMUM_CONCORDANT_LEADS} such leads"),
     }
 
 
@@ -198,8 +283,14 @@ def evaluate(readings: dict) -> dict:
                 "values": {name: clause["value"] for name, clause in clauses.items()},
                 "verdict": "untested-no-arm-contrast",
                 "reading_rule": _READING_RULE}
-    primary = _clause_pair(arms, seeds, leads, "t2m", TYPED, GENERIC)
-    secondary = _clause_pair(arms, seeds, leads, "t2m", GENERIC, INCUMBENT)
+    # ``arm_for`` already returns one arm-seed row whose "evaluation_dirs" is keyed by lead, so the
+    # per-seed lookup must come from that mapping directly -- nesting it a second time by seed
+    # yields {seed: {seed: {lead: dir}}} and every interval silently reports "not available".
+    dirs = {name: {str(seed): (arm_for(arms, name, seed) or {}).get("evaluation_dirs") or {}
+                   for seed in seeds}
+            for name in (TYPED, GENERIC, INCUMBENT)}
+    primary = _clause_pair(arms, seeds, leads, "t2m", TYPED, GENERIC, dirs=dirs)
+    secondary = _clause_pair(arms, seeds, leads, "t2m", GENERIC, INCUMBENT, dirs=dirs)
     clauses = {
         "a_typed_minus_generic": primary,
         "b_generic_minus_incumbent": secondary,
