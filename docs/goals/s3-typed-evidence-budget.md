@@ -373,6 +373,37 @@ seed 41/42 在改动**之前**已通过校验并在进程内运行，所以它�
 **顺带发现的约束**：B-1 剂量曲线只评了 leads {6,24,72}，所以干跑必须改用深度扫描（5 lead）；
 这也确认 `readings()` 对缺失 lead 会走 `missing` 分支而不是静默跳过。
 
+### §5.2f 登记契约预检（0 GPU-h，避免在 99 GPU-h 之后才发现格式错）
+
+**证据索引校验器会拒绝伪造的 commit id**。用一份「形状正确但值占位」的记录试跑
+`tools/verify_r7_evidence_index.py`，得到三条 ERROR：
+
+```
+evidence_sha256 does not match docs/goals/s3-typed-evidence-budget.md
+evidence_commit looks like a short SHA zero-padded to 40 characters, which is a fabricated commit id
+experiment_commit looks like a short SHA zero-padded to 40 characters, which is a fabricated commit id
+```
+
+⇒ 登记时**必须**填真实 40 位 commit 与**实际文件**的 SHA256，不能写占位符；这也意味着
+证据页必须先定稿提交、再用**该提交的 hash** 与文件 sha256 生成记录。
+
+**账本算术已核对**（`r7_round.py ledger-plan 12.7809`）：
+
+| 项 | 值 |
+| --- | --- |
+| `rows_before` | 94 |
+| `previous_total_gpu_h` | 619.436628 |
+| `new_row_gpu_h`（段 B 实测） | **12.7809** |
+| `new_total_gpu_h` | **632.217528** |
+| `cap_gpu_h` / `remaining_gpu_h` | 20.0 / −612.217528（只记账） |
+
+段 A 完成后，其 GPU-h 必须按**实测**（9 臂的 `elapsed_seconds` 之和）另行加行，
+不得把估算写进账本。索引记录的 `metrics.gpu_hours` 必须与账本行对齐到 1e-4。
+
+**枚举值**（校验器允许集）：`outcome_class ∈ {engineering-positive, audit, negative, mixed,
+unresolved}`；`candidate_state ∈ {candidate, blocked, needs-review, not-candidate}`；
+`scientific_claim` 必须为 `false`；`limitations` 必须是非空字符串列表。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
