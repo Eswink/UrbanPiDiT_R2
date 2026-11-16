@@ -788,6 +788,49 @@ seed41.log:  File ".../study_r7_s3_typed_budget.py", line 234, in _arm_contract
 `pytest.skip("archive is stale … built from f0da923, HEAD is b980703")` **是预期行为**：
 HEAD 因文档提交前进，而归档只须匹配**冻结**身份，不需要匹配 HEAD。
 
+### §5.2t 段 B 判读以 `json.load` 复核（0 GPU-h，非正则）
+
+按 brief 的强制要求，两个探针文件的 `decision` 都**结构化读取**，并逐层展开：
+
+```
+segment_b_probe.json  → decision.dose_curve_status = "saturated"
+                        decision.depth_candidates   = []
+                        gpu_hours = 9.4348, scientific_claim=False, test_read=False
+segment_b_depth.json  → decision.depth_candidates   = []
+                        decision.dose_curve_status  = "untested"
+                        gpu_hours = 3.3461, r = 0, scientific_claim=False, test_read=False
+```
+
+`depth` 文件里 `dose_curve_status = "untested"` **不是缺陷**：该文件测的是深度、不是剂量，
+空值纪律（未测 ≠ 假）在这里正确生效。剂量判定只取 `segment_b_probe.json` 那一个。
+
+**深度扫描逐档回读**（`depth_sweep.per_depth`，K=4 为参照，5 个 lead 齐全）：
+
+| 深度 | 6h | 12h | 24h | 48h | 72h | 达 ≥0.005 K 更优的 lead 数 |
+| --- | --- | --- | --- | --- | --- | --- |
+| K=2 | **−0.01783** | **−0.02327** | −0.00110 | +0.02726 | +0.05594 | **2**（6h、12h） |
+| K=4 | 0 | 0 | 0 | 0 | 0 | —（参照） |
+| K=6 | +0.0376 | +0.05681 | +0.0515 | +0.05431 | +0.04385 | 0（全面更差） |
+| K=8 | +0.12063 | +0.19116 | +0.23932 | +0.28838 | +0.30092 | 0（全面更差，且随 lead 放大） |
+
+`depth_sweep.value = false`，`depth_candidates = []`。逐档 `n_clearing` 实测：K=2 **2**、
+K=4 **0**、K=6 **0**、K=8 **0**。探针自带的判定规则逐字为：
+
+> "a depth is a candidate only when it improves at least three leads by the declared floor
+> against the trained K=4; a cheaper candidate is reported separately because a lower depth
+> also lowers inference cost"
+
+**独立复算**：直接从 `depth_tables` 的两个 RMSE 相减，与 `delta_vs_k4` 逐位相同
+（如 lead 6：`1.84269 − 1.86052 = −0.017832`），且 `better = delta < 0`、
+`clears_0.005 = delta ≤ −0.005` 的判定与 `n_clearing` 一致 ⇒ 读数没有被符号或阈值口径污染。
+
+**判读（按 brief 的规则，不作美化）**：
+- K=2 在 6h/12h 优于 K=4 超过 0.005 K，**但 48h/72h 反而更差**（+0.027、+0.056），
+  故只清 2 个 lead，未达「≥3 个 lead」⇒ **不记为候选**。若把它写成「更便宜也更好」，
+  就是 brief 明令禁止的「把更便宜但更差记成候选」。
+- K=6/K=8 单调更差且 72h 放大到 +0.30 K ⇒ **加深不是提精度的手段**，K=4 是当前前沿的合理点。
+- 因此本轮**没有**更优深度，段 A 沿用 `steps=4` 不变。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
