@@ -278,6 +278,26 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 使 `r7_round.py stage prepare` 读到不存在的 `protocol.json`。本轮改在**两段 B 跑完之后**
 再 `freeze`（届时探针目录改名），以免移动正在写入的路径。这是编排顺序问题，不触及任何判据。
 
+### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
+
+第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
+逐字段核对（`json.load`）：
+
+| 字段 | 实测值 | 与要求 |
+| --- | --- | --- |
+| `data_identity` | `81307008…335af0` | ✓ 与 sidecar pin 一致 |
+| `source_sha256` | `1db83955…b32f5` | ✓ 与 `sha256sum source.nc` 实测一致 |
+| `total_updates` | **32,132** | ✓ = 4.000 epochs @ batch 4 |
+| `batch_size` | **4** | ✓ |
+| `steps` / `lr` / `clip` | `4` / `2e-05` / `1.0` | ✓ 未扫、未改 |
+| `autoregression.window_sha256` | `e8f22c30…` | ✓ long-rollout 发现（缺陷 8 的修正） |
+| `autoregression.excluded_sample_ids` | **11** 条 | ✓ 同上 |
+| `autoregression.supervision` | `{kind: full_grid, description: …}` | ✓ 完整两键（缺陷 10 的修正） |
+| `autoregression.physical_weights` | `[1.0,0.5,0.0,0.5,0.0,0.0,0.0,0.5,0.0,0.0,0.0,0.5]` | ✓ **逐字**沿用 |
+
+`fine_tune_started.json` 在**任何 update 之前**落盘，满足 R-006「先冻结 protocol 再训练」。
+臂顺序为 `incumbent → generic → typed`，每 seed 串行三臂，seed 41/42 并发于两卡。
+
 **恢复第一条命令**：
 
 ```bash
