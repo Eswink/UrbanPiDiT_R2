@@ -423,6 +423,22 @@ unresolved}`；`candidate_state ∈ {candidate, blocked, needs-review, not-candi
 这一点在开跑时并不显式，属于本轮实测得到的运行约束，如实登记于此。
 若最终被硬上限截断，正确动作是**新 attempt、新协议**重跑缺的 seed，**不是**放宽判据或拼接读数。
 
+### §5.2h 登记四件套的精确契约（0 GPU-h 预读，避免在 99 GPU-h 后返工）
+
+三套校验器各自的硬性要求，逐项读出（不是猜）：
+
+| 组件 | 要求（来源） |
+| --- | --- |
+| **证据索引记录** | `format="urbanpidit-r7-evidence-record-v1"`；`record_id` kebab-case；`evidence_path` 必须仓库相对且**文件存在**；`evidence_sha256` 必须与**该文件实际 sha256** 一致；`evidence_commit`/`experiment_commit` 必须是**真实 40 位 SHA**（零填充的短 SHA 会被判为 fabricated）；`outcome_class ∈ {engineering-positive, audit, negative, mixed, unresolved}`；`candidate_state ∈ {candidate, blocked, needs-review, not-candidate}`；`priority ∈ [0,100]` 整数；`scientific_claim` **必须 false**；`limitations` 非空字符串列表；`metrics` 必须是标量/列表构成的 JSON 对象 |
+| **账本行** | 表格行必须匹配 `| name | gpu | cum | evidence |`；`gpu` 与 `cum` 数值，累计容差 **1e-3**；行内 `record:<id>` 必须指向**已存在**的索引记录；`metrics.gpu_hours` 与账本行对齐到 **1e-4** |
+| **campaign-state** | 必含 8 键：`current_node / previous_node / current_round_goal / previous_round_goal / previous_round_evidence / cap_gpu_h / used_gpu_h / remaining_gpu_h`；累计容差 1e-3；`current_round_goal` 必须指向真实 brief 且通过 `check_goal_brief` |
+| **campaign §8** | 行内 `record:<id>` 引用必须可解析；文档指针必须是真实 `docs/*.md` |
+
+**因此登记顺序被钉死**：① 先定稿并提交证据页 → ② 用**该提交的 40 位 SHA** 与文件 sha256 生成
+索引记录 → ③ 账本加行（GPU-h 取实测、与记录对齐 1e-4）→ ④ 更新 campaign §8 与 campaign-state
+→ ⑤ `commit-guard` 再提交 → ⑥ `verify` 三套校验器全绿。
+任何一步用占位符都会在第 ② 步被拒。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
