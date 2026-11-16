@@ -74,7 +74,17 @@ R-020=67、R-022=67、R-023=47 保持。
 下一次 `attempt05` 会**重新**把 400 行的协议钉进它的 `execution_files_sha256`，
 届时若再改动仍须按上一条的办法处理——**这个坑会随每轮重开重现**。
 
-<!-- measured: R-019=1 R-019b=1132 R-020=67 R-021=142 R-022=68 R-023=48 -->
+<!-- measured: R-019=1 R-019b=1132 R-020=67 R-021=144 R-022=69 R-023=50 -->
+
+**2026-11-16 typed-evidence 预算轮筹备（提交集合实测）**：R-021 **142→144**、R-022 **68→69**、
+R-023 **48→50**（新增 `scripts/r7_s3_typed_budget_protocol.py` 500 行、
+`scripts/r7_s3_typed_budget_preflight.py` 236 行、`scripts/r7_typed_budget_verdict.py` 256 行、
+`scripts/study_r7_s3_typed_budget.py` 392 行、`scripts/r7_s3_dose_probe.py` 280 行、
+`tests/test_r7_s3_typed_budget.py` 321 行）。全部 5 个代码文件都**低于 R-051 的 600 行阻断上限**
+与 R-052 的 200 行函数上限；超 C 类 400 行目标态的只有协议（500）与 driver（392 不含）——
+**这是报告级目标态偏移，不是阻断违规**，如实记在此处而不改写阈值。
+R-019=1、R-019b=1132、R-020=67 保持。协议原为 650 行（**超 R-051 硬上限**），
+已按职责拆出 (f) 预检到独立模块、降到 500 行——**拆的是关注点不是数字**。
 
 **2026-11-13 城市静态三臂消融复算（提交集合实测）**：R-021 **140→142**（新增
 `scripts/r7_urban_static_ablation_protocol.py` 595 行、`scripts/r7_urban_static_placebo.py` 314 行、
