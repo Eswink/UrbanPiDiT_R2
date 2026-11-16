@@ -935,6 +935,26 @@ rows_before 94, previous_total 619.436628, new_row 12.7809
 三臂同集的真正保证来自「合约里只有一份 manifest」，以及 `_train_arm` 对每个 lead 都用
 同一个 `prepared` 对象。
 
+### §5.2w 区间在**单 lead** 形态上跑通（段 A 的真实形态）
+
+段 A 的 `_train_arm` 对每个 lead 单独开目录（`lead_006h … lead_072h`），每个
+`provenance.json` 的 `lead_hours` 是**单元素列表**。段 B 的 depth 扫描也是这个形态，故可直接实测：
+
+```
+a = update_0128528_k2/lead_012h/provenance.json   (lead_hours = [12], 17 channels)
+b = update_0128528_k4/lead_012h/provenance.json
+paired_rmse_bootstrap(a, b, block_days=7, replicates=1000, seed=42, confidence=.95)
+→ rows = 17，leads present = [12]，n_initializations = 1457
+→ t2m@12h: delta = −0.023272, interval = [−0.0296, −0.0171]  （排除零）
+```
+
+三点确认：
+1. **17 行**（17 个变量）而不是更少 ⇒ `channels` 与 `units` 等长、无一被丢弃；
+2. `pair_interval()` 用 `int(item["lead_hours"]) == int(lead)` 取行，实测该行**确实存在**；
+3. `n_initializations = 1457` 与 lead 12 的 `n_evaluated` 一致 ⇒ 没有静默交集。
+
+⇒ 判据 (a) 所需的区间在**段 A 的实际目录形态**上可算，不是只在「五 lead 合并」形态上可算。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
