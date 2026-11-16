@@ -404,6 +404,25 @@ experiment_commit looks like a short SHA zero-padded to 40 characters, which is 
 unresolved}`；`candidate_state ∈ {candidate, blocked, needs-review, not-candidate}`；
 `scientific_claim` 必须为 `false`；`limitations` 必须是非空字符串列表。
 
+### §5.2g 排程余量（实时核对，决定本轮能否跑完）
+
+| 项 | 实测值 |
+| --- | --- |
+| 当前 s/update（两 seed 取较差者） | **1.1448** |
+| 单臂（32,132 upd + 5 lead 评分） | 10.96 h |
+| **wave 1**（3 臂串行，seed 41/42 并发） | **32.89 h** |
+| **两波总需**（含 seed 43） | **65.78 h** |
+| 硬上限剩余 | **71.63 h** |
+| **余量** | **5.85 h** |
+| 可承受的最慢 s/update | **1.2541**（即再慢 **9.5%** 就会截断） |
+| seed 43 实际拿到的包络 | 67.89 h（对其 32.89 h 需求） |
+| 磁盘 | 835 GB 可用；attempt 现占 88 MB（每臂 5 lead × 1,447 case） |
+
+**判读**：按当前速率**能跑完**，但余量只有 9.5%。GPU 共驻若显著抬高延迟就可能越过 1.2541，
+届时按冻结规则是 `budget_limited`/`failed` 且**全额记账**——不会被当作通过。
+这一点在开跑时并不显式，属于本轮实测得到的运行约束，如实登记于此。
+若最终被硬上限截断，正确动作是**新 attempt、新协议**重跑缺的 seed，**不是**放宽判据或拼接读数。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
