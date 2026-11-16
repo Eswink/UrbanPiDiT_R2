@@ -869,18 +869,66 @@ K=4 **0**、K=6 **0**、K=8 **0**。探针自带的判定规则逐字为：
 `fine_tune_started.json` 在**任何 update 之前**落盘，满足 R-006「先冻结 protocol 再训练」。
 臂顺序为 `incumbent → generic → typed`，每 seed 串行三臂，seed 41/42 并发于两卡。
 
-**恢复第一条命令**：
+### §5.4 本轮为什么在此暂停（会话边界，非科学结论）
+
+按 brief §9 的三类停止条件，这里命中**第三类**：*确无可安全独立推进的工作*——
+段 A 还需约 63.6 h 墙钟（两个 wave：wave1 在跑、wave2 尚未开始），而可做的零 GPU-h
+前置工作已全部做完并留证（§5.1–§5.2t，共 20 节）。**不是**触授权边界，**不是**达科学停止条件。
+
+**当前实测状态（`date -u` = 2026-11-16T21:43Z 时的读数，随训练前进）**：
+
+| 项 | 实测 |
+| --- | --- |
+| `seed41/training/incumbent` | `update 4660 / 32132`（**14.5%**），loss 0.8779 |
+| `seed42/training/incumbent` | `update 4680 / 32132`（**14.6%**），loss 1.2547 |
+| seed43 | 未启动（`stage-seeds` 会在任一卡空出时启动，见 §5.2o） |
+| `seed4{1,2,3}_receipt.json` | **三份都还不存在** |
+| `readings.json` | 不存在（reading 阶段 `already_done: false`，未运行） |
+| 已完成阶段 | `prepare` ✅、`archive` ✅（`check_round_receipts` `checked=2, failed=[]`） |
+| 段 B | 42/42 剂量 + 20/20 深度，**12.7809 GPU-h**（9.4348 + 3.3461），**尚未入账** |
+| 账本 | 94 行，`used_gpu_h 619.436628`，**本轮未加行** |
+| `current_round_goal` | `docs/goals/s3-typed-evidence-budget.md` ✅ |
+| 速率余量 | 1.1303 s/update ⇒ **+11.3%** 余量（§5.2g 复算） |
+
+**未完成、且不在本会话可推进范围内的**（brief 交付物清单对照）：
+
+| 交付物 | 状态 |
+| --- | --- |
+| D1 协议构建器含 (a)–(f) 预检 | ✅ 完成，`f_preflight_passed: true` 六条全真 |
+| D2 三臂契约与容量匹配断言 | ✅ 完成（incumbent 3,286,037；generic ≡ typed 3,434,837，逐位相等） |
+| D3 段 B 零训练探针 | ✅ 完成（42/42 + 20/20，`json.load` 判读见 §5.2t） |
+| D4 冻结协议含 `protocol_sha256` | ✅ 完成（`76e1c214…`） |
+| D5 `code.zip` 带 commit 注释 | ✅ 完成（注释 `f0da923`，sha256 `cc58c88c…`，与冻结逐位一致） |
+| D6 逐 seed 逐臂 receipt | ⏳ **0/9**（2 个在跑，7 个未开始） |
+| D7 `readings.json` 五键 | ⏳ **不存在** |
+| D8 证据页与四件套登记 | ⏳ **未写**（装配器已就绪并自测：§5.2s） |
+| D9 判定点逐条写 (a)–(f) | ⏳ **未写**（求值器已就绪，(d) 将恒为 `null`） |
+
+**恢复的第一条命令**（不改判据、不重冻结、不新建 attempt）：
 
 ```bash
-.venv/bin/python tools/r7_round.py state
+cd /data/esw/UrbanPiDiT_R2 && .venv/bin/python tools/r7_round.py state
 ```
 
-**当前监视命令**：
+然后按顺序（`stage-seeds` 若仍在跑则它会自己推进，**不要**再起第二个）：
 
 ```bash
-find outputs/r7_s3_segB_probe_20261116 \
-  -name boundary_rmse.csv | wc -l   # 42 (dose) + 20 (depth) 全部完成为止
+# 1) 等三份 receipt（absence 即未完成；不要用中间 checkpoint 冒充）
+ls outputs/r7_s3_typed_evidence_budget_20261116_attempt01/seed4{1,2,3}_receipt.json
+# 2) 生成 readings.json（拒绝覆盖；不完整会拒写）
+.venv/bin/python tools/r7_round.py stage reading
+# 3) 用 json.load 读 (a)–(f)，(d) 必须为 null
+.venv/bin/python -c "import json;b=json.load(open('outputs/r7_s3_typed_evidence_budget_20261116_attempt01/readings.json'));print(json.dumps(b['exits']['values'],indent=2));print(b['verdict'])"
+# 4) 装配 GPU-h 与子句（段 B 12.7809 必须与段 A 同列一行）
+.venv/bin/python scripts/r7_s3_typed_budget_register.py --attempt outputs/r7_s3_typed_evidence_budget_20261116_attempt01
 ```
+
+**若 `stage-seeds` 已退出且 receipt 不齐**：先 `tools/r7_round.py orphans` 只读确认无存活 worker，
+再 `stage-seeds` 续跑剩余 seed；**不得**删 `failed_attempt.json` 复活已失败的臂（runner 明确拒绝），
+也**不得**跨 attempt 拼接读数。
+
+**本轮到此没有、也不得有**：任何 (a)–(f) 的数值判定、任何 `readings.json`、任何登记记录。
+段 B 的 `saturated` 与 `depth_candidates = []` 是**探针读数**，不是段 A 的判据结论。
 
 ---
 
