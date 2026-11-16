@@ -955,6 +955,46 @@ paired_rmse_bootstrap(a, b, block_days=7, replicates=1000, seed=42, confidence=.
 
 ⇒ 判据 (a) 所需的区间在**段 A 的实际目录形态**上可算，不是只在「五 lead 合并」形态上可算。
 
+### §5.2x 第十七处缺陷：(a) 假 + (b) 真 的措辞会与读数相反（**不修，记 errata**）
+
+`clause_c()` 只有三个分支：两个都为真、primary（a）为真、以及**兜底**。当
+**(a) 假而 (b) 真**时走兜底，输出：
+
+```
+permitted_claim = "no-increment-from-this-pathway"
+forbidden_claim = "any positive claim about the typed-evidence pathway"
+```
+
+但 (b) 真**就是**「B − A 清了」——通路确有增量。于是禁止语与实测读数相反。
+这正是 `da1ed00` 那一类（卡片与读数相反），只是换了个位置。
+
+**这个组合可达，不是假想**：`A=2.30, B=2.28, C=2.29` ⇒ `B−A=−0.02`（b 真）、
+`C−B=+0.01`（a 假），两个 RMSE 之间没有任何矛盾。brief §7 与计划 0034 的表格只列了三档
+（(a)T(b)T、(a)T(b)F、(a)F(b)F），**恰好没列这一格**，所以它既没被文案覆盖，也没被测试覆盖
+（`grep clause_c tests/` 只命中另一个轮的 `r7_balance_verdict`）。
+
+**影响面（已逐条界定）**：
+- `verdict` 字符串**不受影响**：它由 (a)/(b) 直接算出，此情形为
+  `negative-no-type-structure-increment`，措辞准确（否定的是**类型结构**）。
+- 受影响的是 `permitted_claim` / `forbidden_claim` 两个**文案字段**。
+- 无任何外部代码消费这两字段（`grep permitted_claim` 只命中本模块与测试）。
+
+**为什么不修**：`scripts/r7_typed_budget_verdict.py` 在 `execution_files_sha256` 里
+（digest `b4bc4f7c…`）。改它 ⇒ `validate_protocol` 在 `reading` 阶段抛
+`execution source changed`，即**全部 99 GPU-h 花完之后**才失败。
+
+**⚠️ 我自己在这次排查中真的改了它一次，随后立刻回滚，如实记录**：
+编辑后实测 `frozen b4bc4f7c… vs actual 859ef128…` 不匹配；`git checkout` 复原后重新核对
+`MATCH: True`，并跑 `validate_protocol` 得 **PASS**、`protocol_sha256` 仍 `76e1c214…`、
+10 个 worker 存活。**没有任何 GPU-h 损失**，因为失败点（reading 阶段）尚未到达。
+这是第十四处的**原样重演**，说明「先查文件是否冻结、再动手」这一条在压力下仍会漏——
+解决办法只有一条：**任何对 `scripts/`/`training/`/`model/` 的编辑前先查
+`execution_files_sha256`**。
+
+**本轮若真落到 (a)F+(b)T**，正确写法（人工，不靠代码字段）：写「通路（融合投影）对
+incumbent 有增量，但按类型路由没有再进一步」；**不得**写「通路无增量」，也**不得**写
+「类型路由带来增益」。该分支已作为**下一轮**的修复项登记，本轮不改冻结代码。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
