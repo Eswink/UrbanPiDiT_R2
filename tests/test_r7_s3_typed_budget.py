@@ -520,3 +520,71 @@ def test_readings_assembles_full_arm_tables_and_evaluates_a_f_through_e(tmp_path
     # z500 is constructed to worsen with the arms, so the guard must fail here; the point is that
     # it is computed rather than skipped.
     assert values["e_z500_72h_guard"] is False
+
+
+def test_the_reading_worker_branch_runs_and_writes_readings_json(tmp_path, monkeypatch):
+    """Drive ``worker(phase="reading")`` itself, which has never been executed.
+
+    The balance round's equivalent branch died on a ``NameError`` 7.2 s in -- after its entire GPU
+    round was paid for -- because the writer was imported inside one function and used in another.
+    Calling the branch with the protocol and GPU pin stubbed out proves the branch reaches its
+    writer and leaves a well-formed ``readings.json`` behind, at zero cost.
+    """
+    import csv as _csv
+    import time as _time
+
+    from scripts import study_r7_s3_typed_budget as driver
+    from scripts.r7_m3_offline import deny_network  # noqa: F401 - imported for its side-effect path
+
+    # Synthetic receipts, exactly the shape the reading stage reads back.
+    base = {"incumbent": 2.000, "generic": 1.990, "typed": 1.980}
+    for seed in SEEDS:
+        for arm, _mode in driver.proto.ARMS:
+            lead_dirs = {}
+            for lead in LEADS:
+                folder = tmp_path / f"seed{seed}/evaluation/{arm}/lead_{lead:03d}h"
+                folder.mkdir(parents=True)
+                with (folder / "boundary_rmse.csv").open("w", newline="", encoding="utf-8") as h:
+                    writer = _csv.DictWriter(h, fieldnames=["lead_hours", "variable", "region",
+                                                            "rmse", "unit"])
+                    writer.writeheader()
+                    writer.writerow({"lead_hours": lead, "variable": "t2m", "region": "full",
+                                     "rmse": repr(base[arm] + lead / 1000.0), "unit": "K"})
+                    writer.writerow({"lead_hours": lead, "variable": "z500", "region": "full",
+                                     "rmse": repr(50000.0 + lead * 100.0),
+                                     "unit": "m**2 s**-2"})
+                lead_dirs[str(lead)] = {"dir": str(folder), "n_evaluated": 1447,
+                                        "n_available_windows": 1447, "elapsed_seconds": 1.0,
+                                        "boundary_rmse_csv_sha256": "0" * 64,
+                                        "provenance_sha256": "0" * 64}
+            receipt = {"seed": seed, "arm": arm,
+                       "typed_evidence_mode": dict(driver.proto.ARMS)[arm],
+                       "parameters": driver.proto.capacity()["parameters"][arm],
+                       "seconds_per_update": 1.1536, "evaluations": lead_dirs}
+            (tmp_path / f"seed{seed}_{arm}_receipt.json").write_text(
+                json.dumps(receipt), encoding="utf-8")
+
+    frozen = {"protocol_sha256": "0" * 64, "updates": 32_132, "batch_size": 4,
+              "closed_dose": {"record_id": "s3-typed-spatial-result", "updates": 2400},
+              "independent_arm_argument": "synthetic", "limitations": ["synthetic test fixture"],
+              "preflight": {"clauses": {"capacity_is_matched_where_it_must_be": True,
+                                        "forward_arithmetic_is_matched": True}},
+              "train_data_identity": "0" * 64,
+              "val_manifest": str(driver.proto.VAL_MANIFEST),
+              "deadline_perf_counter": _time.perf_counter() + 3600.0}
+    monkeypatch.setattr(driver.proto, "validate_protocol", lambda _out: frozen)
+    monkeypatch.setattr("scripts.r7_m3_offline.deny_network", lambda: None)
+    monkeypatch.setattr("training.r7_s3_v3_screen.pin_declared_gpu", lambda _uuid: None)
+    monkeypatch.setattr(driver.devices, "assigned_uuid", lambda _body: driver.proto.GPU_UUID)
+
+    driver.worker(str(tmp_path), "reading", None, _time.perf_counter() + 1800.0)
+
+    written = tmp_path / "readings.json"
+    assert written.is_file(), "the reading branch did not write readings.json"
+    loaded = json.loads(written.read_text(encoding="utf-8"))
+    for key in ("scientific_claim", "test_read", "protocol_sha256", "exit_conditions", "seeds"):
+        assert key in loaded, key
+    assert loaded["scientific_claim"] is False
+    assert loaded["test_read"] is False
+    assert loaded["seeds"] == list(SEEDS)
+    assert loaded["exit_conditions"]["d_budget_direction"]["value"] is None
