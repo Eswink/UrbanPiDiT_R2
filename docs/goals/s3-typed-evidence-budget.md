@@ -167,18 +167,38 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 | 时间（UTC） | 阶段 | 状态 | 证据 |
 | --- | --- | --- | --- |
 | 2026-11-16 | 规划 + 七项判决性只读测试 | **完成** | `docs/plans/0034-…`、`docs/decisions/0115-…` |
-| —— | 段 B-1 组内剂量曲线 | **未开始** | —— |
-| —— | 段 B-2 推理深度扫描 | **未开始** | —— |
+| 2026-11-16 | (f) 预检六条 | **完成，全真** | `--preflight-only`：`f_preflight_passed: true`；incumbent 3,286,037 / generic 3,434,837 / typed 3,434,837 |
+| 2026-11-16 | 四处执行前缺陷修复 | **完成，0 GPU-h** | 见 §3 两条修正块；每条配反证测试（改回旧值必红，已实测） |
+| 2026-11-16 | 单 lead 冒烟（路径验证） | **完成** | t2m@6h = **1.8605 K**，与 p1600 登记值逐位一致 |
+| 2026-11-16 | 协议冻结 + 代码归档 | **完成** | commit `a15869b`；`outputs/r7_s3_typed_evidence_budget_code.zip` `8d053ad6…`（1,895 条目，comment = `a15869b`） |
+| 2026-11-16 | 段 B-1 组内剂量曲线 | **运行中** | `outputs/r7_s3_typed_evidence_budget_20261116_attempt01_probe/segment_b_probe_scoring/dose/` |
+| 2026-11-16 | 段 B-2 推理深度扫描 | **运行中**（并发于 cuda:1） | `.../segment_b_depth_scoring/depth/` |
 | —— | 段 A 三臂 4-epoch | **未开始** | —— |
 | —— | 判定 (a)–(f) | **未开始** | —— |
 | —— | 登记 | **未开始** | —— |
 
-**GPU-h = 0。2023 test 未读，`r = 0`。段 A 一个 update 都还没跑。**
+**GPU-h = 段 B 实测（见下）。2023 test 未读，`r = 0`。段 A 一个 update 都还没跑。**
+
+**段 B 实测成本（不是估算）**：`EvaluationPreparation` 一次 29.7 s、train-only 气候态拟合
+**722 s / 117 GB 读**（修复前每个 checkpoint 重建一次，18 次）；单 lead 229–238 s。
+B-1 14 ckpt × 3 lead + B-2 4 K × 5 lead，两段并发跑在两卡上。
+
+**工具链副作用（如实记）**：探针产物目录原名 `…_20261116_attempt01_probe` 会命中
+`current_attempt_dir` 的 `{stem}_attempt*` glob 并**抢在真正的 attempt 目录之前**，
+使 `r7_round.py stage prepare` 读到不存在的 `protocol.json`。本轮改在**两段 B 跑完之后**
+再 `freeze`（届时探针目录改名），以免移动正在写入的路径。这是编排顺序问题，不触及任何判据。
 
 **恢复第一条命令**：
 
 ```bash
 .venv/bin/python tools/r7_round.py state
+```
+
+**当前监视命令**：
+
+```bash
+find outputs/r7_s3_typed_evidence_budget_20261116_attempt01_probe \
+  -name boundary_rmse.csv | wc -l   # 42 (dose) + 20 (depth) 全部完成为止
 ```
 
 ---

@@ -203,7 +203,28 @@ def _expand(parent_state: dict, spec: dict, mode, seed: int) -> tuple:
         "new_parameters": int(sum(state[key].numel() for key in missing)),
         "init_seed": int(seed),
         "parent_state_sha256": _state_digest(parent_state),
-        "pathway_init_sha256": _state_digest(pathway) if pathway else None}
+        "pathway_init_sha256": _state_digest(pathway) if pathway else None,
+        # The invariant that is actually achievable across the two treated arms. ``generic`` holds
+        # one ``fusion.weight`` of shape (192, 768) where ``typed`` holds four ``projections.N`` of
+        # (192, 192): same 147,456 weights, different key names and shapes, because *that block is
+        # the axis under test*. Hashing the whole pathway therefore differs by construction, so the
+        # achievability test is the **shared** patch encoder, which both arms build from the same
+        # seeded draw and which must be bit-identical.
+        "shared_encoder_sha256": (_state_digest(shared_encoder(pathway))
+                                  if pathway else None),
+        "shared_encoder_keys": sorted(shared_encoder(pathway)),
+        "projection_keys": sorted(set(pathway) - set(shared_encoder(pathway))),
+    }
+
+
+def shared_encoder(pathway: dict) -> dict:
+    """The pathway tensors both treated arms build identically: everything but the projection block.
+
+    ``conv``/``norm`` are the patch encoder; ``fusion.weight`` (generic) and
+    ``projections.N.weight`` (typed) are the block the two arms deliberately differ in.
+    """
+    return {key: value for key, value in pathway.items()
+            if "fusion" not in key and "projections" not in key}
 
 
 def _arm_contract(body: dict, spec: dict, mode, parent: Path, parent_sha: str, expansion: dict,
@@ -233,22 +254,31 @@ def _arm_contract(body: dict, spec: dict, mode, parent: Path, parent_sha: str, e
 
 def _seed(output: Path, body: dict, seed: int, deadline: float) -> dict:
     receipts = {}
-    pathways = {}
+    shared = {}
+    projections = {}
     for name, mode in proto.ARMS:
         if time.monotonic() > deadline:
             raise TimeoutError(f"deadline reached before seed {seed} arm {name}")
         receipt = _train_arm(output, body, seed, name, mode, deadline)
         _write_exclusive(output / f"seed{seed}_{name}_receipt.json", receipt)
         receipts[name] = receipt
-        pathways[name] = receipt["expansion"]["pathway_init_sha256"]
+        shared[name] = receipt["expansion"]["shared_encoder_sha256"]
+        projections[name] = receipt["expansion"]["pathway_init_sha256"]
         print(f"[seed {seed}] {name}: {receipt['seconds_per_update']} s/update, "
               f"{receipt['parameters']} parameters", flush=True)
-    # B->C is attributable to the routing only if the two arms started from one pathway draw.
-    treated = {pathways[proto.GENERIC], pathways[proto.TYPED]}
+    # B->C is attributable to the routing only if the two treated arms started from one shared
+    # encoder draw. The projection block itself must differ -- it is the treatment -- so the check
+    # is on the encoder the two arms hold in common, which is the part that has to be identical.
+    treated = {shared[proto.GENERIC], shared[proto.TYPED]}
     if len(treated) != 1 or None in treated:
-        raise RuntimeError(f"seed {seed}: the two treated arms do not share one pathway "
-                           f"initialization: {pathways}")
-    return {"seed": seed, "pathway_init_sha256": pathways[proto.TYPED],
+        raise RuntimeError(f"seed {seed}: the two treated arms do not share one encoder "
+                           f"initialization: {shared}")
+    if projections[proto.GENERIC] == projections[proto.TYPED]:
+        raise RuntimeError(f"seed {seed}: the two treated arms hold the same projection block, "
+                           f"which would mean the routing switch did not build a different graph")
+    return {"seed": seed, "shared_encoder_sha256": shared[proto.TYPED],
+            "pathway_init_sha256": {name: projections[name]
+                                    for name in (proto.GENERIC, proto.TYPED)},
             "arms": {name: {"checkpoint_sha256": receipts[name]["checkpoint_sha256"],
                             "parameters": receipts[name]["parameters"]}
                      for name in receipts}}

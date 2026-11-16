@@ -412,3 +412,41 @@ def test_the_probe_builds_its_preparation_once_not_per_checkpoint():
     run_source = inspect.getsource(probe.run)
     assert run_source.count("build_preparation") == 1, run_source.count("build_preparation")
     assert run_source.count("prepared=prepared") == 2, run_source.count("prepared=prepared")
+
+
+def test_the_treated_arms_share_their_encoder_not_their_projection_block():
+    """B->C is attributable to routing only if the arms start from one shared encoder draw.
+
+    The two treated arms cannot have an identical *pathway*: ``generic`` holds one
+    ``fusion.weight`` of shape (192, 768) where ``typed`` holds four ``projections.N`` of (192, 192)
+    -- the same 147,456 weights, different names and shapes, because that block *is* the treatment.
+    Hashing the whole pathway therefore differs by construction, and a driver that required those
+    digests to be equal would raise only after each seed's full training cost. The achievable
+    invariant is the shared patch encoder, which both arms build from the seed-keyed draw.
+    """
+    from scripts import r7_s3_typed_budget_protocol as proto
+    from scripts import study_r7_s3_typed_budget as driver
+    from training.r7_experiment import load_checkpoint
+
+    parent, _ = proto.parent_pin(41)
+    saved = load_checkpoint(parent)
+    expansions = {}
+    for name, mode in proto.ARMS:
+        spec = proto.arm_spec(mode)
+        if mode is not None:
+            spec = dict(spec, typed_evidence=dict(proto.payload()[1]))
+        _, _, expansion = driver._expand(saved["model"], spec, mode, 41)
+        expansions[name] = expansion
+
+    generic, typed = expansions["generic"], expansions["typed"]
+    assert generic["shared_encoder_sha256"] is not None
+    assert generic["shared_encoder_sha256"] == typed["shared_encoder_sha256"], (
+        "the two treated arms must start from one encoder draw")
+    assert generic["pathway_init_sha256"] != typed["pathway_init_sha256"], (
+        "an identical projection block would mean the routing switch built the same graph")
+    # The split must be exact: encoder keys shared, projection keys disjoint.
+    assert generic["shared_encoder_keys"] == typed["shared_encoder_keys"]
+    assert not set(generic["projection_keys"]) & set(typed["projection_keys"])
+    # And the incumbent adds nothing at all.
+    assert expansions["incumbent"]["new_parameters"] == 0
+    assert expansions["incumbent"]["shared_encoder_sha256"] is None
