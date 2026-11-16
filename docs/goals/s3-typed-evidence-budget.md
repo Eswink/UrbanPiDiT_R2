@@ -849,6 +849,46 @@ K=4 **0**、K=6 **0**、K=8 **0**。探针自带的判定规则逐字为：
 - K=6/K=8 单调更差且 72h 放大到 +0.30 K ⇒ **加深不是提精度的手段**，K=4 是当前前沿的合理点。
 - 因此本轮**没有**更优深度，段 A 沿用 `steps=4` 不变。
 
+### §5.2u 登记的**两半**都用真实工具验过，不是等跑完再试
+
+登记是最后一公里，且不可重来（`readings.json` 与 index 都拒绝覆盖/追加错行）。两半各自实测：
+
+**① index record**。用**真实 digest 与真实 40 位 commit** 造了一条意图记录，直接喂仓内校验器：
+
+```
+evidence_path   = docs/goals/s3-typed-evidence-budget.md
+evidence_sha256 = cc7a39204b1c502a…  （对该文件实际 sha256）
+evidence_commit = ba85bf3c8793…      （当时 HEAD，完整 40 位，非零填充）
+experiment_commit = f0da923796f2…    （冻结 commit）
+protocol_sha256 = 76e1c214…  source_sha256 = 1db83955…  data_identity = 81307008…
+→ tools/verify_r7_evidence_index.py --index …  ⇒  PASS evidence index: 1 records   exit 0
+```
+
+这一条同时排除了**已记录过的 fabrication 陷阱**：校验器会把「短 SHA 补零到 40 位」判为
+fabricated commit id，故必须用 `git rev-parse HEAD` 的完整值。
+
+**② 账本行**。用仓内真实正则 `LEDGER_ROW_RE` 匹配置图行：
+
+```
+| S3 typed evidence budget: … | 12.7809 | 632.217528 | `docs/goals/…md` (record:s3-…) |
+→ matched: True；name/gpu/cum 三组均解析；RECORD_REF_RE 取出 record_id
+```
+
+**③ 累计算术**。`tools/r7_round.py ledger-plan 12.7809`：
+
+```
+rows_before 94, previous_total 619.436628, new_row 12.7809
+→ new_total 632.217528, remaining_gpu_h −612.217528
+```
+
+`remaining_gpu_h` 只须等于 `cap_gpu_h − used_gpu_h`（`tools/check_campaign_state.py:173-178`），
+**负值是既定事实而非错误**：起点就已 −599.436628（brief §2 明确「只记账，无总 GPU-h 上限」）。
+故本轮登记不会因累计为负被拒。
+
+⚠️ **段 B 的 12.7809 是已实测、尚未入账的**；段 A 的 GPU-h 只能等 receipt 出来再算
+（`segment_a_hours()` 会累加训练 + 每 lead 评分秒数）。我另外用 `ledger-plan 112.0` 试算过一次
+「若段 A 是某个整数会怎样」，那**只是算术演练，任何估算值都不得写进账本**。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
