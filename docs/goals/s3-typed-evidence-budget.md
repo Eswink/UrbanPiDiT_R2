@@ -168,20 +168,67 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 | --- | --- | --- | --- |
 | 2026-11-16 | 规划 + 七项判决性只读测试 | **完成** | `docs/plans/0034-…`、`docs/decisions/0115-…` |
 | 2026-11-16 | (f) 预检六条 | **完成，全真** | `--preflight-only`：`f_preflight_passed: true`；incumbent 3,286,037 / generic 3,434,837 / typed 3,434,837 |
-| 2026-11-16 | 四处执行前缺陷修复 | **完成，0 GPU-h** | 见 §3 两条修正块；每条配反证测试（改回旧值必红，已实测） |
+| 2026-11-16 | 执行前缺陷修复（共 10 处） | **完成，0 GPU-h** | 见 §3 修正块；每处配反证测试（改回旧值必红，已实测） |
 | 2026-11-16 | 单 lead 冒烟（路径验证） | **完成** | t2m@6h = **1.8605 K**，与 p1600 登记值逐位一致 |
-| 2026-11-16 | 协议冻结 + 代码归档 | **完成** | commit `a15869b`；`outputs/r7_s3_typed_evidence_budget_code.zip` `8d053ad6…`（1,895 条目，comment = `a15869b`） |
-| 2026-11-16 | 段 B-1 组内剂量曲线 | **运行中** | `outputs/r7_s3_typed_evidence_budget_20261116_attempt01_probe/segment_b_probe_scoring/dose/` |
-| 2026-11-16 | 段 B-2 推理深度扫描 | **运行中**（并发于 cuda:1） | `.../segment_b_depth_scoring/depth/` |
+| 2026-11-16 | 真实 2-update 训练冒烟 | **完成** | 2 updates / 216.1 s，loss 1.28813→1.17719，checkpoint 落盘 |
+| 2026-11-16 | 协议冻结 + 代码归档 | **完成** | `outputs/r7_s3_typed_evidence_budget_code.zip` `afa0b98f…`（comment = `99ca045`，1,896 条目） |
+| 2026-11-16 | 段 B-1 组内剂量曲线 | **42/42 lead 完成** | `.../segment_b_probe_scoring/dose/`，14 ckpt × 3 lead |
+| 2026-11-16 | 段 B-2 推理深度扫描 | **完成 20/20 lead** | `.../segment_b_depth.json`，`gpu_hours 3.3461`，`error: null` |
 | —— | 段 A 三臂 4-epoch | **未开始** | —— |
 | —— | 判定 (a)–(f) | **未开始** | —— |
 | —— | 登记 | **未开始** | —— |
 
 **GPU-h = 段 B 实测（见下）。2023 test 未读，`r = 0`。段 A 一个 update 都还没跑。**
 
+### §5.1 段 B-2 判读（`json.load` 结构化读取，非正则）
+
+来源：`outputs/r7_s3_typed_evidence_budget_20261116_attempt01_probe/segment_b_depth.json`
+的 `decision` 键，字段名逐字引用。
+
+| 读出字段 | 值 |
+| --- | --- |
+| `decision.depth_candidates` | **`[]`**（无深度合格） |
+| `decision.cheaper_depth_candidates` | **`[]`** |
+| `decision.dose_curve_status` | `"untested"`（该文件是 `--depth-only` 运行，不评分剂量曲线——**不是** saturated 判定） |
+| `decision.sixteen_epoch_is_warranted` | `false` |
+| `gpu_hours` | `3.3461`（实测） |
+| `error` | `null` |
+
+**逐深度读数**（`depth_sweep.per_depth[K].delta_vs_k4`，t2m，负值=优于 K=4）：
+
+| K | 6h | 12h | 24h | 48h | 72h | 达标 lead 数（≥0.005 K） | 是否候选 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 2 | **−0.0178** | **−0.0233** | −0.0011 | +0.0273 | +0.0559 | **2** | **否**（需 ≥3） |
+| 4 | 0 | 0 | 0 | 0 | 0 | — | 基准 |
+| 6 | +0.0376 | +0.0568 | +0.0515 | +0.0543 | +0.0438 | 0 | 否 |
+| 8 | +0.1206 | +0.1912 | +0.2393 | +0.2884 | +0.3009 | 0 | 否 |
+
+**判读（按 §4 预声明规则，不事后放宽）**：
+- **没有任何深度在 ≥3 个 lead 上比 K=4 好 ≥0.005 K**，故 `depth_candidates` 为空。
+- **K=2 是最接近的一个，但不能记为候选**：它只在 6h/12h 两个 lead 上更优，而在 48h/72h
+  **反向变差**（+0.0273/+0.0559）。它同时便宜（`K<4` ⇒ 更少递归步、更低推理成本），
+  但预声明明确禁止把「更便宜但更差」记成候选——故只作**观察**记录，不计入结论。
+- K=6 与 K=8 在**全部 5 个 lead 上一致变差**，且随 K 单调恶化（K=8 达 +0.30 K），
+  即在该 checkpoint 上加深推理**没有**收益。
+- 因此本轮**不引入推理深度变更**，生产配置维持 K=4。
+
+### §5.2 段 B-1 剂量曲线读数（14 个 checkpoint × 3 lead，已完成）
+
+t2m RMSE，`region="full"`，来源 `segment_b_probe_scoring/dose/*/lead_*/boundary_rmse.csv`：
+
+| updates | 6h | 24h | 72h |
+| ---: | ---: | ---: | ---: |
+| 5,000 | 2.2650 | 2.5664 | 3.6972 |
+| 15,000 | 2.1570 | 2.4092 | 3.5053 |
+| 25,000 | 2.0614 | 2.3206 | 3.4408 |
+| 35,000 | 2.0040 | 2.2948 | 3.3420 |
+
+末 5 点的严格单调性判定由 `segment_b_probe.json` 的 `decision.dose_curve_status` 给出，
+该文件待 B-1 进程写出后补记于此（**不得**以本表的局部趋势代替判据）。
+
 **段 B 实测成本（不是估算）**：`EvaluationPreparation` 一次 29.7 s、train-only 气候态拟合
-**722 s / 117 GB 读**（修复前每个 checkpoint 重建一次，18 次）；单 lead 229–238 s。
-B-1 14 ckpt × 3 lead + B-2 4 K × 5 lead，两段并发跑在两卡上。
+**722 s / 117 GB 读**（修复前每个 checkpoint 重建一次，18 次）；单 lead 229–238 s，
+单 checkpoint（3 lead）1571–2357 s。B-2 四档深度合计 **3.3461 GPU-h**。
 
 **工具链副作用（如实记）**：探针产物目录原名 `…_20261116_attempt01_probe` 会命中
 `current_attempt_dir` 的 `{stem}_attempt*` glob 并**抢在真正的 attempt 目录之前**，
