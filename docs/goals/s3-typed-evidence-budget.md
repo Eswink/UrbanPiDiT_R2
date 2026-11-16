@@ -681,6 +681,27 @@ timeout 259200  →  tools/r7_round.py stage-seeds (pid 395250)  →  study_r7_s
 ⇒ 重复启动会被拒而不是双开抢 GPU；`orphans` 子命令报告各 stage 的 `running/pids`。
 两处都只读，不向任何进程发信号（R-054）。
 
+### §5.2p 最后一步之前的所有断言都已在真实冻结协议上预演（0 GPU-h）
+
+这些断言**只在训练全部跑完后才执行**——`_seed` 的路径一致性检查在 3 臂 × 10.94 h 之后、
+`readings()` 的字段解引用在 9 臂之后。也就是说，任何一条不成立都要在**99 GPU-h 花完**才暴露。
+逐条预演：
+
+| 断言 | 位置 | 何时才执行 | 预演结果 |
+| --- | --- | --- | --- |
+| 两 treated 臂共享编码器同一 | `_seed` | 每 seed 三臂跑完（32.8 h） | **PASS**，三 seed 各自 `540c0471…` / `d50442a8…` / `ef4b81af…` |
+| 两 treated 臂投影块**不同** | `_seed` | 同上 | **PASS**（若相同则路由开关没建出不同图） |
+| incumbent 无共享编码器 | `_seed` | 同上 | `None`（符合：off 臂不带通路） |
+| `readings()` 的解引用键齐全 | `readings()` | 9 臂之后（99 h） | **24/24 顶层键全部存在**，含 `train_windows.{window_sha256,excluded_sample_ids}`、`preflight.clauses.{capacity…,forward_arithmetic…}` |
+| receipt 五键 + 结构完整 | `check_round_receipts --require-reading` | 登记时 | **PASS**（`reading ok=True`；`scientific_claim=False`、`test_read=False`、`protocol_sha256=76e1c214…`、`exit_conditions` 五子句、`seeds=[41,42,43]`） |
+| 现有 stage 的 receipt 合法 | `check_round_receipts` | — | **PASS**，`checked=2, failed=[]`（`prepare` + `archive`） |
+
+**其中第三条反向排除了缺陷 5 的重演**：缺陷 5 是「pathway 初始化检查哈希了全部新增键」，
+generic 5 键 vs typed 8 键导致 digest 必然不同、在 33 h/seed 之后抛错。现在的检查换成了
+**可达的**共享编码器不变量，并**正向**断言投影块不同——上表第二行就是这条正向断言的实测。
+
+⇒ 从「训练结束」到「登记完成」之间没有未预演的断言了。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
