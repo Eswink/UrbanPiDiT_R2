@@ -347,6 +347,32 @@ seed 41/42 在改动**之前**已通过校验并在进程内运行，所以它�
 而不是在旧 attempt 上继续改代码——本次正是靠 `validate_protocol` 在 2,700 步时暴露，
 而不是在 99 GPU-h 之后。
 
+### §5.2e reading 阶段端到端干跑（真实数据，0 GPU-h，未触碰 attempt 目录）
+
+在段 A 仍在训练时就证明了 `reading` 全链路可用：用**已存在的段 B 深度扫描产物**（四个深度臂
+各有全部 5 个 lead、每次 1,447–1,458 个真实 case）冒充三臂，在 `/tmp` 下构造 9 份 receipt，
+调用真实的 `driver.readings()` + `verdict.write()`。**这不是科学结果**（三臂故意取同/近 checkpoint，
+对照无意义），只验证机器。
+
+实测输出：
+
+| 检查项 | 结果 |
+| --- | --- |
+| `complete` / `missing` | `True` / `[]` |
+| 五键 `scientific_claim/test_read/protocol_sha256/exit_conditions/seeds` | **全在** |
+| `seeds` / `region` | `[41, 42, 43]` / `full` |
+| **判据 (a)** | `True`；`n_clearing=2`、`n_interval_excluding_zero=2`；lead 12 区间 **[−0.029568, −0.017142]**、`excludes_zero=True`、`n_initializations=1457` |
+| 判据 (b) | `False`（该 fixture 下 B 未优于 A） |
+| 判据 (c) | `True`，`permitted_claim` 按 (a) 真/(b) 假降级（scope 规则正常工作） |
+| **判据 (d)** | **`None`** —— 无 16-epoch 读数，按 Objective 必须为 null，实测为 null |
+| 判据 (e) | `True`（z500@72h 未恶化超 5%） |
+| `verdict` | `mixed-type-structure-only` |
+| 回读 `readings.json` | 五键仍在 |
+
+`t2m@6h = 1.8605` 再次与 p1600 登记值一致，确认全程为真实数据。
+**顺带发现的约束**：B-1 剂量曲线只评了 leads {6,24,72}，所以干跑必须改用深度扫描（5 lead）；
+这也确认 `readings()` 对缺失 lead 会走 `missing` 分支而不是静默跳过。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
