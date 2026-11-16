@@ -418,14 +418,18 @@ def train_windows() -> dict:
     """The train windows the training contract must declare, discovered from the manifest.
 
     ``fine_tune_long_rollout`` refuses a contract whose ``autoregression`` block does not carry the
-    window digest, so it is frozen here rather than left to the arm worker. Metadata only: this
+    window digest, and its dataset re-checks the exclusions against **its own** discovery. That
+    discovery is the 12-step long-rollout one, not the plain two-frame one: the two yield different
+    ``window_sha256`` values and different exclusion lists (the long-rollout list names eleven
+    boundary samples, one per physical step, where the plain one names a single ``t+12`` sample).
+    Using the plain discovery here would build a contract the trainer rejects. Metadata only: this
     reads the manifest, never the store's fields.
     """
-    from data.r7_autoregressive_dataset import preflight_training_windows
+    from data.r7_long_rollout_dataset import preflight_long_rollout_windows
 
-    found = preflight_training_windows(str(TRAIN_MANIFEST))
+    found = preflight_long_rollout_windows(str(TRAIN_MANIFEST), physical_steps=12)
     return {"window_sha256": found["window_sha256"],
-            "excluded_sample_ids": list(found.get("excluded_sample_ids") or ())}
+            "excluded_sample_ids": list(found["excluded_sample_ids"])}
 
 
 def prepared_protocol(output):
