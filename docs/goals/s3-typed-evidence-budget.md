@@ -174,7 +174,8 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 | 2026-11-16 | 协议冻结 + 代码归档 | **完成** | `outputs/r7_s3_typed_evidence_budget_code.zip` `afa0b98f…`（comment = `99ca045`，1,896 条目） |
 | 2026-11-16 | 段 B-1 组内剂量曲线 | **42/42 lead 完成** | `.../segment_b_probe_scoring/dose/`，14 ckpt × 3 lead |
 | 2026-11-16 | 段 B-2 推理深度扫描 | **完成 20/20 lead** | `.../segment_b_depth.json`，`gpu_hours 3.3461`，`error: null` |
-| —— | 段 A 三臂 4-epoch | **未开始** | —— |
+| 2026-11-17 | 轮次冻结（attempt01） | **完成** | `outputs/r7_s3_typed_evidence_budget_20261116_attempt01/preparation_protocol.json`，`protocol_sha256 bc506eb1…`；`per_seed 126000 s / planned 172800 / hard_cap 259200` |
+| —— | 段 A 三臂 4-epoch | **进行中**（prepare 阶段） | —— |
 | —— | 判定 (a)–(f) | **未开始** | —— |
 | —— | 登记 | **未开始** | —— |
 
@@ -182,7 +183,7 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 
 ### §5.1 段 B-2 判读（`json.load` 结构化读取，非正则）
 
-来源：`outputs/r7_s3_typed_evidence_budget_20261116_attempt01_probe/segment_b_depth.json`
+来源：`outputs/r7_s3_segB_probe_20261116/segment_b_depth.json`
 的 `decision` 键，字段名逐字引用。
 
 | 读出字段 | 值 |
@@ -214,7 +215,7 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 
 ### §5.2 段 B-1 剂量曲线读数（14 个 checkpoint × 3 lead，已完成 42/42）
 
-来源：`outputs/r7_s3_typed_evidence_budget_20261116_attempt01_probe/segment_b_probe.json`，
+来源：`outputs/r7_s3_segB_probe_20261116/segment_b_probe.json`，
 `json.load` 结构化读取；`gpu_hours 9.4348`（实测），`error: null`。
 
 **身份核验**：`dose_identity.passed = True`，14 个 checkpoint 的
@@ -286,7 +287,7 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 **当前监视命令**：
 
 ```bash
-find outputs/r7_s3_typed_evidence_budget_20261116_attempt01_probe \
+find outputs/r7_s3_segB_probe_20261116 \
   -name boundary_rmse.csv | wc -l   # 42 (dose) + 20 (depth) 全部完成为止
 ```
 
