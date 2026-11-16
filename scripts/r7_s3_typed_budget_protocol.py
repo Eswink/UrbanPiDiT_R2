@@ -76,6 +76,13 @@ STORE = ROOT / "outputs/r7_s3_fy_multiyear_20261023_attempt01/store/cache.zarr"
 SIDECAR_RUN = ROOT / "outputs/r7_s3_typed_evidence_fy65_20261103_attempt01"
 SIDECAR_DATA_IDENTITY = "81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0"
 
+#: The store's own source archive. ``_arm_contract`` must declare ``source_sha256`` and the training
+#: runner binds it, but this protocol never carried it, so the seed stage raised ``KeyError`` before
+#: training. Verified independently: ``sha256sum`` of the 5.5 GB ``source.nc`` yields exactly this
+#: value, and three registered precedents (curve-point, curve-point-large, position-retention) pin
+#: the same constant for this store.
+SOURCE_SHA256 = "1db839554cce30cd14c5730633e166a6e370b3dd8c954fc6572ebdba853b32f5"
+
 #: The registered 1600-update parent, migrated under the current model revision. Every seeded
 #: ladder rung starts here, so the three arms share one initialization by construction.
 PARENT_RUN = ROOT / "outputs/r7_s3_position_retention_parent_migrated_20261103_attempt01"
@@ -458,6 +465,7 @@ def prepared_protocol(output):
             "train_data_identity": train_identity,
             "val_data_identity": val_identity,
             "train_windows": train_windows(),
+            "source_sha256": SOURCE_SHA256,
             "train_manifest_sha256": sha256_file(TRAIN_MANIFEST),
             "val_manifest_sha256": sha256_file(VAL_MANIFEST),
             "preflight": measurements,
