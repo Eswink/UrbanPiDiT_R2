@@ -320,6 +320,33 @@ receipt，而 `write()` 拒绝覆盖、`stage_plan` 以 receipt 存在即 skip�
 加区间后必然得到 `null`；而按 seed 键套 `evaluation_dirs` 会让每个区间静默报「not available」。
 fixture 现按 **lead 键**写 `evaluation_dirs`，与 driver 实际写出的结构一致。
 
+### §5.2d 第十四次发现：**冻结后被自己改破**（1.7352 GPU-h 已损失，如实记）
+
+**事故**：冻结 attempt01（`code_commit 49e359d`）之后，我为修第十三处缺陷继续修改了
+`scripts/r7_typed_budget_verdict.py` 与 `scripts/study_r7_s3_typed_budget.py`，两者都在
+`execution_files_sha256` 的钉住清单里。于是 `validate_protocol()` 失败：
+`execution source changed: scripts/r7_typed_budget_verdict.py`。
+
+**影响面（精确）**：`worker()` 对**每个 seed 与 reading 阶段**都调用 `validate_protocol`。
+seed 41/42 在改动**之前**已通过校验并在进程内运行，所以它们不受影响；但 **seed 43 与
+`reading` 阶段会直接失败**——后者会在全部 GPU-h 花完之后才失败。
+
+**处置**：立即停掉本轮的 seed worker（**只停本轮自己的进程**，pid 经 `pgrep` 精确匹配
+`study_r7_s3_typed_budget.py --worker seed`，未触碰任何邻居进程），在训练到约 **2,700/32,132**
+时终止，然后重冻结。
+
+| 项 | 值 |
+| --- | --- |
+| 损失 | **1.7352 GPU-h**（两个 worker 的 `elapsed_seconds` 之和，实测；非估算） |
+| 新冻结 | `code_commit f0da923`，`protocol_sha256 2630b9c8…`，archive `cc58c88c…` |
+| 重跑校验 | `validate_protocol()` **PASS**（`protocol_sha256 76e1c214…`、`source_sha256 1db83955…`、`f_preflight true`） |
+| 重跑 | seed 41/42 已重新启动 |
+
+**教训（写进规程）**：冻结与「改执行源」互斥。任何触及 `execution_files_sha256` 清单内文件的
+修复，必须在**冻结之前**完成；冻结之后若仍需修，正确动作是**重冻结**（新 attempt），
+而不是在旧 attempt 上继续改代码——本次正是靠 `validate_protocol` 在 2,700 步时暴露，
+而不是在 99 GPU-h 之后。
+
 ### §5.3 段 A 实跑合约核对（只读，取自 `fine_tune_started.json`）
 
 第一个已启动的训练臂（`seed41/training/incumbent`）在**第一条 update 之前**写下的冻结合约，
