@@ -1563,7 +1563,77 @@ PY
 **这不是科学结论，是运行约束的实测记录。** typed evidence 在 4 epoch 剂量下的可归因贡献
 **本轮未测**，原因是预算包络装不下，**不是机制无效**。
 
-### §5.6 本轮在此停止（2026-11-17T19:0xZ）：决策已定，动作落在会话之外
+### §5.7 登记已完成，剩余只有 seed43（2026-11-17T21:0xZ 交接）
+
+**本轮已登记**（不是全部完成，是「已收尾部分」）：
+
+| 项 | 值 |
+| --- | --- |
+| 索引记录 | `record:s3-typed-evidence-budget-partial`，`outcome_class: unresolved`、`candidate_state: not-candidate`、`metrics.gpu_hours 61.1668` |
+| 账本行 | **61.1668 GPU-h**（= 段 B 12.7809 实测 + 段 A 4 臂 48.3859 实测），累计 **680.603428** |
+| campaign-state | `used_gpu_h 680.603428`、`remaining −660.603428`（`check_campaign_state` `failures=0`） |
+| 证据页 | `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md`（sha256 `af87c971…`） |
+| 索引/brief 校验 | `PASS evidence index and brief: 114 records` |
+| 提交 | `9ceb350`（已推 `r7/weather-reasoning`） |
+
+**本轮已到手的实测读数（两 seed，不止是过程证据）**：
+
+| lead | Δ(generic−incumbent) seed41 | seed42 | 均值 |
+| ---: | ---: | ---: | ---: |
+| 6h | −0.000850 | −0.001533 | −0.001192 |
+| 12h | −0.000656 | −0.002099 | −0.001378 |
+| 24h | −0.006009 | −0.001912 | −0.003961 |
+| 48h | −0.007070 | *+0.000613* | −0.003228 |
+| 72h | −0.004520 | *+0.002942* | −0.000789 |
+
+⇒ `concordant_leads=[6,12,24]`、**`n_clearing=0`**（无一达 −0.005 K 门槛）⇒ **(b) 在两 seed 上为 `False`**。
+(e) 两 seed 均过（z500@72h **−0.41% / −0.49%**，实为改善）。
+
+**仍未完成、且只差 seed43 的**：(b) 的三 seed 终值。冻结定义要三 seed 一致，
+**不得**用两 seed 的 `False` 冒充终值，也不得因「反正不过门槛」就省掉种子——那是事后改判据。
+
+### §5.8 为什么此刻必须停：窗口在会话外，且只有 1.92 h
+
+| 项 | 实测（`perf_counter` 差值） |
+| --- | --- |
+| 卡空出 | **+10.04 h** |
+| 完整 35 h 包络的最后启动时刻 | **+11.96 h** |
+| **可用窗口** | **1.92 h 宽**，从 +10.04 h 开始 |
+| 现状 | seed41/42 的 typed 臂已在跑（560 / 160 of 32,132 updates），将各自跑到包络尽头被截断 |
+
+**三类停止条件命中第三类（确无可安全独立推进的工作）+ 第二类（已冻结判据下 (a) 确定 `null`）**。
+
+零 GPU-h 的工作已全部做完并就位：证据页、索引记录、账本行、campaign-state、部分读数工具
+（含 2 条反证）、21 处缺陷留证、39 passed / 1 skipped。剩下唯一的动作是 **+10.04 h 后
+在 1.92 h 窗口内启动 seed43**，而：
+
+- 会话内无法等待 10 h 后仍在同一轮里发命令；
+- `cron` / 守护 / 会话外续跑被 §8 **明令禁止**（我写过 12 h sleeper 启动器并**自我否决、已删**）。
+
+**恢复时的第一条命令**（窗口内，由人或其他会话执行）：
+
+```bash
+cd /data/esw/UrbanPiDiT_R2 && .venv/bin/python tools/r7_round.py stage-plan seed 43
+```
+
+确认 `already_running:false` 且 `skip:false` 后：
+
+```bash
+.venv/bin/python tools/r7_round.py stage seed 43
+```
+
+⚠️ **绝不用 `stage-seeds`**：它按 `seed{N}_receipt.json` 判存在，而该文件要三臂全成功才写；
+typed 必败 ⇒ 41/42 会被视为未跑过而**整 seed 重跑**，白烧 21.4 GPU-h。
+
+seed43 的 inc+gen 完成（约 24.4 h 后）即可取三 seed (b)：
+
+```bash
+.venv/bin/python tools/r7_s3_typed_budget_partial_reading.py \
+    --attempt outputs/r7_s3_typed_evidence_budget_20261116_attempt01
+```
+
+届时须**追加**一条新索引记录（证据页会变、旧记录的 `evidence_sha256` 会失配，实测会
+`ERROR evidence_sha256 does not match`）并补一行账本，**不得**改写已提交的 `9ceb350` 记录。
 
 按 brief §9，这里命中**第二类 + 第三类**：
 
