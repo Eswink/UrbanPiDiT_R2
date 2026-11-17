@@ -155,6 +155,7 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 | **D7** | `readings.json` | 含 `scientific_claim / test_read / protocol_sha256 / exit_conditions / seeds` 五键 | `outputs/<stem>/readings.json` |
 | **D8** | 证据页 + 四件套登记 | index record、账本行、campaign §8、`campaign-state` | `docs/` |
 | **D9** | 判定点 | 逐条写 (a)–(f) 真/假/null，附实测数字 | 证据页 §判定点 |
+| **D10** | 部分读数工具（本轮新增） | 从逐臂 receipt 装配 (b)/(e)，(a) 恒 `null`；空集不崩 | `tools/r7_s3_typed_budget_partial_reading.py`（190 行，`tools/` 不进冻结身份，已测断言） |
 
 **命名纪律**：内容写 `readings.json`（**不是** `diagnostics.json`）。平衡轮两者命名不一致，
 导致该轮的 `readings.json` receipt 从未出现、stage 永远显示未完成
@@ -1335,6 +1336,161 @@ brief §5 也禁止实现「冻结/终止自动化」。**我不会为了省钱�
 **能省的只有 seed43 那约 37 h**（三个 seed 都缺 typed ⇒ 第三份 `null`，无可发表收益）。
 这是本轮唯一采取的止损动作。
 
+#### 更正（本节初稿有一处实质错误，用冻结代码复核后推翻）
+
+初稿写「(A) 花 35 GPU-h 换来一个不能发表的 (b)，所以不启动 seed43」。**前半对、后半错**：
+
+- **对的部分**：主判据 (a) 确实是 `null`，这一点没变。
+- **错的部分**：我把 (b) 也说成买不到。**(b) 只用 `generic − incumbent`，不需要 typed 臂。**
+  三个 seed 的 inc+gen 齐全时，`_clause_pair` 能算出真值（符号 + 增益门槛 + 区间三者都只需要这两臂）。
+  初稿的探针只喂了"无 provenance 目录"的占位表，于是区间算不出、`(b)` 塌成 `null`——
+  我把**探针的缺陷**误读成了判据的性质。
+
+**更正后的 (A) 核算（实测速率，秒/小时单位已对齐）**：
+
+| 项 | 值 |
+| --- | --- |
+| seed43 拿到包络 | `min(round 剩余 36.92 h, per_seed 35.00 h)` = **35.00 h** |
+| seed43 incumbent + generic 需求（两 seed 较差速率） | 10.69 + 13.65 = **24.34 h** ⇒ 余 **+10.66 h** |
+| inc+gen 完成时刻 | round 剩余 **12.57 h**（不必等 typed 截断就能算 (b)） |
+| seed43 总烧 | 24.3 h（有效）+ 10.7 h（typed 空转）= **35.0 h** |
+
+⇒ **(A) 在时间上可行，且能给出 (b) 的三 seed 实测真值。** 这是本轮唯一还能拿到的科学产出。
+
+#### 但 (A) 有一个刚发现的硬阻塞：重启 `stage-seeds` 会把已完成的 41/42 整体重跑
+
+`stage_receipt(output, "seed", seed)` 找的是 **`seed{seed}_receipt.json`**，而该文件**只在
+`_seed()` 三臂全部成功后**才写（`study_r7_s3_typed_budget.py:400`）。typed 臂必败 ⇒
+`seed41_receipt.json` / `seed42_receipt.json` **永远不会出现**（实测 `stage_plan` 当前
+`skip: False, already_running: True`）。因此：
+
+- 若现有 `stage-seeds` 进程在 typed 失败后置 `stop=True` 退出（`r7_round_stages.py:440-441`），
+  再手动重启 `stage-seeds`，它会把 seed41/42 视为**没跑过**，从父 checkpoint **整 seed 重跑**
+  三臂 ⇒ **白烧 21.4 GPU-h 已完成的 incumbent+generic**，且 runner 明确不支持续跑
+  （`resume_permitted: False`，§5.2i）。
+- 所以 **(A) 不能靠重启 `stage-seeds` 实现**；必须用一条**只跑 seed43 单 seed** 的调用，
+  且该调用必须绕过 `stage-seeds` 的"pending 由 receipt 决定"逻辑。
+
+**这一条是本轮真正的操作风险，也是我不在本次会话内启动 seed43 的原因**：可行路径需要
+一个不重跑 41/42 的启动方式，而现有工具（`stage-seeds` / `stage seed <n>`）都按 seed 级
+receipt 判存在。**在有明确的单-seed 启动方式并经只读验证之前，启动 seed43 会触发 41/42 重跑。**
+
+#### 第二十一处缺陷（本轮新发现，0 GPU-h）：`_clause_pair` 在空 seed 列表上除零
+
+写部分读数工具时实测踩到：
+
+```
+verdict._clause_pair({incumbent:{},generic:{},typed:{}}, [], [6,12,24,48,72], "t2m", ...)
+→ ZeroDivisionError: division by zero
+```
+
+原因在 `scripts/r7_typed_budget_verdict.py:128-129`：`mean = sum(measured) / len(measured)`，
+当 `have_b == []` 时 `len(measured) == 0`。
+
+**在冻结的 `evaluate()` 里不会触发**——它先检查 `seeds`/`leads` 非空，且九臂齐全时
+`have_b` 恒为三个 seed。**但任何部分读数调用方都会踩到**，而这正是本轮唯一还能拿到读数的
+路径。新增的 `tools/r7_s3_typed_budget_partial_reading.py` 已加空集守卫（返回
+`value: None` + 理由，符合 null 纪律），且**不修改冻结模块**（它不能改，见 §5.5①）。
+
+#### 本轮的执行决定：采用 **(A)**，seed43 待卡空出后以 `stage seed 43` 启动
+
+复核后确认交接单的推荐是**对的**，我草稿里「不启动 seed43」的结论建立在两个错误上
+（把 (b) 误判为需要 typed 臂；把探针缺陷误读为判据性质），两处都已在上面更正。
+
+**决定：启动 seed43，只跑它，用 `stage seed 43` 而非 `stage-seeds`。**
+
+理由是 `stage seed <n>` 按 seed43 自己的 receipt 判存在（实测 `already_done: false`,
+`already_running: false`, `skip: false`），**不会触碰 seed41/42**；而 `stage-seeds` 会把
+41/42 视为未跑过（它们的 seed 级 receipt 因 typed 必败而永不出现）⇒ 白烧 21.4 GPU-h 重跑。
+这一条是本次决策里最关键的技术判断。
+
+**预算核算（外推，基于实测速率；不是实测值）**：
+
+| 项 | GPU-h | 说明 |
+| --- | ---: | --- |
+| 段 B | 12.7809 | 实测 |
+| 段 A seed41/42 | ≈ 71.1 | inc 21.4 实测 + gen 27.0 + **typed 空转 22.7** |
+| 段 A seed43 | ≈ 35.0 | inc 10.7 + gen 13.7 + **typed 空转 10.6** |
+| **本轮合计** | **≈ 118.9** | 软 96 / 硬 144 |
+
+⇒ **超软预算约 22.9 GPU-h（+24%），但在硬上限内。** 按决策 0030，软预算超支**记 overrun
+继续**、不截断；账本按实测登记，不得写成估算值。
+
+**必须如实申报的成本**：typed 臂的空转总量 **≈ 33.4 GPU-h** 换不到任何子句——它在三个 seed
+上都会被 `_check_deadline` 截断。这部分**不可回收**（R-054 禁对进程发信号，brief §5 禁终止
+自动化，且我会刻意不实现任何冻结/终止逻辑）。
+
+**seed43 的收益与不收益**（不得夸大）：
+
+| 子句 | seed43 后 |
+| --- | --- |
+| **(b)** `generic − incumbent` | **三 seed 齐全 ⇒ 可判真值**（可用新增部分读数工具从逐臂 receipt 算出） |
+| (a) `typed − generic` | **`null`**（typed 无 receipt ⇒ 未测，不是假） |
+| (c) 声明范围 | **`null`**（依赖 (a)） |
+| (d) 4 vs 16 epoch | **`null`**（无 16-epoch 读数） |
+| (e) z500@72h 护栏 | **三个 seed 都可判**（只依赖 inc+gen） |
+
+⇒ 本轮的最终结论形态是：**(b) 有真值，(a) 为 null，verdict 记 `untested-no-arm-contrast`
+或按 (b) 单独报告**。**绝不**把 (b) 为真写成「typed evidence 有类型结构贡献」——
+那需要 (a)，而 (a) 本轮未测。
+
+#### 启动条件与命令（卡空出后，约 12.3 h）
+
+seed41/42 的 generic 完成后会**立刻**启动各自的 typed 臂并跑到包络尽头，所以卡要到
+`pop + 126,000 s` 才空出（当时实测距启动约 **12.3 h**）。到点后执行：
+
+```bash
+cd /data/esw/UrbanPiDiT_R2
+# 0) 只读确认 seed43 可启动且 41/42 已退出
+.venv/bin/python tools/r7_round.py stage-plan seed 43
+.venv/bin/python tools/r7_round.py orphans
+# 1) 只启动 seed43（不要用 stage-seeds：那会重跑 41/42）
+.venv/bin/python tools/r7_round.py stage seed 43
+# 2) 约 24.4 h 后 inc+gen 完成；用新增工具取 (b)（不写 readings.json，不改冻结源）
+.venv/bin/python tools/r7_s3_typed_budget_partial_reading.py \
+    --attempt outputs/r7_s3_typed_evidence_budget_20261116_attempt01
+```
+
+**不要**在卡被占时就调用 `stage seed 43`：`run_stage` 遇 `headroom-blocked` **立即返回**
+（只读等待是 `run_seeds` 的行为，单 stage 没有循环）。已实测当前两卡 gate 均为
+`passed=False`（`required_bytes 16.0 GiB` vs `free_bytes 13.6 GiB`），所以此刻调用会被安全拒绝、
+**不会双开**；但也没有意义，等它真能通过时再调。
+
+**一条必须点明的风险**：`run_stage` 的 gate 是**逐卡余量**判定，**不看 `run_seeds` 的
+`free` 列表**。也就是说，只要某张卡的空闲够 16.0 GiB，`stage seed 43` 就会在**那张卡上**
+再起一个 worker——即使该卡已有本轮的 worker 在跑。当前不会发生（余量不够），但**卡空出后
+必须确认目标是真空卡**，而不是"余量够了的共驻卡"。判据：`orphans` 无 41/42 的存活 PID。
+
+#### seed43 的启动窗口很窄，而会话内无法跨越它（这是本轮在此停止的真实原因）
+
+卡空出**不等于**可以立刻启动：seed43 需要一段连续包络。两个截止叠加后，窗口是：
+
+| 项 | 时刻（相对现在，`perf_counter` 差值） |
+| --- | --- |
+| 卡空出（41/42 的 typed 臂跑到各自包络尽头） | **+12.28 h** |
+| 完整 35 h 包络的**最后**启动时刻（`round_deadline − per_seed`） | **+14.20 h** |
+| **⇒ 完整包络的启动窗口** | **+12.28 … +14.20 h，仅 1.92 h 宽** |
+| 只要 (b)（inc+gen 24.37 h）的最后启动时刻 | +24.83 h（窗口 12.55 h） |
+
+**我无法在会话内跨越这 12.3 h**：等待 12 h 再发一条命令不是一次会话内的动作，而 brief §8
+明令禁止「`cron` / 守护 / 会话外续跑」。我**写过并对一个 12 h sleeper 启动器做了自我否决**：
+那正是被禁的形态（它等待一个绝对时刻、然后替会话执行 stage），**已删除，未运行**。
+
+**⇒ 因此本轮在此停止，命中第三类（确无可安全独立推进的工作）+ 第二类（已冻结判据下
+(a)–(f) 的确定终局）。** 不是授权边界，也不申请新授权。
+
+**恢复时的第一条命令**（在卡空出后的 1.92 h 窗口内，由人或其他会话执行）：
+
+```bash
+cd /data/esw/UrbanPiDiT_R2
+.venv/bin/python tools/r7_round.py stage-plan seed 43      # 期望 already_running:false, skip:false
+.venv/bin/python tools/r7_round.py stage seed 43           # 单 seed，绝不 stage-seeds
+```
+
+**若错过了 +14.20 h**：仍可在 +24.83 h 前启动，此时 35 h 包络会被 `round_deadline` 截短，
+typed 臂会**更早**被截断——但 inc+gen（24.37 h）仍能跑完，(b) 仍可判。不要在 +24.83 h 之后再启动：
+那时连 (b) 都跑不完，启动只会再浪费 24 h 而不产生读数。
+
 #### 本轮的执行决定（先写定，避免既成事实后补理由）
 
 | 决定 | 内容 | 依据 |
@@ -1391,73 +1547,74 @@ PY
 **这不是科学结论，是运行约束的实测记录。** typed evidence 在 4 epoch 剂量下的可归因贡献
 **本轮未测**，原因是预算包络装不下，**不是机制无效**。
 
-### §5.6 本轮在此停止（2026-11-17T18:3xZ，会话边界 + 已冻结科学停止条件）
+### §5.6 本轮在此停止（2026-11-17T19:0xZ）：决策已定，动作落在会话之外
 
-按 brief §9 的三类停止条件，这里同时命中**第二类与第三类**：
+按 brief §9，这里命中**第二类 + 第三类**：
 
-- **第二类（达已冻结科学停止条件）**：判据 (a)–(f) 的**前置**是九臂齐全。typed 臂在三个
-  seed 上都必然被每 seed 的 35 h 包络截断（§5.5），因此本轮**已确定**产出
-  `(a) = (b) = (c) = (d) = (e) = null`、`verdict = untested-no-arm-contrast`。
-  这不是「还没跑完」，是**已冻结规则下的确定终局**：任一臂缺失 ⇒ 该子句 `null`。
-- **第三类（确无可安全独立推进的工作）**：零 GPU-h 的前置工作已全部做完并留证
-  （§5.1–§5.5，含 20 处缺陷记录）；剩下的唯一动作是等 seed41/42 在各自包络上自然退出，
-  再按实测登记——**而 R-054 禁止对进程发信号，我也不会为省 GPU 去 kill 它们**。
+- **第二类（已冻结判据下的确定终局）**：typed 臂在三个 seed 上都被每 seed 的 35 h 包络截断
+  （§5.5），所以 **(a) = (c) = (d) = `null`** 是冻结规则的确定结论，不是待跑。
+- **第三类（确无可安全独立推进的工作）**：零 GPU-h 前置已全部做完（§5.1–§5.5，21 处缺陷）；
+  下一步是启动 seed43，而它的窗口是 **+12.28 … +14.20 h（1.92 h 宽）**，
+  **会话内无法跨越，且 cron/守护/会话外续跑被明令禁止**（§5.5 末）。
+  我写过 12 h sleeper 启动器并**自我否决、已删除**，不以合规包装违规。
 
-**不是**触授权边界（无需新授权，也无需申请）。
+**不是**触授权边界，不申请新授权。
 
-#### 为什么不是直接「收尾登记」就完事
+#### 决策已定案：(A)
 
-登记需要「实测 GPU-h 全额入账」，而被截断的 typed 臂还在烧 GPU（≈20.9 GPU-h，§5.5）。现在登记
-会把那部分写成 0；等它们退出后再登记才是完整账。等待期间**没有任何可安全独立推进的
-零 GPU-h 工作**——需要决策的只有「是否有人为干预」，而答案是明确的「不干预」。
+| 项 | 决定 |
+| --- | --- |
+| seed43 | **启动**，用 `stage seed 43`（**不是** `stage-seeds`，那会重跑 41/42 共 21.4 GPU-h） |
+| 窗口 | 卡空出 +12.28 h 后的 **1.92 h** 内（最迟 +24.83 h，但那时 typed 会更早截断） |
+| 收益 | **(b) 三 seed 真值**；**(a)(c)(d) 全 `null`**；(e) 可判 |
+| 成本 | 段 A 累计 ≈ **106.1 GPU-h**，本轮 ≈ **118.9**；超软 96 约 22.9（记 overrun），在硬 144 内 |
+| typed 空转 | ≈ **33.4 GPU-h** 换不到任何子句，不可回收（R-054 禁终止） |
+| 本轮终局 | `verdict` 记 `untested-no-arm-contrast`；(b) 单独按实测报；**绝不**写成"类型结构有贡献" |
 
-#### 恢复的第一条命令（等 seed41/42 退出后，不改判据、不重冻结、不新建 attempt）
+#### 恢复时的第一条命令（卡空出后的 1.92 h 窗口内）
 
 ```bash
-cd /data/esw/UrbanPiDiT_R2 && .venv/bin/python tools/r7_round.py state
+cd /data/esw/UrbanPiDiT_R2 && .venv/bin/python tools/r7_round.py stage-plan seed 43
 ```
 
-然后按序执行（**每一步都只读或只写 `outputs/`，不碰冻结源**）：
+确认 `already_running:false` 且 `skip:false` 后：
 
 ```bash
-# 1) 只读确认三个 stage 状态与无存活 worker
-.venv/bin/python tools/r7_round.py orphans
-ls outputs/r7_s3_typed_evidence_budget_20261116_attempt01/seed4*_*_receipt.json
-cat  outputs/r7_s3_typed_evidence_budget_20261116_attempt01/seed4{1,2}/training/typed/failed_attempt.json
+.venv/bin/python tools/r7_round.py stage seed 43
+```
 
-# 2) 汇总实测 GPU-h：receipt 可见部分 + 截断臂的 progress.jsonl 末条（第二十处缺陷的补算）
-.venv/bin/python - <<'PY'
-import json,glob
-att="outputs/r7_s3_typed_evidence_budget_20261116_attempt01"
-s=0.0
-for f in sorted(glob.glob(f"{att}/seed*_*_receipt.json")):
-    b=json.load(open(f)); s+=b["elapsed_seconds"]+sum(v["elapsed_seconds"] for v in b["evaluations"].values())
-for f in sorted(glob.glob(f"{att}/seed*/training/*/failed_attempt.json")):
-    p=f.rsplit("/failed_attempt",1)[0]+"/progress.jsonl"
-    rows=[json.loads(l) for l in open(p) if l.strip()]
-    print("TRUNCATED",f.split("/")[-3],f.split("/")[-2],rows[-1]["elapsed_seconds"]); s+=rows[-1]["elapsed_seconds"]
-print("segment_a_gpu_h", round(s/3600,4), "+ segment_b 12.7809 =", round(s/3600+12.7809,4))
-PY
+seed43 的 inc+gen 完成（约 24.4 h 后）即可取 (b)，**不必等 typed 截断**：
 
-# 3) 确认 readings.json 确实无法产出（预期：抛错，不是静默）
-.venv/bin/python tools/r7_round.py stage-plan reading
+```bash
+.venv/bin/python tools/r7_s3_typed_budget_partial_reading.py \
+    --attempt outputs/r7_s3_typed_evidence_budget_20261116_attempt01
+```
 
-# 4) 登记：outcome_class=unresolved，candidate_state=non-candidate，
-#    limitations 必写三条（epochs 字段 errata / 包络缺陷 / 截断臂不写 receipt）
+#### 登记（seed43 结束后，或决定放弃 seed43 时）
+
+```bash
+# 汇总实测 GPU-h：receipt 可见部分 + 截断臂的 progress.jsonl 末条（第二十处缺陷的补算）
+# outcome_class=unresolved / candidate_state=non-candidate
+# limitations 必写：epochs 字段 errata（§5.2l）、包络缺陷（§5.5）、
+#                   截断臂不写 receipt（§5.5 第二十处）、typed 臂未测
 .venv/bin/python scripts/r7_s3_typed_budget_register.py --attempt outputs/r7_s3_typed_evidence_budget_20261116_attempt01
 ```
 
+⚠️ 登记前必须先补 §5.5 第十九处（装配器把 `source_sha256`/`data_identity` 读成 `null`），
+否则 index 记录会带空身份通过校验（已实测 `exit 0`）。
+
 #### 本轮到此没有、也不得有
 
-- 任何 (a)–(f) 的**数值**判定（全部 `null`，且 `null` 是因为未测，不是因为机制无效）
-- `readings.json`（冻结守卫拒绝不完整读数，这是**正确行为**，不得绕过）
-- 任何 `scientific_claim: true`、任何「typed evidence 有效/无效」的结论
-- 任何对 seed43 的启动（三 seed 均缺 typed，无可发表收益）
-- 任何对存活进程的信号、任何终止/冻结自动化
+- 任何 (a)–(f) 的**捏造**判定：(a)(c)(d) 是 `null`（未测），(b)(e) 只有在 inc+gen 齐全的
+  seed 上才是真值
+- `readings.json`（冻结守卫拒绝不完整读数，这是**正确行为**；部分读数走新工具的独立输出）
+- 任何 `scientific_claim: true`；任何「typed evidence 有效/无效」的结论
+- 任何对存活进程的信号、任何终止/冻结自动化、任何 cron/守护/会话外续跑
+- 任何把 (b) 为真读成"物理类型结构有贡献"的写法（那需要 (a)）
 
-**本轮唯一可发表的科学事实是负向的工程事实**：在 4 epoch 剂量下，physical-evidence 通路带来
-**+24.4% / +27.9%** 的前向开销（实测），使原定每 seed 35 h 包络装不下三臂。
-**typed evidence 在 4 epoch 下的可归因贡献本轮未测。**
+**本轮已确立的可发表事实是工程性的**：physical-evidence 通路带来 **+24.4% / +27.9%**
+的实测前向开销，使原定每 seed 35 h 包络装不下三臂；typed evidence 在 4 epoch 剂量下的
+可归因贡献**本轮未测**（不是无效）。
 
 ---
 

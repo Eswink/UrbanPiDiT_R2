@@ -386,3 +386,48 @@ def test_a_receipt_without_elapsed_seconds_is_refused_not_counted_as_zero():
     finally:
         receipt.unlink()
         folder.rmdir()
+
+
+def test_the_partial_reading_refuses_to_grant_clause_a_and_never_turns_absence_into_false():
+    """The partial reader must emit (a) as ``None`` -- absence is untested, never a negative.
+
+    The round loses ``readings.json`` entirely when one arm cannot finish, so this tool is the only
+    way to read (b). Its counter-proof is the one that matters: a tool built to salvage a measurable
+    clause could easily promote the *unmeasurable* ones to ``False`` ("we measured it and it failed")
+    or let ``_clause_pair`` raise on an empty seed set (it divides by ``len(measured)``).
+    """
+    from tools import r7_s3_typed_budget_partial_reading as partial
+
+    # No seed has any arm: the frozen helper would raise ZeroDivisionError here.
+    body = {"seeds": [41, 42, 43], "lead_hours": list(LEADS),
+            "arms": {"incumbent": {}, "generic": {}, "typed": {}}}
+    empty = partial.evaluate_partial(body)
+    assert empty["value"] is None
+    assert empty["seeds_with_both_arms"] == []
+    assert empty["clauses"]["b_generic_minus_incumbent"]["value"] is None
+    assert empty["clauses"]["a_typed_minus_generic"]["value"] is None
+    assert "untested" in empty["clauses"]["b_generic_minus_incumbent"]["reason"]
+
+    # Incumbent present but generic absent: still untested, still never False.
+    real = partial.assemble(ROOT / "outputs/r7_s3_typed_evidence_budget_20261116_attempt01",
+                            SEEDS, LEADS)
+    judgement = partial.evaluate_partial(real)
+    for name in ("a_typed_minus_generic", "b_generic_minus_incumbent"):
+        assert judgement["clauses"][name]["value"] is not False, name
+    # The tool exists to read (b); it must never report the type-structure pair as decided.
+    assert partial.PARTIAL_PAIR == ("generic", "incumbent")
+    assert "typed" not in partial.PARTIAL_PAIR
+
+
+def test_the_partial_reading_tool_is_outside_the_rounds_frozen_identity():
+    """It lives under ``tools/``, which never enters a round's ``execution_files_sha256``.
+
+    Adding a file inside ``scripts/``/``training/``/``model/``/``data/`` would make
+    ``validate_protocol`` reject the live attempt at the reading stage -- after all the GPU hours
+    were spent. This asserts the actual inventory membership rather than trusting the docstring.
+    """
+    from scripts import r7_s3_typed_budget_protocol as proto
+
+    inventory = set(proto.execution_files())
+    assert "tools/r7_s3_typed_budget_partial_reading.py" not in inventory
+    assert not any(name.startswith("tools/") for name in inventory)
