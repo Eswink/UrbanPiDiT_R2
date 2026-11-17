@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 113; human-review candidates: 2
+Records: 114; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1419,6 +1419,27 @@ Records: 113; human-review candidates: 2
   - the (a)-false verdict is aggregation-dependent: delta_HB is a per-case grid median then a mean over 1447 cases, which can wash out an arm difference confined to some synoptic regimes; no stratified (regime / sub-region / per-lead) delta_HB test was run, so (a)-false means 'no resolving power in the annual mean', not 'no signal in any subset'
 - Excluded from runnable candidates: Evaluation-only round and a MIXED result that must not be flattened via HTTP: (a)=false and (c)=false mean the hydrostatic deviation delta_HB has no resolving power between arms -- its arm gaps (1e-6..5.4e-5) are an order of magnitude below the three-seed spread (3.3e-4..4.7e-4), and the three arms' orderings differ on all three seeds. (b)=true and (d)=true mean the geostrophic departure and the spectral fine-scale noise DO have resolving power and run systematically opposite to RMSE. Because (a) and (b) are not both true, this round does NOT license 'physical balance is an independent evaluation axis' as a whole; it licenses only the half carried by geostrophic+spectral, never by hydrostatic. Do not reuse this page as evidence that all four diagnostics work.
 - Recorded metrics (not recomputed): a_rows=1, a_same_ordering_on_every_seed=false, b_distinct_reversal_cells=20, b_n_comparisons=260, b_n_reversed_all_seeds=44, b_rows_all_seed=118, c_stage_a_smallest_arm_gap=5.4e-05, c_stage_a_widest_seed_range=0.000328, c_urban_smallest_arm_gap=1e-06, c_urban_widest_seed_range=0.000469, clause_values={"a_arms_differ": false, "b_rmse_and_balance_disagree": true, "c_seed_spread_below_arm_gap": false, "d_truth_is_less_unbalanced": true, "e_preflight": true}, d_model_more_unbalanced=75, d_rows=75, diagnostics_sha256=6319d538b2c1d5e4d16f5e71d970b01194c40bac80be9a49bb8047cc33d3f6f5, disk_bytes_approx=43000000000, dump_seconds_summed=20326.2, e_preflight_passed=true, fields_verified_against_receipts=15/15 ALL_MATCH, gpu_hours=5.6462, n_arms=15, n_case_files=21705, n_cases=1447, reading_code_identity_differs_from_freeze=true, reading_derivation_sha256=ed65636b295827a5beb045cfdce2bbd049eb5557976225ccba18d69704e8d922, test_read=false, verdict=negative-diagnostic-is-dead
+
+## s3-typed-evidence-budget-partial
+
+- Outcome class: `unresolved`; candidate state: `not-candidate`
+- Human triage priority: `85` (not a scientific score)
+- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `af87c97172448f1aceba9d0da10590774178eba53726aad756ae211e4a2d8005`)
+- Evidence commit: `6b0e87dcab47ae30ac44a15352cabbae447c7c83`; experiment commit: `f0da923796f2eeb74b7c53e3e95b7876b80ccbb8`
+- Protocol SHA256: `76e1c214d7e44925943dc4eec6542ee96d27d49600f02b9f5ffdc882df9c5a94`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Partial readings for the typed-evidence budget round: Segment B is complete (dose curve saturated, so 16 epochs is not warranted and 123 GPU-h are saved) and four of nine fixed Segment A arms have receipts. The typed arm cannot finish on any seed, so (a) is null rather than false. No science claim is made.
+- Limitations:
+  - typed arm is untested, not negative: PER_SEED_SECONDS=126000 was sized from the incumbent's 1.1536 s/update while the treated arms measure 1.3886/1.4266, so one seed's three arms need 37.29/37.96 h and the typed arm is cut off on every seed. (a), (c) and (d) are therefore null
+  - the (b) reading is measured on two seeds only (41, 42). The frozen definition wants three, so it is not the round's final (b); on those two seeds n_clearing is 0 -- no lead's mean delta reaches the -0.005 K floor
+  - epochs metadata is wrong by a factor of four (updates/32131 = 1.000031 instead of updates*4/32131 = 4.000124); no clause reads it, but quoting it would describe this round as a quarter dose
+  - no readings.json exists and none can: the driver json.loads all nine arm receipts and the worker refuses an incomplete table. The (b)/(e) numbers come from a separate partial reader over per-arm receipts
+  - truncated arms write no receipt, so segment_a_hours() cannot see their GPU hours; the typed arm's burn is not in this record's gpu_hours
+  - test_read is false and r = 0: only the 2022 validation split was read
+  - gpu runs are config-reproducible, not bit-reproducible
+  - B and C are capacity-matched but their computation graphs differ (fuse-then-pool vs pool-then-project); the contrast is where fusion happens, not whether the physics is present
+  - a (b) win would carry the +148,800 parameters (+4.5%) the pathway adds, and cannot be attributed to the physics alone
+- Excluded from runnable candidates: Not a candidate and not a complete result: the controlled pair (a) that the round exists to test was never measured, because the per-seed envelope cannot hold three arms at the measured treated rate. Nothing here licenses a statement about typed evidence either way.
+- Recorded metrics (not recomputed): arms_expected=9, arms_with_receipts=4, b_best_mean_delta_k=-0.003961, b_n_clearing_two_seeds=0, batch_size=4, e_z500_72h_seed41=-0.004067, e_z500_72h_seed42=-0.004876, forward_overhead_percent_seed41=25.8, forward_overhead_percent_seed42=28.4, gpu_hours=61.1668, gpu_hours_segment_a_completed_arms=48.3859, gpu_hours_segment_b=12.7809, parameter_delta=148800, parameters_incumbent=3286037, parameters_treated=3434837, seconds_per_update_generic_seed41=1.4043, seconds_per_update_generic_seed42=1.4312, seconds_per_update_incumbent_seed41=1.1162, seeds=[41, 42, 43], updates_per_arm=32132
 
 ## m3-process-supervision-budget-limited
 
