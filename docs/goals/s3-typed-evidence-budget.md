@@ -176,10 +176,13 @@ B 与 C 逐位相等 ⇒ 只有 `C − B` 能归因给物理类型结构。
 | 2026-11-16 | 段 B-2 推理深度扫描 | **完成 20/20 lead** | `.../segment_b_depth.json`，`gpu_hours 3.3461`，`error: null` |
 | 2026-11-17 | 轮次冻结（attempt01） | **完成** | `outputs/r7_s3_typed_evidence_budget_20261116_attempt01/preparation_protocol.json`，`protocol_sha256 bc506eb1…`；`per_seed 126000 s / planned 172800 / hard_cap 259200` |
 | 2026-11-17 | 段 A 启动 | **训练中** | `attempt01`：prepare ✓ archive ✓（`code_commit 49e359d`）；seed 41/42 并发于双卡，各 ~9.3 GB / 25% |
-| —— | 判定 (a)–(f) | **未开始** | —— |
-| —— | 登记 | **未开始** | —— |
+| 2026-11-17 | 段 A incumbent 两臂 | **完成** | `seed4{1,2}_incumbent_receipt.json`：35,866.8 / 35,828.7 s，**1.1162 / 1.1150 s/upd**，5 lead 齐全（1458/1457/1455/1451/1447），`new_parameters = 0` |
+| 2026-11-18 | 第十八处缺陷：每 seed 包络装不下三臂 | **发现并留证（§5.5）** | treated 臂实测 **1.3886 / 1.4266 s/upd（+24.4% / +27.9%）**⇒ 三臂需 **37.29 / 37.96 h** vs 冻结包络 35.00 h ⇒ **typed 臂三个 seed 全部必然截断** |
+| 2026-11-18 | 第十九处缺陷：装配器身份字段静默 null | **发现并留证（§5.5）** | `readings()` 不写 `source_sha256`/`data_identity`，`build_record` 用 `.get()` ⇒ 空身份记录可过校验器（实测 exit 0） |
+| —— | 判定 (a)–(f) | **本轮判 null（未测）** | typed 臂必然缺失 ⇒ 冻结 `readings()` 拒写（§5.2b 守卫）⇒ **不产出 `readings.json`** |
+| —— | 登记 | **待段 A 进程退出后做** | 段 B 12.7809 + 段 A 实测 GPU-h；`outcome_class` 记 `unresolved` |
 
-**GPU-h = 段 B 实测（见下）。2023 test 未读，`r = 0`。段 A 一个 update 都还没跑。**
+**GPU-h = 段 B 实测 12.7809（尚未入账）。2023 test 未读，`r = 0`。段 A 已在跑并产出两份 incumbent receipt。**
 
 ### §5.1 段 B-2 判读（`json.load` 结构化读取，非正则）
 
@@ -1087,6 +1090,374 @@ ls outputs/r7_s3_typed_evidence_budget_20261116_attempt01/seed4{1,2,3}_receipt.j
 
 **本轮到此没有、也不得有**：任何 (a)–(f) 的数值判定、任何 `readings.json`、任何登记记录。
 段 B 的 `saturated` 与 `depth_candidates = []` 是**探针读数**，不是段 A 的判据结论。
+
+---
+
+### §5.5 第十八处缺陷：**每 seed 的 35 h 冻结包络装不下三臂**，typed 臂在三个 seed 上都不可能完成（2026-11-17T17:5xZ 实测）
+
+这一节推翻了交接单给出的「(A)(B)(C) 三选一」框架：**三个选项的前提都不成立**。
+瓶颈不是 seed43，而是**每 seed 的包络本身对三臂不够**，且这一点与是否启动 seed43 无关。
+
+#### 根因：冻结的 `MEASURED_SECONDS_PER_UPDATE` 是 **incumbent 速率**，而 treated 臂慢 24–28%
+
+冻结协议按 `per_seed = 3 × (32132 × 1.1536 + 2682.3) = 119,249 s = 33.12 h` 定下
+`PER_SEED_SECONDS = 126,000 s = 35.00 h`（余量 5.6%）。该算式假设**三臂同速**。
+实测不是：physical-evidence 通路给 generic/typed 臂带来真实的前向开销。
+
+| 臂 | seed41 实测 s/upd | seed42 实测 s/upd | 相对 incumbent | 来源 |
+| --- | ---: | ---: | ---: | --- |
+| incumbent | **1.1162** | **1.1150** | — | `seed4{1,2}_incumbent_receipt.json` 的 `elapsed_seconds/32132` |
+| generic | **1.3886** | **1.4266** | **+24.4% / +27.9%** | `seed4{1,2}/training/generic/progress.jsonl` 后半段增量口径 |
+
+**这条开销读数本身是工程发现**（brief 要求记进证据页 limitations/成本段）：
+物理证据通路（四场 patch 编码 + 融合投影）使前向慢 **24–28%**，与 §1.1 申报的
++148,800 参数（+4.5%）是两件事——参数只涨 4.5%，**时间涨 24–28%**，因为开销在
+四场球面算子与逐 patch 编码上，不在参数量的线性项上。
+
+#### 每 seed 三臂的真实成本与包络缺口（实测，非估算）
+
+`incumbent` 用 receipt 实测（训练 + 五 lead 评分）；`generic/typed` 用 progress 增量速率，
+评分按同比例放大（评分也要跑同一条前向通路）。
+
+| seed | incumbent | generic | typed（代理=generic 速率） | 三臂合计 | 包络 35.00 h | 缺口 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 41 | 10.690 h | 13.298 h | 13.298 h | **37.287 h** | 35.00 h | **+2.287 h** |
+| 42 | 10.668 h | 13.648 h | 13.648 h | **37.964 h** | 35.00 h | **+2.964 h** |
+
+**最有利界（反证用）**：即使 typed 臂按 **incumbent 速率**跑（不可能——它带 +24~28% 的通路开销，
+且这是它的**下界**），seed41 仍需 10.690 h、seed42 需 10.668 h，而 generic 跑完后包络只剩
+**10.619 h / 10.332 h** ⇒ 缺口仍为 **+0.072 h / +0.336 h**。
+
+**⇒ typed 臂在这两个 seed 上无论如何都跑不完。** 不是「可能赶不上」，是**必然被
+`_check_deadline` 截断**（`training/r7_scheduled_runner.py:140-142` 抛
+`RuntimeError("scheduled runner deadline exceeded")`，runner 随即写 `failed_attempt.json`
+并 `resume_permitted: False`，`training/r7_long_rollout_runner.py:588-598`）。
+
+#### 为什么 (A)(B)(C) 都不产生**可发表的**读数
+
+先更正本节初稿里的一个错误判断（我先写成「(b) 也算不出来」，冻结代码实测后推翻）：
+**(b) 在算术上并不需要 typed 臂**——`B − A` 只用 generic 与 incumbent。用冻结
+`r7_typed_budget_verdict.evaluate()` 做过代码路径探针（数值是占位的，**不是结果**）：
+
+```
+（3 seed 都有 inc+gen、typed 为空、无 provenance 目录）
+b_generic_minus_incumbent → n_clearing = 5   （符号与增益门槛都过了）
+b_generic_minus_incumbent → value = None     （只因区间算不出而 null）
+(b) reason: the paired deltas clear the sign and gain floors, but no clearing lead's
+            block-bootstrap interval could be computed, so the clause is untested
+```
+
+⇒ 在**真实**产物上（provenance 目录齐全）三 seed 的 inc+gen **足以让 (b) 给出真值**。
+所以 (A) 的收益不是零。(A) 真正的阻塞点是**发表路径**，不是算术：
+
+| 阻塞 | 位置 | 后果 |
+| --- | --- | --- |
+| `readings()` 逐臂硬取九份 receipt | `study_r7_s3_typed_budget.py:313` | 缺 `seed41_typed_receipt.json` 直接 `FileNotFoundError`，**整个 `readings.json` 产不出来** |
+| `complete` 为假即拒写 | 同文件 `:391-395` | 即便绕过上一条，`missing` 非空 ⇒ 抛错、**不落 receipt** |
+| brief 禁止手工拼表判读 | §2.2、Objective | `(b)` 只能由 `readings.json` 结构化读出；手拼的 inc+gen 表**不可采信** |
+
+于是三个选项的真实收益：
+
+| 选项 | 算得出什么 | 能发表什么 | 代价 |
+| --- | --- | --- | --- |
+| (A) 等卡后启动 seed43 | 3 seed 的 (b) 可算；**但 `readings.json` 仍写不出**（缺 3 份 typed） | **无**（手拼表不被允许） | **+35 GPU-h / +48 h 墙钟**（seed43 结束于 +48.26 h，仅剩 1.9 h 给 reading） |
+| (B) 只跑 seed41/42 收尾 | 只有 2 seed ⇒ (b) 也是 `null` | 无 | 0 |
+| (C) 两卡拆 seed43 的臂 | —— | —— | 需改 `_seed()` 串行结构，它在 `execution_files_sha256` 里 ⇒ **禁止** |
+
+**(A) 花 35 GPU-h 换来一个不能发表的 (b)，且本轮主判据 (a) 仍是 `null`。** 这是本轮
+不启动 seed43 的唯一理由——不是「没时间」，是**买不到可发表的东西**。
+
+**并且 `readings()` 在真实 attempt 上直接抛错**（不是返回不完整表）：
+
+```
+driver.readings(attempt01, protocol) → FileNotFoundError: seed41_generic_receipt.json
+```
+
+（该文件在 seed41 的 generic 臂写 receipt 之前必然缺失；三臂跑完后才是 `complete`。）
+配合 §5.2b 的「不完整即拒写」守卫 ⇒ **本轮无法产出 `readings.json`，因此无法产出任何
+(a)–(f) 判定，也无法登记。**
+
+#### 与 §5.2o「seed43 有 2.18 h 余量」的关系（那格是错的，此处更正）
+
+§5.2o 算出「seed43 需 32.82 h、窗口 35.00 h、余 2.18 h」。那是用 **incumbent 速率 1.1536**
+乘以三臂得到的——**与冻结协议同一个错误假设**。用 treated 臂实测速率重算，seed43 需
+**37.29 h > 35.00 h**，**没有余量，反而缺 2.29 h**。§5.2o 的算术本身没算错，但它继承了一个
+**被实测推翻的输入**。这一条现在写定，避免日后有人引用「2.18 h 余量」以为第三 seed 能跑完。
+
+#### 墙钟可行性（两种排程口径，都不可行）
+
+| 口径 | 需求 | 冻结上限 | 结论 |
+| --- | ---: | ---: | --- |
+| seed 串行（当前 driver 结构，2 卡两波） | 37.96 + 37.29 = **75.25 h** | 72.00 h | **不可行**（超 3.25 h） |
+| 臂级打包（需改 driver 才可能） | 112.54/2 = **56.27 h** | 72.00 h | 可行但**需改冻结代码 ⇒ 禁止** |
+| GPU-h 总量 | 112.54 | 144 | 不超（但 GPU-h 不是瓶颈） |
+
+⇒ 即使不改代码，**seed 串行口径下总墙钟也超硬上限**。这不是余量不足，是结构性不可行。
+
+#### 处置（本轮不做，记入下一轮前置）
+
+1. **本轮不追加任何 GPU 运行**：typed 臂在任何 seed 上都跑不完，启动 seed43 只会多烧
+   ~35 h 并同样留下一个被截断的 typed 臂，**不改变任何子句的值**。
+2. **不延长 deadline、不改判据、不重冻结**（延长 = 改冻结协议，本轮全部产物作废）。
+3. 让 seed41/42 把 generic 跑完（它们会自然结束），然后**如实**把本轮登记为
+   `inconclusive` + `budget_limited`：段 B 的 12.7809 GPU-h + 段 A 实测的 inc/generic 六臂
+   GPU-h 全额入账，`readings.json` **不产出**（冻结守卫拒绝不完整读数），(a)–(f) 全部
+   `null`，证据页写清「typed 臂因每 seed 包络不足被截断，截断不算通过」。
+4. **下一轮前置（必须在新 ADR 里改）**：`PER_SEED_SECONDS` 必须按**最慢臂**（treated，
+   实测 1.39–1.43 s/upd）而非 `MEASURED_SECONDS_PER_UPDATE`（incumbent）来定；
+   或把 `per_seed` 改成**每臂**锚定而非每 seed。这是设计缺陷，不是运行事故。
+
+#### 为什么现有的防回归测试没拦住（它结构上是盲的）
+
+`tests/test_r7_s3_typed_budget.py:380-399`
+（`test_the_per_seed_envelope_exceeds_what_one_seed_actually_does`）正是为这一类错误写的，
+但**它拦不住这一种**，因为它把**同一个错误常数**喂给断言：
+
+```
+per_arm = UPDATES * MEASURED_SECONDS_PER_UPDATE + MEASURED_SECONDS_PER_EVALUATION
+        = 32132 * 1.1536 + 2682.3 = 39,749.8 s
+assert PER_SEED_SECONDS > 3 * per_arm      # 126000 > 119,249.3 ✓ 余 +1.875 h
+```
+
+`MEASURED_SECONDS_PER_UPDATE = 1.1536` 是 **incumbent 速率**（`measured_on: batch 4 on the
+p4000 rung`）。测试用 `proto.MEASURED_SECONDS_PER_UPDATE` 而不是独立测得的 treated 速率，
+所以**冻结值与测试值同源** ⇒ 结构上恒绿，看不见 treated 臂慢 24–28% 这件事。
+
+用实测速率喂进去立刻变红：
+
+| 口径 | per_arm | ×3 arms | vs `PER_SEED_SECONDS` |
+| --- | ---: | ---: | ---: |
+| 冻结/测试同源（incumbent 1.1536） | 11.04 h | 33.13 h | **+1.875 h 通过** |
+| 实测 generic/seed41（1.3886） | 13.30 h | 39.90 h | **−17,629 s 不足** |
+| 实测 generic/seed42（1.4266） | 13.65 h | 40.95 h | **−21,400 s 不足** |
+
+**教训（比缺陷本身更重要）**：一个断言如果**从被测对象自己的常数推导期望值**，它只能
+防「常数被误改」，不能防「常数与现实不符」。每 seed 包络的守卫必须有一个**独立测得**的
+treated 臂速率作为输入。下一轮改 `PER_SEED_SECONDS` 时必须同时补这条独立反证
+（把 treated 速率写成 incumbent 速率，测试必须变红）。
+
+#### 交接单里两条零 GPU 指令在本轮**不可执行**（已逐条实测，不是推断）
+
+交接单第四节要求「修缺陷 17」与「按冻结提交重建 code.zip」。两条都会破坏本轮证据，故拒绝执行：
+
+**① 缺陷 17（`clause_c` 的 (a)F+(b)T 措辞）——不能在本轮修。**
+
+| 核查项 | 实测 |
+| --- | --- |
+| `scripts/r7_typed_budget_verdict.py` 是否在冻结清单 | **是**，`execution_files_sha256` 84 项之一 |
+| 冻结 digest | `b4bc4f7c83bc4bc5…` |
+| 磁盘现状 | `b4bc4f7c83bc4bc5…` ⇒ **MATCH** |
+| `outputs/…_code.zip` 内副本 | `b4bc4f7c83bc4bc5…` ⇒ **MATCH** |
+| `validate_protocol(attempt01)` | **PASS**，`protocol_sha256 76e1c214…` |
+
+改它 ⇒ `reading` 阶段 `validate_protocol` 抛 `execution source changed`，即**在全部 GPU-h
+花完之后失败**——§5.2d（第十四处）与 §5.2x（第十七处）已各自原样发生过一次。
+交接单要求的「补一条反证测试」也可行性为零：`docs/rules/EVIDENCE.md:54,171` 记录本仓
+**0 处 xfail**（E-027/E-064），所以只能写成 xfail 的「已知缺陷测试」按规约不允许存在。
+**⇒ 缺陷 17 保持 errata 状态（§5.2x 已完整记录），修在下一轮，与本轮冻结解耦。**
+
+**② code.zip「按冻结提交重建」——它已经就是按冻结提交建的，重建反而会破坏身份。**
+
+| 核查项 | 实测 |
+| --- | --- |
+| zip comment | `f0da923796f2eeb74b7c53e3e95b7876b80ccbb8` |
+| `protocol.json` 的 `code_commit` | 同值 ⇒ **一致** |
+| zip 实测 sha256 | `cc58c88c…` |
+| 冻结 `code_zip_sha256` | `cc58c88c…` ⇒ **一致** |
+| 84 个冻结源在 zip 内的副本 | **全部 MATCH**（无一项漂移） |
+
+交接单说「与 HEAD 不符」——**这是对的，但不是缺陷**：HEAD 已前进到 `df949ae`（文档提交），
+而归档只须匹配**冻结身份** `f0da923`，不需要匹配 HEAD（§5.2s 已写定）。
+重建到 HEAD 会让 `code_zip_sha256` 与 `protocol.json` 脱钩，`_archive` 阶段会直接拒收。
+**⇒ 那条 skip 是预期行为，不是待修项。** 已复跑确认：37 passed / 1 skipped，
+skip 理由逐字为 `the archive is stale: built from f0da923796f2, HEAD is df949ae559ab`。
+
+#### 第十九处缺陷（本轮新发现，0 GPU-h，**不改本轮代码**）：装配器会把两个身份字段读成 `null`
+
+`scripts/r7_s3_typed_budget_register.build_record()` 从 `readings` 里取三个身份字段：
+
+```python
+"protocol_sha256": readings.get("protocol_sha256"),
+"source_sha256":   readings.get("source_sha256"),      # ← readings() 从不写这个键
+"data_identity":   readings.get("data_identity"),      # ← readings() 也不写这个键
+```
+
+而 `study_r7_s3_typed_budget.readings()` 的 18 个顶层键里**没有** `source_sha256` 和
+`data_identity`（实测：`inspect.getsource` 抽出键名比对）。于是 `build_record` 会**静默**
+产出 `{"source_sha256": null, "data_identity": null}`。
+
+**它现在还没炸，是因为 `build_record` 目前没有任何调用方**（`grep -rn build_record` 只命中
+定义处）：`main()` 只把 `segment_b/segment_a/clauses` 打到 stdout 供人读，不生成 index 记录。
+但一旦下一轮把它接进登记流程，`tools/verify_r7_evidence_index.py` 的行为是：
+
+- `candidate_state != "candidate"` 时：`_digest_or_none(None)` **通过** ⇒ **静默放行**（已实测：
+  造一条 `source_sha256=null/data_identity=null` 的记录喂真校验器，`exit 0 / PASS 1 records`）
+- `candidate_state == "candidate"` 时：`for key in ("protocol_sha256","data_identity")` ⇒ 只有
+  `data_identity` 会被拦，`source_sha256` **仍然漏过**
+
+⇒ 一条声称 `negative`/`audit` 的记录可以带着**空身份**通过校验。这不是本轮的判据问题
+（本轮产不出 `readings.json`，也登记不了），是**下一轮接登记前必须补的守卫**。
+正确做法：`readings()` 补写 `source_sha256`/`data_identity`，或让 `build_record` 在缺键时
+`raise` 而不是 `.get()`。两者都改 `scripts/`，**本轮冻结内不得动**。
+
+#### 第二十处缺陷（本轮新发现，0 GPU-h）：被截断的臂不写 receipt ⇒ 账本会系统性漏记它的 GPU-h
+
+`segment_a_hours()` 只 glob `seed*_*_receipt.json`（`scripts/r7_s3_typed_budget_register.py:62`）。
+而被 `_check_deadline` 截断的臂走 `except BaseException` 分支，**只写 `failed_attempt.json`，
+不写 receipt**（`training/r7_long_rollout_runner.py:588-598`；`training_report.json` 只在
+成功路径写）。⇒ 被截断的 typed 臂**烧掉的真实 GPU 时间不会进账本**。
+
+这正是 AGENTS.md「不得用估计值、不得漏记账」的对立面——不是记账出错，是**记账器看不见它**。
+
+**补算通路（存在且是实测值）**：`progress.jsonl` 每条含 `elapsed_seconds`（实测键：
+`elapsed_seconds, epoch, gradient_norm, l12, l6, loss, lr, recorded_at, update`），
+所以被截断臂的真实秒数 = 该臂 `progress.jsonl` 最后一条的 `elapsed_seconds`。
+登记时必须把这一项**显式加进账本**并在证据页写明「该值取自 `progress.jsonl` 而非 receipt，
+因为截断臂不产出 receipt」。**不得**因为 `segment_a_hours()` 没读到就记 0。
+
+#### 本轮的成本敞口（含一笔无法避免的浪费，如实记）
+
+单位一致口径（秒→小时），数字标注为**外推**（基于实测速率，不是实测值）：
+
+| 项 | GPU-h | 性质 |
+| --- | ---: | --- |
+| 段 B（B-1 + B-2） | **12.7809** | **实测**（9.4348 + 3.3461） |
+| 段 A incumbent ×2 | **21.358** | **实测**（receipt 的 `elapsed_seconds` + 五 lead 评分） |
+| 段 A generic ×2（将完成） | ≈ 27.0 | 外推（实测速率 × 剩余 update + 按比例评分） |
+| 段 A typed ×2（**必被截断**） | ≈ **20.9** | 外推；**不可回收** |
+| **本轮合计** | ≈ **59.5** | 外推 |
+
+**这 20.9 GPU-h 是必输的**：typed 臂一旦启动就会跑到包络尽头才抛
+`scheduled runner deadline exceeded`，而 R-054 禁止对非本实验进程发信号、
+brief §5 也禁止实现「冻结/终止自动化」。**我不会为了省钱去 kill 它们**——
+那是本轮明令禁止的动作，且会破坏 `failed_attempt.json` 的诚实记录。
+
+**能省的只有 seed43 那约 37 h**（三个 seed 都缺 typed ⇒ 第三份 `null`，无可发表收益）。
+这是本轮唯一采取的止损动作。
+
+#### 本轮的执行决定（先写定，避免既成事实后补理由）
+
+| 决定 | 内容 | 依据 |
+| --- | --- | --- |
+| **不启动 seed43** | 三个 seed 的 typed 臂都必然被包络截断，seed43 的 35 h 换来的是第三份 `null` | 本节算术；§2「任一臂缺失 ⇒ `null`」 |
+| **不延长 deadline** | 延长 = 改冻结协议 ⇒ 本轮全部产物作废 | brief §5(A) 尾注、§3 |
+| **不重冻结、不改冻结源** | `scripts/**` 在 `execution_files_sha256` 内，改则 reading 阶段必失败 | §5.2d、§5.2x、本节①② |
+| **不向任何进程发信号** | 含本轮自己的两个 worker：R-054 禁止终止自动化，`stage-seeds` 会让它们在冻结包络上自己退出 | R-054、决策 0030 |
+| **seed43 不会被自动拉起** | `run_seeds` 在任一 seed `passed=False` 时置 `stop=True`（`tools/r7_round_stages.py:440-441`），seed41/42 的 typed 臂失败后循环退出，seed43 留在 `pending` 不启动 | 代码实测 |
+| **收尾登记为 `inconclusive` + `budget_limited`** | 段 B 12.7809 + 段 A 实测 GPU-h 全额入账；`readings.json` 不产出；(a)–(f) 全 `null` | §2、`readings()` 的 completeness 守卫 |
+
+**预期终态**：seed41/42 在各自 `pop + 126,000 s` 处抛
+`RuntimeError: scheduled runner deadline exceeded`，runner 写 `failed_attempt.json`
+（`resume_permitted: False`），`stage-seeds` 记录 `failed` 并停止。两份 `generic` 逐臂
+receipt 会先落盘（generic 臂约 2.3 h 后完成），它们是**本轮唯一完整的 treated 臂五 lead 读数**。
+
+#### 复现命令（0 GPU-h）
+```bash
+cd /data/esw/UrbanPiDiT_R2 && .venv/bin/python - <<'PY'
+import json, time
+att="outputs/r7_s3_typed_evidence_budget_20261116_attempt01"
+p=json.load(open(f"{att}/protocol.json")); UPD=int(p["updates"]); PER=p["per_seed_seconds"]
+now=time.perf_counter(); print("envelope_h", PER/3600, "round_remaining_h", (p["deadline_perf_counter"]-now)/3600)
+for s,lim in ((41,3300669.726970281),(42,3300669.76412676)):
+    inc=json.load(open(f"{att}/seed{s}_incumbent_receipt.json"))
+    inc_s=inc["elapsed_seconds"]+sum(v["elapsed_seconds"] for v in inc["evaluations"].values())
+    r_inc=inc["elapsed_seconds"]/UPD
+    rows=[json.loads(l) for l in open(f"{att}/seed{s}/training/generic/progress.jsonl") if l.strip()]
+    u,e=rows[-1]["update"],rows[-1]["elapsed_seconds"]
+    u0,e0=rows[len(rows)//2]["update"],rows[len(rows)//2]["elapsed_seconds"]
+    r=(e-e0)/(u-u0)
+    ev=sum(v["elapsed_seconds"] for v in inc["evaluations"].values())*(r/r_inc)
+    print(f"seed{s} r_inc={r_inc:.4f} r_gen={r:.4f} overhead=+{(r/r_inc-1)*100:.1f}%")
+    print(f"   inc={inc_s/3600:.3f}h gen={((UPD)*r+ev)/3600:.3f}h typ(same)={(UPD*r+ev)/3600:.3f}h"
+          f" total={(inc_s+2*(UPD*r+ev))/3600:.3f}h vs {PER/3600:.2f}h")
+    print(f"   floor(typed at incumbent rate)={inc_s/3600:.3f}h; envelope left after generic="
+          f"{(lim-now-((UPD-u)*r+ev))/3600:.3f}h")
+PY
+```
+
+#### 本轮此时的状态（不写结论）
+
+| 项 | 实测 |
+| --- | --- |
+| round 剩余墙钟 | 50.18 h（`deadline_perf_counter - perf_counter()`） |
+| 每 seed 包络剩余 | 13.26 h（`pop + 126000 - now`），**这才是紧的界** |
+| seed41/42 generic 进度 | 27,6xx / 27,0xx of 32,132；预计 2.6–2.9 h 后完成 |
+| typed 臂 | **0/3 启动，且按实测速率不可能完成** |
+| `readings.json` | 不产出（冻结守卫拒绝不完整读数） |
+| (a)–(f) | **全部 `null`**（未测，不是假） |
+| 段 B GPU-h | **12.7809**（9.4348 + 3.3461）实测，尚未入账 |
+| 段 A GPU-h | 六臂实测值将在 seed41/42 退出后从 receipt 求和入账 |
+
+**这不是科学结论，是运行约束的实测记录。** typed evidence 在 4 epoch 剂量下的可归因贡献
+**本轮未测**，原因是预算包络装不下，**不是机制无效**。
+
+### §5.6 本轮在此停止（2026-11-17T18:3xZ，会话边界 + 已冻结科学停止条件）
+
+按 brief §9 的三类停止条件，这里同时命中**第二类与第三类**：
+
+- **第二类（达已冻结科学停止条件）**：判据 (a)–(f) 的**前置**是九臂齐全。typed 臂在三个
+  seed 上都必然被每 seed 的 35 h 包络截断（§5.5），因此本轮**已确定**产出
+  `(a) = (b) = (c) = (d) = (e) = null`、`verdict = untested-no-arm-contrast`。
+  这不是「还没跑完」，是**已冻结规则下的确定终局**：任一臂缺失 ⇒ 该子句 `null`。
+- **第三类（确无可安全独立推进的工作）**：零 GPU-h 的前置工作已全部做完并留证
+  （§5.1–§5.5，含 20 处缺陷记录）；剩下的唯一动作是等 seed41/42 在各自包络上自然退出，
+  再按实测登记——**而 R-054 禁止对进程发信号，我也不会为省 GPU 去 kill 它们**。
+
+**不是**触授权边界（无需新授权，也无需申请）。
+
+#### 为什么不是直接「收尾登记」就完事
+
+登记需要「实测 GPU-h 全额入账」，而被截断的 typed 臂还在烧 GPU（≈20.9 GPU-h，§5.5）。现在登记
+会把那部分写成 0；等它们退出后再登记才是完整账。等待期间**没有任何可安全独立推进的
+零 GPU-h 工作**——需要决策的只有「是否有人为干预」，而答案是明确的「不干预」。
+
+#### 恢复的第一条命令（等 seed41/42 退出后，不改判据、不重冻结、不新建 attempt）
+
+```bash
+cd /data/esw/UrbanPiDiT_R2 && .venv/bin/python tools/r7_round.py state
+```
+
+然后按序执行（**每一步都只读或只写 `outputs/`，不碰冻结源**）：
+
+```bash
+# 1) 只读确认三个 stage 状态与无存活 worker
+.venv/bin/python tools/r7_round.py orphans
+ls outputs/r7_s3_typed_evidence_budget_20261116_attempt01/seed4*_*_receipt.json
+cat  outputs/r7_s3_typed_evidence_budget_20261116_attempt01/seed4{1,2}/training/typed/failed_attempt.json
+
+# 2) 汇总实测 GPU-h：receipt 可见部分 + 截断臂的 progress.jsonl 末条（第二十处缺陷的补算）
+.venv/bin/python - <<'PY'
+import json,glob
+att="outputs/r7_s3_typed_evidence_budget_20261116_attempt01"
+s=0.0
+for f in sorted(glob.glob(f"{att}/seed*_*_receipt.json")):
+    b=json.load(open(f)); s+=b["elapsed_seconds"]+sum(v["elapsed_seconds"] for v in b["evaluations"].values())
+for f in sorted(glob.glob(f"{att}/seed*/training/*/failed_attempt.json")):
+    p=f.rsplit("/failed_attempt",1)[0]+"/progress.jsonl"
+    rows=[json.loads(l) for l in open(p) if l.strip()]
+    print("TRUNCATED",f.split("/")[-3],f.split("/")[-2],rows[-1]["elapsed_seconds"]); s+=rows[-1]["elapsed_seconds"]
+print("segment_a_gpu_h", round(s/3600,4), "+ segment_b 12.7809 =", round(s/3600+12.7809,4))
+PY
+
+# 3) 确认 readings.json 确实无法产出（预期：抛错，不是静默）
+.venv/bin/python tools/r7_round.py stage-plan reading
+
+# 4) 登记：outcome_class=unresolved，candidate_state=non-candidate，
+#    limitations 必写三条（epochs 字段 errata / 包络缺陷 / 截断臂不写 receipt）
+.venv/bin/python scripts/r7_s3_typed_budget_register.py --attempt outputs/r7_s3_typed_evidence_budget_20261116_attempt01
+```
+
+#### 本轮到此没有、也不得有
+
+- 任何 (a)–(f) 的**数值**判定（全部 `null`，且 `null` 是因为未测，不是因为机制无效）
+- `readings.json`（冻结守卫拒绝不完整读数，这是**正确行为**，不得绕过）
+- 任何 `scientific_claim: true`、任何「typed evidence 有效/无效」的结论
+- 任何对 seed43 的启动（三 seed 均缺 typed，无可发表收益）
+- 任何对存活进程的信号、任何终止/冻结自动化
+
+**本轮唯一可发表的科学事实是负向的工程事实**：在 4 epoch 剂量下，physical-evidence 通路带来
+**+24.4% / +27.9%** 的前向开销（实测），使原定每 seed 35 h 包络装不下三臂。
+**typed evidence 在 4 epoch 下的可归因贡献本轮未测。**
 
 ---
 
