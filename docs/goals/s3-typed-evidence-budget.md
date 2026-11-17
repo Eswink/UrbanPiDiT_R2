@@ -1061,10 +1061,26 @@ model_code_sha256            : 59340710623c…（= 冻结 pin）
 | D3 段 B 零训练探针 | ✅ 完成（42/42 + 20/20，`json.load` 判读见 §5.2t） |
 | D4 冻结协议含 `protocol_sha256` | ✅ 完成（`76e1c214…`） |
 | D5 `code.zip` 带 commit 注释 | ✅ 完成（注释 `f0da923`，sha256 `cc58c88c…`，与冻结逐位一致） |
-| D6 逐 seed 逐臂 receipt | ⏳ **0/9**（2 个在跑，7 个未开始） |
-| D7 `readings.json` 五键 | ⏳ **不存在** |
-| D8 证据页与四件套登记 | ⏳ **未写**（装配器已就绪并自测：§5.2s） |
-| D9 判定点逐条写 (a)–(f) | ⏳ **未写**（求值器已就绪，(d) 将恒为 `null`） |
+| D6 逐 seed 逐臂 receipt | ⏳ **2/9**（incumbent×2 已落盘；generic×2 在跑；typed 必被截断） |
+| D7 `readings.json` 五键 | ❌ **不可产出**（冻结守卫拒绝不完整读数，`complete=false` 即抛错） |
+| D8 证据页 | ✅ **已写并提交** `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` |
+| D8b 四件套登记 | ⏳ **阻塞**：见下方「为什么现在不能登记」 |
+| D9 判定点逐条写 (a)–(f) | ✅ **[a]=null, [b]=待定, [c]=null, [d]=null, [e]=待定, [f]=true**（证据页 §1） |
+| D10 部分读数工具 | ✅ `tools/r7_s3_typed_budget_partial_reading.py`（190 行 + 2 条反证） |
+
+**为什么现在不能登记（这是硬约束，不是我拖延）**：
+
+1. `tools/verify_r7_evidence_index.py` 把 `evidence_sha256` 与证据页**硬绑定**——实测把
+   sha 改一位即 `exit 1 / ERROR evidence_sha256 does not match`。而 seed43 结束后证据页
+   **必然要改**（(b) 从「待定」变成真值），所以**此刻写的记录在 seed43 后一定失效**。
+2. 账本行若引 `record:<id>`，`tools/check_campaign_state.py:203` 要求
+   `metrics.gpu_hours` 与行内数值对齐 **1e-4**；而段 A 的 GPU-h 要等 seed43 结束才完整。
+   现在写只能写 12.7809（段 B）+ 21.358（两个 incumbent），**缺 generic 与截断臂**，
+   等于把不完整的成本记成完整。
+3. `scripts/r7_s3_typed_budget_register.py` 的 `main()` **实测只打印装配结果、不写账本与
+   index**（`inspect.getsource` 已确认），且它 `_read(readings.json)` —— 而该文件本轮不存在。
+
+⇒ 登记的前置是 **seed43 完成 + 证据页定稿**。这不是可绕过的步骤，绕过去等于伪造机器核数。
 
 **恢复的第一条命令**（不改判据、不重冻结、不新建 attempt）：
 
