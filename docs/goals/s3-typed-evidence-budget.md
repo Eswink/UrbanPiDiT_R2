@@ -1616,17 +1616,22 @@ typed 缺失即 `None`（实测）。
 | 证据页 | `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md`（sha256 `cfb8d169…`） |
 | 校验 | `PASS evidence index and brief: 115 records`；`r7_round.py verify` **passed: True** |
 
-**成本（全部实测）**：段 A 93.4442 = 6 份 receipt **72.9091**（inc×3 + gen×3）+ 截断 typed 臂
-**20.5351**（无 receipt，取各 `progress.jsonl` 末条：seed41 10.2747 / seed42 10.1115 /
-seed43 0.1490）。**seed43 的 typed 臂在登记时仍在跑，故 20.5351 是其下界。**
-超软预算 96 约 **10.2**（记 overrun），在硬 144 内。
+**成本（全轮实测终值 **115.9420** GPU-h）**：段 A **103.1611** = 6 份 receipt **72.9091**
+（inc×3 + gen×3）+ 三个截断 typed 臂 **30.2520**（无 receipt，取各 `progress.jsonl` 末条：
+seed41 10.2747 / seed42 10.1115 / seed43 9.8659）+ 段 B 12.7809。
+三个 typed 臂**全部**以 `RuntimeError: scheduled runner deadline exceeded` 结束
+（`resume_permitted: false`），止于 **24,840 / 24,800 / 24,520** of 32,132，**从未评分任何 lead**。
+⇒ **段 A 的 29.32% 花在从未评分的臂上**，这是把包络按 incumbent 速率（1.1536）而非 treated
+速率（1.3886/1.4266）设定的直接代价。超软预算 96 约 **19.94**（记 overrun），在硬 144 内。
 
-**仍未完成（本轮确定不做的）**：typed 臂在三个 seed 上都会跑到各自包络尽头被截断；
-按 R-054 不发信号，其最终 GPU-h 需在进程自行退出后再补一次入账（增量部分）。
+**账本**：`106.2251` 行写于 seed43 typed 仍在训练时（其 seed43 部分为 **下界**）；
+typed 走到截止点后以 **9.7169** 增量单独补记（`record:s3-typed-evidence-budget-final-cost`，
+`metrics.gpu_hours=9.7169`、`gpu_hours_round_total=115.942`），**未重写**该行。
+累计 `used_gpu_h 796.545428`、索引 **116** 条。
 
-**下一项任务**：等 seed43 typed 臂自行退出后，用
-`.venv/bin/python - <<'PY'` 的 `progress.jsonl` 末条补算其最终秒数，追加一行账本增量
-（**不重写** `f1ad6ce` 那一行），并同步 `metrics.gpu_hours`。
+**本轮已全部完成，无剩余待办。** (a) 的未测是**冻结规则下的确定终局**（typed 臂不产出
+receipt），不是可继续推进的工作；若将来要测 (a)，须按 §5.5 的第十九处建议**新轮次、新协议**，
+把 `PER_SEED_SECONDS` 按 treated 速率定。
 
 | 项 | 实测（`perf_counter` 差值） |
 | --- | --- |
