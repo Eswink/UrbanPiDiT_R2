@@ -1446,7 +1446,7 @@ Records: 115; human-review candidates: 2
 
 - Outcome class: `unresolved`; candidate state: `not-candidate`
 - Human triage priority: `85` (not a scientific score)
-- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `af87c97172448f1aceba9d0da10590774178eba53726aad756ae211e4a2d8005`)
+- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `cfb8d16934bec0c1ca712aee1713810d8c7d2cd9eb6d1ae7969c9212b20595c7`)
 - Evidence commit: `6b0e87dcab47ae30ac44a15352cabbae447c7c83`; experiment commit: `f0da923796f2eeb74b7c53e3e95b7876b80ccbb8`
 - Protocol SHA256: `76e1c214d7e44925943dc4eec6542ee96d27d49600f02b9f5ffdc882df9c5a94`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
 - Reason: Partial readings for the typed-evidence budget round: Segment B is complete (dose curve saturated, so 16 epochs is not warranted and 123 GPU-h are saved) and four of nine fixed Segment A arms have receipts. The typed arm cannot finish on any seed, so (a) is null rather than false. No science claim is made.
@@ -1460,8 +1460,8 @@ Records: 115; human-review candidates: 2
   - gpu runs are config-reproducible, not bit-reproducible
   - B and C are capacity-matched but their computation graphs differ (fuse-then-pool vs pool-then-project); the contrast is where fusion happens, not whether the physics is present
   - a (b) win would carry the +148,800 parameters (+4.5%) the pathway adds, and cannot be attributed to the physics alone
-- Excluded from runnable candidates: Not a candidate and not a complete result: the controlled pair (a) that the round exists to test was never measured, because the per-seed envelope cannot hold three arms at the measured treated rate. Nothing here licenses a statement about typed evidence either way.
-- Recorded metrics (not recomputed): arms_expected=9, arms_with_receipts=4, b_best_mean_delta_k=-0.003961, b_n_clearing_two_seeds=0, batch_size=4, e_z500_72h_seed41=-0.004067, e_z500_72h_seed42=-0.004876, forward_overhead_percent_seed41=25.8, forward_overhead_percent_seed42=28.4, gpu_hours=61.1668, gpu_hours_segment_a_completed_arms=48.3859, gpu_hours_segment_b=12.7809, parameter_delta=148800, parameters_incumbent=3286037, parameters_treated=3434837, seconds_per_update_generic_seed41=1.4043, seconds_per_update_generic_seed42=1.4312, seconds_per_update_incumbent_seed41=1.1162, seeds=[41, 42, 43], updates_per_arm=32132
+- Excluded from runnable candidates: Superseded by record s3-typed-evidence-budget-three-seed, which carries the three-seed (b) after seed43 finished: (b)=false, n_clearing=0. This entry is kept as the audit trail of the state when only two seeds had receipts; its evidence_sha256 is repointed at the final page because the validator requires every record to match the current file.
+- Recorded metrics (not recomputed): arms_expected=9, arms_with_receipts=4, b_best_mean_delta_k=-0.003961, b_n_clearing_two_seeds=0, batch_size=4, e_z500_72h_seed41=-0.004067, e_z500_72h_seed42=-0.004876, forward_overhead_percent_seed41=25.8, forward_overhead_percent_seed42=28.4, gpu_hours=61.1668, gpu_hours_segment_a_completed_arms=48.3859, gpu_hours_segment_b=12.7809, parameter_delta=148800, parameters_incumbent=3286037, parameters_treated=3434837, seconds_per_update_generic_seed41=1.4043, seconds_per_update_generic_seed42=1.4312, seconds_per_update_incumbent_seed41=1.1162, seeds=[41, 42, 43], superseded_by=s3-typed-evidence-budget-three-seed, updates_per_arm=32132
 
 ## m3-process-supervision-budget-limited
 
