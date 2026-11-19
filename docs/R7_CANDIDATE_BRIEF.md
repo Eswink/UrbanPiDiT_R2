@@ -1398,7 +1398,7 @@ Records: 116; human-review candidates: 2
 
 - Outcome class: `audit`; candidate state: `not-candidate`
 - Human triage priority: `86` (not a scientific score)
-- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `cfb8d16934bec0c1ca712aee1713810d8c7d2cd9eb6d1ae7969c9212b20595c7`)
+- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `682f8d81078d6b856b13ffd5c40023bd30abfc3e97a9d587663497bd257bc54f`)
 - Evidence commit: `5af895941de1f149f12c429d16b2ad18d76b3e70`; experiment commit: `f0da923796f2eeb74b7c53e3e95b7876b80ccbb8`
 - Protocol SHA256: `76e1c214d7e44925943dc4eec6542ee96d27d49600f02b9f5ffdc882df9c5a94`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
 - Reason: Final cost of the typed-evidence budget round, measured after seed43's typed arm hit its own deadline. Segment A is 103.1611 GPU-h (72.9091 from six receipts plus 30.2520 from three truncated arms) and the round total is 115.9420. This closes the lower-bound caveat attached to the earlier record; no scientific value changes.
@@ -1415,7 +1415,7 @@ Records: 116; human-review candidates: 2
 
 - Outcome class: `mixed`; candidate state: `not-candidate`
 - Human triage priority: `86` (not a scientific score)
-- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `cfb8d16934bec0c1ca712aee1713810d8c7d2cd9eb6d1ae7969c9212b20595c7`)
+- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `682f8d81078d6b856b13ffd5c40023bd30abfc3e97a9d587663497bd257bc54f`)
 - Evidence commit: `9558ecb37ee600e0f2aab2f60c7e73f6cc8b49b7`; experiment commit: `f0da923796f2eeb74b7c53e3e95b7876b80ccbb8`
 - Protocol SHA256: `76e1c214d7e44925943dc4eec6542ee96d27d49600f02b9f5ffdc882df9c5a94`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
 - Reason: The round that asked whether typed evidence pays under an adequate budget answered a narrower question than intended. Segment B is complete: the single-trajectory dose curve is saturated, so 16 epochs is not warranted and 123 GPU-h are saved. Segment A produced three-seed incumbent and generic readings; (b) is false at the predeclared gain floor even though the sign favours generic in 13 of 15 cells. The typed arm never ran to completion on any seed, so the capacity-matched contrast (a) is untested, not negative.
@@ -1463,7 +1463,7 @@ Records: 116; human-review candidates: 2
 
 - Outcome class: `unresolved`; candidate state: `not-candidate`
 - Human triage priority: `85` (not a scientific score)
-- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `cfb8d16934bec0c1ca712aee1713810d8c7d2cd9eb6d1ae7969c9212b20595c7`)
+- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `682f8d81078d6b856b13ffd5c40023bd30abfc3e97a9d587663497bd257bc54f`)
 - Evidence commit: `6b0e87dcab47ae30ac44a15352cabbae447c7c83`; experiment commit: `f0da923796f2eeb74b7c53e3e95b7876b80ccbb8`
 - Protocol SHA256: `76e1c214d7e44925943dc4eec6542ee96d27d49600f02b9f5ffdc882df9c5a94`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
 - Reason: Partial readings for the typed-evidence budget round: Segment B is complete (dose curve saturated, so 16 epochs is not warranted and 123 GPU-h are saved) and four of nine fixed Segment A arms have receipts. The typed arm cannot finish on any seed, so (a) is null rather than false. No science claim is made.
