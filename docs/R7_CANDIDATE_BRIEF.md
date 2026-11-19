@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 114; human-review candidates: 2
+Records: 115; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1393,6 +1393,28 @@ Records: 114; human-review candidates: 2
   - test_read: false；未改任何冻结判据、未扩臂、未换开关。
 - Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m 6h/12h，band−legacy）三 seed 符号不一致，按冻结规则无 seed 均值、无方向判定；机制探针确认开关生效但未转化为验证收益。不进入正式确认实例候选，不构成任何科学声明。
 - Recorded metrics (not recomputed): arms=2, cells_improved=18, cells_unresolved=53, cells_worsened=14, forward_backward_flops=46282984704, forward_flops=15465592704, gpu_hours=0.3297, gpu_hours_total=0.6498, gpu_hours_v1=0.3201, gpu_hours_v2=0.3297, legacy_dead_channels=68, legacy_live_channels=16, nyquist_dead_channels=0, nyquist_live_channels=192, parameters_per_arm=2948771, primary_cells={"12h": "unresolved", "6h": "unresolved"}, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
+
+## s3-typed-evidence-budget-three-seed
+
+- Outcome class: `mixed`; candidate state: `not-candidate`
+- Human triage priority: `86` (not a scientific score)
+- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `cfb8d16934bec0c1ca712aee1713810d8c7d2cd9eb6d1ae7969c9212b20595c7`)
+- Evidence commit: `9558ecb37ee600e0f2aab2f60c7e73f6cc8b49b7`; experiment commit: `f0da923796f2eeb74b7c53e3e95b7876b80ccbb8`
+- Protocol SHA256: `76e1c214d7e44925943dc4eec6542ee96d27d49600f02b9f5ffdc882df9c5a94`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: The round that asked whether typed evidence pays under an adequate budget answered a narrower question than intended. Segment B is complete: the single-trajectory dose curve is saturated, so 16 epochs is not warranted and 123 GPU-h are saved. Segment A produced three-seed incumbent and generic readings; (b) is false at the predeclared gain floor even though the sign favours generic in 13 of 15 cells. The typed arm never ran to completion on any seed, so the capacity-matched contrast (a) is untested, not negative.
+- Limitations:
+  - the controlled pair the round exists to test is unmeasured: the typed arm was truncated on all three seeds by the 35 h per-seed envelope, so (a), (c) and (d) are null rather than false. The envelope was sized from the incumbent's 1.1536 s/update while the treated arms measure 1.3886/1.4266, so one seed's three arms need 37.3-38.0 h
+  - (b) is false at the predeclared 0.005 K floor, not because generic and incumbent are equal: 13 of 15 seed-by-lead cells are negative (direction favours generic) but every lead mean sits between -0.00317 and -0.00159. The floor was not lowered after seeing this
+  - (e) is null under the frozen clause_e, which iterates over generic and typed; the typed arm has no receipt. The three single-arm z500@72h deltas (-0.41/-0.49/-0.52 percent, all improvements) are reported separately and are not the clause's value
+  - readings.json does not exist and cannot: the driver json.loads all nine arm receipts and the worker refuses an incomplete table. All numbers here come from a separate partial reader over per-arm receipts
+  - epochs metadata is wrong by a factor of four (updates/32131 rather than updates*4/32131); no clause reads it, but quoting it would describe this round as a quarter dose
+  - truncated arms write no receipt, so the ledger's 20.5351 GPU-h for the typed arms comes from the last progress.jsonl row, not from a receipt. seed43's typed arm was still running when this record was written, so its truncated hours are a lower bound
+  - no 16-epoch reading exists, so (d) cannot be evaluated; Segment B's single-trajectory dose curve is saturated and does not warrant the extra 123 GPU-h
+  - B and C are capacity-matched but their computation graphs differ; a (b) win would also carry the pathway's +148,800 parameters (+4.5 percent)
+  - test_read is false and r = 0: only the 2022 validation split was read
+  - gpu runs are config-reproducible, not bit-reproducible
+- Excluded from runnable candidates: Not a candidate: the controlled comparison (a) that would license any statement about type structure was never measured, because the per-seed wall-clock envelope cannot hold three arms at the measured treated rate. (b) being false does not establish that the physics is unhelpful either -- it establishes that the generic fusion pathway does not clear a 0.005 K per-lead gain in t2m under this dose.
+- Recorded metrics (not recomputed): arms_expected=9, arms_truncated=3, arms_with_receipts=6, b_best_lead_mean_delta_k=-0.003172, b_n_clearing=0, b_n_concordant=3, b_negative_cells=13, b_total_cells=15, b_worst_lead_mean_delta_k=-0.001589, batch_size=4, e_z500_72h_seed41=-0.004067, e_z500_72h_seed42=-0.004876, e_z500_72h_seed43=-0.00523, gpu_hours=106.2251, gpu_hours_segment_a=93.4442, gpu_hours_segment_a_receipts=72.9091, gpu_hours_segment_b=12.7809, gpu_hours_truncated_typed_arms=20.5351, parameter_delta=148800, parameters_incumbent=3286037, parameters_treated=3434837, seeds=[41, 42, 43], updates_per_arm=32132
 
 ## s3-balance-diagnostics-mixed
 
