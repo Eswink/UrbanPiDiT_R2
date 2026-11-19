@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 115; human-review candidates: 2
+Records: 116; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1393,6 +1393,23 @@ Records: 115; human-review candidates: 2
   - test_read: false；未改任何冻结判据、未扩臂、未换开关。
 - Excluded from runnable candidates: 筛选级负结果：预注册主格（t2m 6h/12h，band−legacy）三 seed 符号不一致，按冻结规则无 seed 均值、无方向判定；机制探针确认开关生效但未转化为验证收益。不进入正式确认实例候选，不构成任何科学声明。
 - Recorded metrics (not recomputed): arms=2, cells_improved=18, cells_unresolved=53, cells_worsened=14, forward_backward_flops=46282984704, forward_flops=15465592704, gpu_hours=0.3297, gpu_hours_total=0.6498, gpu_hours_v1=0.3201, gpu_hours_v2=0.3297, legacy_dead_channels=68, legacy_live_channels=16, nyquist_dead_channels=0, nyquist_live_channels=192, parameters_per_arm=2948771, primary_cells={"12h": "unresolved", "6h": "unresolved"}, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
+
+## s3-typed-evidence-budget-final-cost
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `86` (not a scientific score)
+- Evidence: `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md` (SHA256 `cfb8d16934bec0c1ca712aee1713810d8c7d2cd9eb6d1ae7969c9212b20595c7`)
+- Evidence commit: `5af895941de1f149f12c429d16b2ad18d76b3e70`; experiment commit: `f0da923796f2eeb74b7c53e3e95b7876b80ccbb8`
+- Protocol SHA256: `76e1c214d7e44925943dc4eec6542ee96d27d49600f02b9f5ffdc882df9c5a94`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: Final cost of the typed-evidence budget round, measured after seed43's typed arm hit its own deadline. Segment A is 103.1611 GPU-h (72.9091 from six receipts plus 30.2520 from three truncated arms) and the round total is 115.9420. This closes the lower-bound caveat attached to the earlier record; no scientific value changes.
+- Limitations:
+  - cost-only record: it closes the accounting gap left by record s3-typed-evidence-budget-three-seed, which was written while seed43's typed arm was still training. It changes no clause value and licenses no new claim
+  - all three typed arms were truncated by their own per-seed deadline (RuntimeError: scheduled runner deadline exceeded, resume_permitted false) at 24840, 24800 and 24520 of 32132 updates, so their 30.2520 GPU-h bought no scored lead and cannot enter any comparison
+  - a truncated arm writes no receipt, so these hours come from each arm's last progress.jsonl row rather than from a receipt; the six completed arms' 72.9091 come from receipts
+  - the defect that caused it: PER_SEED_SECONDS=126000 was sized from the incumbent's 1.1536 s/update while the treated arms measure 1.3886/1.4266, so one seed's three arms need 37.3-38.0 h
+  - test_read is false and r = 0; 2023 test never read
+- Excluded from runnable candidates: Cost accounting only. Nothing here is a result about typed evidence: the arms whose cost it reports were truncated before scoring, and the round's controlled pair (a) remains unmeasured.
+- Recorded metrics (not recomputed): gpu_hours=9.7169, gpu_hours_delta=9.7169, gpu_hours_previous_registration=106.2251, gpu_hours_round_total=115.942, gpu_hours_segment_a=103.1611, gpu_hours_segment_a_receipts=72.9091, gpu_hours_segment_a_round_total=103.1611, gpu_hours_segment_b=12.7809, gpu_hours_truncated_typed_arms=30.252, typed_seed41_updates_reached=24840, typed_seed42_updates_reached=24800, typed_seed43_updates_reached=24520, typed_updates_expected=32132, wasted_fraction_of_segment_a=0.2932
 
 ## s3-typed-evidence-budget-three-seed
 
