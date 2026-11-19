@@ -1582,7 +1582,51 @@ PY
 **仍未完成、且只差 seed43 的**：(b) 的三 seed 终值。冻结定义要三 seed 一致，
 **不得**用两 seed 的 `False` 冒充终值，也不得因「反正不过门槛」就省掉种子——那是事后改判据。
 
-### §5.8 当前只剩 seed43，本轮**不在此停止**
+### §5.9 本轮读数完成并已登记（2026-11-19T08:4xZ）
+
+**seed43 已启动并跑完 inc+gen**：`stage seed 43` 于窗口内（+9.94 h 后）执行，
+`seed43_incumbent_receipt.json`（10.9555 GPU-h，`new_parameters=0`）与
+`seed43_generic_receipt.json`（13.5677 GPU-h）均已落盘，5 lead 齐全。
+**41/42 的 typed 进度与 receipt 未被触碰**（未用 `stage-seeds`，避免了 21.4 GPU-h 的整 seed 重跑）。
+
+**三个 seed 的 (b) 终值 = `False`**（`n_concordant=3`、**`n_clearing=0`**）：
+
+| lead | seed41 | seed42 | seed43 | 均值 |
+| ---: | ---: | ---: | ---: | ---: |
+| 6h | −0.000850 | −0.001533 | −0.003272 | **−0.001885** |
+| 12h | −0.000656 | −0.002099 | −0.005594 | **−0.002783** |
+| 24h | −0.006009 | −0.001912 | −0.000147 | **−0.002690** |
+| 48h | −0.007070 | *+0.000613* | −0.003059 | **−0.003172** |
+| 72h | −0.004520 | *+0.002942* | −0.003188 | **−0.001589** |
+
+⇒ 五个 lead 的均值全部在 **−0.00317…−0.00159**，**无一达预声明的 −0.005 K 门槛**；
+15 个 seed×lead 单元中 13 个为负（方向偏向 generic，幅度系统性低于门槛）。**门槛未调低。**
+
+**(a)/(c)/(d) = `null`**（typed 臂 0/3）。**(e) = `null`** 但三 seed 单臂数字全过
+（z500@72h：−0.4067% / −0.4876% / −0.5230%，实为改善）——`clause_e` 遍历 `(GENERIC, TYPED)`，
+typed 缺失即 `None`（实测）。
+
+**已登记**：
+
+| 项 | 值 |
+| --- | --- |
+| 索引记录 | `record:s3-typed-evidence-budget-three-seed`（`mixed` / `not-candidate` / `106.2251`），共 **115** 条 |
+| 账本行 | **106.2251 GPU-h**（段 B 12.7809 + 段 A 93.4442），累计 **786.828528** |
+| campaign-state | `used_gpu_h 786.828528`、`remaining −766.828528`（`failures=0`） |
+| 证据页 | `docs/R7_S3_TYPED_EVIDENCE_BUDGET_RESULT.md`（sha256 `cfb8d169…`） |
+| 校验 | `PASS evidence index and brief: 115 records`；`r7_round.py verify` **passed: True** |
+
+**成本（全部实测）**：段 A 93.4442 = 6 份 receipt **72.9091**（inc×3 + gen×3）+ 截断 typed 臂
+**20.5351**（无 receipt，取各 `progress.jsonl` 末条：seed41 10.2747 / seed42 10.1115 /
+seed43 0.1490）。**seed43 的 typed 臂在登记时仍在跑，故 20.5351 是其下界。**
+超软预算 96 约 **10.2**（记 overrun），在硬 144 内。
+
+**仍未完成（本轮确定不做的）**：typed 臂在三个 seed 上都会跑到各自包络尽头被截断；
+按 R-054 不发信号，其最终 GPU-h 需在进程自行退出后再补一次入账（增量部分）。
+
+**下一项任务**：等 seed43 typed 臂自行退出后，用
+`.venv/bin/python - <<'PY'` 的 `progress.jsonl` 末条补算其最终秒数，追加一行账本增量
+（**不重写** `f1ad6ce` 那一行），并同步 `metrics.gpu_hours`。
 
 | 项 | 实测（`perf_counter` 差值） |
 | --- | --- |
