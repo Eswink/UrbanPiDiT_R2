@@ -153,8 +153,17 @@ def _model_and_state(body: dict, seed: int, name: str):
 
 
 def _run(output: Path, body: dict, seed: int, name: str, updates: int, deadline: float,
-         phase: str) -> tuple:
-    """Fine-tune one arm for ``updates`` from the pinned parent; return the checkpoint and report."""
+         phase: str) -> dict:
+    """Fine-tune one arm for ``updates`` from the pinned parent.
+
+    Returns a **named record**, not a positional tuple. The first attempt at this round shipped a
+    ``_run`` that returned six items where both call sites unpacked seven -- the runner's own
+    ``(checkpoint, report)`` pair stayed nested instead of being flattened -- so the probe died with
+    ``not enough values to unpack (expected 7, got 6)`` after its first 400 updates. Nothing in the
+    41 counter-proofs exercised this function, so no test could see it. A dict makes the failure
+    mode unavailable: a caller that asks for a key it did not get raises ``KeyError`` naming the key,
+    and adding a field cannot silently shift another one's position.
+    """
     from training.r7_long_rollout_runner import fine_tune_long_rollout
 
     record, mode, spec, parent, model, state, expansion = _model_and_state(body, seed, name)
@@ -162,13 +171,15 @@ def _run(output: Path, body: dict, seed: int, name: str, updates: int, deadline:
                              name, seed, total_updates=updates)
     folder = output / f"seed{seed}/{phase}/{name}"
     print(f"[seed {seed}] {phase} {name} ({mode or 'off'}): {updates} updates", flush=True)
-    return fine_tune_long_rollout(
+    checkpoint, report = fine_tune_long_rollout(
         Path(body["train_manifest"]), folder, model=model, contract=contract,
         parent_weights=state, physical_weights=tuple(body["physical_weights"]),
         steps=int(body["steps"]), updates=int(updates), lr=float(body["lr"]),
         warmup=int(body["warmup_updates"]), seed=seed, device_name="cuda:0", deadline=deadline,
         batch_size=int(body["batch_size"]), checkpoint_every=int(body["checkpoint_every"]),
-        loader=(4, 4)), mode, expansion, record, parent, model
+        loader=(4, 4))
+    return {"checkpoint": checkpoint, "report": report, "mode": mode, "expansion": expansion,
+            "record": record, "parent": parent, "model": model}
 
 
 def probe(output: Path, body: dict, seed: int, deadline: float) -> dict:
@@ -184,17 +195,17 @@ def probe(output: Path, body: dict, seed: int, deadline: float) -> dict:
 
     rates = {}
     for name, mode in proto.ARMS:
-        checkpoint, report, mode_seen, expansion, record, parent, model = _run(
-            output, body, seed, name, PROBE_UPDATES, deadline, "probe")
+        ran = _run(output, body, seed, name, PROBE_UPDATES, deadline, "probe")
+        checkpoint, report = ran["checkpoint"], ran["report"]
         rate = float(report["elapsed_seconds"]) / PROBE_UPDATES
         rates[name] = {
-            "typed_evidence_mode": mode_seen,
+            "typed_evidence_mode": ran["mode"],
             "elapsed_seconds": float(report["elapsed_seconds"]),
             "updates": PROBE_UPDATES,
             "seconds_per_update": round(rate, 4),
             "checkpoint_sha256": sha256_file(checkpoint),
-            "parameters": sum(parameter.numel() for parameter in model.parameters()),
-            "new_parameters": int(expansion["new_parameters"]),
+            "parameters": sum(parameter.numel() for parameter in ran["model"].parameters()),
+            "new_parameters": int(ran["expansion"]["new_parameters"]),
         }
         print(f"[seed {seed}] probe {name}: {rate:.4f} s/update", flush=True)
     treated = max(rates[proto.GENERIC]["seconds_per_update"],
@@ -238,8 +249,10 @@ def _train_arm(output: Path, body: dict, seed: int, name: str, mode, deadline: f
     from training.r7_arm_harness import sha256_file
     from training.r7_evaluate import EvaluationPreparation, evaluate_local
 
-    checkpoint, report, mode_seen, expansion, record, parent, model = _run(
-        output, body, seed, name, int(body["updates"]), deadline, "training")
+    ran = _run(output, body, seed, name, int(body["updates"]), deadline, "training")
+    checkpoint, report = ran["checkpoint"], ran["report"]
+    mode_seen, expansion, record = ran["mode"], ran["expansion"], ran["record"]
+    model = ran["model"]
     if (int(report["updates_this_run"]) != int(body["updates"])
             or int(report["contract"]["batch_size"]) != int(body["batch_size"])
             or report["data_identity"] != body["train_data_identity"]):

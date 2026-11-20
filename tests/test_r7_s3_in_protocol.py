@@ -434,3 +434,66 @@ class TestJointCriterion:
         for entry in report["families"].values():
             assert entry["instrument"]["n_cases"] == 1_447
             assert entry["instrument"]["n_blocks"] >= 4
+
+
+class TestDriverReturnContract:
+    """The defect attempt01 died on: a return shape no counter-proof covered.
+
+    The first attempt's ``_run`` returned six values while both call sites unpacked seven, so the
+    probe raised ``ValueError: not enough values to unpack (expected 7, got 6)`` after its first 400
+    updates. These tests pin the contract at the source, without a GPU: they read the function's own
+    AST and its returned dict keys, so a re-shape cannot pass silently again.
+    """
+
+    def test_run_returns_a_named_record_not_a_positional_tuple(self):
+        import ast
+
+        from scripts import study_r7_s3_in_protocol as driver
+        tree = ast.parse(Path(driver.__file__).read_text(encoding="utf-8"))
+        found = [node for node in ast.walk(tree)
+                 if isinstance(node, ast.FunctionDef) and node.name == "_run"]
+        assert len(found) == 1, "the driver must define exactly one _run"
+        returns = [node for node in ast.walk(found[0]) if isinstance(node, ast.Return)]
+        assert returns, "_run must return"
+        value = returns[-1].value
+        # A dict literal is the contract; a tuple would let positions drift again.
+        assert isinstance(value, ast.Dict), (
+            "_run must return a named record; a positional tuple is how attempt01 lost its shape")
+
+    def test_every_run_call_site_uses_keys_not_positional_unpacking(self):
+        import ast
+
+        from scripts import study_r7_s3_in_protocol as driver
+        tree = ast.parse(Path(driver.__file__).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Call):
+                continue
+            call = node.value
+            name = getattr(call.func, "id", getattr(call.func, "attr", ""))
+            if name != "_run":
+                continue
+            targets = node.targets
+            assert len(targets) == 1 and isinstance(targets[0], ast.Name), (
+                f"line {node.lineno}: _run must bind to one name")
+            # The bound name must then be subscripted, never tuple-unpacked.
+            assert isinstance(targets[0].ctx, ast.Store)
+
+    def test_the_record_keys_are_the_seven_the_callers_read(self):
+        """The keys the two call sites actually use, asserted without training anything."""
+        import inspect
+
+        from scripts import study_r7_s3_in_protocol as driver
+        source = inspect.getsource(driver._run)
+        for key in ("checkpoint", "report", "mode", "expansion", "record", "parent", "model"):
+            assert f'"{key}"' in source, f"_run's record must carry {key!r}"
+
+    def test_probe_and_train_arm_read_the_record_through_keys(self):
+        import inspect
+
+        from scripts import study_r7_s3_in_protocol as driver
+        for function in (driver.probe, driver._train_arm):
+            source = inspect.getsource(function)
+            assert 'ran["' in source, (
+                f"{function.__name__} must read the named record, not unpack a tuple")
+            assert "= _run(" not in source.replace("ran = _run(", ""), (
+                f"{function.__name__} still tuple-unpacks _run")
