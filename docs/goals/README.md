@@ -78,3 +78,4 @@ goal 模式的 objective 有 **4000 字符硬上限**（超出直接报错），
 > **本索引尚不完整**：S3 系列（`s3-year-coverage`、`s3-matched-exposure-reeval`、
 > `s3-anchor-*`、`s3-capacity-*`、`s3-fy-*` 等）的多份长文未逐条登记在本表里，
 > 是既有漂移、不是本轮引入的。上表按需回填，不以推测的日期补行。
+| [`s3-typed-evidence-in-protocol.md`](s3-typed-evidence-in-protocol.md) | typed evidence 的 in-protocol 三臂重训（`C − B`，按机制划分的两族 + 无截断预算） | 唯一执行源，`round-spec` 在文件头。判据：族 P（`t500,t850,u850,v850`×5=20 格，主判据）与族 S（其余 13×5=65 格），`Δskill` 量纲无关、max-statistic 同时区间 α=0.05、下限 0.001、跨 ≥2 lead、三 seed 同号。**无截断**：包络按 treated 1.47 s/upd 的 2.05× 定 310,000 s + 每 seed 三臂各 400 updates 的探针早停 + partial_receipt。`scientific_claim: false`、`r = 0` |
