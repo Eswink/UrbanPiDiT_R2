@@ -1381,7 +1381,7 @@ Records: 117; human-review candidates: 2
 
 - Outcome class: `negative`; candidate state: `not-candidate`
 - Human triage priority: `90` (not a scientific score)
-- Evidence: `docs/R7_S3_TYPED_EVIDENCE_IN_PROTOCOL_RESULT.md` (SHA256 `1f608796319dd78cdf7d7d0e2807ecece06e8a8e1de4fa16de8cc3511e59ecd9`)
+- Evidence: `docs/R7_S3_TYPED_EVIDENCE_IN_PROTOCOL_RESULT.md` (SHA256 `d4503ab33be3f0de167d85b5b99691bb840c7d3e103973a231117f514d320042`)
 - Evidence commit: `0528240b338017c9cae88224236113a721ef97c3`; experiment commit: `e1d42a4d52bca096c8db9f981f849788be4af740`
 - Protocol SHA256: `b3bc1c1d452ddec2924ced1e751c31794977bdad73b9419e8fc7cd2cf361153b`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
 - Reason: In-protocol three-arm retraining at 32,132 updates (4 epochs, batch 4) on three seeds answers the one question no earlier budget answered: C - B is false. Zero of 20 primary-family cells and zero of 65 secondary-family cells have a simultaneous interval excluding zero in the improving direction, so typed routing buys nothing over one fused projection once capacity and forward FLOPs are bit-identical and both treated arms share one encoder draw per seed. Thirteen cells exclude zero in the worsening direction instead, so this is a resolved negative rather than a null. B - A is true (7 of 20 and 21 of 65 cells, all five leads, three seeds same sign) but B carries +148,800 parameters (+4.5%) over A and no placebo arm exists this round, so that reading is descriptive and licenses no claim about the physical content itself. Both treated arms improved z500 at 72 h against their own seed's incumbent (worst -1.0419%) and were worse than A on 12.55% and 9.80% of cells, inside the guard.

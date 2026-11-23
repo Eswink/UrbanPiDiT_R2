@@ -446,6 +446,19 @@ seed43 于两卡释放后独占运行，未触及门槛。
   确认参数量 3,286,037 / 3,434,837 / 3,434,837、treated 共享 encoder、17 通道齐备。
 - **实耗留痕**：`outputs/r7_s3_typed_evidence_in_protocol_20261120_attempt01/failed-no-fallback.json`，
   **0.3795 GPU-h 计入账本**。
+- **具名 partial receipt**：纪律要求「任何非正常结束必须写
+  `seed{N}_{arm}_partial_receipt.json`」，首次登记时只留了 `failed-no-fallback.json`，
+  具名产物缺失（数字虽已进账本，产物不在）。现已补写：
+  `seed41_incumbent_partial_receipt.json`（`updates_reached: 400`、
+  `seconds_per_update: 1.231367`、`gpu_hours_in_failed_attempt: 0.136819`）与
+  `seed42_incumbent_partial_receipt.json`（`1.173666` / `0.130407`），
+  `progress_file` 各指向 `seed4N/probe/incumbent/progress.jsonl`。
+  数值取自各臂 `training_report.json` 的**全精度** `elapsed_seconds`；
+  `failed-no-fallback.json` 里那两个 2 位小数中间值会给出 1.231375 / 1.173675，
+  差异在第 6 位（5e-6 s/upd），两个推导都写进了 receipt 的 `derivation` 字段。
+  **同时修正一处真实笔误**：该文件原把 seed42 的训练秒数写成 492.55（等于 seed41 的值），
+  实测为 **469.4662**；GPU-h 总额不受影响（取自 worker 墙钟 693.8 + 672.6 s），
+  但按错值算出的速率会偏慢 4.9%。
 
 ### §8.2 `readings.json` 的 `epochs` 字段是错的（**未修，因为已冻结**）
 
@@ -507,14 +520,15 @@ R-051（600 行）与 R-052（200 行）本轮全部通过。
 
 - **分支**：`r7/weather-reasoning`（**未**触碰 main、未 force、未 merge）
 - **提交前**：自跑 `tools/r7_round.py commit-guard`（不依赖 hook）
-- **登记后**：自跑 `tools/r7_round.py verify` —— **结果为 `passed: false`，且失败项不是本轮**：
-  唯一 `FAIL` 是 C-03，指向**上一轮**（`s3-typed-evidence-budget` 部分轮）的账本行：
-  该行 GPU-h 字段故意写 `0.0`（原文「本行已被下一行取代、不重复计入账本」），
-  其索引记录 `s3-typed-evidence-budget-partial` 记 `61.1668`，checker 无法表达「故意不重复计」。
-  **本轮不修改那一行**：那是上一轮的账本，改它等于替另一轮做会计决定。
-  本轮自己的三项检查全部通过：37 条阻断规则 0 失败、索引 + brief `PASS 117 records`、
-  C-02 算术 `850.652928` 与状态一致。此前 verify 另报的 C-04/C-06 已修（brief 的
-  `下一动作` 现具名 S3；索引记录补 `evidence_commit` 与 `excluded_reason`）。
+- **登记后**：自跑 `tools/r7_round.py verify` —— **`passed: true`**，三项全 exit 0：
+  37 条阻断规则 0 失败；`campaign_state node=S3 failures=0`；索引 + brief `PASS 117 records`。
+  首轮 verify 曾 `passed: false`，报出的四项都已按实处理：C-04/C-06 是本轮自己的缺口（已补
+  `下一动作` 具名 S3、`evidence_commit`、`excluded_reason`）；C-02 是本轮账本行的累计列算错；
+  C-03 则指向**上一轮**被取代的账本行 —— 该行的 `0.0` 是故意「不重复计入合计」，
+  而 checker 只比较数字、无法表达这个意图。按**决策 0117** 把那一行的累计列改为 `—`
+  （`ledger_rows()` 对 `—` 整行跳过，是该工具**已有**的机制，合计行正是靠它排除）：
+  **金额一字未改**（仍 0.0000，合计仍 850.652928），改的只是「它不该被 C-03 比对」这件事
+  第一次成为机器可读的。那行成本已完整存在于后两行（106.2251 与 115.942），两者仍被逐位核对。
 - **测试**：`tests/test_r7_s3_in_protocol.py` 45 条全过（含 §8.1 新增的 4 条反证）；
   `tests/test_check_conventions.py` 120 条全过；37 条阻断规则 0 失败
 - **`scientific_claim: false`**、`test_read: false`、`r = 0`
