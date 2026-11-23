@@ -507,7 +507,14 @@ R-051（600 行）与 R-052（200 行）本轮全部通过。
 
 - **分支**：`r7/weather-reasoning`（**未**触碰 main、未 force、未 merge）
 - **提交前**：自跑 `tools/r7_round.py commit-guard`（不依赖 hook）
-- **登记后**：自跑 `tools/r7_round.py verify`
+- **登记后**：自跑 `tools/r7_round.py verify` —— **结果为 `passed: false`，且失败项不是本轮**：
+  唯一 `FAIL` 是 C-03，指向**上一轮**（`s3-typed-evidence-budget` 部分轮）的账本行：
+  该行 GPU-h 字段故意写 `0.0`（原文「本行已被下一行取代、不重复计入账本」），
+  其索引记录 `s3-typed-evidence-budget-partial` 记 `61.1668`，checker 无法表达「故意不重复计」。
+  **本轮不修改那一行**：那是上一轮的账本，改它等于替另一轮做会计决定。
+  本轮自己的三项检查全部通过：37 条阻断规则 0 失败、索引 + brief `PASS 117 records`、
+  C-02 算术 `850.652928` 与状态一致。此前 verify 另报的 C-04/C-06 已修（brief 的
+  `下一动作` 现具名 S3；索引记录补 `evidence_commit` 与 `excluded_reason`）。
 - **测试**：`tests/test_r7_s3_in_protocol.py` 45 条全过（含 §8.1 新增的 4 条反证）；
   `tests/test_check_conventions.py` 120 条全过；37 条阻断规则 0 失败
 - **`scientific_claim: false`**、`test_read: false`、`r = 0`

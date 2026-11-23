@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 116; human-review candidates: 2
+Records: 117; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1376,6 +1376,29 @@ Records: 116; human-review candidates: 2
   - test_read: false；未改任何冻结判据；未做 R-B（差值尺度 loss）。
 - Excluded from runnable candidates: 筛选级正结果：预注册的容量匹配归因配对 typed_routing − generic_fusion 在 t2m 6h/12h 三 seed 全部同号为负（seed 均值 6h −0.053297、12h −0.053297），按冻结决定文本 supported；相对 incumbent 的整体配对（C−A）6h/12h 均 unresolved，故本读数不构成超过现状或气候态的主张，只允许把 typed evidence 带进下一确认实例的设计冻结讨论。
 - Recorded metrics (not recomputed): arms=3, cells_overall_improved=11, cells_overall_unresolved=63, cells_overall_worsened=11, cells_typed_improved=13, cells_typed_unresolved=64, cells_typed_worsened=8, delta_seed_mean_12h=-0.053297, delta_seed_mean_6h=-0.053297, forward_flops_evidence=16776992640, forward_flops_incumbent=15465592704, gpu_hours=0.7129, gpu_hours_training=0.498, parameters_per_arm_evidence=3097571, parameters_per_arm_incumbent=2948771, primary_cells={"12h": "supported", "6h": "supported"}, primary_pair=typed_routing - generic_fusion, probe_off_path_identity=true, probe_typed_arrival_diagonal=true, secondary_pair_12h=unresolved, secondary_pair_6h=unresolved, seeds=3, soft_overrun_seconds=0.0, updates_per_arm=400
+
+## s3-typed-evidence-in-protocol
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `90` (not a scientific score)
+- Evidence: `docs/R7_S3_TYPED_EVIDENCE_IN_PROTOCOL_RESULT.md` (SHA256 `1f608796319dd78cdf7d7d0e2807ecece06e8a8e1de4fa16de8cc3511e59ecd9`)
+- Evidence commit: `0528240b338017c9cae88224236113a721ef97c3`; experiment commit: `e1d42a4d52bca096c8db9f981f849788be4af740`
+- Protocol SHA256: `b3bc1c1d452ddec2924ced1e751c31794977bdad73b9419e8fc7cd2cf361153b`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: In-protocol three-arm retraining at 32,132 updates (4 epochs, batch 4) on three seeds answers the one question no earlier budget answered: C - B is false. Zero of 20 primary-family cells and zero of 65 secondary-family cells have a simultaneous interval excluding zero in the improving direction, so typed routing buys nothing over one fused projection once capacity and forward FLOPs are bit-identical and both treated arms share one encoder draw per seed. Thirteen cells exclude zero in the worsening direction instead, so this is a resolved negative rather than a null. B - A is true (7 of 20 and 21 of 65 cells, all five leads, three seeds same sign) but B carries +148,800 parameters (+4.5%) over A and no placebo arm exists this round, so that reading is descriptive and licenses no claim about the physical content itself. Both treated arms improved z500 at 72 h against their own seed's incumbent (worst -1.0419%) and were worse than A on 12.55% and 9.80% of cells, inside the guard.
+- Limitations:
+  - C - B is false, not untested: zero improving-direction cells clear, and thirteen cells exclude zero in the worsening direction with mostly concordant seeds. A false here must not be read as 'nothing was measured'
+  - no placebo arm this round (ADR 0116 D6): the fields are computed inside field_maps and the eight standardization tensors are persistent=False, so a placebo would require editing model/ and would void all six 32k checkpoints. B - A therefore carries +148,800 parameters (+4.5%) and is descriptive, never attributable
+  - the same arm pair was measured at 400 updates (#79) and 2,400 updates (|delta rmse| <= 3.2e-6 K); this round changes the dose to 4 epochs and a negative here does not retroactively invalidate those, nor does it exclude a larger dose. The 16-epoch rung is not authorized, so (d) is null
+  - each lead scores a slightly different cohort (1,458/1,457/1,455/1,451/1,447); the families are built on the 1,447-case intersection, so 11 short-lead-only cases are excluded from every interval
+  - the climatology denominator is a train-only month-hour grid mean held fixed across arms and resamples; its own uncertainty is not propagated into the intervals
+  - the simultaneous interval covers case sampling, not seed-to-seed variability; three seeds are consistency evidence, not a significance test
+  - readings.json records epochs as 1.0000311 because scripts/r7_s3_in_protocol_assembly.py line 93 divides updates by the usable-window count instead of by draws-per-epoch; the measured value is 4.0001. The field feeds no criterion, and it was left unedited because that file is inside the frozen execution_files_sha256 set
+  - the z500 at 72 h guard passed with every arm improving, but the p4000-to-p1600 ladder once worsened it from 427.35 to 445.78, so the risk is not retired
+  - one 65x65 instance (2000-2021 train / 2022 val, 17 channels); the 129x129 wide instance is a different store and is not covered
+  - the 2023 test split stays sealed; r = 0, test_read = false
+  - GPU runs are co-resident, so latency and memory observations include neighbour load; reproducibility is config-level, with no bitwise GPU promise
+- Excluded from runnable candidates: This is a resolved negative, not a candidate. C - B is false: zero of 20 primary-family and zero of 65 secondary-family cells have a simultaneous interval excluding zero in the improving direction, and thirteen cells exclude zero in the worsening direction instead, so typed routing is measurably worse than one fused projection once capacity, forward FLOPs and the shared encoder draw are held identical. B - A is true but carries the pathway's own +148,800 parameters (+4.5%) with no placebo arm, so it is a descriptive engineering reading and licenses no claim about the physics. Nothing here is offered as a capability.
+- Recorded metrics (not recomputed): alpha_family=0.05, batch_size=4, block_length_cases=28, budget_direction_value=null, dynamics_guard_value=true, epochs_measured=4.0001, generic_minus_incumbent_descriptive_only=true, generic_minus_incumbent_extra_parameters=148800, generic_minus_incumbent_parameter_fraction=0.045, generic_minus_incumbent_primary_cells_clearing=7, generic_minus_incumbent_secondary_cells_clearing=21, generic_worse_than_incumbent_fraction=0.1255, gpu_hours=115.2743, gpu_hours_attempt01_failed_no_fallback=0.3795, gpu_hours_attempt02_probe=0.9206, gpu_hours_attempt02_train_and_scoring=113.9742, n_blocks=1420, n_cases_per_family=1447, n_dropped_cases=11, parameters={"generic": 3434837, "incumbent": 3286037, "typed": 3434837}, resamples=4000, typed_minus_generic_cells_excluding_zero_worsening=13, typed_minus_generic_primary_cells_clearing_improving=0, typed_minus_generic_primary_value=false, typed_minus_generic_secondary_cells_clearing_improving=0, typed_worse_than_incumbent_fraction=0.098, updates=32132, z500_72h_worst_relative_change=-0.0028977185780624556
 
 ## s2-77-pe-band-screening
 
