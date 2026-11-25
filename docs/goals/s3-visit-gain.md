@@ -1,5 +1,5 @@
 <!-- round-node: S3 -->
-<!-- round-spec: {"arm": "s3-visit-gain", "code_archive": "outputs/r7_s3_visit_gain_code.zip", "commit_message": "feat(r7): implement the visit-gain damping arm pair (A visit_damped vs B uniform_damped) [model-digest-change]", "commit_paths": ["model/recursive_weather_r7.py", "model/process_forecast_r7.py", "model/process_step_r7.py", "scripts/r7_s3_visit_gain_protocol.py", "scripts/r7_s3_visit_gain_parent.py", "scripts/r7_s3_visit_gain_verdict.py", "scripts/study_r7_s3_visit_gain.py", "tests/test_r7_s3_visit_gain.py", "tests/test_r7_s3_visit_gain_round.py", "docs/goals/s3-visit-gain.md", "docs/goals/loop-depth-headroom-before-architecture.md", "docs/decisions/0119-visit-gain-execution-design.md", "docs/decisions/README.md", "tests/conftest.py", "tests/test_r7_s3_typed_budget.py", "tests/test_r7_s3_typed_budget_host.py", "tests/test_reconcile_r7_static_parent.py", "docs/goals/main-model-climatology-campaign.md"], "control_record": "s3-loop-depth-headroom-g0", "device_mode": "dual", "driver": "scripts/study_r7_s3_visit_gain.py", "hard_cap_seconds": 216000.0, "output_stem": "r7_s3_visit_gain_20261125", "planned_seconds": 118800.0, "reference_record": "s3-typed-evidence-in-protocol", "register_message": "docs(r7): register the G1-B visit-gain damping readings", "register_paths": ["docs/R7_S3_VISIT_GAIN_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-visit-gain.md", "docs/goals/loop-depth-headroom-before-architecture.md", "docs/R7_S3_VISIT_GAIN_PROBE_REFUSED.md", "docs/decisions/0119-visit-gain-execution-design.md"], "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_visit_gain.py"]} -->
+<!-- round-spec: {"arm": "s3-visit-gain", "code_archive": "outputs/r7_s3_visit_gain_code.zip", "commit_message": "feat(r7): implement the visit-gain damping arm pair (A visit_damped vs B uniform_damped) [model-digest-change]", "commit_paths": ["model/recursive_weather_r7.py", "model/process_forecast_r7.py", "model/process_step_r7.py", "scripts/r7_s3_visit_gain_protocol.py", "scripts/r7_s3_visit_gain_parent.py", "scripts/r7_s3_visit_gain_verdict.py", "scripts/study_r7_s3_visit_gain.py", "tests/test_r7_s3_visit_gain.py", "tests/test_r7_s3_visit_gain_round.py", "docs/goals/s3-visit-gain.md", "docs/goals/loop-depth-headroom-before-architecture.md", "docs/decisions/0119-visit-gain-execution-design.md", "docs/decisions/README.md", "tests/conftest.py", "tests/test_r7_s3_typed_budget.py", "tests/test_r7_s3_typed_budget_host.py", "tests/test_reconcile_r7_static_parent.py", "docs/goals/main-model-climatology-campaign.md", "scripts/r7_s3_visit_gain_constants.py", "scripts/r7_s3_visit_gain_identity.py", "scripts/r7_s3_visit_gain_rate.py", "tests/test_r7_s3_visit_gain_rate.py", "docs/decisions/0120-probe-rate-estimator-and-quiet-machine.md"], "control_record": "s3-loop-depth-headroom-g0", "device_mode": "dual", "driver": "scripts/study_r7_s3_visit_gain.py", "hard_cap_seconds": 216000.0, "output_stem": "r7_s3_visit_gain_20261125", "planned_seconds": 118800.0, "reference_record": "s3-typed-evidence-in-protocol", "register_message": "docs(r7): register the G1-B visit-gain damping readings", "register_paths": ["docs/R7_S3_VISIT_GAIN_RESULT.md", "docs/R7_EVIDENCE_INDEX.jsonl", "docs/R7_CANDIDATE_BRIEF.md", "docs/goals/main-model-climatology-campaign.md", "docs/goals/s3-visit-gain.md", "docs/goals/loop-depth-headroom-before-architecture.md", "docs/R7_S3_VISIT_GAIN_PROBE_REFUSED.md", "docs/decisions/0119-visit-gain-execution-design.md"], "seeds": [41, 42, 43], "test_path": ["tests/test_r7_s3_visit_gain.py", "tests/test_r7_s3_visit_gain_rate.py"]} -->
 
 # S3 / G1-B — visit-gain 阻尼的两臂对照（A `visit_damped` vs B `uniform_damped`）
 
@@ -90,23 +90,24 @@ G0 的准入判据在 `docs/decisions/0118-loop-depth-headroom-gate-and-branch-a
 
 ## 进度
 
-- **状态**：**`probe-refused`（2026-11-26）**。冻结完毕，探针阶段按规则拒绝开训；
-  **0 臂训练、0 lead 评分**；出口 ①② 为 `null`、③④ 为 `true`。分支**既未关闭也未确认**。
-- **已完成**：ADR 0119（含三处开轮前更正）、本 brief、`visit_gain` 实现 + 46 条反证、父迁移
-  （三 seed `state_digest` 与归档父逐位相同）、`protocol.json` 冻结
-  （`1ec96777…`）、`prepare`/`archive` 两阶段、身份见证（off 逐位惰性 + A 在 k=0 逐位相等）。
-- **结果**：**没有 A−B 读数**。seed41/42 探针 treated **2.6077 / 2.6731 s/upd**，需剩余包络
-  **0.7277 / 0.7425** > 冻结 **0.60** ⇒ 拒绝；seed43 未启动。
-- **诊断（实测，非推测）**：探针的 **400 步窗口太短**，把约 300 s 启动成本摊成 ~0.9 s/upd。
-  同一机器同一权重同一训练路径重测，**后 30 步边际速率 off 1.583 / on 1.733 s/upd**
-  （gain 只慢 ~9%），与 in-protocol 轮 1.432/1.447/1.393 同量级。
-  ⇒ **实现不是瓶颈，探针估计量选错了**（应用边际速率或更长窗口）。
-- **两个缺陷（只记录，未在本轮修）**：(i) 探针拒绝不写 partial receipt（已事后重建两份并标注）；
-  (ii) 探针估计量应用边际速率。
-- **成本**：**1.1330 GPU-h**（seed41 0.5628 + seed42 0.5702，全部探针）。账本行已加。
-- **未做**：两臂训练、五 lead 评分、出口 ①② 的判定、72 h 轨迹、四季均衡。
-- **下一动作（若继续这一支）**：先写**取代 0119 探针口径**的 ADR（边际速率或更长探针），
-  新 attempt + 重冻，再训练。**不得**在 attempt01 上放宽包络重试。
+- **状态**：**`attempt02` 已按决策 0120 重定探针口径，待重冻后训练**。attempt01 判
+  `probe-refused`（0 臂训练、0 评分，出口 ①② 为 `null`、③④ 为 `true`），其读数已登记为
+  `record:s3-visit-gain-probe-refused`，**不在其上续跑**。
+- **已完成**：ADR 0119（执行设计 + 三处开轮前更正）、ADR **0120**（取代探针口径）、本 brief、
+  `visit_gain` 实现 + 53 条反证、父迁移（三 seed `state_digest` 与归档父逐位相同）、
+  attempt01 的 `prepare`/`archive` 与身份见证。
+- **探针口径已更正（实测）**：独占整机 400 步的四个区间边际速率是
+  **1.075 / 1.098 / 1.110 / 1.109 s/upd**，从第一区间起就平；两卡各一 worker 并发
+  **1.0796 / 1.0921**。attempt01 实测的 2.48–2.65 是**同期 6,040 个测试**占满 CPU 导致
+  loader（`num_workers=4`）供不上数。⇒ 是**测量环境**缺陷，不是估计量或实现缺陷。
+  （0119 执行记录里「启动摊销 / 边际 1.58」那条诊断**是错的**，0120 已更正。）
+- **0120 后的口径**：`probe()` 用**后段 1/4 边际速率**（与总速率并记，差 >25% 以边际为准）；
+  探针期间禁止并发 CPU 负载并记 `loadavg`；包络按 **1.30 s/upd** 重定为
+  `PER_SEED_SECONDS 25,280`（2.0×）；`REFUSAL_FRACTION` **保持 0.60**。
+- **成本**：attempt01 **1.1330 GPU-h**（全部探针）。账本行已加。
+- **未做**：两臂训练、五 lead 评分、出口 ①② 的判定。
+- **下一动作**：`commit-guard` → 干净树重建 code zip → `freeze`（`attempt02`）→
+  `stage prepare/archive` → **确认机器安静** → `stage-seeds` → `stage reading`。
   恢复第一条命令：`.venv/bin/python tools/r7_round.py state`。
 
 ## 纪律

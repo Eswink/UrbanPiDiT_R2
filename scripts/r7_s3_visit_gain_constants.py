@@ -79,22 +79,26 @@ PARENT_CHECKPOINT_SHA256 = {
 #: is required rather than a relaxed guard.
 PARENT_MODEL_CODE_SHA = "59340710623ca24c7ee59ebb5711f52193ebfbaa72ed4532b41bdd987f5d9324"
 
-#: Measured treated rate from the in-protocol round (generic 1.4043/1.4312/1.4271 s/update over
-#: full runs, typed marginal 1.4565/1.4618/1.4618). The damped arms add two multiplies per visit
-#: and are expected to sit at or slightly above these; 1.55 is above all six as a starting
-#: envelope, and the per-seed probe re-derives it before any arm commits.
-TREATED_SECONDS_PER_UPDATE = 1.55
+#: The treated rate, now **measured** rather than extrapolated (decision 0120). The damped arm
+#: ran at 1.075/1.098/1.110/1.109 s/update across the four quarters of a 400-update run on an
+#: idle machine, and 1.0796/1.0921 with one worker per card, so the rate is flat from the start
+#: and concurrency across cards costs nothing. 1.30 is 18 percent above every measurement: it
+#: covers ``uniform_damped``, whose rate was not measured separately, and normal jitter.
+#:
+#: The attempt01 probe measured 2.48-2.65 s/update because a 6,040-test suite was running on the
+#: same host; the trainer's DataLoader uses four workers, so the loader starved and the GPU idled.
+#: That was a contaminated measurement, not a slow implementation -- see decision 0120.
+TREATED_SECONDS_PER_UPDATE = 1.30
 #: Five-lead scoring per arm, measured 2,987.30-3,176.62 s at 32,132 updates. This round's arms
 #: are the same size and the same leads, so the same bound applies.
 MEASURED_SECONDS_PER_EVALUATION = 3_200.0
 ENVELOPE_MARGIN = 2.0
 
-#: One seed runs two arms and five leads each: 2 x (2,400 x 1.55 + 3,200) = 13,840 s, plus the
-#: 400-update probe pair. 28,500 s is 2.06x that. The first draft used 27,600 s and the guard in
-#: :func:`envelope` rejected it at 1.9942x -- the envelope is recomputed from the treated rate
-#: rather than compared against the constant it was derived from, which is why the shortfall
-#: surfaced here instead of after a truncated seed.
-PER_SEED_SECONDS = 28_500.0
+#: One seed runs two arms and five leads each: 2 x (2,400 x 1.30 + 3,200) = 12,640 s, plus the
+#: 400-update probe pair. 25,280 s is exactly 2.0x that. The guard in :func:`envelope` recomputes
+#: the requirement from the treated rate instead of comparing the envelope to the constant it was
+#: derived from, which is why an earlier shortfall surfaced here rather than after a truncated seed.
+PER_SEED_SECONDS = 25_280.0
 PLANNED_SECONDS = 118_800.0
 HARD_CAP_SECONDS = 216_000.0
 
