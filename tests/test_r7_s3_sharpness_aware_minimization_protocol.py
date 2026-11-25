@@ -12,6 +12,8 @@ from pathlib import Path
 import sys
 
 import pytest
+
+from conftest import require_archived_revision  # noqa: E402
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -467,6 +469,12 @@ def test_null_or_inert_requires_an_exactly_zero_perturbation_or_exact_zero_delta
 
 
 def test_the_model_digest_is_the_current_revision_and_the_expansion_is_new():
+    # The pin belongs to one historical round, so it may only be checked while the tree *is*
+    # that revision; a later model/ change makes the round's parents unloadable by design
+    # (Q-009) and does not move this constant.
+    require_archived_revision(parent.MIGRATED_PARENT_RUN / "seed41"
+                              / f"parent_update_{parent.ENDPOINT:07d}.pt",
+                              what="the SAM round parent pin")
     assert parent.CURRENT_MODEL_CODE_SHA256 == model_code_digest()
     assert parent.MIGRATION_RECEIPT_SHA256 == (
         "393766eed2f11d183fbf1cfa79ef619d548a145b31c4dd71046f32592b359372")

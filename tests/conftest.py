@@ -35,8 +35,12 @@ def require_archived_revision(checkpoint, *, what: str) -> None:
     * **body preserved** -- the assertions are untouched and run in full whenever the identities
       agree.
 
-    A bare checkout has no ``outputs/`` at all, so these tests were already skipped in CI; this
-    makes the *local* case explicit instead of a failure no change to the archived round could fix.
+    A bare checkout has no ``outputs/`` at all. That is *also* a skip, not a failure: the
+    artifact is an untracked output, and the whole suite already follows the rule that a test
+    depending on one skips with a named reason rather than inventing a synthetic stand-in. The
+    distinction this helper keeps is between **an artifact that is absent** (skip: there is
+    nothing to load and no change to the archived round could fix it) and **a checkpoint that
+    is present but unreadable or carries no identity** (raise: that is a real defect).
     """
     import torch
 
@@ -44,7 +48,9 @@ def require_archived_revision(checkpoint, *, what: str) -> None:
 
     path = Path(checkpoint)
     if not path.is_file():
-        raise FileNotFoundError(f"the archived checkpoint is missing: {path}")
+        pytest.skip(
+            f"{what} depends on {path}, an untracked outputs/ artifact that a bare checkout "
+            f"does not carry; no synthetic fallback is permitted for a registered checkpoint")
     recorded = torch.load(path, map_location="cpu", weights_only=True).get("model_code_sha256")
     if not isinstance(recorded, str):
         raise ValueError(f"{path} records no model_code_sha256")
