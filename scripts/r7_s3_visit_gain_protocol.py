@@ -129,6 +129,9 @@ HARD_CAP_SECONDS = 216_000.0
 ESTIMATED_PEAK_BYTES = 9_728 * 2**20
 HEADROOM_MARGIN_BYTES = 512 * 2**20
 DEVICE_MODE = "dual"
+#: The round's declared primary card. ``protocol_fields`` takes every visible card with this one
+#: first, and the parent scheduler rotates the frozen list across the three seeds.
+GPU_UUID = "GPU-408ad137-a60e-6a04-e2c8-22f5f64e5e3b"
 
 #: The exclusions, verbatim, so a later reader does not have to reconstruct them.
 CLOSED_AXES = {
@@ -395,7 +398,7 @@ def freeze(output, *, started, deadline, code_archive, code_commit, code_sha256)
                            f"rate requires; declaring {ENVELOPE_MARGIN}x is the frozen contract")
     body = {**_frozen_constants(),
             "registry": arm_registry(),
-            **protocol_fields(DEVICE_MODE),
+            **protocol_fields(DEVICE_MODE, single_uuid=GPU_UUID),
             "estimated_peak_bytes": ESTIMATED_PEAK_BYTES,
             "headroom_margin_bytes": HEADROOM_MARGIN_BYTES,
             "execution_mode": "direct owned bounded workers, no descendants; failure stops this attempt",
