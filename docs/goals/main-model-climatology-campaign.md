@@ -3478,3 +3478,68 @@ urban treatment 在 5 个 lead 上 RMSE 全部更好（−0.13%…−0.47%）而
 ② **补测试**：`worker(phase="reading")` 的端到端测试与 receipt 命名统一，两者都是工程债、0 GPU-h；
 ③ 任何新的训练轮必须先有新 ADR、新 brief 与新冻结前置/出口。第一条命令 =
 `.venv/bin/python tools/r7_round.py state`。
+
+---
+
+### 循环架构先量 headroom：G0 判定 `admit-g1b`，G1-B 已准入但未派生（2026-11-25；0 GPU-h）
+
+**这一轮回答的问题**：用户提「用最新 loop transformer 替换我们当前的，或与之结合」。
+只读测绘的**第一结论是前提要纠正**——本仓**已经是** Huginn 式 prelude–tied-core–coda +
+deep supervision（实测 prelude 1,806,144 / tied cell 742,272 = **26.5%** / coda 88,913 参数；
+`GenericRecursiveCell` 被 K 次复用 `model/recursive_weather_r7.py:406`，深监督
+`training/r7_recursive_losses.py:151-157`）。所以「替换」会重开 0048 容量轴、0077 H-C、H-A、
+深监督组织、typed 五条已关闭的支，**不换名重开**。
+
+**已实跑（0 GPU-h，只读推理）**：`diagnose_r7_gain.py` 在 attempt02 的三个 incumbent
+checkpoint（`update_0032132.pt`，sha256 与各自 receipt 逐位相同）上跑 val-only、1024 case/seed、
+K=1..8。身份门先过：`model_code_digest()` = `59340710…` 与协议**逐位相同**。
+
+**读数（判定器 `scripts/r7_s3_loop_depth_headroom.py` 的原始输出）**：
+
+| 子句 | 阈值（ADR 0118 冻结） | 实测 | 结果 |
+| --- | --- | --- | --- |
+| (a) 饱和 | 3/3 seeds，k≥3 后每步相对改进 <1% | 3/3 | **真** |
+| (b) 病态 | ≥2/3 seeds，k3→4 相对上升 >0.1% | 3/3（+0.1375 / +0.1102 / +0.2318%） | **真** |
+| (c) 深度可用 | ≥2/3 seeds，k4→8 相对改进 ≥2% | 0/3（实际**变差** 2.5–3.0%） | **假** |
+
+⇒ 冻结决策表第一行命中：**`admit-g1b`**。三 seed **各自独立**给出最优深度 **K=3**；
+k1→k3 累计改善 −0.825%，其中 **92.5%** 来自第一步；k3→k8 累计 **+2.935%**（变差）。
+与 `R7_65_PREDIAGNOSTIC` §3 的 4-case/800-update 旧读数**同向且更强**，两者是独立观测
+（不同 checkpoint、不同样本量、不同代码路径）。
+
+**怎么读（三条必须带上的限制）**：① **主信号是「K=3 之后单调恶化」**，不是「残差过放大被确证」
+——(b) 只在门槛上方 0.01–0.13 个百分点，而 k4→8 的衰退大一个量级；② 主判据是 **+6 h** 目标
+（`atmos_target = physical_targets[:,0]`），**不能**外推成 72 h，72 h 轨迹本轮记 **`null`**；
+③ val manifest 按时间排序，1024 上限覆盖 **2022-01…09**，缺秋冬，**不是四季均衡**。
+
+**为什么没有直接开训练**：G0 的用途**包含否决**——若 (b) 伪且 (a) 真，ADR 0118 明确禁止推进
+阻尼分支。本轮 (b) 真只说明「允许派生」，不等于「应该派生」；`admit` 与 `saturated` 两种解读
+（阻尼 vs 改写 1089-token 空间表征）在证据页 §5 **并列摆出、未选边**。
+
+**身份与产出**：`outputs/r7_s3_loop_depth_headroom_20261125/seed{41,42,43}` + `readings.json`；
+`forecaster_unchanged=True`（三 seed）；`train_data_identity 81307008…`；
+证据页 `docs/R7_S3_LOOP_DEPTH_HEADROOM_RESULT.md`；文献审计
+`docs/R7_LOOP_TRANSFORMER_LITERATURE_AUDIT.md`；ADR 0118；计划 0036；goal 长文
+`docs/goals/loop-depth-headroom-before-architecture.md`。判定器 189 行、测试 **24 passed**。
+
+**成本**：**0 GPU-h**（只读 `torch.no_grad()` 推理，无优化器步、无 checkpoint/store 写）；
+网络 0；磁盘约 2.1 MB；墙钟约 6 min（两卡并发）。软/硬 overrun 均 0。
+
+**登记**：`record:loop-transformer-literature-audit`、`record:s3-loop-depth-headroom-g0`
+（两条均 `audit` / `needs-review` / `gpu_hours: 0.0` / `scientific_claim: false`）；
+索引 117 → **119** 条；`docs/R7_CANDIDATE_BRIEF.md` 已 `--render` 重生成（逐字节一致）。
+
+**未做**：未读 2023 test（`r = 0`）；未测 72 h 轨迹与四季均衡；**未派生、未实现、未训练 G1-B**；
+未对所观测的 K=3 最优做机制归因；未做逐变量（t2m/u10/v10/mslp）分解；未论证 C（SMELT 式把循环
+移进空间栈）与 0048/0077 的族关系。
+
+**为何停 + 恢复第一条命令**：本轮按 0 GPU-h 文档/诊断轮的例外**不新增账本行、不改
+`campaign-state` 指针**（无实验机器核数，按 §7「无 index 支撑的文档 0 成本行如实列 note」处理；
+且 goal 长文**不带 round-spec**，指向它会让 `r7_round.py` 失败）。下一轮若推进 G1-B，须先写
+G1-B 自己的 ADR + 带 round-spec 的执行 brief。恢复第一条命令 =
+`.venv/bin/python tools/r7_round.py state`；
+第二条 = `.venv/bin/python tools/check_campaign_state.py --campaign docs/goals/main-model-climatology-campaign.md`。
+
+**下一动作（S3）**：① G1-B 的 ADR（执行设计 + 与 0048/0077/0057 排除项逐条对照）+ 带 round-spec
+的 brief + `visit_gain` 开关与反证测试；② 或者，若认为主信号是「循环该改什么」而不是「如何阻尼」，
+写 C 的新 ADR 并论证它不是 0048 容量轴、不是 0077 感受野轴。两条都**不得**跳过 ADR 直接开轮。

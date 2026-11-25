@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 117; human-review candidates: 2
+Records: 119; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1766,6 +1766,26 @@ Records: 117; human-review candidates: 2
 - Excluded from runnable candidates: Engineering prerequisite only, not a scientific or runnable model candidate, weather comparison, full B experiment acceptance or goal completion. Historical failed records and M3 pause remain unchanged; independent-route authorization is new, not a rewrite of those records. Independent B statistics acceptance is pending in separate outputs, with no GPU rerun. This index entry grants no execution permission and does not invent registration CI.
 - Recorded metrics (not recomputed): acceptance_flags_true=4, all_allocator_baselines_zero=true, all_same_precision_resume_checks_equal=true, archived_source_members=85, attempt_path=outputs/r7_v2_precision_probe_20261003_attempt01/attempt.json, attempt_sha256=8ecd15ea505f43235544d576b214ddc648e2a76c143ed6928334bd9fad094ada, attempt_status=success, b_independent_statistics_acceptance=pending, b_original_aggregate_status=failed, batch_size=2, bf16_peak_allocated_mib_rounded=631.8799, bf16_peak_reserved_mib=674, bf16_worker_seconds_rounded=79.1489, budget_limited=false, calendar_phase_atol=2e-06, closeout_sha256=4db58b6a6b8070f9468154e7432e2b3cea67277872dacd8fc3fa346895a4c29e, closeout_wall_seconds=242.43781951908022, device_policy=shared-headroom, device_uuid=GPU-408ad137-a60e-6a04-e2c8-22f5f64e5e3b, engineering_ci_receipt_path=outputs/r7_v2_remaining_acceptance_20261003/engineering_ci_acceptance.json, finalized=true, fp32_peak_allocated_mib_rounded=987.6782, fp32_peak_reserved_mib=1134, fp32_worker_seconds_rounded=84.0124, full_internal_and_physical_bptt_recorded=true, future_target_poison_forecast_unchanged_recorded=true, gpu_hours=0.04711594580465721, gpu_phase_seconds=169.61740489676595, gpu_rerun_performed_for_registration=false, grid_shape=[65, 65], hard_cap_seconds=1800, independent_acceptance_sha256=bd167cb754eb179cc457f08f60841b336f46edbaca684fe8bda9319c8099aa86, independent_artifact_pins_sha256=062d27579b98cf50231a429c21ec66ab7f68fa7c8cdb567f639b11eb9c9f09e8, independent_artifacts_unchanged=29, independent_review_dir=outputs/r7_v2_remaining_acceptance_20261003/precision_independent_review, intentional_resume_updates_per_precision=2, m3_original_failed_preserved=true, m3_original_pause_preserved=true, model_code_sha256=0cc9c16e7a12bf23150fb04e13acb72f548f8cb461ad64df1d45123b387a223e, original_failed_audit_preserved=true, output_dir=outputs/r7_v2_precision_probe_20261003_attempt01, parent_arm=M3 aux_off seed41 update400, planned_seconds=900, precisions=["FP32", "BF16"], reasoning_steps=4, registration_ci_available_at_index_write=false, registration_status_at_index_write=evidence-frozen-index-recorded-awaiting-separate-registration-ci, reproducibility_level=same-device/software same-precision checkpoint-body bitwise resume in this small probe; ordinary GPU training code/data/config-bound numerical reproducibility only, resume_model_tensors=131, resume_optimizer_states=123, soft_overrun_seconds=0.0, test_read=false, thresholds_added=0, train_windows=2, training_updates=8, uninterrupted_updates_per_precision=2, updates_per_precision=4, variables=17, whole_wall_seconds=242.43521373253316, workers_completed=2, workers_failed=0
 
+## s3-loop-depth-headroom-g0
+
+- Outcome class: `audit`; candidate state: `needs-review`
+- Human triage priority: `80` (not a scientific score)
+- Evidence: `docs/R7_S3_LOOP_DEPTH_HEADROOM_RESULT.md` (SHA256 `f08b15d42a5631c134129ec75bc06f2d6fdf1f3f36454f54a549a157543d2265`)
+- Evidence commit: `881b0397fdeff4e22bfc0698d6e491452fbd02a4`; experiment commit: `881b0397fdeff4e22bfc0698d6e491452fbd02a4`
+- Protocol SHA256: `not recorded`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: G0 headroom diagnosis on the frozen decision-0118 clauses: three archived incumbent checkpoints, val only, K=1..8 over 1024 cases each. All three seeds are best at K=3, rise at k3->k4 and deteriorate monotonically to k4->k8 (-2.5% to -3.0%), so the frozen table returns admit-g1b, permitting (not requiring) the visit-gain branch.
+- Limitations:
+  - Zero-GPU-hour read-only diagnostic over three archived incumbent checkpoints: it measures the depth/error curve of existing models and trains nothing, so it is not a candidate architecture result
+  - The primary criterion is the +6 h objective field (atmos_target is physical_targets[:,0]); K=3 being optimal there cannot be extrapolated to 24/48/72 h, and the 72 h trajectory is null in this round
+  - The 1024-case cap on a time-ordered validation manifest covers 2022-01 through 2022-09 only; the reading is not seasonally balanced and is not a full-year statement
+  - The k3->k4 rise that trips clause (b) is small (+0.11% to +0.23%) while the k4->k8 deterioration is 2.5-3.0%; the dominant signal is monotone degradation after K=3, not proven residual over-amplification
+  - The (b) threshold of 0.1% was frozen before the reading but is narrower than the +0.38% observed in the older four-case pre-diagnostic; a different threshold would have produced a different clause value, which is why it was fixed in an ADR first
+  - Only the equal-channel averaged error is reported; no per-variable (t2m/u10/v10/mslp) decomposition was computed
+  - Reproducibility is config-level: given the same checkpoints, manifest and code revision the inference is deterministic in practice, but no deterministic-algorithm flags were set and bitwise reproducibility is not claimed
+  - The admit-g1b verdict permits deriving the visit-gain branch; it does not show that damping helps, and no such round has been run
+- Excluded from runnable candidates: Read-only depth/error diagnostic on existing checkpoints: it adds no training, no checkpoint and no forecast skill, and it explicitly does not show that the permitted visit-gain branch would help.
+- Recorded metrics (not recomputed): best_step_seed41=3, best_step_seed42=3, best_step_seed43=3, cases_per_seed=1024, clause_a_saturated=true, clause_b_pathology=true, clause_c_depth_usable=false, first_step_share_of_k1_to_k3_gain=0.925, gpu_hours=0.0, k1_to_k3_relative_gain_mean=-0.008254, k3_to_k4_relative_change_seed41=0.001375, k3_to_k4_relative_change_seed42=0.001102, k3_to_k4_relative_change_seed43=0.002318, k3_to_k8_relative_change_mean=0.029351, max_steps=8, model_code_sha256=59340710623ca24c7ee59ebb5711f52193ebfbaa72ed4532b41bdd987f5d9324, seeds=3, test_read=false, thresholds_added=0, verdict=admit-g1b, wall_clock_minutes=6.0
+
 ## v2-actual-c-confirmation
 
 - Outcome class: `mixed`; candidate state: `needs-review`
@@ -2013,6 +2033,24 @@ Records: 117; human-review candidates: 2
   - The invalid first K1 harness run is retained but excluded from conclusions.
 - Excluded from runnable candidates: Mixed depth trade-off; requires a separately frozen hypothesis before any follow-up.
 - Recorded metrics (not recomputed): free_scaling_supported=false, gpu_hours=0.5, independent_k1_result=mixed, phase=c3, seeds=3, test_read=false
+
+## loop-transformer-literature-audit
+
+- Outcome class: `audit`; candidate state: `needs-review`
+- Human triage priority: `60` (not a scientific score)
+- Evidence: `docs/R7_LOOP_TRANSFORMER_LITERATURE_AUDIT.md` (SHA256 `058232bc08b32d7054f39bf71b71e853a57bb8e43a896ff66577594af93b3072`)
+- Evidence commit: `881b0397fdeff4e22bfc0698d6e491452fbd02a4`; experiment commit: `881b0397fdeff4e22bfc0698d6e491452fbd02a4`
+- Protocol SHA256: `not recorded`; data identity: `not recorded`
+- Reason: Answered the replacement question by measuring what the repository already implements: a prelude-tied-core-coda sandwich with deep supervision, i.e. already a looped transformer, so replacement would reopen closed axes. The audit fixes the three remaining structural gaps and grades the external evidence by how far each paper was actually read.
+- Limitations:
+  - Read-only literature audit with zero training and zero readings: it establishes what the current model already is and which structural differences remain, not that any of them would help
+  - External evidence is graded by how far it was actually read: SMELT and Towards-Looped-Models-Done-Right were checked at abstract plus selected section level, DeepLoop and Ouro at abstract level only; no table was reproduced and no upstream code was run
+  - The three candidate gaps (frozen spatial representation, no gated input injection, no tied-depth residual scaling) are ranked by argument, not by measurement; the ranking is explicitly deferred to the G0 headroom reading
+  - No work in the surveyed literature applies looped or recurrent-depth transformers to weather or PDE-surrogate forecasting, so there is no external precedent whose numbers could serve as an expected effect size
+  - The architectural comparison uses one configuration (dim 192, depth 4, K default 4) on a 65x65 grid; the parameter shares reported are configuration-specific
+  - This page makes no claim about the 2023 test split, consumes no confirmation number, and is not a candidate model result
+- Excluded from runnable candidates: Read-only literature and structure audit: it trains nothing, produces no forecast skill and adds no threshold, so it cannot be indexed as a candidate model result.
+- Recorded metrics (not recomputed): gpu_hours=0.0, loop_share_of_forward_percent_k3=49.7, loop_share_of_forward_percent_k8=71.7, loop_share_of_train_step_percent_k1_to_k3=25.6, papers_read=5, prelude_parameters=1806144, structural_gaps_identified=3, test_read=false, thresholds_added=0, tied_cell_parameters=742272, tied_cell_share_percent=26.51, total_parameters=2799779
 
 ## s3-amplitude-correction-feasibility-veto
 
