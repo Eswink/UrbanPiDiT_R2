@@ -105,3 +105,42 @@ def test_the_measured_rate_has_headroom_over_every_measurement():
     """1.30 must stay above the measured 1.075-1.110 range, or the constant is a guess again."""
     measured_values = (1.075, 1.098, 1.110, 1.109, 1.0796, 1.0921)
     assert proto.TREATED_SECONDS_PER_UPDATE > max(measured_values) * 1.1
+
+
+# ------------------------------------------------ the driver contract the wrapper asserts
+
+def test_every_round_module_imports_and_exposes_the_wrapper_contract():
+    """A split that leaves a name undefined dies inside a worker, after freeze has been paid for.
+
+    Three module splits in this round each produced a NameError that only surfaced when
+    ``stage prepare`` ran: first execution_files, then parent_module, and earlier the driver's
+    own freeze entry point. Each cost a re-freeze and a rebuilt archive. Importing every module
+    here, and asserting the five names r7_round_stages.load_driver requires, catches that class
+    at test time instead of at stage time.
+    """
+    import importlib
+
+    importlib.import_module("scripts.r7_s3_visit_gain_constants")
+    importlib.import_module("scripts.r7_s3_visit_gain_rate")
+    identity = importlib.import_module("scripts.r7_s3_visit_gain_identity")
+    driver = importlib.import_module("scripts.study_r7_s3_visit_gain")
+    parent = importlib.import_module("scripts.r7_s3_visit_gain_parent")
+    for name in ("freeze", "SEEDS", "PER_SEED_SECONDS", "PLANNED_SECONDS", "HARD_CAP_SECONDS"):
+        assert hasattr(driver, name), f"the wrapper requires driver.{name}"
+    for name in ("identity_witness", "prepared_protocol", "validate_protocol", "probe",
+                 "_identity", "execution_files", "partial_receipt"):
+        assert hasattr(identity, name), f"the driver imports identity.{name}"
+    for name in ("migrate", "migrate_seed", "state_equality_evidence"):
+        assert hasattr(parent, name), f"the round needs parent.{name}"
+
+
+def test_the_execution_inventory_covers_every_round_module():
+    """A module outside the inventory can change without moving the round's identity."""
+    from scripts.r7_s3_visit_gain_identity import execution_files
+
+    listed = set(execution_files())
+    for name in ("scripts/r7_s3_visit_gain_constants.py", "scripts/r7_s3_visit_gain_identity.py",
+                 "scripts/r7_s3_visit_gain_rate.py", "scripts/r7_s3_visit_gain_protocol.py",
+                 "scripts/r7_s3_visit_gain_parent.py", "scripts/r7_s3_visit_gain_verdict.py",
+                 "scripts/study_r7_s3_visit_gain.py"):
+        assert name in listed, f"{name} is not in execution_files(), so its edits are invisible"

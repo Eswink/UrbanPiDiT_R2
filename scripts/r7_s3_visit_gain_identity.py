@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 import hashlib  # noqa: E402
 import json  # noqa: E402
 
+from scripts import r7_s3_visit_gain_parent as parent_module  # noqa: E402
 from scripts import r7_s3_visit_gain_protocol as proto  # noqa: E402
 from scripts.r7_s3_visit_gain_rate import marginal_rate, quiet_machine  # noqa: E402
 
