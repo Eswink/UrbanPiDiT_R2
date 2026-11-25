@@ -44,8 +44,8 @@ if str(ROOT) not in sys.path:
 
 from scripts import r7_s3_visit_gain_parent as parent_module  # noqa: E402
 from scripts.r7_s3_visit_gain_identity import (  # noqa: E402
-    _identity, _sha256, _write_exclusive, partial_receipt, prepared_protocol,
-    validate_protocol)
+    _identity, _sha256, _write_exclusive, execution_files, partial_receipt,
+    prepared_protocol, validate_protocol)
 from scripts import r7_s3_visit_gain_protocol as proto  # noqa: E402
 
 SEEDS = proto.SEEDS
@@ -59,43 +59,6 @@ HARD_CAP_SECONDS = proto.HARD_CAP_SECONDS
 #: the rate, short enough that being wrong costs minutes rather than a seed's whole envelope.
 PROBE_UPDATES = 400
 REFUSAL_FRACTION = 0.60
-
-#: The sources whose bytes define this round's execution identity.
-EXECUTION_SOURCES = (
-    "model/recursive_weather_r7.py", "model/process_forecast_r7.py",
-    "model/process_step_r7.py", "model/layers/sdpa.py",
-    "model/weather_forecaster_r7.py", "model/coarse_forecast.py",
-    "model/coarse_encoder.py", "model/local_solver_state_r7.py",
-    "model/process_readout_r7.py", "model/spacetime_conditioning_r7.py",
-    "data/r7_long_rollout_dataset.py", "data/r7_zarr_dataset.py", "data/r7_store.py",
-    "data/r7_evaluation.py",
-    "training/r7_long_rollout_runner.py", "training/r7_recursive_losses.py",
-    "training/r7_losses.py", "training/r7_experiment.py", "training/r7_arm_harness.py",
-    "training/r7_evaluate.py", "training/r7_boundary_metrics.py",
-    "training/r7_climatology_skill.py", "training/r7_rollout_metrics.py",
-    "training/r7_simultaneous_stats.py", "training/r7_device_selection.py",
-    "scripts/r7_s3_visit_gain_protocol.py", "scripts/r7_s3_visit_gain_parent.py",
-    "scripts/r7_s3_visit_gain_verdict.py", "scripts/study_r7_s3_visit_gain.py",
-)
-
-
-def freeze(output, *, started, deadline, code_archive, code_commit, code_sha256):
-    return proto.freeze(output, started=started, deadline=deadline, code_archive=code_archive,
-                        code_commit=code_commit, code_sha256=code_sha256)
-
-
-def execution_files() -> list[str]:
-    missing = [name for name in EXECUTION_SOURCES if not (ROOT / name).is_file()]
-    if missing:
-        raise FileNotFoundError(f"declared execution sources are missing: {missing}")
-    return list(EXECUTION_SOURCES)
-
-
-def _sha256(path: Path) -> str:
-    from training.r7_arm_harness import sha256_file
-
-    return sha256_file(Path(path))
-
 
 def _write_exclusive(path: Path, body: dict) -> None:
     path = Path(path)
