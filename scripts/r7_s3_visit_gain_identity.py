@@ -247,7 +247,7 @@ def validate_protocol(output: Path) -> dict:
     # The registry's pins are the frozen ones: re-derive each seed and refuse a body whose
     # recorded parent no longer matches the archived receipt it was frozen against.
     recorded = {(int(item["seed"]), item["arm"]): item["parent"] for item in body["registry"]}
-    for seed in SEEDS:
+    for seed in proto.SEEDS:
         path, digest = proto.parent_pin(seed)
         for arm, _ in proto.ARMS:
             entry = recorded.get((int(seed), arm)) or {}

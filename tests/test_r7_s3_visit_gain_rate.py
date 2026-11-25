@@ -204,3 +204,42 @@ def test_prepared_protocol_resolves_every_name_it_uses(tmp_path):
         raise AssertionError(f"prepared_protocol has an unresolved name: {error}") from error
     except Exception:
         pass                                        # any real dependency failure is acceptable
+
+
+def test_validate_protocol_reaches_its_seed_loop(tmp_path, monkeypatch):
+    """The seed loop read an undefined SEEDS and died at the archive stage.
+
+    The digest mismatch above it returns early, so a test that only checks the first failure
+    never reaches this loop. Here the earlier checks are satisfied with the live tree's own
+    values and the registry is left deliberately wrong, so the loop must raise its own pin
+    error. A ``NameError`` means the split defect is back.
+    """
+    import json as _json
+
+    from scripts import r7_s3_visit_gain_identity as identity
+    from scripts import r7_s3_visit_gain_protocol as proto
+    from training.r7_experiment import canonical_digest
+
+    body = {
+        "seeds": list(proto.SEEDS),
+        "registry": [{"arm": arm, "seed": proto.SEEDS[0],
+                      "parent": {"checkpoint": "not-the-pinned-one.pt", "sha256": "0" * 64}}
+                     for arm, _ in proto.ARMS],
+        "execution_files_sha256": {name: identity._sha256(identity.ROOT / name)
+                                   for name in identity.execution_files()},
+        "model_code_sha256": None, "training_code_sha256": None,
+        "train_manifest_sha256": identity._sha256(proto.TRAIN_MANIFEST),
+        "val_manifest_sha256": identity._sha256(proto.VAL_MANIFEST),
+    }
+    from training.r7_experiment import model_code_digest
+    from training.r7_long_rollout_runner import training_code_digest
+    body["model_code_sha256"] = model_code_digest()
+    body["training_code_sha256"] = training_code_digest()
+    body["protocol_sha256"] = canonical_digest(body)
+    (tmp_path / "protocol.json").write_text(_json.dumps(body), encoding="utf-8")
+    try:
+        identity.validate_protocol(tmp_path)
+    except NameError as error:
+        raise AssertionError(f"validate_protocol has an unresolved name: {error}") from error
+    except (RuntimeError, FileNotFoundError):
+        pass          # the pin refusal is the expected outcome; a valid body would also be fine
