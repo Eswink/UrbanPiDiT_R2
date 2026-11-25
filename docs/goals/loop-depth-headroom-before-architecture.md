@@ -104,12 +104,17 @@
 
 ## 8. 进度
 
-- **状态**：G0 完成（`admit-g1b`）；**G1-B 已派生、已实现、未训练**。
+- **状态**：G0 完成（`admit-g1b`）；G1-B **已派生、已实现、已冻结，探针按规则拒绝开训**
+  （`probe-refused`，2026-11-26）。**0 臂训练、0 lead 评分**；出口 ①② `null`、③④ `true`；
+  分支**既未关闭也未确认**。
 - **已完成**：G0 三 seed 诊断（0 GPU-h）、判定器 + 24 条反证、文献审计、ADR 0118、计划 0036。
-  G1-B 侧：ADR **0119**（执行设计 + 三处判据更正）、带 `round-spec` 的执行 brief
+  G1-B 侧：ADR **0119**（执行设计 + 三处开轮前更正）、带 `round-spec` 的执行 brief
   `docs/goals/s3-visit-gain.md`、`visit_gain` 开关与 46 条反证、父迁移
-  （`outputs/r7_s3_visit_gain_parent_migrated_20261126_attempt01`，**三 seed `state_digest` 与归档父逐位相同**）。
+  （三 seed `state_digest` 与归档父逐位相同）、protocol 冻结 `1ec96777…`、`prepare`/`archive`、
+  身份见证（off 逐位惰性 + A 在 k=0 逐位相等）。
 - **结果**：G0 = `admit-g1b`；(a) 3/3、(b) 3/3、(c) 0/3；K=3 为三 seed 各自的最优深度。
+  **G1-B 无 A−B 读数**：探针 treated 2.6077 / 2.6731 s/upd，需剩余包络 0.7277 / 0.7425
+  > 冻结 0.60 ⇒ 拒绝；seed43 未启动。
 - **G1-B 的三个开轮前发现（全部写进 ADR 0119，且在读数之前）**：
   1. **B 不是 A 的等平均阻尼臂**：K=4 时 A 的均值 0.696114、B 的常数 0.632456，B 多阻尼 **9.14%**
      （Jensen）。⇒ A−B 不可归因为纯 visit 对齐，只能读作「在 B 的阻尼水平上」。
@@ -117,10 +122,15 @@
      **就是**宽实例的 `interior_32`（分母 ~1e-10 一致）⇒ 冻结 `full(65×65)` 并写明等价关系。
   3. **出口 ③ 字面不可判定**：B 在 k=0 即阻尼，且无「从 p32,132 起跑」的归档首 loss
      ⇒ 换成同轮逐位身份见证（③a off 逐位惰性 + 155 张量相等；③b A 在 k=0 与 `None` 逐位相等）。
-- **未做**：G1-B 的训练与评分、72 h 轨迹、四季均衡、C 的 ADR。
-- **下一动作（S3 的 G1-B 执行轮）**：`round-guard` → 干净树重建 code zip → `freeze` → `stage prepare/archive`
-  → `stage-seeds` → `stage reading`。恢复第一条命令：
-  `.venv/bin/python tools/r7_round.py state`。
+- **拒绝的根因（实测，非推测）**：**探针估计量选错了**。400 步窗口把约 300 s 启动成本摊成
+  ~0.9 s/upd；同一机器同一权重同一训练路径重测，**后 30 步边际速率 off 1.583 / on 1.733 s/upd**
+  （gain 只慢 ~9%）⇒ **实现不是瓶颈**。未放宽包络重试、未改判据、未事后调阈值。
+- **两个缺陷（只记录，未在本轮修）**：(i) 探针拒绝不写 partial receipt（两份已事后重建并标
+  `written_retroactively`）；(ii) 探针应用边际速率或更长窗口。
+- **未做**：G1-B 的两臂训练与评分、出口 ①② 的判定、72 h 轨迹、四季均衡、C 的 ADR。
+- **下一动作（S3 的 G1-B 执行轮）**：若继续这一支，先写**取代 0119 探针口径**的 ADR
+  （边际速率或更长探针），新 attempt + 重冻，再训练；**不得**在 attempt01 上放宽包络重试。
+  恢复第一条命令：`.venv/bin/python tools/r7_round.py state`。
 - **digest 变更的代价（如实）**：`model_code_sha256` 由 `59340710…` 移到 `a6cf6bbb…`，
   归档 checkpoint 在活树上不可加载（Q-009）。9 个依赖归档产物的测试已改成**具名前置跳过**
   （只跳过、不放松任何断言，身份一致时照常跑全套）；另 1 个

@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 119; human-review candidates: 2
+Records: 120; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1502,6 +1502,27 @@ Records: 119; human-review candidates: 2
   - a (b) win would carry the +148,800 parameters (+4.5%) the pathway adds, and cannot be attributed to the physics alone
 - Excluded from runnable candidates: Superseded by record s3-typed-evidence-budget-three-seed, which carries the three-seed (b) after seed43 finished: (b)=false, n_clearing=0. This entry is kept as the audit trail of the state when only two seeds had receipts; its evidence_sha256 is repointed at the final page because the validator requires every record to match the current file.
 - Recorded metrics (not recomputed): arms_expected=9, arms_with_receipts=4, b_best_mean_delta_k=-0.003961, b_n_clearing_two_seeds=0, batch_size=4, e_z500_72h_seed41=-0.004067, e_z500_72h_seed42=-0.004876, forward_overhead_percent_seed41=25.8, forward_overhead_percent_seed42=28.4, gpu_hours=61.1668, gpu_hours_segment_a_completed_arms=48.3859, gpu_hours_segment_b=12.7809, parameter_delta=148800, parameters_incumbent=3286037, parameters_treated=3434837, seconds_per_update_generic_seed41=1.4043, seconds_per_update_generic_seed42=1.4312, seconds_per_update_incumbent_seed41=1.1162, seeds=[41, 42, 43], superseded_by=s3-typed-evidence-budget-three-seed, updates_per_arm=32132
+
+## s3-visit-gain-probe-refused
+
+- Outcome class: `audit`; candidate state: `not-candidate`
+- Human triage priority: `85` (not a scientific score)
+- Evidence: `docs/R7_S3_VISIT_GAIN_PROBE_REFUSED.md` (SHA256 `c5aee4060693543b62cd8db0558dbd59205cc1097de857d5ad082f2c1f9a1d84`)
+- Evidence commit: `389bfa02a44d265099a17c5bf54b5bce11f07f3b`; experiment commit: `389bfa02a44d265099a17c5bf54b5bce11f07f3b`
+- Protocol SHA256: `1ec96777607c4905cccc5e6bbf96642fa122da40654f376eca336aefa818ad50`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: G1-B's two damping arms were admitted by decision 0118 (admit-g1b) and frozen under decision 0119, then refused by their own probe before any arm trained: the measured 2.61-2.67 s/update extrapolated to 0.728-0.743 of the remaining envelope, above the frozen 0.60 refusal fraction. The refusal is a measurement of the probe, not of the hypothesis, so all substantive exits stay null and the branch is neither closed nor confirmed. A same-machine, same-weights re-measurement through the identical trainer path shows the marginal rate is 1.583 s/update with the gain off and 1.733 with it on (+9 percent), so the probe's 2.5 was startup amortisation over a 400-update window, not the cost of the implementation. Two engineering identities do hold and are measured: visit_gain=None reproduces the pre-switch cell bit for bit with an identical key set and no new buffers, visit_damped at visit 0 equals it bit for bit because g_0 is exactly 1.0, and every seed's migrated parent carries the archived state_digest with 155 tensors.
+- Limitations:
+  - No arm was trained to its endpoint and no lead was scored, so exits 1 and 2 are null, not false: this record measures a probe and two identity properties, never A - B
+  - The refusal is an engineering event. Reading it as 'damping does not help' would report a measurement that was never made, which the round's brief and ADR 0119 both forbid
+  - The probe's rate estimator is the defect: the 400-update window amortises roughly 300 s of startup over too few steps, so the total rate (2.5 s/update) overstates the marginal rate (1.58 s/update) by about 60 percent. This was diagnosed after the refusal and not corrected in the frozen protocol
+  - A probe refusal writes no partial receipt in the current driver: probe() raises before the arm loop and only _train_arm is wrapped by the partial-receipt handler. Both seeds' records were reconstructed from each arm's own progress.jsonl and are marked written_retroactively
+  - Only seeds 41 and 42 were probed; seed 43 never started because stage-seeds stops at the first non-headroom failure. Side-conditions across seeds are therefore untested
+  - The identity witness is measured on a fixed synthetic batch with torch.set_num_threads(1); it is a same-process bitwise claim and does not extend to GPU determinism, which this repository never promises
+  - The marginal-rate re-measurement used 60 updates per arm on one seed and one card; it establishes the order of magnitude of the gap, not a calibrated training rate for the round
+  - No A - B reading exists, so decision 0119's attribution boundary (B damps 9.14 percent more than A's mean at K=4) remains unexercised rather than resolved
+  - The 2023 test split stays sealed; r = 0, test_read = false
+- Excluded from runnable candidates: This is a probe refusal, not a result: no arm reached its endpoint and no lead was scored, so A - B was never measured and exits 1 and 2 remain null. It cannot be indexed as a candidate because a candidate requires a scored arm, and it must not be indexed as a negative because that would convert an unexecuted measurement into a finding about damping. What it does establish is engineering: the off path is bitwise the pre-switch cell, visit_damped at k=0 is bitwise that path because g_0 is exactly 1.0, and every seed's migrated parent carries the archived state digest with 155 tensors.
+- Recorded metrics (not recomputed): arms_trained=0, exit_four=true, exit_one=null, exit_three=true, exit_two=null, fraction_of_remaining_seed41=0.7277, fraction_of_remaining_seed42=0.7425, gpu_hours=1.133, gpu_hours_seed41_probe=0.5628, gpu_hours_seed42_probe=0.5702, identity_witness_passed=true, leads_scored=0, marginal_overhead_fraction_on_vs_off=0.0947, marginal_seconds_per_update_off=1.583, marginal_seconds_per_update_on=1.733, migrated_tensor_count=155, model_code_sha256=a6cf6bbbdb2263e7da4e50e3d15562652d24101c02a1f2c8d55ee14d5036fda0, parameter_counts_equal_across_arms=true, parameters_per_arm=3286037, probe_updates_per_arm=400, r=0, refusal_fraction=0.6, seeds_probed=2, seeds_started=3, state_digests_bitwise_identical=true, test_read=false, treated_seconds_per_update_seed41=2.6077, treated_seconds_per_update_seed42=2.6731, visit_damped_gain_at_zero=1.0
 
 ## m3-process-supervision-budget-limited
 
