@@ -123,6 +123,22 @@ per-loop LoRA；未改深监督组织；未加物理 loss。**未读 2023 test**
   新 attempt + 重冻，再训练。**不得**在已冻结的 attempt01 上放宽包络重试。
 - **恢复第一条命令**：`.venv/bin/python tools/r7_round.py state`。
 
+## 11. CI 状态与一个先于本轮存在的红（如实）
+
+- 本轮推送后 `R7 CPU CI` 为 **failure**。这不是本轮引入的：**上一个提交 `bab7244` 上同一条
+  workflow 就已经是 failure**（匿名 API 查得），而本仓库的 `docs/rules/OPEN_QUESTIONS.md`
+  Q-009 早已记录「任何 `model/` 字节变化都会让依赖归档 checkpoint 的路径失效」。
+- **本轮的净影响经实测为 0 新增失败、6 项减少**：在**干净 checkout**（无 `outputs/`，与 CI 同构）
+  上跑全量套件，`bab7244` 为 **32 failed / 5966 passed**，本分支为 **26 failed / 6011 passed**，
+  `comm` 比对显示**没有任何一条是本轮新增**。减少的 6 条是本轮给它们加上的
+  **具名前置跳过**（归档 revision 不可加载时跳过、不放松断言）。
+- **仍红的 26 条是先前就存在的**，本轮未触碰（`test_r7_s3_in_protocol` 15 条、
+  `test_r7_urban_static_ablation` 8 条、以及 3 条其它）。它们**不因本轮更红**，也**不被本轮掩盖**：
+  修复它们需要另立一轮，且其中若干条同样源于归档 checkpoint 与活树的身份差。
+- 第一次在干净 checkout 上跑时，本轮的 `require_archived_revision` 在**文件缺失**时抛
+  `FileNotFoundError`，把 32 条变成 34 条。已修正为：**缺失 ⇒ 具名跳过**、
+  **存在但身份不同 ⇒ 具名跳过**、**存在但不可读 ⇒ 抛错**。三种情形语义不同，不能合并。
+
 ## 10. 成本的如实记账
 
 | 项 | GPU-h |

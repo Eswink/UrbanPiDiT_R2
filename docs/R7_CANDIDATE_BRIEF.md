@@ -1507,8 +1507,8 @@ Records: 120; human-review candidates: 2
 
 - Outcome class: `audit`; candidate state: `not-candidate`
 - Human triage priority: `85` (not a scientific score)
-- Evidence: `docs/R7_S3_VISIT_GAIN_PROBE_REFUSED.md` (SHA256 `c5aee4060693543b62cd8db0558dbd59205cc1097de857d5ad082f2c1f9a1d84`)
-- Evidence commit: `389bfa02a44d265099a17c5bf54b5bce11f07f3b`; experiment commit: `389bfa02a44d265099a17c5bf54b5bce11f07f3b`
+- Evidence: `docs/R7_S3_VISIT_GAIN_PROBE_REFUSED.md` (SHA256 `763b4d71b418aed6fcdfe0310e2914265422313a117d58e43de3a3451263a10e`)
+- Evidence commit: `213bab248f5a24b2fe6aedd3aa5907c1baf3d4b7`; experiment commit: `389bfa02a44d265099a17c5bf54b5bce11f07f3b`
 - Protocol SHA256: `1ec96777607c4905cccc5e6bbf96642fa122da40654f376eca336aefa818ad50`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
 - Reason: G1-B's two damping arms were admitted by decision 0118 (admit-g1b) and frozen under decision 0119, then refused by their own probe before any arm trained: the measured 2.61-2.67 s/update extrapolated to 0.728-0.743 of the remaining envelope, above the frozen 0.60 refusal fraction. The refusal is a measurement of the probe, not of the hypothesis, so all substantive exits stay null and the branch is neither closed nor confirmed. A same-machine, same-weights re-measurement through the identical trainer path shows the marginal rate is 1.583 s/update with the gain off and 1.733 with it on (+9 percent), so the probe's 2.5 was startup amortisation over a 400-update window, not the cost of the implementation. Two engineering identities do hold and are measured: visit_gain=None reproduces the pre-switch cell bit for bit with an identical key set and no new buffers, visit_damped at visit 0 equals it bit for bit because g_0 is exactly 1.0, and every seed's migrated parent carries the archived state_digest with 155 tensors.
 - Limitations:
