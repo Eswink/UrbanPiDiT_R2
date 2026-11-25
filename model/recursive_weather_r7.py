@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import math
 from typing import Mapping,Optional
 import torch
 from torch import nn
@@ -124,19 +125,68 @@ class DraftTokenEncoder(nn.Module):
         return self.norm(z.flatten(2).transpose(1,2)),hw
 
 
+#: The visit-gain modes decision 0119 freezes. ``None`` is not a mode: it is the
+#: original expression, reached without reading the visit index at all.
+VISIT_GAIN_MODES = (None, "visit_damped", "uniform_damped")
+
+
+def visit_gain_value(mode: Optional[str], visit_index: int, reasoning_steps: int) -> float:
+    """The residual-branch gain for one visit, as a Python float.
+
+    ``visit_damped`` is ``1/sqrt(1+k)`` on the **0-based** visit index, so its first
+    visit is exactly 1.0 and the arm is identical to the parent there. ``uniform_damped``
+    is the visit-independent ``1/sqrt(1+(K-1)/2)``.
+
+    The two are **not** equal-damping: at K=4 the visit-damped mean is 0.696114 while the
+    uniform constant is 0.632456, 9.14 percent smaller. ``1/sqrt`` is convex, so any
+    constant taken at the mean index sits below the mean of the gains (Jensen). Decision
+    0119 records this and forbids reading A-B as a pure visit-alignment effect.
+    """
+    if mode not in VISIT_GAIN_MODES:
+        raise ValueError(f"unknown visit_gain mode {mode!r}; expected one of {VISIT_GAIN_MODES}")
+    if int(visit_index) < 0:
+        raise ValueError("visit index must be >= 0")
+    if mode == "visit_damped":
+        return 1.0 / math.sqrt(1.0 + float(visit_index))
+    if mode == "uniform_damped":
+        if int(reasoning_steps) < 1:
+            raise ValueError("uniform_damped needs reasoning_steps >= 1")
+        return 1.0 / math.sqrt(1.0 + (float(reasoning_steps) - 1.0) / 2.0)
+    return 1.0
+
+
 class GenericRecursiveCell(nn.Module):
-    def __init__(self,dim:int,heads:int,mlp_ratio:float=3.,dropout:float=0.):
+    def __init__(self,dim:int,heads:int,mlp_ratio:float=3.,dropout:float=0.,
+                 visit_gain:Optional[str]=None):
         super().__init__()
+        if visit_gain not in VISIT_GAIN_MODES:
+            raise ValueError(f"visit_gain must be one of {VISIT_GAIN_MODES}, got {visit_gain!r}")
+        # Exposed for ``_module_semantics``: a round that switches this on must not be
+        # loadable as the arm that switched it off. ``None`` builds nothing below.
+        self.visit_gain=visit_gain
         self.n1=nn.LayerNorm(dim)
         self.self_attn=SDPAttention(dim,heads,dropout)
         self.cross=CrossBlock(dim,heads,mlp_ratio,dropout)
         self.n2=nn.LayerNorm(dim)
         self.ff=FeedForward(dim,mlp_ratio,dropout)
 
-    def forward(self,z,context):
-        z=z+self.self_attn(self.n1(z))
+    def forward(self,z,context,visit_index:int=0,reasoning_steps:int=1):
+        """Two residual branches, optionally scaled by one visit-dependent gain.
+
+        ``visit_gain=None`` runs the original expression and never reads ``visit_index``,
+        so the default path is the pre-existing one operation for operation rather than a
+        ``g=1.0`` multiplication. One gain scales **both** residual branches: giving each
+        branch its own gain would add a second factor ("which branch is damped") on top of
+        the one this round isolates (decision 0119 D1).
+        """
+        if self.visit_gain is None:
+            z=z+self.self_attn(self.n1(z))
+            z=self.cross(z,context)
+            return z+self.ff(self.n2(z))
+        gain=visit_gain_value(self.visit_gain,visit_index,reasoning_steps)
+        z=z+gain*self.self_attn(self.n1(z))
         z=self.cross(z,context)
-        return z+self.ff(self.n2(z))
+        return z+gain*self.ff(self.n2(z))
 
 
 def process_to_generic_state_key(name: str) -> Optional[str]:
@@ -176,14 +226,22 @@ def generic_reasoning_step(model, tensors: GenericStepInput,
                            token_hw: tuple[int, int], *,
                            solver_state: Optional[torch.Tensor] = None,
                            step_index: int = 0, anchor: Optional[torch.Tensor] = None,
-                           use_forecast_feedback: Optional[bool] = None) -> GenericStepOutput:
+                           use_forecast_feedback: Optional[bool] = None,
+                           reasoning_steps: Optional[int] = None) -> GenericStepOutput:
     """Generic fixed/streamed step, equivalent to Process without diagnostics.
 
     Tokens have no anchored subset or diagnostic prediction. The forecast-facing
     operation order and RW-A/RW-B components match process_reasoning_step; tests
     pin every mapped state tensor, intermediate output and forecast gradient.
+
+    ``reasoning_steps`` is the round's total visit count, read by the
+    ``uniform_damped`` visit gain and by nothing else. It defaults to the model's
+    configured depth so a caller that never switches the gain on passes the same
+    value with and without this parameter.
     """
     latent, context, draft = tensors.latent, tensors.context, tensors.draft
+    total_steps = (model.default_reasoning_steps if reasoning_steps is None
+                   else int(reasoning_steps))
     feedback = model.use_forecast_feedback if use_forecast_feedback is None else bool(
         use_forecast_feedback)
     if model.local_solver_state and not feedback:
@@ -195,7 +253,13 @@ def generic_reasoning_step(model, tensors: GenericStepInput,
         draft_tokens, draft_hw = model.draft_encoder(draft)
         if tuple(draft_hw) != tuple(token_hw):
             raise ValueError(f'draft token grid {draft_hw} != context grid {token_hw}')
-    latent = model._cell(latent, reasoning_source_key(model, context, draft_tokens, token_hw))
+    key = reasoning_source_key(model, context, draft_tokens, token_hw)
+    # Same rule as ``process_reasoning_step``: with the gain off this is the pre-0119
+    # two-argument call, so a wrapper that observes ``_cell`` keeps its old signature.
+    if model.cell.visit_gain is None:
+        latent = model._cell(latent, key)
+    else:
+        latent = model._cell(latent, key, step_index, total_steps)
     if model.draft_query_feedback:
         summary = model.latent_conditioning(latent, context, token_hw, draft_tokens=draft_tokens)
     else:
@@ -251,6 +315,45 @@ class RecursiveForecastOutput:
     solver_state:Optional[torch.Tensor]=None
 
 
+def _require_generic_switches(switches: dict) -> None:
+    """The generic forecaster's switch contract, checked in one place.
+
+    Extracted from ``__init__`` when the ``visit_gain`` parameter pushed that body past the
+    R-020 target length: the checks are a self-contained block that reads only its arguments,
+    so moving them shortens the constructor without changing a single comparison.
+
+    Takes one mapping rather than fourteen keyword arguments, because a signature that long is
+    itself an R-023 finding and the call site already spells every name.
+    """
+    for name, value in switches.items():
+        if name in ('position_encoding_mode', 'latent_tokens'):
+            continue
+        if type(value) is not bool:
+            raise ValueError(f"{name} must be boolean")
+    positional_process_readout = switches['positional_process_readout']
+    if switches['source_position_markers'] and not positional_process_readout:
+        raise ValueError('source_position_markers requires positional_process_readout=True')
+    require_position_encoding_mode(switches['position_encoding_mode'],
+                                   positional_process_readout=positional_process_readout)
+    if switches['known_context_inputs'] and not switches['spacetime_inputs']:
+        raise ValueError('known_context_inputs requires spacetime_inputs=True')
+    if switches['pooled_readout_query'] and not positional_process_readout:
+        raise ValueError('pooled_readout_query requires positional_process_readout=True')
+    if switches['draft_query_feedback'] and not positional_process_readout:
+        raise ValueError('draft_query_feedback requires positional_process_readout=True')
+    if switches['draft_query_feedback'] and not switches['use_forecast_feedback']:
+        raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
+    if switches['local_solver_state'] and not positional_process_readout:
+        raise ValueError('local_solver_state requires positional_process_readout=True')
+    if switches['local_solver_state'] and not switches['use_forecast_feedback']:
+        raise ValueError('local_solver_state requires use_forecast_feedback=True')
+    for name in ('solver_state_recurrence','solver_gate_proposal'):
+        if switches[name] and not switches['local_solver_state']:
+            raise ValueError(f'{name}=True requires local_solver_state=True')
+    if int(switches['latent_tokens'])<1:
+        raise ValueError('latent_tokens must be >= 1')
+
+
 class GenericRecursiveWeatherForecaster(nn.Module):
     """Shared recursive baseline with no diagnostic slots or process prediction.
 
@@ -271,44 +374,24 @@ class GenericRecursiveWeatherForecaster(nn.Module):
                  solver_state_recurrence:bool=False,solver_gate_proposal:bool=False,
                  use_forecast_feedback:bool=True,draft_query_feedback:bool=False,
                  source_position_markers:bool=False,known_context_inputs:bool=False,
-                 change_scale_mode:str='identity',change_scale_ratio=None):
+                 change_scale_mode:str='identity',change_scale_ratio=None,
+                 visit_gain:Optional[str]=None):
         super().__init__()
-        for value,name in ((spatial_solver_feedback,'spatial_solver_feedback'),
-                           (spacetime_inputs,'spacetime_inputs'),
-                           (source_role_markers,'source_role_markers'),
-                           (positional_process_readout,'positional_process_readout'),
-                           (pooled_readout_query,'pooled_readout_query'),
-                           (local_solver_state,'local_solver_state'),
-                           (solver_state_recurrence,'solver_state_recurrence'),
-                           (solver_gate_proposal,'solver_gate_proposal'),
-                           (use_forecast_feedback,'use_forecast_feedback'),
-                           (draft_query_feedback,'draft_query_feedback'),
-                           (source_position_markers,'source_position_markers'),
-                           (known_context_inputs,'known_context_inputs')):
-            if type(value) is not bool:
-                raise ValueError(f"{name} must be boolean")
-        if source_position_markers and not positional_process_readout:
-            raise ValueError('source_position_markers requires positional_process_readout=True')
-        require_position_encoding_mode(position_encoding_mode,
-                                       positional_process_readout=positional_process_readout)
-        if known_context_inputs and not spacetime_inputs:
-            raise ValueError('known_context_inputs requires spacetime_inputs=True')
-        if pooled_readout_query and not positional_process_readout:
-            raise ValueError('pooled_readout_query requires positional_process_readout=True')
-        if draft_query_feedback and not positional_process_readout:
-            raise ValueError('draft_query_feedback requires positional_process_readout=True')
-        if draft_query_feedback and not use_forecast_feedback:
-            raise ValueError('draft_query_feedback requires use_forecast_feedback=True')
-        if local_solver_state and not positional_process_readout:
-            raise ValueError('local_solver_state requires positional_process_readout=True')
-        if local_solver_state and not use_forecast_feedback:
-            raise ValueError('local_solver_state requires use_forecast_feedback=True')
-        for value,name in ((solver_state_recurrence,'solver_state_recurrence'),
-                           (solver_gate_proposal,'solver_gate_proposal')):
-            if value and not local_solver_state:
-                raise ValueError(f'{name}=True requires local_solver_state=True')
-        if int(latent_tokens)<1:
-            raise ValueError('latent_tokens must be >= 1')
+        _require_generic_switches(dict(
+            spatial_solver_feedback=spatial_solver_feedback,
+            spacetime_inputs=spacetime_inputs,
+            source_role_markers=source_role_markers,
+            positional_process_readout=positional_process_readout,
+            pooled_readout_query=pooled_readout_query,
+            local_solver_state=local_solver_state,
+            solver_state_recurrence=solver_state_recurrence,
+            solver_gate_proposal=solver_gate_proposal,
+            use_forecast_feedback=use_forecast_feedback,
+            draft_query_feedback=draft_query_feedback,
+            source_position_markers=source_position_markers,
+            known_context_inputs=known_context_inputs,
+            position_encoding_mode=position_encoding_mode,
+            latent_tokens=latent_tokens))
         self.spatial_solver_feedback=spatial_solver_feedback
         self.source_role_markers=source_role_markers
         self.source_position_markers=source_position_markers
@@ -343,7 +426,8 @@ class GenericRecursiveWeatherForecaster(nn.Module):
             change_scale_mode=change_scale_mode,change_scale_ratio=change_scale_ratio)
         self.latent=nn.Parameter(torch.randn(1,int(latent_tokens),dim)*.02)
         self.draft_encoder=DraftTokenEncoder(self.out_channels,dim,patch_size)
-        self.cell=GenericRecursiveCell(dim,heads,mlp_ratio=3.,dropout=dropout)
+        self.cell=GenericRecursiveCell(dim,heads,mlp_ratio=3.,dropout=dropout,
+            visit_gain=visit_gain)
         self.latent_to_context=nn.Sequential(nn.LayerNorm(dim),nn.Linear(dim,dim))
         self.correction_head=CoarseForecastHead(dim,self.out_channels,patch_size,
             change_scale_mode=change_scale_mode,change_scale_ratio=change_scale_ratio)
@@ -378,10 +462,10 @@ class GenericRecursiveWeatherForecaster(nn.Module):
             return self.process_reader(latent,context,token_hw)
         return self.latent_to_context(latent.mean(dim=1))
 
-    def _cell(self,z,context):
+    def _cell(self,z,context,visit_index:int=0,reasoning_steps:int=1):
         if self.activation_checkpointing and self.training and z.requires_grad:
-            return checkpoint(self.cell,z,context,use_reentrant=False)
-        return self.cell(z,context)
+            return checkpoint(self.cell,z,context,visit_index,reasoning_steps,use_reentrant=False)
+        return self.cell(z,context,visit_index,reasoning_steps)
 
     def forward(self,batch:Mapping[str,torch.Tensor],*,reasoning_steps:Optional[int]=None,
                 detach_between_steps:Optional[bool]=None,
@@ -406,7 +490,7 @@ class GenericRecursiveWeatherForecaster(nn.Module):
         for step in range(steps):
             result=generic_reasoning_step(self,GenericStepInput(z,context,draft),token_hw,
                 solver_state=solver_state,step_index=step,anchor=base.base_state,
-                use_forecast_feedback=feedback_flag)
+                use_forecast_feedback=feedback_flag,reasoning_steps=steps)
             z,draft,final_correction=result.latent,result.draft,result.correction
             solver_state=result.solver_state
             drafts.append(draft)

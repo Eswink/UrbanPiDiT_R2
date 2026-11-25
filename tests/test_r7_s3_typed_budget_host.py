@@ -18,8 +18,16 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from conftest import require_archived_revision  # noqa: E402
+
 LEADS = (6, 12, 24, 48, 72)
 SEEDS = (41, 42, 43)
+
+#: ``readings()`` reaches ``protocol.capacity()``, which reads the production spec from a
+#: checkpoint written under the pre-visit-gain revision. The synthetic receipts below are the
+#: point of these tests; the archived spec is only a lookup they pass through.
+PRODUCTION_REFERENCE = (ROOT / "outputs/r7_s3_spectral_geometry_a_20261112_attempt02"
+                        / "seed41/training/off/update_0004000.pt")
 
 def _write_provenance(folder, *, mse_t2m, leads, channels=("t2m", "z500"), n=40):
     """Per-initialisation rows, which clause (a) needs for its block-bootstrap interval.
@@ -57,6 +65,7 @@ def test_readings_assembles_full_arm_tables_and_evaluates_a_f_through_e(tmp_path
     import csv as _csv
 
     from scripts import study_r7_s3_typed_budget as driver
+    require_archived_revision(PRODUCTION_REFERENCE, what="the typed-evidence reading tables")
 
     # One receipt per arm per seed, each with five leads of boundary CSVs. t2m is made to fall
     # monotonically from incumbent to generic to typed so (a) and (b) are both genuine.
@@ -130,6 +139,7 @@ def test_the_reading_worker_branch_runs_and_writes_readings_json(tmp_path, monke
 
     from scripts import study_r7_s3_typed_budget as driver
     from scripts.r7_m3_offline import deny_network  # noqa: F401 - imported for its side-effect path
+    require_archived_revision(PRODUCTION_REFERENCE, what="the reading worker branch")
 
     # Synthetic receipts, exactly the shape the reading stage reads back.
     base = {"incumbent": 2.000, "generic": 1.990, "typed": 1.980}

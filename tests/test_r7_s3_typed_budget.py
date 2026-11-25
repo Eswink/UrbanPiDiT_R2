@@ -27,9 +27,20 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts import r7_typed_budget_verdict as verdict  # noqa: E402
+from conftest import require_archived_revision  # noqa: E402
 
 LEADS = (6, 12, 24, 48, 72)
 SEEDS = (41, 42, 43)
+
+#: ``r7_s3_typed_budget_protocol.registered_spec`` reads the production spec from this checkpoint,
+#: written under the pre-visit-gain model revision. A test that reaches it is a claim about that
+#: round's code, so it needs the identity precondition rather than a relaxed assertion.
+PRODUCTION_REFERENCE = (ROOT / "outputs/r7_s3_spectral_geometry_a_20261112_attempt02"
+                        / "seed41/training/off/update_0004000.pt")
+
+
+def _require_production_reference(what: str) -> None:
+    require_archived_revision(PRODUCTION_REFERENCE, what=what)
 
 
 def _arm(t2m, z500_72, *, name="arm", seed=SEEDS[0], dirs=None):
@@ -259,6 +270,7 @@ def test_the_capacity_claims_hold_on_the_frozen_spec():
     This is the clause the whole attribution rests on: if generic and typed differed in capacity,
     a B->C win could be a capacity effect and nothing else.
     """
+    _require_production_reference("the typed-evidence capacity claims")
     from scripts import r7_s3_typed_budget_protocol as proto
     measured = proto.capacity()
     counts = measured["parameters"]
@@ -270,6 +282,7 @@ def test_the_capacity_claims_hold_on_the_frozen_spec():
 
 def test_the_frozen_spec_is_the_registered_production_trunk():
     """A hand-built spec would let the module describe a model the weights are not."""
+    _require_production_reference("the frozen production spec")
     from scripts import r7_s3_typed_budget_protocol as proto
     spec = proto.arm_spec(None)
     assert spec["dim"] == 192 and spec["depth"] == 4
@@ -282,6 +295,7 @@ def test_the_frozen_spec_is_the_registered_production_trunk():
 
 def test_the_preflight_reports_every_clause_by_name():
     """(f) is a named set, so a future clause cannot be added and silently ignored."""
+    _require_production_reference("the (f) preflight")
     from scripts import r7_s3_typed_budget_protocol as proto
     measured = proto.preflight()
     expected = {"off_path_is_the_previous_model", "slot_arrival_is_diagonal",
@@ -370,6 +384,8 @@ def test_sixteen_epochs_is_only_warranted_when_the_tail_is_still_falling():
 def test_the_probe_identity_clause_rejects_a_foreign_checkpoint(tmp_path):
     """One trajectory or no curve: two code identities must not be spliced."""
     from scripts import r7_s3_dose_probe as probe
+    require_archived_revision(probe.checkpoints(probe.P1600_RUN, (5_000,))[0],
+                              what="the dose-probe identity clause")
     identity = probe.checkpoint_identity(probe.checkpoints(probe.P1600_RUN, (5_000, 128_528)))
     assert identity["passed"] is True
     assert len(identity["distinct_identities"]) == 1
@@ -484,6 +500,11 @@ def test_the_treated_arms_share_their_encoder_not_their_projection_block():
     from scripts import study_r7_s3_typed_budget as driver
     from training.r7_experiment import load_checkpoint
 
+    # ``parent_pin`` first re-checks the migration receipt's own model revision and raises there,
+    # so the precondition has to read the file directly rather than through that gate.
+    require_archived_revision(
+        proto.PARENT_RUN / "seed41" / f"parent_update_{proto.PARENT_UPDATES:07d}.pt",
+        what="the shared-encoder draw of the treated arms")
     parent, _ = proto.parent_pin(41)
     saved = load_checkpoint(parent)
     expansions = {}

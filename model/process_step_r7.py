@@ -75,13 +75,20 @@ def process_reasoning_step(
     step_index: int = 0,
     anchor: Optional[torch.Tensor] = None,
     use_forecast_feedback: Optional[bool] = None,
+    reasoning_steps: Optional[int] = None,
 ) -> ProcessStepOutput:
     """One internal step: read the process state, decode, and update the draft.
 
     ``use_forecast_feedback`` overrides the model's declared setting for this call
     only; the fixed forward passes its per-call argument through here instead of
     branching around the step, which is how the three copies diverged before.
+
+    ``reasoning_steps`` is the run's total visit count. Only the optional
+    ``uniform_damped`` visit gain reads it; with the gain off it is passed through
+    and never consulted.
     """
+    total_steps = (model.default_reasoning_steps if reasoning_steps is None
+                   else int(reasoning_steps))
     process, context, draft = tensors.process, tensors.context, tensors.draft
     feedback = model.use_forecast_feedback if use_forecast_feedback is None else bool(
         use_forecast_feedback)
@@ -109,7 +116,16 @@ def process_reasoning_step(
         draft_tokens, draft_hw = model.draft_encoder(feedback_draft)
         if tuple(draft_hw) != tuple(token_hw):
             raise ValueError(f"draft token grid {draft_hw} != context grid {token_hw}")
-    process = model._reason(process, reasoning_source_key(model, context, draft_tokens, token_hw))
+    key = reasoning_source_key(model, context, draft_tokens, token_hw)
+    # The visit index is handed over **only** when the gain is on. With ``visit_gain=None``
+    # this is literally the pre-0119 two-argument call, so the default path is unchanged at
+    # the call site and not merely inside the cell -- callers that wrap ``_reason`` to
+    # observe what flows in keep working, which is how the existing instrumentation tests
+    # stay meaningful rather than being edited to match a new signature.
+    if model.reasoning_cell.visit_gain is None:
+        process = model._reason(process, key)
+    else:
+        process = model._reason(process, key, step_index, total_steps)
     prediction = model._process_prediction(process)
     if model.draft_query_feedback:
         summary = model.process_conditioning(process, context, token_hw, draft_tokens=draft_tokens)

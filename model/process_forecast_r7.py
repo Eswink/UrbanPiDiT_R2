@@ -228,6 +228,7 @@ class ProcessForecastCoReasoner(nn.Module):
         anchor_output_prior:bool=True,
         decoder_base_mode:str='persistence',tendency_input:bool=False,
         static_conditioning:bool=False,
+        visit_gain:Optional[str]=None,
     ):
         super().__init__()
         _validate_switches(
@@ -316,7 +317,7 @@ class ProcessForecastCoReasoner(nn.Module):
             self.out_channels,dim,patch_size
         )
         self.reasoning_cell=GenericRecursiveCell(
-            dim,heads,mlp_ratio=3.0,dropout=dropout
+            dim,heads,mlp_ratio=3.0,dropout=dropout,visit_gain=visit_gain
         )
 
         self.process_readout=nn.Sequential(
@@ -447,7 +448,14 @@ class ProcessForecastCoReasoner(nn.Module):
         self,
         process:torch.Tensor,
         recurrent_context:torch.Tensor,
+        visit_index:int=0,
+        reasoning_steps:int=1,
     )->torch.Tensor:
+        """``visit_index``/``reasoning_steps`` reach the cell's optional visit gain.
+
+        Both default to values that make ``visit_gain=None`` the original call: the cell
+        ignores them entirely when the switch is off.
+        """
         if (
             self.activation_checkpointing
             and self.training
@@ -457,9 +465,11 @@ class ProcessForecastCoReasoner(nn.Module):
                 self.reasoning_cell,
                 process,
                 recurrent_context,
+                visit_index,
+                reasoning_steps,
                 use_reentrant=False,
             )
-        return self.reasoning_cell(process,recurrent_context)
+        return self.reasoning_cell(process,recurrent_context,visit_index,reasoning_steps)
 
     def _process_prediction(
         self,
@@ -535,6 +545,7 @@ class ProcessForecastCoReasoner(nn.Module):
                 step_index=step,
                 anchor=base.base_state,
                 use_forecast_feedback=feedback_flag,
+                reasoning_steps=steps,
             )
             process=result.process
             solver_state=result.solver_state

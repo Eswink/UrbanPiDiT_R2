@@ -29,6 +29,12 @@ def _skip_without_parent():
     if not PARENT.is_file():
         pytest.skip("the registered parent checkpoint is an untracked outputs/ artifact; no "
                     "synthetic fallback")
+    # This tool reconciles *buffers*; it explicitly refuses to cross code revisions. Reaching any
+    # of its checks therefore requires the parent's own revision, and the tool's refusal is by
+    # design rather than a failure of the reconciliation it is being tested for.
+    from conftest import require_archived_revision
+
+    require_archived_revision(PARENT, what="the static-buffer reconciliation")
 
 
 def _skip_without_static_product():

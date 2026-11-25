@@ -104,14 +104,28 @@
 
 ## 8. 进度
 
-- **状态**：G0 完成（`admit-g1b`）；G1-B 已准入，未派生。
+- **状态**：G0 完成（`admit-g1b`）；**G1-B 已派生、已实现、未训练**。
 - **已完成**：G0 三 seed 诊断（0 GPU-h）、判定器 + 24 条反证、文献审计、ADR 0118、计划 0036。
-- **结果**：`admit-g1b`；(a) 3/3、(b) 3/3、(c) 0/3；K=3 为三 seed 各自的最优深度。
-- **未做**：G1-B 的实现/父迁移/训练/评分；72 h 轨迹；四季均衡；C 的论证。
-- **下一动作（G1-B，须先写 ADR）**：第一个可执行命令 =
-  `.venv/bin/python tools/r7_round.py state`；
-  第二条 = `.venv/bin/python tools/check_campaign_state.py --campaign docs/goals/main-model-climatology-campaign.md`。
+  G1-B 侧：ADR **0119**（执行设计 + 三处判据更正）、带 `round-spec` 的执行 brief
+  `docs/goals/s3-visit-gain.md`、`visit_gain` 开关与 46 条反证、父迁移
+  （`outputs/r7_s3_visit_gain_parent_migrated_20261126_attempt01`，**三 seed `state_digest` 与归档父逐位相同**）。
+- **结果**：G0 = `admit-g1b`；(a) 3/3、(b) 3/3、(c) 0/3；K=3 为三 seed 各自的最优深度。
+- **G1-B 的三个开轮前发现（全部写进 ADR 0119，且在读数之前）**：
+  1. **B 不是 A 的等平均阻尼臂**：K=4 时 A 的均值 0.696114、B 的常数 0.632456，B 多阻尼 **9.14%**
+     （Jensen）。⇒ A−B 不可归因为纯 visit 对齐，只能读作「在 B 的阻尼水平上」。
+  2. **`interior_32` 在 65×65 上只剩 1 格**，但 `R7_S3_WIDE_REGION_FULL` 已证明 65×65 全网格
+     **就是**宽实例的 `interior_32`（分母 ~1e-10 一致）⇒ 冻结 `full(65×65)` 并写明等价关系。
+  3. **出口 ③ 字面不可判定**：B 在 k=0 即阻尼，且无「从 p32,132 起跑」的归档首 loss
+     ⇒ 换成同轮逐位身份见证（③a off 逐位惰性 + 155 张量相等；③b A 在 k=0 与 `None` 逐位相等）。
+- **未做**：G1-B 的训练与评分、72 h 轨迹、四季均衡、C 的 ADR。
+- **下一动作（S3 的 G1-B 执行轮）**：`round-guard` → 干净树重建 code zip → `freeze` → `stage prepare/archive`
+  → `stage-seeds` → `stage reading`。恢复第一条命令：
+  `.venv/bin/python tools/r7_round.py state`。
+- **digest 变更的代价（如实）**：`model_code_sha256` 由 `59340710…` 移到 `a6cf6bbb…`，
+  归档 checkpoint 在活树上不可加载（Q-009）。9 个依赖归档产物的测试已改成**具名前置跳过**
+  （只跳过、不放松任何断言，身份一致时照常跑全套）；另 1 个
+  （`test_the_partial_reading_…`）在**未改动的 HEAD 上就已失败**，与本轮无关，未修、已记录。
 
-> 本轮 **0 GPU-h、0 test 读取、r=0**，**不新增 index record 与账本行**
-> （无实验机器核数，按主计划 §7「无 index 支撑的文档 0 成本行如实列 note」处理）；
-> **不改 `campaign-state` 指针**（本文件无 round-spec，指向它会让 `r7_round.py` 失败）。
+> G0 轮 **0 GPU-h、0 test 读取、r=0**，**不新增 index record 与账本行**。
+> G1-B 轮的训练开始后才产生 GPU-h；在此之前本文件与 brief 都不加账本行。
+
