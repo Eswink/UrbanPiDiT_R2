@@ -85,6 +85,26 @@ def migrate(out_root: Path) -> dict:
         "seeds": {},
     }
     for seed in proto.SEEDS:
+        receipt["seeds"][str(seed)] = migrate_seed(seed, out_root, current, receipt["checks"])
+    with (out_root / "migration_receipt.json").open("x", encoding="utf-8") as handle:
+        json.dump(receipt, handle, indent=2, ensure_ascii=False, allow_nan=False)
+    return receipt
+
+
+def migrate_seed(seed: int, out_root: Path, current: str, checks: list) -> dict:
+    """Install one seed's archived state and return its receipt entry.
+
+    Split out of :func:`migrate` because that function's body crossed the R-020 target length
+    once the eight per-seed checks were written out. The seam is real: this function owns
+    everything about *one* seed and takes no decisions about the run as a whole.
+    """
+    import torch
+
+    from training.r7_arm_harness import sha256_file
+    from training.r7_autoregressive_runner import _state_digest
+    from training.r7_experiment import (canonical_digest, make_model, save_exclusive)
+
+    if True:
         source, pinned = proto.parent_pin(seed)
         archived = torch.load(source, map_location="cpu", weights_only=True)
         if archived.get("format") != "r7-local-v1":
@@ -127,7 +147,7 @@ def migrate(out_root: Path) -> dict:
             "source_checkpoint_path": str(source),
             "source_checkpoint_sha256": pinned,
             "operation": "model-only state install; no optimizer, cursor or RNG carried forward",
-            "checks": receipt["checks"],
+            "checks": checks,
         }
         migrated_contract["model_code_sha256"] = current
         destination = out_root / f"seed{seed}" / f"parent_update_{proto.PARENT_UPDATES:07d}.pt"
@@ -147,7 +167,7 @@ def migrate(out_root: Path) -> dict:
                 or reloaded["signature"] != canonical_digest(reloaded["contract"])
                 or readback_digest != archived_digest):
             raise ValueError(f"seed {seed} migrated checkpoint failed its own read-back")
-        receipt["seeds"][str(seed)] = {
+        return {
             "source_checkpoint_path": str(source),
             "source_checkpoint_sha256": pinned,
             "archived_contract_signature": archived.get("signature"),
@@ -161,9 +181,6 @@ def migrate(out_root: Path) -> dict:
                                     for value in state.values())),
             "visit_gain": spec["visit_gain"],
         }
-    with (out_root / "migration_receipt.json").open("x", encoding="utf-8") as handle:
-        json.dump(receipt, handle, indent=2, ensure_ascii=False, allow_nan=False)
-    return receipt
 
 
 def state_equality_evidence(out_root: Path | None = None) -> dict:
