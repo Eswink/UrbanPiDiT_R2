@@ -142,66 +142,11 @@ def partial_receipt(output: Path, body: dict, seed: int, arm: str, *, reason: st
     return record
 
 
-def probe(output: Path, body: dict, seed: int, deadline: float) -> dict:
-    """Measure both arms' rates at 400 updates, then refuse or accept from what was measured."""
-    import torch
-
-    quiet = quiet_machine()
-    rates = {}
-    for arm, _ in proto.ARMS:
-        ran = _run(output, body, seed, arm, PROBE_UPDATES, deadline, "probe")
-        folder = output / f"seed{seed}/probe/{arm}"
-        measured = marginal_rate(folder / "progress.jsonl")
-        decision_rate = (measured["marginal_seconds_per_update"]
-                         if measured["marginal_seconds_per_update"] is not None
-                         else float(ran["report"]["elapsed_seconds"]) / PROBE_UPDATES)
-        rates[arm] = {
-            "visit_gain": ran["spec"]["visit_gain"],
-            "elapsed_seconds": float(ran["report"]["elapsed_seconds"]),
-            "updates": PROBE_UPDATES,
-            "decision_seconds_per_update": round(float(decision_rate), 4),
-            "total_seconds_per_update": round(
-                float(ran["report"]["elapsed_seconds"]) / PROBE_UPDATES, 4),
-            **measured,
-            "checkpoint_sha256": _sha256(ran["checkpoint"]),
-            "parameters": sum(p.numel() for p in ran["model"].parameters()),
-        }
-        print(f"[seed {seed}] probe {arm}: {decision_rate:.4f} s/update marginal, "
-              f"{rates[arm]['total_seconds_per_update']:.4f} cumulative", flush=True)
-    treated = max(rates[arm]["decision_seconds_per_update"] for arm, _ in proto.ARMS)
-    remaining = deadline - time.perf_counter()
-    decision = envelope_check(probe_seconds_per_update=treated, updates=int(body["updates"]),
-                              evaluation_seconds=proto.MEASURED_SECONDS_PER_EVALUATION,
-                              remaining_seconds=remaining, arms_left=len(proto.ARMS))
-    record = {
-        "scientific_claim": False, "test_read": False, "r": 0,
-        "seed": int(seed), "probe_updates": PROBE_UPDATES, "arms": rates,
-        "estimator": "marginal over the last quarter of the probe; cumulative also recorded",
-        "decision_seconds_per_update": round(treated, 4),
-        "treated_seconds_per_update": round(treated, 4),
-        "frozen_treated_seconds_per_update": proto.TREATED_SECONDS_PER_UPDATE,
-        "frozen_envelope_seconds": PER_SEED_SECONDS, "decision": decision,
-        "quiet_machine": quiet,
-        "owned_cuda_reserved_peak_bytes": int(torch.cuda.max_memory_reserved()),
-        "limitations": ["a rate probe, not a reading: 400 updates of two arms, scored on nothing",
-                        "the rate is only interpretable if no other CPU load ran during the "
-                        "probe; quiet_machine records the loadavg at entry but does not enforce it",
-                        "uniform_damped's rate is not measured separately from visit_damped's; the "
-                        "frozen 1.30 s/update carries 18 percent of headroom for the difference"],
-    }
-    _write_exclusive(output / f"seed{seed}_probe.json", record)
-    if not decision["permitted"]:
-        raise RuntimeError(
-            f"seed {seed}: the probe measured {treated:.4f} s/update (marginal), so the remaining "
-            f"arms need {decision['need_seconds']} s of the {decision['remaining_seconds']} s left "
-            f"({decision['fraction_of_remaining']} of it, over the {REFUSAL_FRACTION} refusal "
-            f"fraction). Refusing to start a run that cannot finish.")
-    return record
+def freeze(output, *, started, deadline, code_archive, code_commit, code_sha256):
+    return proto.freeze(output, started=started, deadline=deadline, code_archive=code_archive,
+                        code_commit=code_commit, code_sha256=code_sha256)
 
 
-
-
-#: The sources whose bytes define this round's execution identity.
 EXECUTION_SOURCES = (
     "model/recursive_weather_r7.py", "model/process_forecast_r7.py",
     "model/process_step_r7.py", "model/layers/sdpa.py",
@@ -220,11 +165,6 @@ EXECUTION_SOURCES = (
     "scripts/r7_s3_visit_gain_constants.py", "scripts/r7_s3_visit_gain_identity.py",
     "scripts/r7_s3_visit_gain_rate.py",
 )
-
-
-def freeze(output, *, started, deadline, code_archive, code_commit, code_sha256):
-    return proto.freeze(output, started=started, deadline=deadline, code_archive=code_archive,
-                        code_commit=code_commit, code_sha256=code_sha256)
 
 
 def execution_files() -> list[str]:

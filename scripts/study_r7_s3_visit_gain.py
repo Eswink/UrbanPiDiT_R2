@@ -46,6 +46,7 @@ from scripts import r7_s3_visit_gain_parent as parent_module  # noqa: E402
 from scripts.r7_s3_visit_gain_identity import (  # noqa: E402
     _identity, _sha256, _write_exclusive, execution_files, partial_receipt,
     prepared_protocol, validate_protocol)
+from scripts.r7_s3_visit_gain_rate import probe as _probe  # noqa: E402
 from scripts import r7_s3_visit_gain_protocol as proto  # noqa: E402
 
 SEEDS = proto.SEEDS
@@ -223,7 +224,14 @@ def _train_arm(output: Path, body: dict, seed: int, arm: str, deadline: float) -
 
 
 def _seed(output: Path, body: dict, seed: int, deadline: float) -> dict:
-    probe(output, body, seed, deadline)
+    _probe(output, body, seed, deadline, hooks={
+        "run_arm": _run, "envelope_check": envelope_check,
+        "write_exclusive": _write_exclusive, "sha256_path": _sha256,
+        "settings": {"arms": tuple(name for name, _ in proto.ARMS),
+                     "probe_updates": PROBE_UPDATES,
+                     "refusal_fraction": REFUSAL_FRACTION,
+                     "per_seed_seconds": PER_SEED_SECONDS,
+                     "evaluation_seconds": proto.MEASURED_SECONDS_PER_EVALUATION}})
     receipts = {}
     for arm, _ in proto.ARMS:
         remaining = deadline - time.perf_counter()

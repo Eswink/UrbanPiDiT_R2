@@ -127,9 +127,11 @@ def test_every_round_module_imports_and_exposes_the_wrapper_contract():
     parent = importlib.import_module("scripts.r7_s3_visit_gain_parent")
     for name in ("freeze", "SEEDS", "PER_SEED_SECONDS", "PLANNED_SECONDS", "HARD_CAP_SECONDS"):
         assert hasattr(driver, name), f"the wrapper requires driver.{name}"
-    for name in ("identity_witness", "prepared_protocol", "validate_protocol", "probe",
+    for name in ("identity_witness", "prepared_protocol", "validate_protocol",
                  "_identity", "execution_files", "partial_receipt"):
         assert hasattr(identity, name), f"the driver imports identity.{name}"
+    assert hasattr(importlib.import_module("scripts.r7_s3_visit_gain_rate"), "probe"), \
+        "the driver imports rate.probe"
     for name in ("migrate", "migrate_seed", "state_equality_evidence"):
         assert hasattr(parent, name), f"the round needs parent.{name}"
 
@@ -144,3 +146,61 @@ def test_the_execution_inventory_covers_every_round_module():
                  "scripts/r7_s3_visit_gain_parent.py", "scripts/r7_s3_visit_gain_verdict.py",
                  "scripts/study_r7_s3_visit_gain.py"):
         assert name in listed, f"{name} is not in execution_files(), so its edits are invisible"
+
+
+def _minimal_protocol(tmp_path):
+    """A protocol body small enough to build offline but shaped like the frozen one."""
+    from scripts import r7_s3_visit_gain_protocol as proto
+
+    body = {"protocol_sha256": "0" * 64, "seeds": list(proto.SEEDS),
+            "registry": [{"arm": arm, "seed": proto.SEEDS[0],
+                          "parent": {"checkpoint": "x", "sha256": "0" * 64}}
+                         for arm, _ in proto.ARMS],
+            "execution_files_sha256": {"scripts/r7_s3_visit_gain_rate.py": "0" * 64},
+            "train_manifest_sha256": "0" * 64, "val_manifest_sha256": "0" * 64}
+    return body
+
+
+def test_validate_protocol_resolves_every_name_it_uses(tmp_path, monkeypatch):
+    """``validate_protocol`` read an undefined SEEDS and died only at the archive stage.
+
+    It is reachable offline: a body whose first check fails tells us the function body itself
+    runs, which is what the NameError class needs. The test asserts the *error it raises*,
+    not a success, so no protocol has to be valid for this to run.
+    """
+    import json as _json
+
+    from scripts import r7_s3_visit_gain_identity as identity
+
+    body = _minimal_protocol(tmp_path)
+    (tmp_path / "protocol.json").write_text(_json.dumps(body), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="digest mismatch"):
+        identity.validate_protocol(tmp_path)
+
+
+def test_prepared_protocol_resolves_every_name_it_uses(tmp_path):
+    """``prepared_protocol`` read an undefined execution_files and died at the prepare stage.
+
+    It cannot be run to completion offline: it recomputes the dataset identities, which needs
+    ``outputs/``. What this asserts is that the function body gets **past its own names** and
+    fails on a real dependency instead -- a ``NameError`` would be the split defect returning.
+    """
+    import json as _json
+
+    from training.r7_experiment import canonical_digest
+
+    from scripts import r7_s3_visit_gain_identity as identity
+
+    # A deliberately wrong digest: the body then runs its first real statement and stops at
+    # the mismatch check, so the unresolved-name class is still exercised without paying for
+    # the dataset identity that follows it.
+    preliminary = _minimal_protocol(tmp_path)
+    preliminary["protocol_sha256"] = canonical_digest(preliminary)
+    (tmp_path / "preparation_protocol.json").write_text(_json.dumps(preliminary),
+                                                        encoding="utf-8")
+    try:
+        identity.prepared_protocol(tmp_path)
+    except NameError as error:                      # the defect this test exists for
+        raise AssertionError(f"prepared_protocol has an unresolved name: {error}") from error
+    except Exception:
+        pass                                        # any real dependency failure is acceptable
