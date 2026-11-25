@@ -76,12 +76,30 @@ def test_interior_32_is_degenerate_on_this_instance():
 
 # ------------------------------------------------------------------------ arm specs
 
+#: The registered trunk's spec keys, synthesised so this module runs in a bare checkout.
+#: ``registered_parent_spec`` reads a checkpoint under ``outputs/``, which CI does not have;
+#: what this test needs to exercise is that ``arm_spec`` binds the gain onto whatever trunk it
+#: is handed and refuses a wrong one, not that the checkpoint exists.
+TRUNK_SPEC = {"architecture": "window", "in_channels": 17, "out_channels": 17,
+              "history_steps": 2, "dim": 192, "depth": 4, "heads": 4, "window_size": 4,
+              "patch_size": 2, "default_reasoning_steps": proto.REASONING_STEPS,
+              "detach_between_steps": False, "dropout": 0.0}
+
+
 def test_both_arms_bind_their_gain_into_the_parent_spec():
     for arm, mode in proto.ARMS:
-        spec = proto.arm_spec(arm, parent_spec=proto.registered_parent_spec())
+        spec = proto.arm_spec(arm, parent_spec=dict(TRUNK_SPEC))
         assert spec["visit_gain"] == mode
         assert int(spec["dim"]) == 192 and int(spec["depth"]) == 4
         assert int(spec["default_reasoning_steps"]) == proto.REASONING_STEPS
+
+
+def test_arm_spec_refuses_a_trunk_that_is_not_the_registered_one():
+    """The binding must fail closed on a wrong trunk rather than label it as the production one."""
+    for broken in ({"dim": 128}, {"depth": 8}, {"in_channels": 4},
+                   {"default_reasoning_steps": 8}):
+        with pytest.raises(RuntimeError):
+            proto.arm_spec(proto.VISIT_DAMPED, parent_spec={**TRUNK_SPEC, **broken})
 
 
 def test_unknown_arm_is_refused():
