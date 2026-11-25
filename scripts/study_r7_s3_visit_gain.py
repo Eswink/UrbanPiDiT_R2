@@ -60,6 +60,13 @@ HARD_CAP_SECONDS = proto.HARD_CAP_SECONDS
 PROBE_UPDATES = 400
 REFUSAL_FRACTION = 0.60
 
+
+def freeze(output, *, started, deadline, code_archive, code_commit, code_sha256):
+    """The wrapper's required entry point; the round's constants live in the protocol module."""
+    return proto.freeze(output, started=started, deadline=deadline, code_archive=code_archive,
+                        code_commit=code_commit, code_sha256=code_sha256)
+
+
 def _write_exclusive(path: Path, body: dict) -> None:
     path = Path(path)
     if path.exists():
