@@ -90,24 +90,39 @@ G0 的准入判据在 `docs/decisions/0118-loop-depth-headroom-gate-and-branch-a
 
 ## 进度
 
-- **状态**：**`attempt02` 已按决策 0120 重定探针口径，待重冻后训练**。attempt01 判
-  `probe-refused`（0 臂训练、0 评分，出口 ①② 为 `null`、③④ 为 `true`），其读数已登记为
-  `record:s3-visit-gain-probe-refused`，**不在其上续跑**。
+- **状态**：**本轮已执行完毕，出口 ① 为假 ⇒ 该支关闭**（`closed`，2026-11-26）。
+  attempt02 六臂各 2,400 updates 训完、五 lead 评分完毕，`readings.json` 写入一次，
+  `branch_status: closed`。实耗 **9.7953 GPU-h**。
 - **已完成**：ADR 0119（执行设计 + 三处开轮前更正）、ADR **0120**（取代探针口径）、本 brief、
-  `visit_gain` 实现 + 53 条反证、父迁移（三 seed `state_digest` 与归档父逐位相同）、
-  attempt01 的 `prepare`/`archive` 与身份见证。
-- **探针口径已更正（实测）**：独占整机 400 步的四个区间边际速率是
+  `visit_gain` 实现 + 反证测试、父迁移（三 seed `state_digest` 与归档父逐位相同）、
+  attempt01 的 `prepare`/`archive` 与身份见证、attempt02 的 `prepare`/`archive`/六臂/`reading`。
+- **四个出口（`readings.json`）**：① **false**（72 h 的 A−B 符号 `41:+0.000323`、
+  `42:−0.001023`、`43:−0.000801`，判据要求三 seed 同号为负、单翻即假）；
+  ② **true**（6 h/12 h 三 seed 均值 **−0.000640 / −0.000500**）；
+  ③ **true**（off 逐位惰性 + A 在 k=0 逐位相等，`g_0 = 1.0`、visit 1 即发散）；
+  ④ **true**（三 seed 父 `state_digest` 逐位不变）。
+- **读法（关键）**：五个 lead **无一**三 seed 同号，`abs(Δ) ≤ 0.0022 K` 而 lead RMSE
+  2.09–3.45 K，`r = 0`、无区间估计 ⇒ 这是**「该剂量下不可分辨」**，
+  **不是**「阻尼有害」，也**不是**「visit-gain 无效」。出口 ② 虽通过，但两个 lead 上
+  seed43 都为正，靠 seed41/42 撑起均值。
+- **探针口径更正（实测，保留）**：独占整机 400 步四区间边际速率
   **1.075 / 1.098 / 1.110 / 1.109 s/upd**，从第一区间起就平；两卡各一 worker 并发
-  **1.0796 / 1.0921**。attempt01 实测的 2.48–2.65 是**同期 6,040 个测试**占满 CPU 导致
-  loader（`num_workers=4`）供不上数。⇒ 是**测量环境**缺陷，不是估计量或实现缺陷。
-  （0119 执行记录里「启动摊销 / 边际 1.58」那条诊断**是错的**，0120 已更正。）
-- **0120 后的口径**：`probe()` 用**后段 1/4 边际速率**（与总速率并记，差 >25% 以边际为准）；
-  探针期间禁止并发 CPU 负载并记 `loadavg`；包络按 **1.30 s/upd** 重定为
-  `PER_SEED_SECONDS 25,280`（2.0×）；`REFUSAL_FRACTION` **保持 0.60**。
-- **成本**：attempt01 **1.1330 GPU-h**（全部探针）。账本行已加。
-- **未做**：两臂训练、五 lead 评分、出口 ①② 的判定。
-- **下一动作**：`commit-guard` → 干净树重建 code zip → `freeze`（`attempt02`）→
-  `stage prepare/archive` → **确认机器安静** → `stage-seeds` → `stage reading`。
+  **1.0796 / 1.0921**。attempt01 的 2.48–2.65 是同期 6,040 个测试占满 CPU 导致
+  loader（`num_workers=4`）供不上数。（0119 里「启动摊销 / 边际 1.58」那条诊断**是错的**。）
+- **0120 后的口径**：`probe()` 用后段 1/4 边际速率；探针期间禁止并发 CPU 负载并记 `loadavg`；
+  包络按 **1.30 s/upd** 重定为 `PER_SEED_SECONDS 25,280`；`REFUSAL_FRACTION` 保持 0.60。
+  **实测验证**：六臂速率 1.1294–1.2704 s/upd，全部在 1.30 之下，未触发 overrun。
+- **成本**：attempt01 **1.1330** + attempt02 **9.7953** = **10.9283 GPU-h**。两轮的账本行与
+  index record 均已登记。
+- **顺带修掉的缺陷**：`tools/r7_round_stages.py` 的 `run_stage` 读单数 `gpu_uuid` 而
+  `protocol_fields` 只写复数 `gpu_uuids` ⇒ 多卡协议 `reading` 阶段必 KeyError；
+  改用 `devices.frozen_uuids(body)[0]`，新增 `tests/test_r7_round_stage_gate.py` 两条反证。
+  `tools/` 不在 `execution_files_sha256` 内，不影响本轮科学身份。
+- **待用户追认**：出口 ① 区域 `interior_32` → `full(65×65)`；出口 ③ 跨轮 loss 桥 →
+  同轮逐位身份见证。两处均在读数前冻结、方向更严。
+- **未做**：B−C 描述性对照、四季均衡、129×129 宽实例、更高剂量确认轮；
+  增益函数族扫描、K 扫描、加 seed —— 后三项按闭支规则**明确禁止**。
+- **下一动作**：本轮已闭支并登记；下一步由用户/运行时决定（转向其它 G1 分支或独立复核）。
   恢复第一条命令：`.venv/bin/python tools/r7_round.py state`。
 
 ## 纪律
