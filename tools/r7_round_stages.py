@@ -300,8 +300,18 @@ def run_stage(
             # the two, so an already-measured footprint cannot be under-declared.
             owned_peak = max(int(body.get("owned_reserved_peak_bytes", 0)), measured_peak_bytes(output))
             if device is None:
+                # The round's primary card is the first entry of its frozen list. Reading
+                # ``body["gpu_uuid"]`` here raised KeyError for every multi-card protocol,
+                # because ``protocol_fields`` emits only ``gpu_uuids``; the singular key is
+                # present only on protocols frozen by older code paths. ``frozen_uuids`` is
+                # the same accessor ``assigned_uuid`` uses to define the primary, so the
+                # gate probes the card the freeze designates rather than consulting a
+                # second source of truth that could disagree with it.
+                declared = devices.frozen_uuids(body)
+                if not declared:
+                    raise RoundError("the frozen protocol declares no device")
                 observed_gate = gpu_headroom(
-                    body["gpu_uuid"],
+                    declared[0],
                     estimated_peak_bytes=int(body["estimated_peak_bytes"]),
                     owned_reserved_peak_bytes=owned_peak,
                     margin_bytes=int(body["headroom_margin_bytes"]),

@@ -104,17 +104,23 @@
 
 ## 8. 进度
 
-- **状态**：G0 完成（`admit-g1b`）；G1-B **已派生、已实现、已冻结，探针按规则拒绝开训**
-  （`probe-refused`，2026-11-26）。**0 臂训练、0 lead 评分**；出口 ①② `null`、③④ `true`；
-  分支**既未关闭也未确认**。
+- **状态**：G0 完成（`admit-g1b`）；G1-B **已执行完毕并因出口 ① 为假而关闭该支**
+  （`closed`，2026-11-26）。六臂各 2,400 updates 训完、五 lead 评分完毕；
+  出口 ① **false**、② **true**、③ **true**、④ **true**；实耗 **9.7953 GPU-h**。
 - **已完成**：G0 三 seed 诊断（0 GPU-h）、判定器 + 24 条反证、文献审计、ADR 0118、计划 0036。
-  G1-B 侧：ADR **0119**（执行设计 + 三处开轮前更正）、带 `round-spec` 的执行 brief
-  `docs/goals/s3-visit-gain.md`、`visit_gain` 开关与 46 条反证、父迁移
-  （三 seed `state_digest` 与归档父逐位相同）、protocol 冻结 `1ec96777…`、`prepare`/`archive`、
-  身份见证（off 逐位惰性 + A 在 k=0 逐位相等）。
+  G1-B 侧：ADR **0119**（执行设计 + 三处开轮前更正）、ADR **0120**（取代 0119 的探针口径）、
+  带 `round-spec` 的执行 brief `docs/goals/s3-visit-gain.md`、`visit_gain` 开关与反证测试、
+  父迁移（三 seed `state_digest` 与归档父逐位相同）、protocol 冻结 `9fba46a1…`、
+  `prepare`/`archive`/六臂/`reading`、身份见证（off 逐位惰性 + A 在 k=0 逐位相等）。
 - **结果**：G0 = `admit-g1b`；(a) 3/3、(b) 3/3、(c) 0/3；K=3 为三 seed 各自的最优深度。
-  **G1-B 无 A−B 读数**：探针 treated 2.6077 / 2.6731 s/upd，需剩余包络 0.7277 / 0.7425
-  > 冻结 0.60 ⇒ 拒绝；seed43 未启动。
+  **G1-B 的 A−B 读数（实测）**：72 h 的 seed 符号为 `+ / − / −`
+  （`41:+0.000323  42:−0.001023  43:−0.000801`）⇒ 出口 ① **false**（冻结文本：单翻即假）。
+  6 h / 12 h 的三 seed 均值 **−0.000640 / −0.000500** ⇒ 出口 ② **true**
+  （但两个 lead 上 seed43 均为正）。**五个 lead 无一三 seed 同号**，全部 |Δ| ≤ 0.0022 K，
+  而 lead RMSE 为 2.09–3.45 K。
+- **这个读数的正确读法**：**「该剂量下不可分辨」**（2,400 updates、单一 65×65 实例、
+  单一阻尼因子轴），**不是**「阻尼有害」，也**不是**「visit-gain 无效」。
+  `r = 0`、三 seed 非显著性检验、无区间估计 ⇒ 不支持任何方向的效应声明。
 - **G1-B 的三个开轮前发现（全部写进 ADR 0119，且在读数之前）**：
   1. **B 不是 A 的等平均阻尼臂**：K=4 时 A 的均值 0.696114、B 的常数 0.632456，B 多阻尼 **9.14%**
      （Jensen）。⇒ A−B 不可归因为纯 visit 对齐，只能读作「在 B 的阻尼水平上」。
@@ -122,14 +128,21 @@
      **就是**宽实例的 `interior_32`（分母 ~1e-10 一致）⇒ 冻结 `full(65×65)` 并写明等价关系。
   3. **出口 ③ 字面不可判定**：B 在 k=0 即阻尼，且无「从 p32,132 起跑」的归档首 loss
      ⇒ 换成同轮逐位身份见证（③a off 逐位惰性 + 155 张量相等；③b A 在 k=0 与 `None` 逐位相等）。
-- **拒绝的根因（实测，非推测）**：**探针估计量选错了**。400 步窗口把约 300 s 启动成本摊成
-  ~0.9 s/upd；同一机器同一权重同一训练路径重测，**后 30 步边际速率 off 1.583 / on 1.733 s/upd**
-  （gain 只慢 ~9%）⇒ **实现不是瓶颈**。未放宽包络重试、未改判据、未事后调阈值。
-- **两个缺陷（只记录，未在本轮修）**：(i) 探针拒绝不写 partial receipt（两份已事后重建并标
-  `written_retroactively`）；(ii) 探针应用边际速率或更长窗口。
-- **未做**：G1-B 的两臂训练与评分、出口 ①② 的判定、72 h 轨迹、四季均衡、C 的 ADR。
-- **下一动作（S3 的 G1-B 执行轮）**：若继续这一支，先写**取代 0119 探针口径**的 ADR
-  （边际速率或更长探针），新 attempt + 重冻，再训练；**不得**在 attempt01 上放宽包络重试。
+- **attempt01 探针拒绝的根因（已被 0120 实测更正）**：不是「启动摊销」，而是**同期 6,040 个
+  测试占满 CPU**，让 `DataLoader(num_workers=4)` 供不上数、GPU 空转，速率虚高 2.3 倍。
+  安静机器上 400 步内速率从第 0–100 区间起就是平的（1.075–1.110 s/upd）。
+  attempt01 与 0120 早期记录里「启动摊销 / 边际 1.583」的写法**已被推翻**，0119 与 0120 均已留痕更正。
+- **本轮顺带修掉的真实缺陷**：`tools/r7_round_stages.py` 的 `run_stage` 读 `body["gpu_uuid"]`
+  （单数），而 `protocol_fields` 只写 `gpu_uuids` ⇒ 任何多卡协议在 `reading` 阶段都 KeyError。
+  六臂训完后撞上，改用 `devices.frozen_uuids(body)[0]` 并新增
+  `tests/test_r7_round_stage_gate.py`（2 条反证）。`tools/` 不在 `execution_files_sha256` 内，
+  不影响本轮科学身份。
+- **待用户追认的两处形式修订**（均在读数前冻结、方向更严）：
+  出口 ① 区域 `interior_32` → `full(65×65)`；出口 ③ 跨轮 loss 桥 → 同轮逐位身份见证。
+- **未做**：B−C 描述性对照、四季均衡、129×129 宽实例、更高剂量确认轮、增益函数族/K 扫描、
+  加 seed —— 后三项按闭支规则**明确禁止**。
+- **下一动作**：S3 的 G1-B 支已关闭；下一步由用户/运行时决定是否转向其它 G1 分支
+  （`docs/goals/loop-depth-headroom-before-architecture.md` 的其余候选）或提交独立复核。
   恢复第一条命令：`.venv/bin/python tools/r7_round.py state`。
 - **digest 变更的代价（如实）**：`model_code_sha256` 由 `59340710…` 移到 `a6cf6bbb…`，
   归档 checkpoint 在活树上不可加载（Q-009）。9 个依赖归档产物的测试已改成**具名前置跳过**
@@ -137,5 +150,7 @@
   （`test_the_partial_reading_…`）在**未改动的 HEAD 上就已失败**，与本轮无关，未修、已记录。
 
 > G0 轮 **0 GPU-h、0 test 读取、r=0**，**不新增 index record 与账本行**。
-> G1-B 轮的训练开始后才产生 GPU-h；在此之前本文件与 brief 都不加账本行。
+> G1-B attempt01 = 1.1330 GPU-h（探针拒绝，见 `docs/R7_S3_VISIT_GAIN_PROBE_REFUSED.md`）；
+> attempt02 = 9.7953 GPU-h（六臂 + 五 lead + 三探针，见 `docs/R7_S3_VISIT_GAIN_RESULT.md`）。
+> 两轮现在都有 index record 与账本行。
 
