@@ -118,8 +118,13 @@ G0 的准入判据在 `docs/decisions/0118-loop-depth-headroom-gate-and-branch-a
   `protocol_fields` 只写复数 `gpu_uuids` ⇒ 多卡协议 `reading` 阶段必 KeyError；
   改用 `devices.frozen_uuids(body)[0]`，新增 `tests/test_r7_round_stage_gate.py` 两条反证。
   `tools/` 不在 `execution_files_sha256` 内，不影响本轮科学身份。
-- **待用户追认**：出口 ① 区域 `interior_32` → `full(65×65)`；出口 ③ 跨轮 loss 桥 →
-  同轮逐位身份见证。两处均在读数前冻结、方向更严。
+- **两处形式修订已用补跑消除，不再需要追认**（`docs/R7_S3_VISIT_GAIN_REGION_SUPPLEMENT.md`，
+  1.6017 GPU-h，用同一批冻结 checkpoint 只重评 72 h）：
+  - 出口 ①：字面 `interior_32` 上 A−B = **−0.002725 / +0.004107 / +0.000267**（符号 `− + +`）
+    ⇒ **字面口径下同样判假**，区域口径不承重；且两区域符号系统反向
+    （均值 −0.000500 vs **+0.000550**）⇒「A 在 72 h 略优」不稳健。
+  - 出口 ③：字面桥**不可判定**（归档无「从 p32,132 起跑」的首 loss；B 在 k=0 增益 0.632455≠1.0，
+    对 B 恒不可能），替换为同轮逐位身份见证并实测为真。
 - **未做**：B−C 描述性对照、四季均衡、129×129 宽实例、更高剂量确认轮；
   增益函数族扫描、K 扫描、加 seed —— 后三项按闭支规则**明确禁止**。
 - **下一动作**：本轮已闭支并登记；下一步由用户/运行时决定（转向其它 G1 分支或独立复核）。
