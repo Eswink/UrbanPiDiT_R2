@@ -169,6 +169,26 @@ attempt01 的 1.1330 GPU-h 见 `docs/R7_S3_VISIT_GAIN_PROBE_REFUSED.md`，两轮
 - **不影响本轮科学身份**：`tools/` 不在 `execution_files_sha256` 的 32 项里，`protocol_sha256`
   与 `model_code_sha256` 均未变。
 
+### 11.1 CI 现状（如实，不用「应该没问题」代替）
+
+CI 在**本轮之前就已经是红的**，与本轮无关。用**同一个 commit 集合**做 bare-checkout 对照
+（CI 无 `outputs/`），比较 `bab7244` 与本分支在四个受影响测试文件上的失败集合：
+
+| | 失败数 |
+| --- | ---: |
+| `bab7244`（本轮起点） | **32** |
+| 本分支（`77e303b`） | **26** |
+| **本分支新增** | **0** |
+| **本分支修掉** | **6** |
+
+**没有一个失败是本轮引入的。** 对照用 `comm` 做逐条集合差，不是只比总数。
+
+另外：本轮自己的 `tests/test_r7_s3_visit_gain_rate.py` 里有一条
+（`test_validate_protocol_reaches_its_seed_loop`）在活树上通过、在 bare checkout 上
+**失败**（`FileNotFoundError`，因为它要哈希的 manifest 在 `outputs/` 下）。这是本轮引入的
+**真实缺陷**，已修成**具名 skip**（列出两个缺失 manifest 的完整路径），修后 bare checkout
+上 11 passed / 1 skipped。这条正是 bare-checkout 对照存在的理由——活树上看不见它。
+
 ## 12. 未做
 
 - **B−C 描述性对照**、四季均衡、129×129 宽实例、更高剂量的确认轮：均未做，且按闭支规则不再做。
