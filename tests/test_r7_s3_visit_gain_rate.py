@@ -213,12 +213,22 @@ def test_validate_protocol_reaches_its_seed_loop(tmp_path, monkeypatch):
     never reaches this loop. Here the earlier checks are satisfied with the live tree's own
     values and the registry is left deliberately wrong, so the loop must raise its own pin
     error. A ``NameError`` means the split defect is back.
+
+    Satisfying those earlier checks needs the round's real manifests under ``outputs/``, which
+    a bare checkout (CI) does not have. That is a **named skip**, not a failure: the artifact is
+    an untracked output, and the repo's rule is to skip by name rather than invent a synthetic
+    stand-in. The body is unchanged and runs in full wherever ``outputs/`` is present.
     """
     import json as _json
 
     from scripts import r7_s3_visit_gain_identity as identity
     from scripts import r7_s3_visit_gain_protocol as proto
     from training.r7_experiment import canonical_digest
+
+    missing = [name for name in (proto.TRAIN_MANIFEST, proto.VAL_MANIFEST) if not name.is_file()]
+    if missing:
+        pytest.skip("the round's manifests are untracked outputs and are absent here: "
+                    + ", ".join(str(name) for name in missing))
 
     body = {
         "seeds": list(proto.SEEDS),
