@@ -3,7 +3,7 @@
 > This is an evidence index, not a scientific verdict. Priority is a human triage field.
 > No entry authorizes training, data access, GPU use, or a change to a frozen criterion.
 
-Records: 121; human-review candidates: 2
+Records: 122; human-review candidates: 2
 
 ## s3-anchor-feedback-65x65-result
 
@@ -1913,7 +1913,7 @@ Records: 121; human-review candidates: 2
   - The 2023 test split stays sealed; r=0; test_read=false
   - interior_32 on a 65x65 grid is one grid point, so that region's RMSE has a single spatial sample and is noisier than the 4,225-point full region; both regions are reported side by side rather than one being chosen
 - Excluded from runnable candidates: Not a candidate because the primary exit is false and the branch is closed by its own frozen rule. The remaining exit is a null-effect reading at screening dose rather than a promotion: differences sit at or below the resolution of 2,400 updates on one 65x65 instance, cross-seed signs disagree at every lead, and no interval estimate exists (r=0). It also cannot be read as 'damping hurts' -- exit 2 passed and all five lead means favour the visit-dependent arm -- nor as 'visit-gain is useless', since only this dose, this instance and this single-factor axis were tested.
-- Recorded metrics (not recomputed): arms_trained=6, branch_status=closed, delta_12h_seed_mean=-0.0005, delta_6h_seed_mean=-0.00064, delta_72h_interior32_mean=0.00055, delta_72h_interior32_seed41=-0.002725, delta_72h_interior32_seed42=0.004107, delta_72h_interior32_seed43=0.000267, delta_72h_seed41=0.000323, delta_72h_seed42=-0.001023, delta_72h_seed43=-0.000801, delta_absolute_max=0.002188, exit_four=true, exit_one=false, exit_one_literal_region=false, exit_three=true, exit_three_literal_form_status=unmeasurable, exit_two=true, frozen_seconds_per_update=1.3, gpu_hours=11.397, gpu_hours_arms=9.0261, gpu_hours_main=9.7953, gpu_hours_probes=0.7692, gpu_hours_region_supplement=1.6017, leads_per_arm=5, leads_with_all_three_seeds_same_sign=0, literal_region=interior_32, parameters=3286037, region_choice_is_load_bearing=false, seconds_per_update_max=1.2704, seeds=3, test_read=false, thresholds_added=0, updates_per_arm=2400
+- Recorded metrics (not recomputed): arms_trained=6, branch_status=closed, delta_12h_seed_mean=-0.0005, delta_6h_seed_mean=-0.00064, delta_72h_interior32_mean=0.00055, delta_72h_interior32_seed41=-0.002725, delta_72h_interior32_seed42=0.004107, delta_72h_interior32_seed43=0.000267, delta_72h_seed41=0.000323, delta_72h_seed42=-0.001023, delta_72h_seed43=-0.000801, delta_absolute_max=0.002188, exit_four=true, exit_one=false, exit_one_literal_region=false, exit_three=true, exit_three_literal_form_status=unmeasurable, exit_two=true, frozen_seconds_per_update=1.3, gpu_hours=9.7953, gpu_hours_arms=9.0261, gpu_hours_main=9.7953, gpu_hours_probes=0.7692, gpu_hours_region_supplement=1.6017, leads_per_arm=5, leads_with_all_three_seeds_same_sign=0, literal_region=interior_32, parameters=3286037, region_choice_is_load_bearing=false, seconds_per_update_max=1.2704, seeds=3, test_read=false, thresholds_added=0, updates_per_arm=2400
 
 ## rw-b-subtraction-probe
 
@@ -1931,6 +1931,23 @@ Records: 121; human-review candidates: 2
   - The archived rows were measured on CUDA and this replay on CPU, so agreement is float32 reduction order (max |delta| 7e-06 on one seed and one flipped boolean on the other, reported).
 - Excluded from runnable candidates: Read-only diagnostic over archived checkpoints: it trains nothing and produces no forecast skill, so it cannot be indexed as a candidate model result.
 - Recorded metrics (not recomputed): checkpoints_hashed=32, checkpoints_replayed=4, cpu_seconds=6.2, focus_arm_correction_head_moved_by_training=false, gpu_hours=0.0, recurrence_removed_cosine_positive_both_seeds=true, seeds=2, step1_magnitude_ratio_gate_removed_mean=0.22, step1_magnitude_ratio_recurrence_removed_seed41=1.48, step1_magnitude_ratio_recurrence_removed_seed42=3.04, test_read=false, thresholds_added=0, validation_windows=8
+
+## s3-visit-gain-region-supplement
+
+- Outcome class: `negative`; candidate state: `not-candidate`
+- Human triage priority: `76` (not a scientific score)
+- Evidence: `docs/R7_S3_VISIT_GAIN_REGION_SUPPLEMENT.md` (SHA256 `27884d32ff9830ba295c8f246bf35b4166178acad397eafb224bfb04758c93f3`)
+- Evidence commit: `177c92826f3fe926f2fba3f85be25edebd9fb0a8`; experiment commit: `1e1d4bd1889452d67711a6212af4a6b0b1eb7537`
+- Protocol SHA256: `9fba46a1280d31aface0938536db5bc7379be69402c1eacff066cc0410f48574`; data identity: `81307008b572e3ff032d5251e788c582f339b0e3dbbc3fea4226d44c6a335af0`
+- Reason: The objective and decisions 0118/0036 name 72h interior_32 t2m for exit 1, while the round froze full(65x65) because a 32-cell margin leaves a single grid point on this instance. That made the 'exit 1 is false' verdict depend on a revised criterion. This supplement re-scores all six frozen checkpoints at 72h with boundary_margins=(1,32), so interior_32 (1 point), interior_1 (3,969) and full (4,225) appear side by side in one CSV per arm: no training, no added seed, no gain sweep, no K change, 1.6017 GPU-h, all six arms scoring the same 1,447 initializations. On the literal region the A-B signs are - + + (-0.002725 / +0.004107 / +0.000267), so exit 1 is false there too and the region choice is not load-bearing. The stronger and less comfortable finding is that the signs reverse systematically against full and the mean flips from -0.000500 to +0.000550, so 'A is slightly better at 72h' depends on the region and should not be quoted.
+- Limitations:
+  - interior_32 on a 65x65 grid is one grid point, so its RMSE has a single spatial sample and is far noisier than the 4,225-point full region; it is used only to read a sign, never a magnitude
+  - scores existing frozen checkpoints; it is not a new arm and does not reproduce the 2,400-update dose
+  - does not modify readings.json or protocol.json; both regions are reported side by side rather than one being chosen after the fact
+  - r=0 and test_read=false; the 2023 test split stays sealed
+  - same scope limits as the main round: one 65x65 instance, three seeds as consistency evidence rather than a significance test
+- Excluded from runnable candidates: Not a candidate: it is a supplementary reading of an already-closed branch, added to remove dependence on a criterion substitution rather than to promote anything. It trains nothing, adds no arm, and its region has one spatial sample, so it can only decide a sign conjuncture, never an effect size.
+- Recorded metrics (not recomputed): arms_scored=6, delta_full_mean=-0.0005, delta_interior32_mean=0.00055, delta_interior32_seed41=-0.002725, delta_interior32_seed42=0.004107, delta_interior32_seed43=0.000267, exit_one_literal_region=false, full_region_grid_points=4225, gpu_hours=1.6017, lead_hours=72, literal_region=interior_32, literal_region_grid_points=1, n_evaluated=1447, region_choice_is_load_bearing=false, sign_agreement_between_regions_for_seed41_42_43=false, test_read=false
 
 ## b1-d1-controlled-comparison
 
